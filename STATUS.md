@@ -18,8 +18,18 @@ where they conflict**, at the human's explicit direction.
 | Gate | `make check` — 1357 checks, 0 failed; the road suite alone flies 230k probe steps against 1.5M rendered triangles |
 | Run it | `make fly`. `J` jumps between systems, `K` drops you on the road at the next bend, exit, merge or mouth. `make roads` validates the map. |
 | Built | Exploration POC steps 1–8; **the road, replaced whole on 2026-09-07 (ADR 0096)** |
-| **Do next** | **Fly it.** Ten minutes on A-377B; every exit and entry at B; the interchange X1/X2 and their mirrors. Then success criterion 1, and traffic (steps 9 and 10). |
+| **Do next** | Build prototypes 1 and 2 from `docs/SECTOR_PROTOTYPE.md`, flags off, then fly them. Before that: **Fly it.** Ten minutes on A-377B; every exit and entry at B; the interchange X1/X2 and their mirrors. Then success criterion 1, and traffic (steps 9 and 10). |
 | **Waiting on you** | The feel calls listed under *What to fly first* below, and the pitch pair `ship/max_pitch_deg` / `camera/ship_pitch_ceiling_deg`, still yours. |
+
+### A prototype plan is written — 2026-09-19, from the human
+
+Three ideas, to be built behind flags and flown before any of them is decided:
+**hex sectors** (an open world with one outer border, where the sector a body is in
+sets how it is drawn, and crossing a sector edge is an event with a sign), a
+**highway gear** (the lane pushes the ship through the world at a multiple of the
+felt speed, structure spaced to match, so travel time, distance and calm stop pulling
+on one key), and a **bigger map** on top of both. The plan, its knobs and what to
+watch for are in **`docs/SECTOR_PROTOTYPE.md`**. Nothing is built yet.
 
 ### The road was replaced whole — 2026-09-07
 

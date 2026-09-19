@@ -14,6 +14,7 @@ session; the rules below are not suggestions.
 | What is being built *right now*, in detail | `docs/EXPLORATION_POC_IMPLEMENTATION.md` |
 | The travel layer's locked decisions — roads, portals, the speed ladder, crew | `docs/EXPLORATION_DESIGN.md` |
 | **The highway: how the road is built, authored in `data/routes.json`, and verified by flying** | `docs/HIGHWAY.md` |
+| What is being tried next, behind flags: sectors, the highway gear, a bigger map | `docs/SECTOR_PROTOTYPE.md` |
 | The combat bet, now built | `docs/TURRET_MODE_IMPLEMENTATION.md` |
 | What comes after the combat bet, and in what order | `docs/ROADMAP.md` |
 | The full design of record | `docs/PROJECT_OVERVIEW.md` |
