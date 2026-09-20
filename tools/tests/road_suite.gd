@@ -16,7 +16,11 @@ const DT := 1.0 / 60.0
 
 var _runner: Node
 var _holder: Node3D
-var _network: RoadNetwork
+## Both worlds' networks (`docs/WORMHOLE_PROTOTYPE.md`), and everything in them.
+var _networks: Array[RoadNetwork] = []
+var _tubes: Array[Tube] = []
+var _roads: Array[Road] = []
+var _ramp_records: Array[Dictionary] = []
 var _space: PhysicsDirectSpaceState3D
 var _probe: RoadProbe
 var _steps: int = 0
@@ -31,20 +35,27 @@ func _expect(condition: bool, what: String, detail: String) -> void:
 	_runner._expect(condition, what, detail)
 
 
-## Build the network, its whole mesh, and a collision body of every rendered
-## triangle. Then run the suites.
-func run() -> void:
+## Build both worlds' networks, their whole mesh, a collision body of every rendered
+## triangle, and the probe. Shared with `repro_drunk.gd`. Returns the triangles per road.
+func _prepare() -> Dictionary:
 	var t0 := Time.get_ticks_msec()
 	_holder = Node3D.new()
 	_holder.name = "RoadSuite"
 	_runner.add_child(_holder)
-	_network = RoadNetwork.new()
-	_holder.add_child(_network)
-	_network.build(Routes.data(), Routes.system_positions())
-	_expect(_network.problems.is_empty(),
-		"data/routes.json builds with no problems: bends flyable, ramps clear, highways apart",
-		"\n      ".join(_network.problems))
-	var faces := _network.build_all_now()
+	var space := RoadNetwork.new()
+	space.name = "Road"
+	_holder.add_child(space)
+	var wormhole := RoadNetwork.new()
+	wormhole.name = "Wormhole"
+	_holder.add_child(wormhole)
+	RoadNetwork.build_worlds(space, wormhole, Routes.data(), Routes.system_positions())
+	_networks = [wormhole, space]
+	var faces := {}
+	for network in _networks:
+		faces.merge(network.build_all_now())
+		_tubes += network.tubes
+		_roads += network.roads
+		_ramp_records += network.ramps
 	var body := StaticBody3D.new()
 	_holder.add_child(body)
 	var tris := 0
@@ -56,17 +67,39 @@ func run() -> void:
 		cs.shape = shape
 		body.add_child(cs)
 		tris += (faces[road_name] as PackedVector3Array).size() / 3
-	_expect(tris > 1000, "the whole road's mesh is built for the gate", "%d triangles" % tris)
-	print("  road suite: %d roads, %d triangles, built in %d ms" % [
-		_network.roads.size(), tris, Time.get_ticks_msec() - t0])
+	print("  road suite: %d roads in two worlds, %d triangles, built in %d ms" % [
+		_roads.size(), tris, Time.get_ticks_msec() - t0])
 	await _runner.get_tree().physics_frame
 	await _runner.get_tree().physics_frame
 	_space = _holder.get_world_3d().direct_space_state
 	_probe = RoadProbe.new()
-	_probe.setup(_network.tubes, _network.roads)
+	_probe.setup(_tubes, _roads)
 	# The taxi, at whatever scale the hull is drawn at.
 	var hull := load("res://assets/models/carrier.obj") as Mesh
 	_probe.half = hull.get_aabb().size * Tuning.num("ship/hull_scale") * 0.5
+	return faces
+
+
+func tube_named(n: String) -> Tube:
+	for t in _tubes:
+		if t.name == n:
+			return t
+	return null
+
+
+## Build everything, then run the suites.
+func run() -> void:
+	var faces := await _prepare()
+	var problems: PackedStringArray = []
+	for network in _networks:
+		problems += network.problems
+	_expect(problems.is_empty(),
+		"data/routes.json builds both worlds with no problems: bends flyable, ramps clear, highways apart",
+		"\n      ".join(problems))
+	var tris := 0
+	for road_name: String in faces:
+		tris += (faces[road_name] as PackedVector3Array).size() / 3
+	_expect(tris > 1000, "the whole road's mesh is built for the gate", "%d triangles" % tris)
 
 	_winding()
 	_containment()
@@ -88,7 +121,7 @@ func run() -> void:
 ## every face is lit as though it faced the other way — the roadway seen from above
 ## was being lit by the star underneath it.
 func _winding() -> void:
-	var road := _network.roads[0]
+	var road := _roads[0]
 	var chunk: Dictionary = RoadMesh.plan(road)[0]
 	var foreign: Array[Tube] = []
 	var built := RoadMesh.build_chunk(road, foreign, chunk, 4.0, 3.0, false)
@@ -112,7 +145,7 @@ func _winding() -> void:
 ## Every tube contains its own centre-line and points near it, everywhere. This is
 ## the ground truth the mesh clip, the collision and the tube switching all rely on.
 func _containment() -> void:
-	for tube in _network.tubes:
+	for tube in _tubes:
 		var bad := 0
 		var t := 0.0
 		while t < tube.path.length:
@@ -132,7 +165,7 @@ func _containment() -> void:
 
 ## Every carriageway of every highway, mouth to mouth.
 func _laps() -> void:
-	for tube in _network.tubes:
+	for tube in _tubes:
 		if tube.is_ramp():
 			continue
 		var start_t := tube.start_t() + 150.0 * tube.direction
@@ -142,14 +175,18 @@ func _laps() -> void:
 		_fly("lap of %s" % tube.name, [tube], tube, start_t, seconds, not tube.path.closed, 10.0)
 
 
-## Every ramp: host, ramp, then the road it merges into or the mouth it ends at.
+## Every ramp: host, ramp, then the road it merges into or the mouth it ends at —
+## over the stretch its world draws (`Road.draw_from`, `draw_to`). A ramp that has a
+## twin in the other world is flown to its crossing (`cross_at`) and no further: past
+## it the ship is in the other world, on the twin, which has its own flight here.
 func _ramps() -> void:
-	for ramp in _network.ramps:
+	for ramp in _ramp_records:
 		var road: Road = ramp["road"]
 		var rt: Tube = road.tubes[0]
 		var route: Array = []
 		var start_tube: Tube
 		var start_t: float
+		var cross_at := float(ramp.get("cross_at", -1.0))
 		if ramp["from_tube"] != null:
 			var ft: Tube = ramp["from_tube"]
 			route.append(ft)
@@ -157,17 +194,17 @@ func _ramps() -> void:
 			start_t = ft.path.wrap_t(float(ramp["from_t"]) - 2000.0 * ft.direction)
 		else:
 			start_tube = rt
-			start_t = 100.0
+			start_t = minf(road.draw_from + 100.0, road.draw_to - 50.0)
 		route.append(rt)
-		var to_mouth: bool = ramp["to_tube"] == null
-		if not to_mouth:
+		var to_mouth: bool = ramp["to_tube"] == null and cross_at < 0.0
+		if ramp["to_tube"] != null:
 			route.append(ramp["to_tube"])
 		# The ramp itself is flown at its own limit (`ramp_speed`), the host stretches
 		# at cruise.
 		var seconds := 5000.0 / _probe.cruise_speed \
 			+ road.path.length / minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed")) \
 			+ Tuning.num("exploration/highway_downshift_seconds") + 4.0 * _zone_seconds() + 20.0
-		_fly("ramp %s" % road.name, route, start_tube, start_t, seconds, to_mouth)
+		_fly("ramp %s" % road.name, route, start_tube, start_t, seconds, to_mouth, 0.0, cross_at)
 
 
 ## Every exit, taken the way a player takes one: steering into it sharper than it
@@ -175,7 +212,7 @@ func _ramps() -> void:
 ## the diverging leg, and it must arrive in the ramp without being slowed — which is
 ## the "caught on something" the human reported from the seat.
 func _exits_steered() -> void:
-	for ramp in _network.ramps:
+	for ramp in _ramp_records:
 		if ramp["from_tube"] == null:
 			continue
 		var host: Tube = ramp["from_tube"]
@@ -190,23 +227,35 @@ func _exits_steered() -> void:
 		var f := host.travel_frame(start)
 		_probe.aim = (f["fwd"] as Vector3).rotated(f["up"], -deg_to_rad(15.0))
 		var slowest := INF
+		var entered_at := 0.0
+		var last := 0.0
 		var label := "steering 15 deg into exit %s" % rt.name
 		var ok := true
 		var entered := false
 		# The exit taken may be another off this carriageway that opens first (an
-		# interchange ahead of a planet exit): steering right takes the next exit.
+		# interchange ahead of a planet exit): steering right takes the next exit. A
+		# MERGE lane opens the wall too, and a ship on the wall drifts into it and is
+		# handed back at its end; that is not an exit taken, and the probe keeps going.
 		var taken: Tube = null
-		var window := 9.0 + Tuning.num("exploration/exit_downshift_seconds") \
+		var window := run_up / _probe.cruise_speed + 9.0 \
+			+ (rt.path.length + 1500.0) / minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed")) \
+			+ Tuning.num("exploration/exit_downshift_seconds") \
 			+ Tuning.num("exploration/highway_downshift_seconds")
 		for i in int(window / DT):
 			# Once in the ramp, fly it: what is under test is what ENTERING sharply
 			# costs, not holding a fixed heading into the ramp's own bends.
 			var here := _probe.tube()
-			if taken == null and here != null and here != host and here.is_ramp():
+			if taken == null and here != null and here != host and here.is_ramp() \
+					and _ramp_record(here).get("from_tube") == host:
 				taken = here
 				entered = true
+				entered_at = _probe.speed()
 			if taken != null and here == taken:
 				var lc := taken.local(_probe.position)
+				# To the crossing and no further: past it the ship is in the other world.
+				var cross := float(_ramp_record(taken).get("cross_at", -1.0))
+				if cross >= 0.0 and float(lc["t"]) >= cross:
+					break
 				# A fixed TIME ahead, as `_fly` does: at the ramp's limit that is a
 				# reach a ramp's bend can be followed at.
 				var reach := maxf(_probe.speed(), 30.0) * 2.4
@@ -215,22 +264,41 @@ func _exits_steered() -> void:
 				# Out through the mouth: a planet ramp is short enough to be flown end
 				# to end inside the window, and that is the ramp taken.
 				break
+			# The throttle is HELD, as `_fly` holds it: a wall struck square costs the
+			# throttle (ADR 0090), and a pilot holding a heading into the wall for a
+			# kilometre strikes it again and again. What is under test is the ramp.
+			_probe.throttle = 1.0
 			if not _step_checked(label, i):
 				ok = false
 				break
-			if i * DT > 1.0:
+			# IN THE EXIT ITSELF. On the way there a ship on the wall is out of its
+			# lane, and may drift through a merge lane, and is slowed for both, rightly;
+			# what must not happen is the ramp costing speed on entry.
+			if taken != null and _probe.tube() == taken:
 				slowest = minf(slowest, _probe.speed())
+				last = _probe.speed()
 		_expect(ok and entered and (_probe.tube() == taken or _probe.tube() == null),
 			label + " ends in an exit ramp off this carriageway, or out through its mouth",
 			"in %s" % _name(_probe.tube()))
 		if taken != null and taken != rt:
 			_warnings.append("%s: took %s, which opens first" % [label, taken.name])
 		# Against the RAMP's limit, which is lower than cruise on purpose: what must
-		# not happen is the lane's edge penalty on top of it.
+		# not happen is the lane's edge penalty on top of it. Entering costs nothing
+		# against the speed carried in, and the ramp winds the probe up to its limit.
 		var limit := minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed"))
-		_expect(slowest > limit * 0.7,
-			label + " is never slowed below 70%% of the ramp's limit on the way",
-			"%.0f m/s at slowest against %.0f" % [slowest, limit])
+		_expect(slowest >= minf(entered_at, limit * 0.7) - 1.0,
+			label + " is never slowed inside the ramp below what it entered at, or 70%% of the ramp's limit",
+			"%.0f m/s at slowest, entered at %.0f, limit %.0f" % [slowest, entered_at, limit])
+		_expect(last > limit * 0.7,
+			label + " is at 70%% of the ramp's limit or more by the crossing",
+			"%.0f m/s against %.0f" % [last, limit])
+
+
+func _ramp_record(tube: Tube) -> Dictionary:
+	for ramp in _ramp_records:
+		if (ramp["road"] as Road).tubes[0] == tube:
+			return ramp
+	return {}
 
 
 static func _gear() -> float:
@@ -250,7 +318,7 @@ static func _zone_seconds() -> float:
 
 ## Into every wall at every junction edge and every bend.
 func _dives() -> void:
-	for ramp in _network.ramps:
+	for ramp in _ramp_records:
 		var road: Road = ramp["road"]
 		var rt: Tube = road.tubes[0]
 		if ramp["from_tube"] != null:
@@ -265,10 +333,12 @@ func _dives() -> void:
 				tt.path.wrap_t(float(ramp["to_t"]) - 300.0 * tt.direction))
 		else:
 			# Well short of the mouth: four seconds of diving covers half a kilometre,
-			# and out of the mouth is open space, legitimately.
-			_dive_set("%s near its mouth" % road.name, rt,
-				maxf(road.path.length - _probe.cruise_speed * 4.5, 50.0))
-	for road in _network.roads:
+			# and out of the mouth is open space, legitimately. Within the drawn
+			# stretch, with the dive cut short where that stretch is shorter.
+			var t := maxf(road.draw_to - _probe.cruise_speed * 4.5, road.draw_from + 50.0)
+			_dive_set("%s near its mouth" % road.name, rt, t,
+				minf(4.0, (road.draw_to - t - 30.0) / _probe.cruise_speed))
+	for road in _roads:
 		if road.kind != "highway":
 			continue
 		for c in road.path.corners:
@@ -278,10 +348,10 @@ func _dives() -> void:
 
 
 func _drunk() -> void:
-	for tube in _network.tubes:
+	for tube in _tubes:
 		var start_t := 300.0 if tube.direction == 1 else tube.path.length - 300.0
 		if tube.is_ramp():
-			start_t = 100.0
+			start_t = float(tube.road.get("draw_from")) + 100.0
 		_drunk_on("drunk on %s" % tube.name, tube, start_t, 30.0)
 
 
@@ -290,13 +360,17 @@ func _drunk() -> void:
 ## Follow a route of tubes with a look-ahead pilot.
 ## `hold_left` metres left of the centre-line: a lap passes every exit on the left,
 ## in gear, rather than lining up for one by a hair and shifting down for it.
+## `stop_at` ends the flight, as a success, once the probe is on the route's last tube
+## past that t: where a ramp's crossing to the other world is.
 func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds: float,
-		ends_in_space: bool, hold_left: float = 0.0) -> void:
+		ends_in_space: bool, hold_left: float = 0.0, stop_at: float = -1.0) -> void:
 	_probe.place(start_tube, start_t)
 	_probe.throttle = 1.0
 	var idx := 0
 	var visited: Array = [start_tube]
 	var max_turn := 0.0
+	var over := 0
+	var switched := -1000
 	var ok := true
 	var steps := int(seconds / DT)
 	var arrived := -1
@@ -314,8 +388,12 @@ func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds
 			var l := nxt.local(_probe.position)
 			if nxt.t_in_range(l["t"]) and Vector2(l["u"], l["v"]).length() < 90.0:
 				idx += 1
+				switched = i
 		var cur: Tube = route[idx]
 		var lc := cur.local(_probe.position)
+		if stop_at >= 0.0 and idx == route.size() - 1 and _probe.tube() == cur \
+				and float(lc["t"]) >= stop_at:
+			break
 		# The pilot looks a fixed TIME ahead, whatever the speed: at a ramp's limit
 		# that is a shorter reach, which is what lets it take a ramp's bends.
 		var lookahead := maxf(_probe.speed(), 30.0) * 2.4
@@ -332,8 +410,17 @@ func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds
 		if not _step_checked(label, i):
 			ok = false
 			break
-		if i * DT > 5.0:
-			max_turn = maxf(max_turn, before.angle_to(_probe.forward()) / DT)
+		# The turn used following the road, not the turn the pilot makes when its
+		# target jumps from one tube's centre-line to the next's, and not a single
+		# frame's flick while it scrubs along a wall: a bend is sustained.
+		if i * DT > 5.0 and i - switched > int(1.0 / DT):
+			var turned := before.angle_to(_probe.forward()) / DT
+			if rad_to_deg(turned) > _probe.turn_rate_deg * (Tuning.num("exploration/road_turn_share") + 0.15):
+				over += 1
+			else:
+				over = 0
+			if over >= 6:
+				max_turn = maxf(max_turn, turned)
 		if _probe.tube() != null and not visited.has(_probe.tube()):
 			visited.append(_probe.tube())
 		if ends_in_space and _probe.tube() == null and i * DT > 5.0:
@@ -354,7 +441,7 @@ func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds
 
 
 ## Fire the probe at each wall from a spot.
-func _dive_set(label: String, tube: Tube, t: float) -> void:
+func _dive_set(label: String, tube: Tube, t: float, seconds: float = 4.0) -> void:
 	var ok := true
 	for side: String in ["right", "left", "up", "down"]:
 		_probe.place(tube, t)
@@ -370,7 +457,7 @@ func _dive_set(label: String, tube: Tube, t: float) -> void:
 			_: dir = fwd.rotated(f["right"], -deg_to_rad(50.0))
 		_probe.aim = dir
 		var sub := "%s, diving %s" % [label, side]
-		for i in int(4.0 / DT):
+		for i in int(seconds / DT):
 			if not _step_checked(sub, i):
 				ok = false
 				break
@@ -398,9 +485,17 @@ func _drunk_on(label: String, tube: Tube, t: float, seconds: float) -> void:
 		if not _step_checked(label, i):
 			ok = false
 			break
+		# Near the end of the drawn stretch of a ramp the ship is in the other world
+		# (or about to be, within the thirty steps between structure checks); done.
+		var on: Tube = _probe.tube()
+		if on != null and on.is_ramp():
+			var road_on := on.road as Road
+			var t_on := float(on.local(_probe.position)["t"])
+			if t_on > road_on.draw_to - 100.0 or t_on < road_on.draw_from + 100.0:
+				break
 		if _probe.tube() == null:
 			var near_mouth := false
-			for road in _network.roads:
+			for road in _roads:
 				for m in road.mouths:
 					if road.path.at(float(m["t"]), 0.0, 0.0).distance_to(_probe.position) < 3000.0:
 						near_mouth = true

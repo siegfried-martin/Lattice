@@ -129,6 +129,13 @@ func _sample(ship: Mothership) -> BerthHold:
 	return hold
 
 
+## The tube the berth is bound to has become its twin in the other world
+## (`SystemMap._cross`): the same ramp, the same t along it, so the rail carries on.
+func rebind(from: Tube, to: Tube) -> void:
+	if _state == State.BERTHED and _tube == from and to != null:
+		_tube = to
+
+
 ## Take an exit. Called from the strip; the switch itself happens when the ship
 ## reaches the ramp. Passing null cancels a choice already made.
 func take_exit(ramp: Tube) -> void:

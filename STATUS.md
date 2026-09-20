@@ -1,6 +1,6 @@
 # STATUS
 
-*Updated 2026-09-07.*
+*Updated 2026-09-20.*
 
 ---
 
@@ -15,11 +15,26 @@ where they conflict**, at the human's explicit direction.
 | | |
 |---|---|
 | Branch | `feat/highway-tubes` |
-| Gate | `make check` — 1357 checks, 0 failed; the road suite alone flies 230k probe steps against 1.5M rendered triangles |
-| Run it | `make fly`. `J` jumps between systems, `K` drops you on the road at the next bend, exit, merge or mouth. `make roads` validates the map. |
-| Built | Exploration POC steps 1–8; **the road, replaced whole on 2026-09-07 (ADR 0096)** |
-| **Do next** | Build the wormhole highway from `docs/WORMHOLE_PROTOTYPE.md`, step 1 first. Ten minutes on A-377B; every exit and entry at B; the interchange X1/X2 and their mirrors. Then success criterion 1, and traffic (steps 9 and 10). |
+| Gate | `make check` — CHECKCOUNT checks, 0 failed; the road suite flies both worlds against their rendered triangles |
+| Run it | `make fly`. `J` jumps between systems, `K` drops you on the road at the next spot in either world. `make roads` validates the map and prints the wormhole's legs in seconds. |
+| Built | Exploration POC steps 1–8; the road (ADR 0096); **the wormhole highway, steps 1–3 of `docs/WORMHOLE_PROTOTYPE.md`, 2026-09-20** |
+| **Do next** | Fly the wormhole (`make fly`, straight up the on-ramp ahead). Then step 4, the tunnel: the streak cylinder, its throat, the mouth at the crossing. Then the deferred list in that doc. |
 | **Waiting on you** | The feel calls listed under *What to fly first* below, and the pitch pair `ship/max_pitch_deg` / `camera/ship_pitch_ceiling_deg`, still yours. |
+
+### The wormhole highway is built, unflown — 2026-09-20
+
+Steps 1 to 3 of `docs/WORMHOLE_PROTOTYPE.md`: the highways run inside the wormhole,
+laid out from the map by `WormholeLayout` (each leg 20 to 30 s at `cruise_speed`,
+at the map's bearings, dead-ending past the end systems); open space holds only each
+ramp's twin, a straight stub from the wormhole's mouth to the planet's; the crossing
+moves the ship to the same place in the twin with its speed, heading, reticle, berth
+and camera carried over. Both worlds are resident; the collider knows every tube of
+both. The gate builds and flies both, and drives the real ship through a crossing
+each way. Not built: step 4, the tunnel visual, so inside is black beyond the road's
+own lamps. The doc's *What is built* section lists where the build departs from the
+plan, the main one being that the ramp footprint sets a leg floor of about 19 s, not
+the 5 s the plan hoped for. Every number is a starting value; the human has not flown
+it.
 
 ### The gear is parked; the wormhole is next — 2026-09-20, from the human
 
@@ -28,7 +43,7 @@ what it would feel like polished, and the human's call was to park it, leave its
 in place behind `highway_gear` 1, and build the comparison: **the highway as its own
 place**, a road inside a wormhole, reached and left by ramps that exist in both
 worlds. The plan, its keys, the crossing frame by frame, what the gate flies and the
-build order are in **`docs/WORMHOLE_PROTOTYPE.md`**. Nothing of it is built yet.
+build order are in **`docs/WORMHOLE_PROTOTYPE.md`**.
 
 
 Three ideas, to be built behind flags and flown before any of them is decided:

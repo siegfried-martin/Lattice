@@ -16,26 +16,7 @@ func _expect(condition: bool, what: String, detail: String) -> void:
 
 func _ready() -> void:
 	var suite := RoadSuite.new(self)
-	suite._holder = Node3D.new()
-	add_child(suite._holder)
-	suite._network = RoadNetwork.new()
-	suite._holder.add_child(suite._network)
-	suite._network.build(Routes.data(), Routes.system_positions())
-	var faces := suite._network.build_all_now()
-	var body := StaticBody3D.new()
-	suite._holder.add_child(body)
-	for road_name: String in faces:
-		var shape := ConcavePolygonShape3D.new()
-		shape.set_faces(faces[road_name])
-		shape.backface_collision = true
-		var cs := CollisionShape3D.new()
-		cs.shape = shape
-		body.add_child(cs)
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	suite._space = suite._holder.get_world_3d().direct_space_state
-	suite._probe = RoadProbe.new()
-	suite._probe.setup(suite._network.tubes, suite._network.roads)
+	var faces := await suite._prepare()
 	var from := _vec(OS.get_environment("REPRO_FROM"))
 	var to := _vec(OS.get_environment("REPRO_TO"))
 	if from != to:
@@ -49,16 +30,18 @@ func _ready() -> void:
 					print("[face] %s at %s: %s %s %s" % [road_name, hit, tris[i], tris[i + 1], tris[i + 2]])
 				i += 3
 	var hull := load("res://assets/models/carrier.obj") as Mesh
-	var tube: Tube = suite._network.tube_named(OS.get_environment("REPRO_TUBE"))
+	var tube: Tube = suite.tube_named(OS.get_environment("REPRO_TUBE"))
 	if tube == null:
 		push_error("no tube named '%s'" % OS.get_environment("REPRO_TUBE"))
 	else:
 		for scale: float in [Tuning.num("ship/hull_scale"), 0.5]:
 			suite._probe.half = hull.get_aabb().size * scale * 0.5
 			print("--- hull scale %.2f half %s" % [scale, suite._probe.half])
-			suite._drunk_on("drunk on %s" % tube.name, tube, 100.0, 30.0)
+			suite._drunk_on("drunk on %s" % tube.name, tube,
+				float(tube.road.get("draw_from")) + 100.0 if tube.is_ramp() else 100.0, 30.0)
 	suite._probe.collider.setup([], [])
-	suite._network._release()
+	for network in suite._networks:
+		network._release()
 	get_tree().quit(0)
 
 

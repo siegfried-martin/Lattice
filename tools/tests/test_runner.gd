@@ -216,7 +216,11 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/ramp_exit_length", "exploration/ramp_exit_radius",
 	"exploration/ramp_merge_pitch_deg", "exploration/ramp_merge_drop",
 	"exploration/ramp_merge_lead", "exploration/ramp_merge_radius",
-	"exploration/ramp_bend_radius", "exploration/ramp_bend_deg", "exploration/ramp_turn_share",
+	"exploration/ramp_bend_radius", "exploration/ramp_turn_share",
+	"exploration/wormhole_scale", "exploration/wormhole_exit_min_seconds",
+	"exploration/wormhole_exit_max_seconds", "exploration/wormhole_end_run",
+	"exploration/wormhole_node_gap", "exploration/wormhole_swap_metres",
+	"exploration/wormhole_ramp_overlap",
 	"exploration/ramp_mouth_side_offset",
 	"exploration/ramp_mouth_along_offset", "exploration/ramp_mouth_height",
 	"exploration/exit_approach_metres",
@@ -290,6 +294,7 @@ func _ready() -> void:
 	_test_disc_bounds()
 	_test_hex_sectors()
 	_test_highway_gear()
+	_test_wormhole_layout()
 	_test_hull_roster()
 	_test_approach_envelope()
 	_test_target_components()
@@ -2461,10 +2466,13 @@ func _test_cruise_tank() -> void:
 	# The tuned numbers, against the map they are tuned for. Not a feel verdict — what
 	# is asserted is that a full tank crosses the map, because a POC in which the very
 	# first leg strands you is testing the wrong thing.
-	# The legs are route data now (ADR 0096): the map's length is the sum of its
-	# highways, read from `data/routes.json` through the same paths the game builds.
+	# The legs are route data now (ADR 0096), and the highways run inside the wormhole
+	# (docs/WORMHOLE_PROTOTYPE.md): the map's length is the sum of the wormhole's
+	# highways, laid out from `data/routes.json` the way the game does. Short, so this
+	# is a weak check until fuel is charged per hop by world distance (deferred there).
 	var map_metres := 0.0
-	for h: Dictionary in Routes.data().get("highways", []):
+	var laid := WormholeLayout.lay(Routes.data(), Routes.system_positions())
+	for h: Dictionary in laid["highways"]:
 		var points: Array = []
 		for pt: Array in h["points"]:
 			points.append(Vector3(pt[0], pt[1], pt[2]))
@@ -2754,11 +2762,17 @@ func _test_lane_geometry() -> void:
 	# The speed ladder's whole purpose is that the highway beats flying it yourself
 	# by a lot at range and by little up close. If cruise ever stops beating a
 	# fighter, the road has no reason to exist.
-	# Through the world: the felt speed times the highway's gear.
-	_expect(Tuning.num("exploration/cruise_speed") * maxf(Tuning.num("exploration/highway_gear"), 1.0)
-			> HullClass.max_speed(HullClass.Kind.FIGHTER) * 2.0,
-		"cruise is at least twice the fastest hull, or the road buys nothing",
-		"cruise %.1f vs fighter %.1f" % [Tuning.num("exploration/cruise_speed"),
+	# Through the world: a wormhole leg's world metres over the seconds it takes,
+	# on the slowest leg (docs/WORMHOLE_PROTOTYPE.md); with the gear, the felt speed
+	# times it.
+	var effective := INF
+	for leg: Dictionary in WormholeLayout.lay(Routes.data(), Routes.system_positions())["legs"]:
+		effective = minf(effective, float(leg["world"]) / maxf(float(leg["seconds"]), 0.01))
+	effective = maxf(effective, Tuning.num("exploration/cruise_speed")
+		* maxf(Tuning.num("exploration/highway_gear"), 1.0))
+	_expect(effective > HullClass.max_speed(HullClass.Kind.FIGHTER) * 2.0,
+		"the highway crosses the world at least twice as fast as the fastest hull, or the road buys nothing",
+		"%.0f m/s of world per second of highway vs fighter %.1f" % [effective,
 			HullClass.max_speed(HullClass.Kind.FIGHTER)])
 
 ## The deep field: what is out there past the boundary, and why.
@@ -2879,6 +2893,75 @@ func _test_envelope_meter() -> void:
 ## it stop the player without ever taking the stick, and the union that makes a
 ## corridor continuous with the systems at its ends.
 ## The hex grid, the border region and the sector layer (docs/SECTOR_PROTOTYPE.md).
+## The wormhole's layout (docs/WORMHOLE_PROTOTYPE.md): the highway compressed from the
+## map, at the map's bearings, its legs a chosen rhythm; the planet mouths by rule.
+func _test_wormhole_layout() -> void:
+	var data := Routes.data()
+	var positions := Routes.system_positions()
+	var laid := WormholeLayout.lay(data, positions)
+	var speed := Tuning.num("exploration/cruise_speed")
+	var shortest := Tuning.num("exploration/wormhole_exit_min_seconds")
+	var longest := Tuning.num("exploration/wormhole_exit_max_seconds")
+	var legs: Array = laid["legs"]
+	_expect(legs.size() == 4, "the map's two highways make four legs", "%d legs" % legs.size())
+	var in_rhythm := true
+	var scaled := true
+	for leg: Dictionary in legs:
+		var seconds := float(leg["seconds"])
+		if seconds < shortest - 0.01 or seconds > longest + 0.01:
+			in_rhythm = false
+		var wanted := clampf(float(leg["world"]) * Tuning.num("exploration/wormhole_scale"),
+			shortest * speed, longest * speed)
+		if absf(float(leg["metres"]) - wanted) > 0.5:
+			scaled = false
+	_expect(in_rhythm, "every leg is between the min and max seconds of travel at cruise speed", "")
+	_expect(scaled, "…and is the world leg scaled, where the clamp allows", "")
+	# At the map's bearings: each leg of the laid road points the way the world leg does.
+	var bearings_kept := true
+	for h: Dictionary in laid["highways"]:
+		var pts: Array = h["points"]
+		var systems: Array = h["systems"]
+		for i in systems.size() - 1:
+			var a: Vector3 = positions[systems[i]]
+			var b: Vector3 = positions[systems[i + 1]]
+			var world := Vector3(b.x - a.x, 0.0, b.z - a.z).normalized()
+			var p: Array = pts[i + 1]
+			var q: Array = pts[i + 2]
+			var laid_dir := Vector3(float(q[0]) - float(p[0]), 0.0, float(q[2]) - float(p[2])).normalized()
+			if laid_dir.distance_to(world) > 0.001:
+				bearings_kept = false
+		_expect(pts.size() == systems.size() + 2,
+			"%s has a node per system and a dead-end run at each end" % h["name"], "%d points" % pts.size())
+	_expect(bearings_kept, "every leg keeps the world's bearing", "")
+	# Ramps: two at a highway's ends, four in the middle, sixteen in all.
+	_expect((laid["planet_ramps"] as Array).size() == 16,
+		"sixteen planet ramps: two at each end system, four at B on each highway",
+		"%d" % (laid["planet_ramps"] as Array).size())
+	_expect(WormholeLayout.wanted(0, 3, "R", "entry") and not WormholeLayout.wanted(0, 3, "R", "exit")
+			and WormholeLayout.wanted(2, 3, "R", "exit") and not WormholeLayout.wanted(2, 3, "R", "entry")
+			and WormholeLayout.wanted(0, 3, "L", "exit") and not WormholeLayout.wanted(0, 3, "L", "entry")
+			and WormholeLayout.wanted(1, 3, "L", "entry"),
+		"no ramp onto a dead end and no exit from a road's first metres", "")
+	# The planet mouth: beside the centre on the highway's bearing, short of it for an
+	# exit and past it for an entry, at the mouth height; the L carriageway's mirrored.
+	var b_at: Vector3 = positions["SYSTEM B"]
+	var r_exit := WormholeLayout.space_mouth(data, positions, "A-377B", "SYSTEM B", 1, "exit")
+	var r_entry := WormholeLayout.space_mouth(data, positions, "A-377B", "SYSTEM B", 1, "entry")
+	var l_exit := WormholeLayout.space_mouth(data, positions, "A-377B", "SYSTEM B", -1, "exit")
+	var fwd: Vector3 = r_exit["fwd"]
+	var along := Tuning.num("exploration/ramp_mouth_along_offset")
+	var side := Tuning.num("exploration/ramp_mouth_side_offset")
+	_expect(is_zero_approx(fwd.y) and (r_exit["pos"] as Vector3).y - b_at.y == Tuning.num("exploration/ramp_mouth_height"),
+		"a mouth is level with the highway's bearing, at the mouth height", "")
+	_expect(is_equal_approx(((r_exit["pos"] as Vector3) - b_at).dot(fwd), -along)
+			and is_equal_approx(((r_entry["pos"] as Vector3) - b_at).dot(fwd), along),
+		"an exit's mouth is short of the centre and an entry's past it", "")
+	_expect(is_equal_approx(((r_exit["pos"] as Vector3) - b_at).dot(fwd.cross(Vector3.UP)), side)
+			and is_equal_approx(((l_exit["pos"] as Vector3) - b_at).dot(fwd.cross(Vector3.UP)), -side)
+			and (l_exit["fwd"] as Vector3).is_equal_approx(-fwd),
+		"…to the driver's right, so the L carriageway's mouths are the R's mirrored", "")
+
+
 func _test_hex_sectors() -> void:
 	var r := 1000.0
 	var apothem := r * HexGrid.SQRT3 * 0.5
@@ -3316,11 +3399,20 @@ func _step_exploration(scene: ExplorationScene, delta: float) -> void:
 	scene.ship()._process(delta)
 
 
-## Put the ship at a point in the map's frame and let one frame settle.
+## Put the ship at a point in the map's frame, at rest, and let one frame settle.
+## The collider is told it is in no tube first: a hull moved far from the tube it was
+## in is otherwise held back to that tube's end, which is right for a ship and wrong
+## for a teleport (a park can move the ship between the worlds).
 func _park(scene: ExplorationScene, at: Vector3, facing: Vector3) -> void:
+	if scene.ship().road != null:
+		scene.ship().road.tube = null
+	scene.ship()._velocity = Vector3.ZERO
+	scene.ship()._speed = 0.0
 	scene.ship().position = at
 	scene.ship().look_at(scene.map().to_global(at + facing * 100.0), Vector3.UP)
 	scene.ship().reset_reticle()
+	# Two frames: the collider finds the tube in the first, the map sees it in the second.
+	_step_exploration(scene, 1.0 / 60.0)
 	_step_exploration(scene, 1.0 / 60.0)
 
 
@@ -3476,15 +3568,26 @@ func _test_exploration_builds() -> void:
 	_expect(discs[0].visible and field.regions.size() > 1,
 		"with sectors off again, the discs and corridors are back", "")
 
-	# --- THE ROAD, AS DATA (ADR 0096) ---
-	var trunk: Road = road.road_named("A-377B")
-	var crossing: Road = road.road_named("K-112")
+	# --- THE ROAD, AS DATA (ADR 0096), INSIDE THE WORMHOLE (docs/WORMHOLE_PROTOTYPE.md) ---
+	var hole := map.wormhole()
+	var trunk: Road = hole.road_named("A-377B")
+	var crossing: Road = hole.road_named("K-112")
 	_expect(trunk != null and crossing != null and trunk.tubes.size() == 2
 			and crossing.tubes.size() == 2,
-		"two highways, each with two carriageways", "%d roads" % road.roads.size())
-	_expect(road.ramps.size() == 28,
-		"four planet ramps at every system on every highway, and four interchange ramps at B",
-		"%d ramps" % road.ramps.size())
+		"two highways inside the wormhole, each with two carriageways", "%d roads" % hole.roads.size())
+	var space_highways := 0
+	for r in road.roads:
+		if r.kind == "highway":
+			space_highways += 1
+	_expect(space_highways == 0 and road.roads.size() == 16,
+		"open space holds no highway, only the sixteen ramps' twins",
+		"%d roads, %d of them highways" % [road.roads.size(), space_highways])
+	_expect(hole.ramps.size() == 16,
+		"a ramp per system, side and useful direction: two at each end of a highway, four in the middle",
+		"%d ramps" % hole.ramps.size())
+	_expect(hole.problems.is_empty() and road.problems.is_empty(),
+		"both worlds build with no problems (see `make roads`)",
+		"\n      ".join(hole.problems + road.problems))
 	# TRAFFIC ON THE RIGHT (ADR 0077): each carriageway sits to the right of the
 	# spine as its own traffic travels, so the oncoming one is on the LEFT.
 	var forward: Tube = trunk.tubes[0]
@@ -3500,16 +3603,43 @@ func _test_exploration_builds() -> void:
 		_expect(to_own > 0.0 and to_oncoming < 0.0,
 			"%s sits to the right of the spine with the oncoming lane on its left" % tube.name,
 			"own %.0f, oncoming %.0f" % [to_own, to_oncoming])
-	# THE CROSSING RIDES ABOVE, with head room under the ceiling.
-	var over_b: float = crossing.path.point_at(crossing.tubes[0].local(map.system_center(1))["t"]).y
-	var under_b: float = trunk.path.point_at(forward.local(map.system_center(1))["t"]).y
-	_expect(over_b > under_b + Tuning.num("exploration/lane_height"),
-		"K-112 crosses over A-377B at B with the whole section between them",
-		"%.0f over %.0f" % [over_b, under_b])
-	_expect(over_b + crossing.half_height + Tuning.num("exploration/bounds_warning_band")
-			< discs[1].ceiling_height(),
-		"…and its roof clears the system ceiling by more than the warning band",
-		"roof at %.0f under a %.0f ceiling" % [over_b + crossing.half_height, discs[1].ceiling_height()])
+	# THE WORMHOLE IS ITS OWN PLACE: every wormhole road lies far outside the playable
+	# volume of open space, and the two highways are in different pockets.
+	var lowest := INF
+	for r in hole.roads:
+		lowest = minf(lowest, r.bounds.position.y + r.bounds.size.y)
+	_expect(lowest < -Tuning.num("exploration/system_floor_depth") - 10000.0,
+		"the wormhole lies far below open space", "its top is at %.0f" % lowest)
+	_expect(not trunk.bounds.intersects(crossing.bounds),
+		"…and each highway has a pocket of its own", "their bounds overlap")
+	# ONE SHAPE, PLACED TWICE: every twin in space is the wormhole ramp's length, its
+	# planet end sits at the mouth the layout names, and a point (t, u, v) on one is
+	# the rigid image of the same point on the other.
+	var twinned := 0
+	var worst_twin := 0.0
+	for rec in road.ramps:
+		var twin: Tube = rec["twin"]
+		if twin == null:
+			continue
+		twinned += 1
+		var mine: Tube = (rec["road"] as Road).tubes[0]
+		var kind := String(rec["kind"])
+		var end_t := mine.path.length if kind == "exit" else 0.0
+		worst_twin = maxf(worst_twin, absf(mine.path.length - twin.path.length))
+		var at_mouth := WormholeLayout.space_mouth(Routes.data(), Routes.system_positions(),
+			mine.route_name, String(rec["system"]), int(rec["direction"]), kind)
+		worst_twin = maxf(worst_twin, mine.centre(end_t).distance_to(at_mouth["pos"]))
+		worst_twin = maxf(worst_twin, (mine.travel_frame(end_t)["fwd"] as Vector3)
+			.distance_to(at_mouth["fwd"]) * 100.0)
+		var a := mine.world(mine.path.length * 0.3, 20.0, -10.0)
+		var b := twin.world(twin.path.length * 0.3, 20.0, -10.0)
+		worst_twin = maxf(worst_twin, absf(a.distance_to(mine.centre(end_t))
+			- b.distance_to(twin.centre(end_t))))
+		_expect(rec["cross_at"] >= 0.0 or hole.ramp_of(twin)["cross_at"] >= 0.0,
+			"one of the pair carries the crossing: %s" % mine.name, "neither does")
+	_expect(twinned == 16 and worst_twin < 0.5,
+		"every ramp in space is a wormhole ramp's rigid twin, ending at the planet's mouth on the highway's bearing",
+		"%d twinned, %.2f m off at worst" % [twinned, worst_twin])
 	# EVERY MOUTH beside a planet, never over it (ADR 0012), and every mouth's tube
 	# above the planet's approach envelope.
 	var nearest_mouth := INF
@@ -3520,26 +3650,20 @@ func _test_exploration_builds() -> void:
 		"no ramp mouth is inside a planet's approach envelope",
 		"nearest %.0f m against a %.0f m envelope" % [nearest_mouth,
 			Tuning.num("exploration/approach_envelope_radius")])
-	_expect(map.portals().size() == 24,
-		"a portal at every planet mouth, none on an interchange ramp",
+	_expect(map.portals().size() == 16,
+		"a portal at every planet mouth in space, none inside the wormhole",
 		"%d portals" % map.portals().size())
-	# THE ROAD CARRIES ITS OWN SPACE (ADR 0091): riding an interchange ramp is not outside.
-	var x1_tube: Tube = road.tube_named("X1 A-377B > K-112")
-	_expect(x1_tube != null, "the interchange ramp X1 exists", "missing")
-	if x1_tube != null:
-		var worst := 0.0
-		var t := 0.0
-		while t < x1_tube.path.length:
-			worst = maxf(worst, field.overshoot(x1_tube.centre(t)))
-			t += 250.0
-		_expect(worst <= 0.0, "every metre of an interchange ramp is inside the playable volume",
-			"%.0f m outside at worst" % worst)
 	# THE MESH STREAMS: a few frames in, the chunks near the ship are built and the
 	# ones across the map are not.
-	var on_ramp: Tube = road.tube_named("A-377B R SYSTEM A in")
-	var exit_ramp: Tube = road.tube_named("A-377B R SYSTEM B out")
-	_expect(on_ramp != null and exit_ramp != null, "system A's entry and B's exit exist on A-377B R", "missing")
-	if on_ramp == null or exit_ramp == null:
+	var on_ramp: Tube = road.tube_named("A-377B R SYSTEM A in [space]")
+	var hole_on: Tube = hole.tube_named("A-377B R SYSTEM A in")
+	var exit_ramp: Tube = hole.tube_named("A-377B R SYSTEM B out")
+	var exit_twin: Tube = road.tube_named("A-377B R SYSTEM B out [space]")
+	var exit_c: Tube = hole.tube_named("A-377B R SYSTEM C out")
+	_expect(on_ramp != null and hole_on != null and exit_ramp != null and exit_twin != null
+			and exit_c != null,
+		"system A's entry and B's and C's exits exist on A-377B R, in both worlds", "missing")
+	if on_ramp == null or hole_on == null or exit_ramp == null or exit_twin == null or exit_c == null:
 		scene.queue_free()
 		return
 	var entry_record := road.ramp_of(on_ramp)
@@ -3574,24 +3698,127 @@ func _test_exploration_builds() -> void:
 		"the structure streams: chunks near the ship are built, the far side of the map is not",
 		"%d of %d chunks" % [road.loaded_chunk_count(), road.chunk_count()])
 
-	# --- MERGING: the ramp ends inside the mainline and the geometry hands over ---
-	_park(scene, on_ramp.centre(on_ramp.path.length - 5.0), on_ramp.travel_frame(on_ramp.path.length)["fwd"])
-	scene.ship().position = on_ramp.centre(on_ramp.path.length) \
-		+ (on_ramp.travel_frame(on_ramp.path.length)["fwd"] as Vector3) * 40.0
+	# --- THE CROSSING (docs/WORMHOLE_PROTOTYPE.md): up the on-ramp under its own power ---
+	# The ship is riding the on-ramp's twin in space. Driven, not placed: past the
+	# crossing it must be in the wormhole's on-ramp at the same place in the tube, at
+	# the same speed and heading against the road, with the camera moved along.
+	var swap := Tuning.num("exploration/wormhole_swap_metres")
+	var camera := scene.get_node("ChaseCamera") as ChaseCamera
+	_expect(not map.in_wormhole() and (road.road_named(on_ramp.name) as Road).draw_to < on_ramp.path.length
+			and (hole.road_named(hole_on.name) as Road).draw_from > 0.0,
+		"the on-ramp is drawn to a little past the crossing in space and from a little before it in the wormhole",
+		"space to %.0f, wormhole from %.0f of %.0f" % [(road.road_named(on_ramp.name) as Road).draw_to,
+			(hole.road_named(hole_on.name) as Road).draw_from, on_ramp.path.length])
+	# The harness throttle: a lever the scene holds up without a device (ADR 0031).
+	scene.set_reads_input(false)
+	scene.ship().input_throttle = 1.0
+	var before: Dictionary = {}
+	var speed_before := 0.0
+	var along_before := 0.0
+	var cam_before := Vector3.ZERO
+	var frames_up := 0
+	while frames_up < 1800 and not map.in_wormhole():
+		before = on_ramp.local(scene.ship().position)
+		speed_before = scene.ship().speed()
+		along_before = scene.ship().velocity().normalized().dot(scene.ship().cruise.axis) \
+			if scene.ship().cruise != null else 0.0
+		cam_before = scene.ship().global_transform.affine_inverse() * camera.global_position
+		_step_exploration(scene, 1.0 / 60.0)
+		frames_up += 1
+	scene.ship().input_throttle = 0.0
+	_expect(map.in_wormhole() and scene.ship().road.tube == hole_on and map.riding() == hole_on
+			and scene.ship().cruise != null,
+		"riding the on-ramp past the crossing puts the ship in the wormhole's on-ramp, still riding",
+		"in the wormhole %s, tube %s, riding %s after %d frames" % [map.in_wormhole(),
+			_tube_name(scene.ship().road.tube), _tube_name(map.riding()), frames_up])
+	var after := hole_on.local(scene.ship().position)
+	var step := scene.ship().speed() / 60.0 + 1.0
+	_expect(float(after["t"]) >= swap - 0.01 and float(after["t"]) < swap + step * 2.0
+			and absf(float(after["u"]) - float(before["u"])) < 2.0
+			and absf(float(after["v"]) - float(before["v"])) < 2.0,
+		"…at the same place in the tube: t at the crossing, u and v carried over",
+		"t %.1f (swap %.0f), u %.1f from %.1f, v %.1f from %.1f" % [after["t"], swap,
+			after["u"], before["u"], after["v"], before["v"]])
+	var along_after := scene.ship().velocity().normalized().dot(scene.ship().cruise.axis)
+	_expect(absf(scene.ship().speed() - speed_before) < 2.0 and absf(along_after - along_before) < 0.02,
+		"…at the same speed and heading against the road",
+		"%.1f from %.1f m/s, along %.3f from %.3f" % [scene.ship().speed(), speed_before,
+			along_after, along_before])
+	var cam_after := scene.ship().global_transform.affine_inverse() * camera.global_position
+	_expect(cam_after.distance_to(cam_before) < 5.0,
+		"…and the camera came with it, in the same place behind the ship: no cut",
+		"%.1f m of camera jump in the ship's frame" % cam_after.distance_to(cam_before))
+	_expect(map.field() != field and map.place_of(map.to_local(scene.ship().global_position)).begins_with("A-377B"),
+		"inside the wormhole the playable space is the road's own, named after the road",
+		map.place_of(map.to_local(scene.ship().global_position)))
+	_expect(not map.planets()[0].visible and not road.visible and hole.visible,
+		"…open space is hidden and the wormhole shown", "")
+	# And on into the mainline, under its own power.
+	scene.ship().input_throttle = 1.0
+	frames_up = 0
+	while frames_up < 1800 and map.riding() != forward:
+		_step_exploration(scene, 1.0 / 60.0)
+		frames_up += 1
+	scene.ship().input_throttle = 0.0
+	_expect(map.riding() == forward, "…and the on-ramp merges it onto the highway",
+		"riding %s after %d frames" % [_tube_name(map.riding()), frames_up])
+
+	# --- THE CROSSING BACK, berthed: down an off-ramp, out to the planet's side ---
+	map.drop_on_road(scene.ship(), exit_ramp, 60.0)
+	_step_exploration(scene, 1.0 / 60.0)
+	_expect(map.in_wormhole() and map.riding() == exit_ramp, "dropped on the wormhole's exit ramp", "")
+	map.berth().engage(scene.ship(), exit_ramp)
+	var tank_before := scene.ship().cruise_tank.units
+	frames_up = 0
+	while frames_up < 3600 and map.in_wormhole():
+		_step_exploration(scene, 1.0 / 60.0)
+		frames_up += 1
+	_expect(not map.in_wormhole() and scene.ship().road.tube == exit_twin and map.riding() == exit_twin,
+		"riding the off-ramp past its crossing puts the ship in space, on the ramp's twin beside the planet",
+		"in the wormhole %s, tube %s after %d frames" % [map.in_wormhole(), _tube_name(scene.ship().road.tube), frames_up])
+	_expect(map.berth().is_berthed() and map.berth().tube() == exit_twin,
+		"…and a berth engaged across the crossing is bound to the twin", "berthed %s on %s" % [
+			map.berth().is_berthed(), _tube_name(map.berth().tube())])
+	_expect(map.planets()[0].visible and road.visible and not hole.visible,
+		"…open space is shown again and the wormhole hidden", "")
+	_expect(tank_before - scene.ship().cruise_tank.units < (exit_ramp.path.length + 50.0)
+			* Tuning.num("exploration/cruise_fuel_per_km") / 1000.0,
+		"the crossing itself burns no fuel: only the ramp's metres are charged",
+		"%.4f units" % (tank_before - scene.ship().cruise_tank.units))
+	map.berth().release(scene.ship())
+	# Out of the mouth into space, at the planet.
+	frames_up = 0
+	while frames_up < 1200 and map.riding() != null:
+		scene.ship().input_throttle = 1.0
+		_step_exploration(scene, 1.0 / 60.0)
+		frames_up += 1
+	scene.ship().input_throttle = 0.0
+	_expect(map.riding() == null and scene.ship().road.tube == null and not map.in_wormhole(),
+		"…and the ramp's mouth lets it out into open space beside SYSTEM B",
+		"riding %s after %d frames" % [_tube_name(map.riding()), frames_up])
+	_expect(map.nearest_system(map.to_local(scene.ship().global_position)) == 1,
+		"…nearest to B", map.system_name(map.nearest_system(map.to_local(scene.ship().global_position))))
+
+	# --- MERGING: the wormhole's on-ramp ends inside the mainline and the geometry hands over ---
+	var merge_fwd: Vector3 = hole_on.travel_frame(hole_on.path.length)["fwd"]
+	_park(scene, hole_on.centre(hole_on.path.length - 5.0), merge_fwd)
+	scene.ship().position = hole_on.centre(hole_on.path.length) + merge_fwd * 40.0
 	_step_exploration(scene, 1.0 / 60.0)
 	_step_exploration(scene, 1.0 / 60.0)
 	_expect(map.riding() == forward and scene.ship().cruise != null,
 		"off the end of the on-ramp the ship is on the mainline — no junction logic decided it",
 		"riding %s" % _tube_name(map.riding()))
-	var over_b_point: Vector3 = forward.centre(forward.local(map.system_center(1))["t"])
-	_park(scene, over_b_point, forward.travel_frame(forward.local(over_b_point)["t"])["fwd"])
+	var bend_t: float = float(trunk.path.corners[0]["t"]) if not trunk.path.corners.is_empty() \
+		else trunk.path.length * 0.5
+	_park(scene, forward.centre(bend_t), forward.travel_frame(bend_t)["fwd"])
 	_step_exploration(scene, 1.0 / 60.0)
-	_expect(map.riding() == forward, "…and over system B it is still on the mainline",
+	_expect(map.riding() == forward, "…and through the bend at B it is still on the mainline",
 		"riding %s" % _tube_name(map.riding()))
-	# Back to just past A's merge, where two exits (the interchange and B's) lie within
-	# the strip's horizon; over B the next exit is C's, twenty kilometres on.
-	var t_b: float = forward.local(map.system_center(0))["t"] + 4600.0
-	over_b_point = forward.centre(t_b)
+	# On the B–C leg, short of C's exit and clear of B's merge: the A–B leg is too
+	# short to hold a clean stretch of carriageway between one node's merge and the
+	# next node's exit, which is the leg floor `docs/WORMHOLE_PROTOTYPE.md` records.
+	var t_b: float = float(hole.ramp_of(exit_c)["from_t"]) - 600.0
+	var over_b_point := forward.centre(t_b)
 	_park(scene, over_b_point, forward.travel_frame(t_b)["fwd"])
 	_step_exploration(scene, 1.0 / 60.0)
 
@@ -3646,7 +3873,7 @@ func _test_exploration_builds() -> void:
 	var listed: Array[Tube] = []
 	for one: Array in ahead:
 		listed.append(one[0] as Tube)
-	_expect(not listed.is_empty() and (listed.has(exit_ramp) or listed.has(x1_tube)),
+	_expect(not listed.is_empty() and listed.has(exit_c),
 		"berthed on A-377B, the strip lists the exits ahead on THIS carriageway",
 		"%d listed" % listed.size())
 	if listed.is_empty():
@@ -3714,13 +3941,14 @@ func _test_exploration_builds() -> void:
 			carried, _tube_name(map.riding())])
 
 	# --- GETTING OFF: out of an exit's mouth into open space, drive winding down ---
-	var exit_end: Vector3 = exit_ramp.centre(exit_ramp.path.length)
-	var out: Vector3 = exit_ramp.travel_frame(exit_ramp.path.length)["fwd"]
+	# The exit's twin in space: the last metres of an off-ramp are beside the planet.
+	var exit_end: Vector3 = exit_twin.centre(exit_twin.path.length)
+	var out: Vector3 = exit_twin.travel_frame(exit_twin.path.length)["fwd"]
 	_park(scene, exit_end - out * 30.0, out)
-	scene.ship().road.tube = exit_ramp
+	scene.ship().road.tube = exit_twin
 	_step_exploration(scene, 1.0 / 60.0)
 	_step_exploration(scene, 1.0 / 60.0)
-	_expect(map.riding() == exit_ramp, "on the last metres of an exit ramp the ship rides it", _tube_name(map.riding()))
+	_expect(map.riding() == exit_twin, "on the last metres of an exit ramp the ship rides it", _tube_name(map.riding()))
 	scene.ship().position = exit_end + out * 60.0
 	_step_exploration(scene, 1.0 / 60.0)
 	_step_exploration(scene, 1.0 / 60.0)
@@ -3776,8 +4004,9 @@ func _test_exploration_builds() -> void:
 	tank.fill()
 	_fly_in(scene, mouth, into)
 	_expect(scene.ship().cruise != null, "a fuelled ship engages cruise at the mouth", "it did not")
-	var from_point := on_ramp.centre(on_ramp.path.length * 0.2)
-	var to_point := on_ramp.centre(on_ramp.path.length * 0.6)
+	# Short of the crossing: the ramp's first metres are in space.
+	var from_point := on_ramp.centre(on_ramp.path.length * 0.05)
+	var to_point := on_ramp.centre(on_ramp.path.length * 0.2)
 	scene.ship().position = from_point
 	_step_exploration(scene, 1.0 / 60.0)
 	var before_burn := tank.units
@@ -3899,9 +4128,9 @@ func _test_exploration_builds() -> void:
 	# LAST, because it leaves the ship halfway up a ramp.
 	map.warp_to_system(scene.ship(), 0)
 	_step_exploration(scene, 1.0 / 60.0)
-	_fly_in(scene, mouth, into)
-	scene.ship().position = on_ramp.centre(on_ramp.path.length * 0.45)
-	scene.ship().look_at(scene.map().to_global(on_ramp.centre(on_ramp.path.length * 0.45 + 200.0)), Vector3.UP)
+	# On the wormhole's side of the on-ramp, where it converges on the carriageway.
+	map.drop_on_road(scene.ship(), hole_on, hole_on.path.length * 0.45)
+	scene.ship().look_at(scene.map().to_global(hole_on.centre(hole_on.path.length * 0.45 + 200.0)), Vector3.UP)
 	scene.ship().reset_reticle()
 	_step_exploration(scene, 1.0 / 60.0)
 	scene.ship().input_throttle = 1.0

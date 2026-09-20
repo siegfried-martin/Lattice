@@ -108,6 +108,13 @@ func _build_world() -> void:
 	_root.add_child(_map)
 	_map.arrived.connect(_on_arrived)
 	_map.departed.connect(_on_departed)
+	# THE CROSSING is not a cut: the camera is moved by the same rigid transform as
+	# the ship, and goes on lagging the felt motion from where it was.
+	_map.crossed.connect(func(move: Transform3D) -> void:
+		if _camera == null:
+			return
+		var world_move := _map.global_transform * move * _map.global_transform.affine_inverse()
+		_camera.global_transform = world_move * _camera.global_transform)
 
 	_dock = DockScreen.new()
 	_dock.name = "DockScreen"
@@ -315,6 +322,9 @@ func _build_hud() -> void:
 			lane.gear, "  ·  DOWNSHIFT, exit lined up" if lane.downshift else "",
 			_ship.felt_speed(), _ship.speed()]
 	)
+	_hud.add_row("world", func() -> String:
+		return "THE WORMHOLE  ·  %s" % _map.place_of(_ship_in_map()) if _map.in_wormhole() \
+			else "open space")
 	_hud.add_row("sector", func() -> String:
 		if not Tuning.flag("exploration/sectors_enabled"):
 			return "off"

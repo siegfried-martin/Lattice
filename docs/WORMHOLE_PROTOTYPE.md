@@ -136,6 +136,57 @@ which world. `K` drops on spots in both worlds; `J` jumps between systems in spa
 
 Each step lands gate-clean.
 
+## What is built — 2026-09-20
+
+Steps 1 to 3 of the build order, and the gate. The plan above is kept as written;
+where the build differs, this section says so.
+
+- **Two networks in one frame, not two roots.** There is no floating-origin recentre
+  yet, so the wormhole is a second `RoadNetwork` below the map
+  (`WormholeLayout.ORIGIN`, one pocket per highway `POCKET_SPACING` apart) and the
+  crossing is a teleport within the map's frame plus a visibility switch
+  (`SystemMap._apply_world`). The ship's one collider knows every tube of both, so the
+  world is derived from the tube the ship is in; a debug drop onto either world's road
+  puts the map there.
+- **`cruise_speed` is the highway's speed.** There is no `wormhole_speed`: with no
+  highway anywhere but the wormhole, the key that always was the highway's lane
+  ceiling is that. `highway_gear` is 1.
+- **The crossing is in metres, not a fraction.** `wormhole_swap_metres` from the
+  planet's end of the ramp, and `wormhole_ramp_overlap` drawn past it in each world,
+  because a ramp's length now depends on the run those two make.
+- **Planet ramps are compact and level**, not the S-bend: exit head, run, crossing;
+  the entry the same reversed, in through the wall onto a lead on the carriageway's
+  centre-line. The space side of a ramp is a straight stub of `wormhole_swap_metres`
+  from the wormhole's mouth to the planet's. The S-bend and `ramp_bend_deg` are
+  gone; `ramp_exit_lead` 120, `ramp_exit_length` 520 at 14°, `ramp_bend_radius` 600
+  for the bend onto the run.
+- **Found by the gate on the way**: the berth's felt speed was read back from the
+  ship's displacement, closing pull included, and fed the next frame's budget, so a
+  berth taken forty metres off the rail wound the ship up to twice cruise. The gear's
+  wide bound had hidden it. The felt speed is the rail budget now.
+- **The leg floor is the ramp footprint.** A node's exit and entry each take
+  `wormhole_node_gap` plus a ramp's length (about 1.15 km) of carriageway, so two
+  nodes cannot be closer than about 2.3 km, 19 s at 120 m/s. The keys start at 20 to
+  30 s rather than the 5 to 20 in the plan; shorter needs smaller ramps, and
+  `make roads` prints every leg's seconds so the trade is visible. Legs: A–B 20 s,
+  B–C 30 s, D–B 20 s, B–E 24.6 s.
+- **Two ramps at an end system, four in the middle.** An on-ramp toward a dead end
+  and an off-ramp from a road's first metres would be traps, so they are not built.
+- **The dead end is an open mouth into the void.** Past the buffer a ship that missed
+  the final off-ramp leaves the tube into the wormhole's own boundary field (the
+  road's tube regions), reddening as anywhere outside playable space. A sealed end or
+  a turnaround is a decision for after the flight.
+- **The berth rebinds across the crossing in both directions**, and a berth carried
+  down an off-ramp's stub is released at the planet's mouth as any ramp's end
+  releases it.
+- **Not built yet: step 4, the tunnel.** Inside, the wormhole is black beyond the
+  road's own lamps; there is no streak cylinder, no throat, and no mouth drawn at the
+  crossing point. The HUD's `world` row says which world the ship is in.
+
+To fly it: `make fly`; the on-ramp is straight ahead at spawn. `K` drops on spots in
+both worlds (`Mouth` and `Arrive` in space, `Exit`, `Merge` and `Bend` inside);
+`make shot` with `ROAD_SHOT_SPOT=` any of those renders the seat there.
+
 ## Deferred
 
 - Interchanges as junctions inside the wormhole.

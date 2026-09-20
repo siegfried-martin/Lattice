@@ -26,6 +26,11 @@ var half_height: float = 0.0
 ## Open ends into space: `{t, label}`.
 var mouths: Array[Dictionary] = []
 var bounds: AABB
+## The stretch of the road that is DRAWN, as path t: the whole road unless set. A
+## ramp that exists in both worlds draws only its own side of the crossing in each
+## (`docs/WORMHOLE_PROTOTYPE.md`); the collider ignores this, the tube is whole.
+var draw_from: float = 0.0
+var draw_to: float = INF
 
 
 static func make(road_name: String, road_kind: String, road_path: RoadPath,
@@ -74,7 +79,13 @@ static func make(road_name: String, road_kind: String, road_path: RoadPath,
 		r.half_width = hw
 	r.half_height = hh
 	r.bounds = road_path.aabb(0.0)
+	r.draw_to = road_path.length
 	return r
+
+
+## Whether path t is inside the drawn stretch.
+func drawn(t: float) -> bool:
+	return t >= draw_from and t <= draw_to
 
 
 ## THE HIGHWAY GEAR (`docs/SECTOR_PROTOTYPE.md`, prototype 2). A highway pushes the
@@ -112,7 +123,7 @@ func rib_positions() -> PackedFloat32Array:
 	var t := fposmod(rib_phase + slip, step)
 	var end := path.length - (0.0 if path.closed else rib_thickness * 0.5)
 	while t <= end:
-		if path.closed or t >= rib_thickness * 0.5:
+		if (path.closed or t >= rib_thickness * 0.5) and drawn(t):
 			out.append(t)
 		t += step
 	return out
@@ -121,6 +132,8 @@ func rib_positions() -> PackedFloat32Array:
 ## How far the built structure stands out from the glass at t: the rib's protrusion
 ## inside a collar, nothing between them. The outside collision reads this.
 func rib_margin_at(t: float) -> float:
+	if not drawn(t):
+		return 0.0
 	var step := rib_spacing * gear()
 	var local := fposmod(t - rib_phase - slip, step)
 	if local < rib_thickness * 0.5 or local > step - rib_thickness * 0.5:

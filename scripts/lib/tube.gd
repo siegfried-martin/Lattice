@@ -189,6 +189,37 @@ func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO, world_speed: floa
 	return lane
 
 
+## INSIDE A JUNCTION THE LANE DOES NOT PENALISE, and neither does it on the approach
+## to an exit. A ramp's tube overlaps its host for the whole of its lead and diverging
+## leg, and a ship steering into an exit a little sharper than the ramp diverges rides
+## the ramp's OUTER wall through all of it — which is "outside the lane" of the ramp,
+## whose centre is a hundred metres inboard, and the edge penalty halves the ship's
+## speed for two kilometres. From the seat that is being caught on something. Where
+## two tubes overlap the ship is on the road either way, so the speed penalty is
+## lifted; the push toward the ramp's centre stays, because that is the road helping
+## you line up. And for `exit_approach_metres` before an exit's opening, lining up on
+## the wall is how the exit is taken, not a lane-keeping mistake, so the lane does not
+## slow a ship on that side either. The ship and the gate's probe both apply this.
+func forgive(lane: CruiseLane, here: Vector3) -> void:
+	if lane == null:
+		return
+	for other in neighbours:
+		if other.contains(here):
+			lane.edge_speed_penalty = 1.0
+			return
+	if lane.lateral <= 0.0:
+		return
+	var t_ship: float = local(here)["t"]
+	var approach := Tuning.num("exploration/exit_approach_metres")
+	for j in junctions:
+		if j["kind"] != "exit":
+			continue
+		var ahead: float = path.ahead(t_ship, float(j.get("opens_at", j["t"])), direction)
+		if ahead >= 0.0 and ahead <= approach:
+			lane.edge_speed_penalty = 1.0
+			return
+
+
 ## THE SLOW ZONE around a junction. The road's gear eases to `junction_gear` over
 ## `junction_slow_seconds` of world travel each side of every junction on this tube
 ## and of an open end, so a ramp, a merge or a mouth is met out of gear and the world

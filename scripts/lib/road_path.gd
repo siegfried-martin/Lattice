@@ -24,13 +24,16 @@ var _spheres: Array[Dictionary] = []
 var length: float = 0.0
 var closed: bool = false
 var waypoints: Array[Vector3] = []
+## The corner radius given for each waypoint, as built (a ramp's are shrunk to fit
+## before the build), so the path can be rebuilt elsewhere by `transformed`.
+var radii: Array[float] = []
 ## Every rounded corner, as `{pos, radius, angle_deg, t}` with `t` where its arc begins.
 var corners: Array[Dictionary] = []
 
 
-static func build(points: Array, radii: Array, is_closed: bool) -> RoadPath:
+static func build(points: Array, corner_radii: Array, is_closed: bool) -> RoadPath:
 	var path := RoadPath.new()
-	path._build(points, radii, is_closed)
+	path._build(points, corner_radii, is_closed)
 	return path
 
 
@@ -39,12 +42,28 @@ static func straight(from: Vector3, to: Vector3) -> RoadPath:
 	return build([from, to], [0.0, 0.0], false)
 
 
-func _build(points: Array, radii: Array, is_closed: bool) -> void:
+## The same path moved rigidly: every waypoint through `xf`, the same radii, so the
+## arcs come out identical and a point at (t, u, v) on one is the image of the point
+## at (t, u, v) on the other. A ramp built in the wormhole is placed in open space
+## this way (`docs/WORMHOLE_PROTOTYPE.md`). `xf` should be a rotation about the
+## vertical plus a translation; the frame's up is the world's, so any other rotation
+## would change the frames.
+func transformed(xf: Transform3D) -> RoadPath:
+	var points: Array = []
+	for w in waypoints:
+		points.append(xf * w)
+	return build(points, radii.duplicate(), closed)
+
+
+func _build(points: Array, radii_in: Array, is_closed: bool) -> void:
 	closed = is_closed
 	waypoints.clear()
 	for q in points:
 		waypoints.append(q as Vector3)
 	var n := waypoints.size()
+	radii.clear()
+	for i in n:
+		radii.append(float(radii_in[i]) if i < radii_in.size() else 0.0)
 	assert(n >= 2, "a path needs two waypoints")
 	# Corner data: for each waypoint that is a corner, where its arc enters and leaves.
 	var arcs := {}
@@ -59,7 +78,7 @@ func _build(points: Array, radii: Array, is_closed: bool) -> void:
 		var ang := a.angle_to(b)
 		if ang < deg_to_rad(0.05):
 			continue
-		var r := float(radii[i]) if i < radii.size() else 0.0
+		var r := radii[i]
 		assert(r > 0.0, "corner %d needs a radius" % i)
 		var d := r * tan(ang * 0.5)
 		var axis := a.cross(b).normalized()

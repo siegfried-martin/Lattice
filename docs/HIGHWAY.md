@@ -17,12 +17,19 @@ one rule from where the data says they start and end. The mesh streams in around
 ship; the collision is analytic and holds everywhere. The road is verified by flying
 it, in the gate, against its own rendered triangles.
 
+Since 2026-09-20 the highway runs **inside the wormhole** (`docs/WORMHOLE_PROTOTYPE.md`,
+a prototype under test): open space holds only each ramp's twin, ending at the
+planet's mouth, and a ship crosses between the worlds partway along a ramp. The
+section below, *The two worlds*, is that mechanism; everything else here is unchanged
+by it.
+
 ## The files
 
 | File | What it is |
 |---|---|
-| `data/routes.json` | The map: systems, highways as waypoints, which ramps exist. Hot-reloaded. |
+| `data/routes.json` | The map: systems, which systems each highway joins, which ramps exist. Hot-reloaded. |
 | `scripts/autoload/routes.gd` | Loads it, polls it, emits `reloaded`. |
+| `scripts/lib/wormhole_layout.gd` | Lays the wormhole's highways out from the map, and places the planet mouths. |
 | `scripts/lib/road_path.gd` | The centre-line: straights and arcs, analytic `closest`, `frame`, `at`. |
 | `scripts/lib/tube.gd` | One carriageway's volume: `contains`, `local`, `world`, `sample` (the `CruiseLane`). |
 | `scripts/lib/road.gd` | One road: its path, its tubes, its ribs. |
@@ -31,9 +38,46 @@ it, in the gate, against its own rendered triangles.
 | `scripts/world/road_network.gd` | Builds the roads and ramps from the data, validates, streams the mesh, owns portals and gates. |
 | `scripts/world/road_mesh.gd` | The visible structure, in chunks, with the one clip rule. |
 | `scripts/world/road_berth.gd` | The dock on the roadway (ADR 0082), on tubes. |
-| `scripts/world/system_map.gd` | Places the systems and corridors, hands the ship its tube each frame. |
+| `scripts/world/system_map.gd` | Places the systems and corridors, owns both worlds' networks, hands the ship its tube each frame, crosses it between the worlds. |
 | `tools/tests/road_suite.gd` | The flying half of the gate. |
 | `tools/tests/road_report.gd` | `make roads`: build the map headless and list every problem. |
+
+## The two worlds
+
+Two `RoadNetwork`s in one frame, both children of the map and both resident all the
+time: **the wormhole**, `WormholeLayout.ORIGIN` below the plane, holds every highway
+and the ramps that join them; **open space** holds each ramp's twin and no highway.
+`RoadNetwork.build_worlds` builds them in that order, and the ship's one collider
+knows every tube of both, so which world the ship is in is a fact about the tube it is
+in (`SystemMap._in_wormhole`), never a mode.
+
+- **The layout** (`WormholeLayout.lay`). Each highway's nodes are its systems in
+  order, at the map's bearings, each leg the world leg times `wormhole_scale` clamped
+  to between `wormhole_exit_min_seconds` and `wormhole_exit_max_seconds` at
+  `cruise_speed`. The road dead-ends `wormhole_end_run` past its first and last node.
+  Each highway is in its own pocket, `POCKET_SPACING` from the next. Corners are
+  rounded at the nodes with a radius a little over the highway's floor.
+- **The ramps** are built once, in the wormhole, by the ramp rule below, and each is
+  placed again in open space by the rigid move that puts its far end at the planet's
+  mouth (`WormholeLayout.space_mouth`, `RoadPath.transformed`): the same shape, so a
+  point (t, u, v) in one is the image of the same point in the other. A system at the
+  end of a highway gets an on-ramp and an off-ramp; one in the middle gets four.
+- **The crossing** (`SystemMap._cross`). A ramp's run beside the road carries it:
+  `wormhole_swap_metres` along an on-ramp from the planet's mouth the ship is moved to
+  the same (t, u, v) in the wormhole's twin, rotated by the rigid transform between
+  the two ramps' frames there, with its velocity, reticle, road axis and berth carried
+  over and the camera moved by the same transform (`crossed`). An off-ramp crosses
+  out that far from its end. Forward only, so nothing flaps between the worlds; the
+  jump's metres are not fuel.
+- **What each world draws** (`Road.draw_from`, `draw_to`): its own side of the ramp,
+  to `wormhole_ramp_overlap` past the crossing. The collider ignores the range; the
+  tube is whole in both, so a hull either side of the crossing is held by the same
+  walls. Ribs, markings and the far mesh all respect it.
+- **What each world shows.** Open space: the discs and corridors (sectors off), the
+  planets and stars, the deep field, the ramps' twins. The wormhole: its network, lit
+  by its own lamps, with the road's own tube regions as its playable space. The
+  sector layer is not ticked inside, and names the sector the ship arrives in on the
+  way out.
 
 ## The section
 
@@ -131,8 +175,6 @@ so the laps are flown in gear and the steered exits are taken out of it.
   "systems": { "SYSTEM A": [0, 0, 0], "SYSTEM B": [11500, 0, 0] },
   "highways": [
     { "name": "A-377B", "systems": ["SYSTEM A", "SYSTEM B", "SYSTEM C"],
-      "points": [[-6000, 360, 0], [24000, 360, 0], [30000, 560, -2000]],
-      "radii":  [0, 2500, 0],
       "mouth_height": 160, "mouth_along": 600 }
   ],
   "planet_ramps": [ { "highway": "A-377B", "system": "SYSTEM A" } ],
@@ -145,14 +187,17 @@ so the laps are flown in gear and the steered exits are taken out of it.
 }
 ```
 
-- A **highway** is waypoints with a corner radius each (0 at an open end). An open
-  end is a mouth. `closed: true` makes a loop. The systems listed are what its
-  corridors join and what its entry mouths are labelled toward.
-- **`planet_ramps`** declares that a system on a highway gets ramps; by default an exit
-  and an entry on both carriageways, shaped by the rule below. `mouth_height` and
-  `mouth_along` on the highway move that highway's mouths, which is how K-112's ramps
-  at B clear A-377B's.
-- A **ramp** in `ramps` is an interchange: `from` and `to` name a highway, a side
+- A **highway** is the systems it joins, in order. Its geometry is laid out inside the
+  wormhole from that order (*The two worlds*, above); in open space the systems listed
+  are what its corridors join and what its entry mouths are labelled toward. (The
+  network's `build` still takes waypoints with a corner radius each, 0 at an open
+  end, and `closed: true` for a loop; the layout generates them.)
+- **`planet_ramps`** declares that a system on a highway gets ramps: an exit and an
+  entry on both carriageways where they make sense, shaped by the rule below.
+  `mouth_height` and `mouth_along` on the highway move that highway's mouths in open
+  space, which is how K-112's ramps at B clear A-377B's.
+- A **ramp** in `ramps` is an interchange, kept for when interchanges come back to the
+  wormhole and not built now: `from` and `to` name a highway, a side
   (`R` is the carriageway to the right of the path's direction, `L` the other), and
   where on it — `near` a point, or `at` a system plus an `offset` in travel metres.
   Either end may instead be `{"mouth": "SYSTEM X"}`. `points` are the waypoints
@@ -187,17 +232,22 @@ carriageway.
 - **Merge tail** of an interchange ramp: `ramp_merge_drop` below the carriageway's
   centre, climbing at `ramp_merge_pitch_deg` through the floor, then level inside it
   for `ramp_merge_lead`, ending at `to`. Bends of `ramp_merge_radius`.
-- **Planet ramps are an S-bend** (ADR 0097: the highway runs along the bottom, the
-  mouths sit low beside the planet). Two bends of `ramp_bend_radius` through
-  `ramp_bend_deg` with one straight between: an exit leaves the carriageway level,
-  bends up and right, runs straight, and bends back level into its mouth
-  (`ramp_mouth_along_offset` short of the system's centre, `ramp_mouth_side_offset`
-  to the right, `ramp_mouth_height` above the plane); an entry leaves its mouth
-  level, bends down and left, and comes back level onto the merge lead, in from
-  above rather than up through the floor. The mouth's offset from the carriageway
-  sets the length — about 2.4 km, most of it inside the carriageway. A ramp may use
-  `ramp_turn_share` of the ship's turn rate, more than a highway's `road_turn_share`,
-  so its bends are tighter; `make roads` floors each road at its own share.
+- **Planet ramps** (`RoadNetwork._wormhole_ramp`) are the exit head, a bend of
+  `ramp_bend_radius`, then a straight run of `wormhole_swap_metres` plus
+  `wormhole_ramp_overlap` beside the carriageway, on which the crossing sits; an
+  entry is the same shape reversed, converging in through the wall onto a lead that
+  runs on the carriageway's own centre-line, so the ramp's end is wholly inside the
+  host (a lead beside the centre, as an exit's head is, left half its end cap in the
+  void). Level throughout, about a kilometre long. An exit ends `wormhole_node_gap` short of the system's node and an
+  entry begins that far past it, so a node's ramps take the gap plus a ramp's length
+  each side and two nodes cannot be closer than the sum: `make roads` prints each
+  leg's seconds. Where the ramp's far end sits in open space is the twin's business:
+  `ramp_mouth_along_offset` short of (exit) or past (entry) the system's centre on
+  the highway's bearing through it, `ramp_mouth_side_offset` to the driver's right,
+  `ramp_mouth_height` above the plane (ADR 0097: low beside the planet). A ramp may
+  use `ramp_turn_share` of the ship's turn rate, more than a highway's
+  `road_turn_share`, so its bends are tighter; `make roads` floors each road at its
+  own share.
 
 Where a ramp's tube overlaps its host's, the host's wall, roof or floor is open — and
 only there.
@@ -236,16 +286,19 @@ clip subdivides walls to `MIN_CLIP` metres where another tube passes through the
 
 ## Verification
 
-`make check` runs `RoadSuite`: the network builds with no problems; every tube
-contains its own centre-line; a probe flies every carriageway mouth to mouth, every
-ramp from host to destination, dives at every wall at every junction edge and bend,
-and flies drunk on every tube — and a ray from each step's start to its end must never
-cross a rendered triangle, the probe must never be stopped, and there must be structure
-within 2.5 km on all four sides while inside a tube. The whole mesh is built for it
-(about 1.5 million triangles, half a minute).
+`make check` runs `RoadSuite`: both worlds' networks build with no problems; every
+tube contains its own centre-line; a probe flies every carriageway end to end, every
+ramp from host to destination or from its planet mouth to where the wormhole takes
+over, dives at every wall at every junction edge and bend, and flies drunk on every
+tube — and a ray from each step's start to its end must never cross a rendered
+triangle, the probe must never be stopped, and there must be structure within 2.5 km
+on all four sides while inside a tube. The whole mesh is built for it. The exploration
+scene's test then drives the real ship up an on-ramp under its own power and checks
+the crossing: the same (t, u, v), speed and heading in the twin, the camera carried
+along, and the berth still bound down an off-ramp on the way back out.
 
 `make roads` is the fast loop while authoring. `make shot` with `ROAD_SHOT_SPOT=Exit`
-(or `Merge`, `Bend 1`, `Mouth`, `Spawn`, `Planet`) renders a frame from the seat at
+(or `Merge`, `Bend 1`, `Mouth`, `Arrive`, `Spawn`, `Planet`) renders a frame from the seat at
 that spot, and `K` in the game drops the ship at the next spot. When the suite reports
 a pass-through, `tools/tests/repro_drunk.tscn` flies that one tube in a minute and
 names the road and triangle a step crossed (see its header).

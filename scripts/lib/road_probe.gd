@@ -73,11 +73,9 @@ func step(dt: float) -> void:
 	if here != null:
 		lane = here.sample(position, Vector2(half.x, half.y), speed() * gear)
 		frame = here.travel_frame(here.local(position)["t"])
-		# Inside a junction the lane does not penalise (see `SystemMap`).
-		for other in here.neighbours:
-			if other.contains(position):
-				lane.edge_speed_penalty = 1.0
-				break
+		# Inside a junction and on the approach to an exit the lane does not
+		# penalise, for the probe as for the ship (`Tube.forgive`).
+		here.forgive(lane, position)
 	else:
 		lane = null
 		frame = RoadPath.frame_from_tangent(forward())

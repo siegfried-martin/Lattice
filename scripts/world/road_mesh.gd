@@ -123,6 +123,10 @@ static func build_chunk(road: Road, foreign: Array[Tube], chunk: Dictionary,
 	# The rib collars are not here: they move (`Road.slip`) and are placed as
 	# instances every frame by `RoadRibs`.
 	for i in range(first, last):
+		# Only the drawn stretch (`Road.draw_from`, `draw_to`): a ramp shared between
+		# the worlds stops at its crossing in each.
+		if (i + 1) * ring <= road.draw_from or i * ring >= road.draw_to:
+			continue
 		var f0 := road.path.frame(minf(i * ring, road.path.length))
 		var f1 := road.path.frame(minf((i + 1) * ring, road.path.length))
 		if road.path.closed and i + 1 == n:
@@ -147,8 +151,8 @@ static func build_far(road: Road, chunk: Dictionary, from_t: float, to_t: float,
 	b._beam = beam
 	b._want_centres = true
 	b._reset()
-	var t0 := maxf(float(chunk["t0"]), from_t)
-	var t1 := minf(float(chunk["t1"]), to_t)
+	var t0 := maxf(maxf(float(chunk["t0"]), from_t), road.draw_from)
+	var t1 := minf(minf(float(chunk["t1"]), to_t), road.draw_to)
 	if t1 > t0:
 		var n := maxi(int(ceil((t1 - t0) / FAR_RING_METRES)), 1)
 		var ring := (t1 - t0) / n
@@ -197,7 +201,11 @@ static func commit(road: Road, chunk_index: int, built: Dictionary, far: bool = 
 ## point, the strongest speed and direction cue there is. Repainted, never rebuilt,
 ## when the ridden tube changes (ADR 0096).
 static func markings(tube: Tube) -> MeshInstance3D:
-	var span: float = tube.path.length
+	# Over the drawn stretch only (`Road.draw_from`, `draw_to`).
+	var lo: float = maxf(float(tube.road.get("draw_from")), 0.0) if tube.road != null else 0.0
+	var hi: float = minf(float(tube.road.get("draw_to")), tube.path.length) if tube.road != null \
+		else tube.path.length
+	var span: float = maxf(hi - lo, 1.0)
 	var stations := maxi(int(span / MARKING_METRES), 1)
 	var runs: Array[PackedVector3Array] = []
 	var centres: Array[PackedVector3Array] = []
@@ -205,7 +213,7 @@ static func markings(tube: Tube) -> MeshInstance3D:
 		runs.append(PackedVector3Array())
 		centres.append(PackedVector3Array())
 	for i in stations + 1:
-		var t := span * float(i) / float(stations)
+		var t := lo + span * float(i) / float(stations)
 		var floor_point := tube.world(t, 0.0, -tube.hh * (1.0 - MARKING_LIFT))
 		var centre := tube.path.point_at(t)
 		var right: Vector3 = tube.path.frame(t)["right"]
@@ -229,7 +237,7 @@ static func markings(tube: Tube) -> MeshInstance3D:
 				custom.append(c.x)
 				custom.append(c.y)
 				custom.append(c.z)
-				along.append(span * float(k) / float(stations))
+				along.append(lo + span * float(k) / float(stations))
 				along.append(dashed)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

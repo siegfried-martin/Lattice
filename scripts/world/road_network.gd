@@ -12,10 +12,14 @@ extends Node3D
 ## and the collider and the mesh read the same rule.
 ##
 ## **Routes are data**, in `data/routes.json` (the `Routes` autoload), hot-reloaded
-## like `tuning.cfg`: systems, highways as waypoints with corner radii, planet ramps
-## declared by system and side and shaped by the ramp rule, interchange ramps
-## authored as waypoints. Everything here is built from that in `build()` and rebuilt
-## on reload.
+## like `tuning.cfg`: systems, highways as the systems they pass through, planet ramps
+## declared by system and shaped by the ramp rule, interchange ramps authored as
+## waypoints. Everything here is built from that in `build()` and rebuilt on reload.
+##
+## **Two worlds, two networks** (`docs/WORMHOLE_PROTOTYPE.md`). The highways run
+## inside the wormhole, laid out from the map by `WormholeLayout` and built by the
+## ordinary `build()`; open space holds only the ramps' twins, built by `build_twins`
+## from the wormhole's ramps. `build_worlds` does both in order.
 ##
 ## **The mesh streams.** Building a whole map of clipped junctions up front was the
 ## POC's load time, so each road is chunks (`RoadMesh.plan`) built around the ship
@@ -35,8 +39,15 @@ const RAMP_INSET := 2.0
 
 var roads: Array[Road] = []
 var tubes: Array[Tube] = []
-## `{road, from_tube, from_t, to_tube, to_t, mouth_of, exit_portal, entry_portal, gate}`.
+## `{road, from_tube, from_t, to_tube, to_t, mouth_of, exit_portal, entry_portal, gate,
+## system, kind ("exit" | "entry" | ""), direction, twin, cross_at}`. `twin` is the
+## same ramp's tube in the other world, or null; `cross_at` the path t at which a ship
+## travelling along this ramp crosses to it, or -1 when it never does.
 var ramps: Array[Dictionary] = []
+## Whether this network is the wormhole's. Its ramps end at a crossing rather than
+## in space, so they get no portal or mouth spot there, and each draws only its own
+## side of the crossing (`Road.draw_from`, `draw_to`).
+var is_wormhole: bool = false
 ## Teleport spots for the debug drop: `{label, tube, t}`.
 var spots: Array[Dictionary] = []
 ## Validation messages. Reported, never silently fixed.
@@ -70,6 +81,139 @@ func _ready() -> void:
 ## Tear down and build from the route data (`Routes.data()`), with the systems'
 ## positions in the map's frame.
 func build(data: Dictionary, system_positions: Dictionary) -> void:
+	_reset()
+	var by_name := {}
+	for h: Dictionary in data.get("highways", []):
+		var points: Array = []
+		for p: Array in h["points"]:
+			points.append(Vector3(p[0], p[1], p[2]))
+		var radii: Array = h.get("radii", [])
+		var path := RoadPath.build(points, radii, bool(h.get("closed", false)))
+		var road := Road.make(String(h["name"]), "highway", path, 2, 0.0)
+		road.set_meta("systems", h.get("systems", []))
+		_add_road(road)
+		if not path.closed:
+			road.mouths.append({"t": 0.0, "label": road.name + " start"})
+			road.mouths.append({"t": path.length, "label": road.name + " end"})
+		by_name[road.name] = road
+		for c in path.problems():
+			problems.append("%s: %s" % [road.name, c])
+
+	for r: Dictionary in data.get("planet_ramps", []):
+		var road: Road = by_name.get(String(r["highway"]))
+		if road == null:
+			problems.append("planet ramp names unknown highway %s" % r["highway"])
+			continue
+		var system := String(r["system"])
+		# The layout says where a system's node is on this highway (`at`); a system on
+		# two highways has a node on each.
+		var node: Vector3
+		if r.has("at"):
+			var p: Array = r["at"]
+			node = Vector3(p[0], p[1], p[2])
+		elif system_positions.has(system):
+			node = system_positions[system]
+		else:
+			problems.append("planet ramp names unknown system %s" % system)
+			continue
+		for side: String in r.get("sides", ["R", "L"]):
+			for kind: String in r.get("kinds", ["exit", "entry"]):
+				_wormhole_ramp(_side_of(road, side), system, node, kind)
+	var authored: Array = data.get("ramps", [])
+	for r: Dictionary in authored:
+		if not r.has("mirror_of"):
+			_authored_ramp(r, by_name, system_positions)
+	for r: Dictionary in authored:
+		if r.has("mirror_of"):
+			_mirrored_ramp(r, authored, by_name, system_positions)
+
+	_finish()
+	_plan_chunks()
+	_dress()
+
+
+## BOTH WORLDS (`docs/WORMHOLE_PROTOTYPE.md`): the wormhole's highways and ramps from
+## the map's data through `WormholeLayout`, then open space's ramps as their twins.
+## The map, the road report and the gate all build through here.
+static func build_worlds(space: RoadNetwork, wormhole: RoadNetwork, data: Dictionary,
+		system_positions: Dictionary) -> void:
+	var laid := WormholeLayout.lay(data, system_positions)
+	wormhole.is_wormhole = true
+	wormhole.build(laid, system_positions)
+	space.build_twins(wormhole, data, system_positions)
+
+
+## THE SPACE SIDE: this network becomes every planet ramp of `source` (the wormhole's)
+## placed again in open space, so that the ramp's end sits at the planet's mouth
+## (`WormholeLayout.space_mouth`). One shape, placed twice: the twin's path is the
+## ramp's moved rigidly, so a ship at (t, u, v) in one is at the same place in the
+## other, which is what the crossing relies on. No highway is built here at all; the
+## twins are free-standing tubes, and an end that is not the planet's mouth is where
+## the wormhole takes over (`cross_at`).
+func build_twins(source: RoadNetwork, data: Dictionary, system_positions: Dictionary) -> void:
+	_reset()
+	var swap := Tuning.num("exploration/wormhole_swap_metres")
+	var overlap := Tuning.num("exploration/wormhole_ramp_overlap")
+	for rec in source.ramps:
+		var kind := String(rec.get("kind", ""))
+		if kind != "exit" and kind != "entry":
+			continue
+		var road: Road = rec["road"]
+		var tube: Tube = road.tubes[0]
+		var end_t := road.path.length if kind == "exit" else 0.0
+		var f := tube.travel_frame(end_t)
+		var mouth := WormholeLayout.space_mouth(data, system_positions, tube.route_name,
+			String(rec["system"]), int(rec["direction"]), kind)
+		var xf := _rigid_move(f["pos"], f["fwd"], mouth["pos"], mouth["fwd"])
+		var name := road.name + " [space]"
+		var twin := Road.make(name, "ramp", road.path.transformed(xf), 1, RAMP_INSET)
+		twin.rib_phase = road.rib_phase
+		var tt := twin.tubes[0]
+		tt.route_name = tube.route_name
+		var length := twin.path.length
+		twin.mouths.append({"t": 0.0, "label": name + (" mouth" if kind == "entry" else " wormhole")})
+		twin.mouths.append({"t": length, "label": name + (" wormhole" if kind == "entry" else " mouth")})
+		var record := {"road": twin, "from_tube": null, "from_t": 0.0, "to_tube": null,
+			"to_t": 0.0, "mouth_of": rec["mouth_of"], "exit_portal": null, "entry_portal": null,
+			"gate": null, "system": rec["system"], "kind": kind, "direction": rec["direction"],
+			"twin": tube, "cross_at": -1.0}
+		if kind == "exit":
+			# Space draws the exit from a little before the crossing to the planet's mouth.
+			twin.draw_from = maxf(length - swap - overlap, 0.0)
+			record["exit_portal"] = _portal(tt.centre(length), tt.travel_frame(length)["fwd"],
+				String(rec["mouth_of"]))
+			spots.append({"label": "Arrive %s" % name, "tube": tt,
+				"t": clampf(length - swap + 20.0, 0.0, length)})
+			# A ship riding the wormhole's exit crosses out to this twin here.
+			rec["cross_at"] = road.path.length - swap
+		else:
+			# Space draws the entry from the planet's mouth to a little past the crossing.
+			twin.draw_to = minf(swap + overlap, length)
+			record["entry_portal"] = _portal(tt.centre(0.0), tt.travel_frame(0.0)["fwd"],
+				"TO " + _next_system(rec["to_tube"]))
+			spots.append({"label": "Mouth %s (entry)" % name, "tube": tt, "t": 100.0})
+			# A ship riding this twin crosses in to the wormhole's entry here.
+			record["cross_at"] = swap
+		rec["twin"] = tt
+		_add_road(twin)
+		ramps.append(record)
+	_finish()
+	_plan_chunks()
+	_dress()
+
+
+## The rotation about the vertical and the translation that carry a point travelling
+## `from_fwd` at `from_pos` to travelling `to_fwd` at `to_pos`.
+static func _rigid_move(from_pos: Vector3, from_fwd: Vector3, to_pos: Vector3,
+		to_fwd: Vector3) -> Transform3D:
+	var a := Vector3(from_fwd.x, 0.0, from_fwd.z).normalized()
+	var b := Vector3(to_fwd.x, 0.0, to_fwd.z).normalized()
+	var basis := Basis(Vector3.UP, a.signed_angle_to(b, Vector3.UP))
+	return Transform3D(basis, to_pos - basis * from_pos)
+
+
+## Tear down whatever was built, ready for a build.
+func _reset() -> void:
 	_cancel_pending()
 	if _mesh_root == null:
 		_ready()
@@ -94,49 +238,10 @@ func build(data: Dictionary, system_positions: Dictionary) -> void:
 	_floor_thickness = Tuning.num("exploration/structure_floor_thickness")
 	_beam = Tuning.num("exploration/structure_beam_size")
 
-	var by_name := {}
-	for h: Dictionary in data.get("highways", []):
-		var points: Array = []
-		for p: Array in h["points"]:
-			points.append(Vector3(p[0], p[1], p[2]))
-		var radii: Array = h.get("radii", [])
-		var path := RoadPath.build(points, radii, bool(h.get("closed", false)))
-		var road := Road.make(String(h["name"]), "highway", path, 2, 0.0)
-		road.set_meta("systems", h.get("systems", []))
-		if h.has("mouth_height"):
-			road.set_meta("mouth_height", float(h["mouth_height"]))
-		if h.has("mouth_along"):
-			road.set_meta("mouth_along", float(h["mouth_along"]))
-		_add_road(road)
-		if not path.closed:
-			road.mouths.append({"t": 0.0, "label": road.name + " start"})
-			road.mouths.append({"t": path.length, "label": road.name + " end"})
-		by_name[road.name] = road
-		for c in path.problems():
-			problems.append("%s: %s" % [road.name, c])
 
-	for r: Dictionary in data.get("planet_ramps", []):
-		var road: Road = by_name.get(String(r["highway"]))
-		if road == null:
-			problems.append("planet ramp names unknown highway %s" % r["highway"])
-			continue
-		var system := String(r["system"])
-		if not system_positions.has(system):
-			problems.append("planet ramp names unknown system %s" % system)
-			continue
-		for side: String in r.get("sides", ["R", "L"]):
-			for kind: String in r.get("kinds", ["exit", "entry"]):
-				_planet_ramp(_side_of(road, side), system, system_positions[system], kind)
-	var authored: Array = data.get("ramps", [])
-	for r: Dictionary in authored:
-		if not r.has("mirror_of"):
-			_authored_ramp(r, by_name, system_positions)
-	for r: Dictionary in authored:
-		if r.has("mirror_of"):
-			_mirrored_ramp(r, authored, by_name, system_positions)
-
-	_finish()
-	_plan_chunks()
+## The parts of the structure that are not streamed chunks: every tube's markings and
+## every road's ribs, then the materials.
+func _dress() -> void:
 	for road in roads:
 		for tube in road.tubes:
 			var lines := RoadMesh.markings(tube)
@@ -159,79 +264,58 @@ func _side_of(road: Road, side: String) -> Tube:
 	return road.tubes[1] if side == "L" and road.tubes.size() == 2 else road.tubes[0]
 
 
-## The planet ramp rule: an S-BEND. The highway runs along the bottom of the system
-## and the mouths sit low beside the planet, a little above the road and a little to
-## its right, so a ramp is two bends of `ramp_bend_radius` through `ramp_bend_deg`
-## with one straight between them. An EXIT leaves the carriageway level, bends up
-## and right, runs straight, and bends back level into its mouth; an ENTRY leaves its
-## mouth level, bends down and left, runs straight, and bends back level onto the
-## merge lead inside the carriageway — in from above, never up through the floor.
-## The mouth's offset from the carriageway sets the ramp's length: it is the offset
-## over the tangent of the bend angle, plus a bend's tangent length at each end. Both
-## mouths sit beside the system's centre, outside the planet's approach envelope (the
-## gate checks).
-func _planet_ramp(tube: Tube, system: String, centre: Vector3, kind: String) -> void:
-	var t_s: float = tube.local(centre)["t"]
-	# A highway may also push its mouths further along (`mouth_along` in routes.json),
-	# so a road crossing another can put its mouths clear of the other's building.
-	var along: float = float(tube.road.get_meta("mouth_along",
-		Tuning.num("exploration/ramp_mouth_along_offset")))
-	var side := Tuning.num("exploration/ramp_mouth_side_offset")
-	# A highway may lift or lower its mouths (`mouth_height` in routes.json) so that
-	# where two highways cross, their ramps to the same planet pass clear of each
-	# other.
-	var mouth_y: float = centre.y + float(tube.road.get_meta("mouth_height",
-		Tuning.num("exploration/ramp_mouth_height")))
-	var theta := deg_to_rad(clampf(Tuning.num("exploration/ramp_bend_deg"), 5.0, 75.0))
-	var r := Tuning.num("exploration/ramp_bend_radius")
-	# A bend's tangent length: how far before and after its corner the arc reaches.
-	# Each straight has to be two of these, or the arcs would overlap.
-	var d := r * tan(theta * 0.5) + 1.0
-	# The mouth's offset to the driver's right of THIS carriageway's centre-line: the
-	# side offset is from the system's centre, which the road's own centre-line passes
-	# through, and the carriageway sits u0 to one side of that.
-	var lateral := side - tube.u0 * tube.direction
+## THE WORMHOLE RAMP RULE (`docs/WORMHOLE_PROTOTYPE.md`). A ramp joins its
+## carriageway the way an exit's head always has: `ramp_head_offset` beside the
+## centre-line so its box straddles the wall, `ramp_exit_lead` level, `ramp_exit_length`
+## diverging at `ramp_exit_angle_deg`, then a straight run of `wormhole_swap_metres`
+## plus `wormhole_ramp_overlap` beside the road, on which the crossing between the
+## worlds sits. An ENTRY is the same shape reversed: the run, the converging leg in
+## through the wall, the lead inside the carriageway — with the lead on the
+## carriageway's own centre-line rather than beside it, so the ramp's end is wholly
+## inside the host and a ship in any part of the lead is handed to the road rather
+## than out through an end cap half in the void. Exits end `wormhole_node_gap`
+## short of the system's node and entries begin that far past it, on the driver's
+## right, level throughout. Where the ramp's far end goes in open space is the twin's
+## business (`build_twins`); nothing here has to line up with a planet.
+##
+## What that costs in road: a node's ramps take `wormhole_node_gap` plus the ramp's
+## length each side of it, and two nodes cannot be closer than the sum. The road
+## report prints each leg's seconds; `_validate` reports ramps that overlap.
+func _wormhole_ramp(tube: Tube, system: String, node: Vector3, kind: String) -> void:
+	var t_s: float = tube.local(node)["t"]
+	var gap := Tuning.num("exploration/wormhole_node_gap")
+	var run := Tuning.num("exploration/wormhole_swap_metres") \
+		+ Tuning.num("exploration/wormhole_ramp_overlap")
+	var lead := Tuning.num("exploration/ramp_exit_lead")
+	var length := Tuning.num("exploration/ramp_exit_length")
+	var angle := deg_to_rad(Tuning.num("exploration/ramp_exit_angle_deg"))
+	var head := Tuning.num("exploration/ramp_head_offset")
+	var reach := lead + length * cos(angle) + run
+	# The bend into the diverging leg has to fit the lead, as in `_ramp`.
+	var fits := minf(Tuning.num("exploration/ramp_exit_radius"),
+		(lead * 0.5 - 1.0) / maxf(tan(angle * 0.5), 0.001))
+	var bend := Tuning.num("exploration/ramp_bend_radius")
 	var name := "%s %s %s" % [tube.name, system, "out" if kind == "exit" else "in"]
 	if kind == "exit":
-		# An exit is taken by steering RIGHT, so it leaves through the wall the way
-		# every ramp's head does — the level peel at the exit angle — and only then
-		# bends up to its mouth: the S-bend carries the climb and whatever of the
-		# side offset the peel did not.
-		var angle := deg_to_rad(Tuning.num("exploration/ramp_exit_angle_deg"))
-		var lead := Tuning.num("exploration/ramp_exit_lead")
-		var length := Tuning.num("exploration/ramp_exit_length")
-		var t_mouth := tube.path.wrap_t(t_s - tube.direction * along)
-		var f := tube.travel_frame(t_mouth)
-		var c: Vector3 = f["pos"]
-		var mouth: Vector3 = c + (f["right"] as Vector3) * lateral + (f["up"] as Vector3) * (mouth_y - c.y)
-		# The head sits `ramp_head_offset` beside the carriageway (see `_ramp`), so the
-		# S-bend has that much less of the side offset to carry.
-		var head := Tuning.num("exploration/ramp_head_offset")
-		var across := lateral - head - length * sin(angle)
-		var off: Vector3 = (f["right"] as Vector3) * across + (f["up"] as Vector3) * (mouth_y - c.y)
-		var run := off.length() / tan(theta)
-		var t0 := tube.path.wrap_t(t_mouth - tube.direction * (lead + length * cos(angle) + run + 2.0 * d))
-		var f0 := tube.travel_frame(t0)
-		var p0: Vector3 = (f0["pos"] as Vector3) + (f0["right"] as Vector3) * head
-		var p1: Vector3 = p0 + (f0["fwd"] as Vector3) * lead
-		var p2: Vector3 = p1 + (f0["fwd"] as Vector3).rotated(f0["up"], -angle) * length
-		var m2: Vector3 = mouth - (f["fwd"] as Vector3) * 2.0 * d
-		_ramp_build(name, tube, t0, null, 0.0, [p0, p1, p2, m2, mouth],
-			[0.0, minf(Tuning.num("exploration/ramp_exit_radius"), (lead * 0.5 - 1.0) / maxf(tan(angle * 0.5), 0.001)), r, r, 0.0], system)
+		var t0 := tube.path.wrap_t(t_s - tube.direction * (gap + reach))
+		var f := tube.travel_frame(t0)
+		var fwd: Vector3 = f["fwd"]
+		var p0: Vector3 = (f["pos"] as Vector3) + (f["right"] as Vector3) * head
+		var p1: Vector3 = p0 + fwd * lead
+		var p2: Vector3 = p1 + fwd.rotated(f["up"], -angle) * length
+		var p3: Vector3 = p2 + fwd * run
+		_ramp_build(name, tube, t0, null, 0.0, [p0, p1, p2, p3], [0.0, fits, bend, 0.0],
+			system, system, kind)
 	else:
-		var t_mouth := tube.path.wrap_t(t_s + tube.direction * along)
-		var f := tube.travel_frame(t_mouth)
-		var c: Vector3 = f["pos"]
-		var mouth: Vector3 = c + (f["right"] as Vector3) * lateral + (f["up"] as Vector3) * (mouth_y - c.y)
-		var off := mouth - c
-		var run := off.length() / tan(theta)
-		var merge_lead := maxf(Tuning.num("exploration/ramp_merge_lead"), 2.0 * d)
-		var t_m := tube.path.wrap_t(t_mouth + tube.direction * (2.0 * d + run + merge_lead))
-		var fm := tube.travel_frame(t_m)
-		var e0: Vector3 = fm["pos"]
-		var e1: Vector3 = e0 - (fm["fwd"] as Vector3) * merge_lead
-		var m1: Vector3 = mouth + (f["fwd"] as Vector3) * 2.0 * d
-		_ramp_build(name, null, 0.0, tube, t_m, [mouth, m1, e1, e0], [0.0, r, r, 0.0], system)
+		var t_m := tube.path.wrap_t(t_s + tube.direction * (gap + reach))
+		var f := tube.travel_frame(t_m)
+		var fwd: Vector3 = f["fwd"]
+		var e0: Vector3 = f["pos"]
+		var e1: Vector3 = e0 - fwd * lead
+		var e2: Vector3 = e1 - fwd.rotated(f["up"], angle) * length
+		var e3: Vector3 = e2 - fwd * run
+		_ramp_build(name, null, 0.0, tube, t_m, [e3, e2, e1, e0], [0.0, bend, fits, 0.0],
+			system, system, kind)
 
 
 func _authored_ramp(r: Dictionary, by_name: Dictionary, systems: Dictionary) -> Road:
@@ -364,7 +448,8 @@ func _ramp(name: String, from_tube: Tube, from_t: float, to_tube: Tube, to_t: fl
 ## Build a ramp from its waypoints and corner radii: fit the arcs, make the road and
 ## its tube, record the junctions, place the portals, gate and spots.
 func _ramp_build(name: String, from_tube: Tube, from_t: float, to_tube: Tube, to_t: float,
-		pts: Array, radii: Array, mouth_of: String) -> Road:
+		pts: Array, radii: Array, mouth_of: String, system: String = "",
+		kind: String = "") -> Road:
 	if pts.size() < 2:
 		problems.append("ramp %s has no shape" % name)
 		return null
@@ -391,9 +476,12 @@ func _ramp_build(name: String, from_tube: Tube, from_t: float, to_tube: Tube, to
 	tube.route_name = from_tube.route_name if from_tube != null \
 		else (to_tube.route_name if to_tube != null else "")
 	var spacing := road.rib_spacing
+	var host: Tube = from_tube if from_tube != null else to_tube
 	var record := {"road": road, "from_tube": from_tube, "from_t": from_t,
 		"to_tube": to_tube, "to_t": to_t, "mouth_of": mouth_of,
-		"exit_portal": null, "entry_portal": null, "gate": null}
+		"exit_portal": null, "entry_portal": null, "gate": null,
+		"system": system, "kind": kind, "direction": host.direction if host != null else 1,
+		"twin": null, "cross_at": -1.0}
 	if from_tube != null:
 		road.rib_phase = fposmod(-from_t, spacing)
 		# Where the host's wall actually OPENS: the first point along the ramp where its
@@ -433,21 +521,31 @@ func _ramp_build(name: String, from_tube: Tube, from_t: float, to_tube: Tube, to
 	else:
 		road.rib_phase = fposmod(path.length - to_t, spacing)
 		road.mouths.append({"t": 0.0, "label": name + " mouth"})
-		record["entry_portal"] = _portal(tube.centre(0.0), tube.travel_frame(0.0)["fwd"],
-			"TO " + _next_system(to_tube))
-		spots.append({"label": "Mouth %s (entry)" % name, "tube": tube, "t": 200.0})
+		if not is_wormhole:
+			record["entry_portal"] = _portal(tube.centre(0.0), tube.travel_frame(0.0)["fwd"],
+				"TO " + _next_system(to_tube))
+			spots.append({"label": "Mouth %s (entry)" % name, "tube": tube, "t": 200.0})
+		elif kind == "entry":
+			# The wormhole's side of a planet entry begins a little before the crossing.
+			road.draw_from = maxf(Tuning.num("exploration/wormhole_swap_metres")
+				- Tuning.num("exploration/wormhole_ramp_overlap"), 0.0)
 	if to_tube != null:
 		to_tube.junctions.append({"t": to_t, "kind": "entry", "label": "entry " + name,
 			"ramp": tube})
 		tube.junctions.append({"t": path.length, "kind": "merge",
 			"label": "merge " + to_tube.name, "ramp": to_tube})
 		spots.append({"label": "Merge %s" % name, "tube": tube,
-			"t": maxf(0.0, path.length - 2200.0)})
+			"t": maxf(path.length * 0.5, path.length - 2200.0)})
 	else:
 		road.mouths.append({"t": path.length, "label": name + " mouth"})
-		record["exit_portal"] = _portal(tube.centre(path.length),
-			tube.travel_frame(path.length)["fwd"],
-			mouth_of if not mouth_of.is_empty() else "EXIT")
+		if not is_wormhole:
+			record["exit_portal"] = _portal(tube.centre(path.length),
+				tube.travel_frame(path.length)["fwd"],
+				mouth_of if not mouth_of.is_empty() else "EXIT")
+		elif kind == "exit":
+			# The wormhole's side of a planet exit ends a little past the crossing.
+			road.draw_to = minf(path.length - Tuning.num("exploration/wormhole_swap_metres")
+				+ Tuning.num("exploration/wormhole_ramp_overlap"), path.length)
 	_add_road(road)
 	ramps.append(record)
 	return road
@@ -562,9 +660,10 @@ func _validate() -> void:
 			Tuning.num("exploration/ramp_merge_drop"), hh * 2.0 + _floor_thickness + 10.0])
 	var head := Tuning.num("exploration/ramp_exit_lead") \
 		+ Tuning.num("exploration/ramp_exit_length") + 600.0
-	var tail := Tuning.num("exploration/ramp_merge_lead") \
+	# A wormhole entry's tail is an exit's head reversed, so the window covers both.
+	var tail := maxf(Tuning.num("exploration/ramp_merge_lead") \
 		+ Tuning.num("exploration/ramp_merge_drop") \
-			/ tan(deg_to_rad(Tuning.num("exploration/ramp_merge_pitch_deg"))) + 400.0
+			/ tan(deg_to_rad(Tuning.num("exploration/ramp_merge_pitch_deg"))) + 400.0, head)
 	for ramp in ramps:
 		var road: Road = ramp["road"]
 		var tube: Tube = road.tubes[0]
@@ -632,13 +731,17 @@ func _plan_chunks() -> void:
 		var far_to := road.path.length
 		if road.kind == "ramp":
 			var record := ramp_of(road.tubes[0])
+			var head_len := Tuning.num("exploration/ramp_exit_lead") \
+				+ Tuning.num("exploration/ramp_exit_length") + 400.0
 			if not record.is_empty() and record["from_tube"] != null:
-				far_from = Tuning.num("exploration/ramp_exit_lead") \
-					+ Tuning.num("exploration/ramp_exit_length") + 400.0
+				far_from = head_len
 			if not record.is_empty() and record["to_tube"] != null:
-				far_to = road.path.length - Tuning.num("exploration/ramp_merge_lead") \
-					- Tuning.num("exploration/ramp_merge_drop") \
-						/ tan(deg_to_rad(Tuning.num("exploration/ramp_merge_pitch_deg"))) - 400.0
+				# A wormhole entry's tail is an exit's head reversed; an interchange's
+				# climbs from below.
+				far_to = road.path.length - head_len if String(record.get("kind", "")) == "entry" \
+					else road.path.length - Tuning.num("exploration/ramp_merge_lead") \
+						- Tuning.num("exploration/ramp_merge_drop") \
+							/ tan(deg_to_rad(Tuning.num("exploration/ramp_merge_pitch_deg"))) - 400.0
 		for chunk in RoadMesh.plan(road):
 			chunk["road"] = road
 			chunk["foreign"] = foreign

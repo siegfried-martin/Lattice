@@ -534,6 +534,18 @@ func leave_road() -> void:
 	_applied_gear = 1.0
 
 
+## The ship has been moved rigidly to the other world (`SystemMap._cross`): turn
+## everything it carries in the world's frame by the same rotation, so the nose, the
+## velocity, the reticle and the road axis all point the same way relative to the
+## road as they did a frame ago. Position is the caller's.
+func carry_across(rot: Basis) -> void:
+	basis = (rot * basis).orthonormalized()
+	_velocity = rot * _velocity
+	_reticle.aim_basis = (rot * _reticle.aim_basis).orthonormalized()
+	if _road_axis.length_squared() > 0.0:
+		_road_axis = (rot * _road_axis).normalized()
+
+
 ## The displacement the highway gear added this frame, handed over once: the chase
 ## camera moves by it rigidly and lags only the felt motion, so the gear does not
 ## stretch the boom.
@@ -810,8 +822,11 @@ func _fly_berthed(delta: float) -> void:
 
 	_velocity = (position - was_at) / delta
 	# Felt, not world: what the ship carries out of the berth is the rail's speed
-	# before the gear.
-	_speed = _velocity.length() / maxf(berth.gear, 1.0)
+	# before the gear — the BUDGET, not the displacement. Read back from the
+	# displacement it included the pull onto the rail, the next frame's budget eased
+	# down from that, and a berth taken forty metres off the rail wound the ship up
+	# to twice cruise while it slid on.
+	_speed = budget
 	# The throttle is kept honest against the speed being held, so leaving the berth
 	# does not lurch: the ship carries on at what it was already doing.
 	_throttle = clampf(_speed / maxf(manual_max_speed(), 0.001), 0.0, 1.0)
