@@ -147,6 +147,12 @@ var _cruise_ceiling: float = 0.0
 ## rate it can be steered, and the camera — which frames the road, not the nose —
 ## follows the same vector, so the two can never disagree about where the road is.
 var _road_axis: Vector3 = Vector3.ZERO
+## The highway gear the ship is actually applying, blended toward the lane's over
+## `highway_gear_shift_seconds` so a change of tube is a shift rather than a jump.
+var _applied_gear: float = 1.0
+## The extra displacement the gear added this frame, for the chase camera, which
+## follows the felt motion and is carried along with the geared part rigidly.
+var _gear_shift: Vector3 = Vector3.ZERO
 
 var _velocity: Vector3 = Vector3.ZERO
 ## Forward speed, carried between frames so it can be RATE-LIMITED on the way down.
@@ -249,6 +255,7 @@ func _apply_tuning() -> void:
 
 
 func _process(delta: float) -> void:
+	_gear_shift = Vector3.ZERO
 	if delta <= 0.0:
 		return
 	# The tube reloads regardless of who is flying, or whether anyone is: the
@@ -522,6 +529,20 @@ func adopt_road_axis(axis: Vector3) -> void:
 
 func leave_road() -> void:
 	_road_axis = Vector3.ZERO
+	_applied_gear = 1.0
+
+
+## The displacement the highway gear added this frame, handed over once: the chase
+## camera moves by it rigidly and lags only the felt motion, so the gear does not
+## stretch the boom.
+func take_gear_displacement() -> Vector3:
+	var shift := _gear_shift
+	_gear_shift = Vector3.ZERO
+	return shift
+
+
+func applied_gear() -> float:
+	return _applied_gear
 
 
 ## Read the class back out of tuning. Called at build and on every hot reload, so
@@ -677,7 +698,7 @@ func _fly_cruise(delta: float) -> void:
 		# Times the gear: in the gear the ship covers a bend's world metres that much
 		# faster, and the axis has to keep up with the road under it.
 		_road_axis = FlightGeometry.turn_towards(_road_axis, cruise.axis,
-			deg_to_rad(cruise.turn_rate_deg) * delta * cruise.gear)
+			deg_to_rad(cruise.turn_rate_deg) * delta * _applied_gear)
 		axis = _road_axis
 	var cone := deg_to_rad(cruise.clamp_deg)
 	basis = FlightGeometry.basis_from_forward(
@@ -698,12 +719,17 @@ func _fly_cruise(delta: float) -> void:
 	# throttle would make the correction vanish exactly when it is needed.
 	_velocity = (-basis.z * _speed + basis.x * strafe) \
 		.limit_length(maxf(_speed, top)) + cruise.push()
-	# THE HIGHWAY GEAR (`Road.gear_at`): only the motion along the road's axis is
+	# THE HIGHWAY GEAR (`Road.gear`): only the motion along the road's axis is
 	# multiplied. Steering across the lane, the push and the felt speed are unchanged,
 	# which is what keeps the road feeling like the same road while the world outside
-	# goes by faster.
-	if cruise.gear != 1.0:
-		_velocity += axis * (_velocity.dot(axis) * (cruise.gear - 1.0))
+	# goes by faster. The applied gear chases the lane's over a few seconds, so
+	# crossing from a ramp into a highway (or back) is a shift, not a jump.
+	var shift := maxf(Tuning.num("exploration/highway_gear_shift_seconds"), 0.001)
+	_applied_gear = move_toward(_applied_gear, cruise.gear,
+		delta * maxf(absf(cruise.gear - _applied_gear), 1.0) / shift)
+	if _applied_gear != 1.0:
+		_gear_shift = axis * (_velocity.dot(axis) * (_applied_gear - 1.0)) * delta
+		_velocity += axis * (_velocity.dot(axis) * (_applied_gear - 1.0))
 	position += _velocity * delta
 
 

@@ -18,7 +18,7 @@ where they conflict**, at the human's explicit direction.
 | Gate | `make check` — 1357 checks, 0 failed; the road suite alone flies 230k probe steps against 1.5M rendered triangles |
 | Run it | `make fly`. `J` jumps between systems, `K` drops you on the road at the next bend, exit, merge or mouth. `make roads` validates the map. |
 | Built | Exploration POC steps 1–8; **the road, replaced whole on 2026-09-07 (ADR 0096)** |
-| **Do next** | Fly prototypes 1 and 2 (`docs/SECTOR_PROTOTYPE.md`): F2, `sectors_enabled` on, `highway_gear` 3 to 5. Then **Fly it.** Ten minutes on A-377B; every exit and entry at B; the interchange X1/X2 and their mirrors. Then success criterion 1, and traffic (steps 9 and 10). |
+| **Do next** | Fly the shorter ramps and the timed gear shift (`docs/SECTOR_PROTOTYPE.md`). Then the interchange, and prototype 3. Ten minutes on A-377B; every exit and entry at B; the interchange X1/X2 and their mirrors. Then success criterion 1, and traffic (steps 9 and 10). |
 | **Waiting on you** | The feel calls listed under *What to fly first* below, and the pitch pair `ship/max_pitch_deg` / `camera/ship_pitch_ceiling_deg`, still yours. |
 
 ### A prototype plan is written — 2026-09-19, from the human
@@ -29,9 +29,12 @@ sets how it is drawn, and crossing a sector edge is an event with a sign), a
 **highway gear** (the lane pushes the ship through the world at a multiple of the
 felt speed, structure spaced to match, so travel time, distance and calm stop pulling
 on one key), and a **bigger map** on top of both. The plan, its knobs and what to
-watch for are in **`docs/SECTOR_PROTOTYPE.md`**. **Prototypes 1 and 2 are built**,
-both behind flags that are off: `sectors_enabled` and `highway_gear` (1 is off). Flip
-them in F2 and fly; the doc's "What is built" section lists the edges left for the
+watch for are in **`docs/SECTOR_PROTOTYPE.md`**. **Prototypes 1 and 2 are built and
+on by default** (`sectors_enabled`, `highway_gear` 5, felt `cruise_speed` 250). The
+human's first flight (2026-09-19) called the direction right and asked for three
+things, all done: the gear is the road's and shifts in time rather than by distance;
+ramps have a speed limit and are half to a third as long; the camera no longer
+stretches in the gear. The doc's "What is built" section lists the edges left for the
 flying to judge. Prototype 3 is an edit to `data/routes.json` once those have been
 flown.
 

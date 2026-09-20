@@ -160,7 +160,10 @@ func _ramps() -> void:
 		var to_mouth: bool = ramp["to_tube"] == null
 		if not to_mouth:
 			route.append(ramp["to_tube"])
-		var seconds := (2000.0 + road.path.length + 3000.0) / _probe.cruise_speed + 20.0
+		# The ramp itself is flown at its own limit (`ramp_speed`), the host stretches
+		# at cruise.
+		var seconds := 5000.0 / _probe.cruise_speed \
+			+ road.path.length / minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed")) + 20.0
 		_fly("ramp %s" % road.name, route, start_tube, start_t, seconds, to_mouth)
 
 
@@ -190,7 +193,10 @@ func _exits_steered() -> void:
 			if _probe.tube() == rt:
 				entered = true
 				var lc := rt.local(_probe.position)
-				_probe.aim = (rt.centre(float(lc["t"]) + 400.0) - _probe.position).normalized()
+				# A fixed TIME ahead, as `_fly` does: at the ramp's limit that is a
+				# reach a ramp's bend can be followed at.
+				var reach := maxf(_probe.speed(), 30.0) * 2.4
+				_probe.aim = (rt.centre(float(lc["t"]) + reach) - _probe.position).normalized()
 			elif entered:
 				# Out through the mouth: a planet ramp is short enough to be flown end
 				# to end inside the window, and that is the ramp taken.
@@ -203,9 +209,12 @@ func _exits_steered() -> void:
 		_expect(ok and entered and (_probe.tube() == rt or _probe.tube() == null),
 			label + " ends in the ramp, or out through its mouth",
 			"in %s" % _name(_probe.tube()))
-		_expect(slowest > _probe.cruise_speed * 0.7,
-			label + " is never slowed below 70%% of cruise on the way",
-			"%.0f m/s at slowest" % slowest)
+		# Against the RAMP's limit, which is lower than cruise on purpose: what must
+		# not happen is the lane's edge penalty on top of it.
+		var limit := minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed"))
+		_expect(slowest > limit * 0.7,
+			label + " is never slowed below 70%% of the ramp's limit on the way",
+			"%.0f m/s at slowest against %.0f" % [slowest, limit])
 
 
 ## Into every wall at every junction edge and every bend.
@@ -255,8 +264,6 @@ func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds
 	var idx := 0
 	var visited: Array = [start_tube]
 	var max_turn := 0.0
-	# The pilot looks a fixed TIME ahead, whatever the speed.
-	var lookahead := _probe.cruise_speed * 2.4
 	var ok := true
 	var steps := int(seconds / DT)
 	var arrived := -1
@@ -276,6 +283,9 @@ func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds
 				idx += 1
 		var cur: Tube = route[idx]
 		var lc := cur.local(_probe.position)
+		# The pilot looks a fixed TIME ahead, whatever the speed: at a ramp's limit
+		# that is a shorter reach, which is what lets it take a ramp's bends.
+		var lookahead := maxf(_probe.speed(), 30.0) * 2.4
 		var ta: float = float(lc["t"]) + lookahead * cur.direction
 		var target := cur.centre(ta)
 		if not cur.path.closed and (ta > cur.path.length or ta < 0.0):

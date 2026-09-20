@@ -65,24 +65,27 @@ tube it rides or the nearest one. The ship's `Headlight` is a spot on the nose w
 two visible lamps, toggled with `L`. Everything you would nudge is under `;;; Lights`
 in `tuning.cfg`, and the HUD's `lights` row says what is live.
 
-## The gear (a prototype, behind `highway_gear`)
+## The gear (a prototype, `highway_gear`)
 
-`docs/SECTOR_PROTOTYPE.md`, prototype 2. `Road.gear_at(t)` is 1 at every junction
-and open end of a highway, and climbs to `highway_gear` over
-`highway_gear_shift_metres`; a ramp is always 1. Three things read it:
+`docs/SECTOR_PROTOTYPE.md`, prototype 2. `Road.gear()` is `highway_gear` on a highway
+and 1 on a ramp. Three things read it:
 
 - `Mothership._fly_cruise` multiplies only the velocity's component along the road
-  axis by the lane's `gear`, and slews the road axis that much faster so it keeps up
-  with a bend. Steering, the lane's push, the collider and the felt speed are as
-  they were.
-- `Road.rib_positions()` walks the path in steps of `structure_module_length` times
-  the gear there, so the ribs (and the lamps on them) pass at the felt rate.
-  `rib_margin_at` looks the stretched ribs up instead of doing the modular
-  arithmetic.
+  axis by the gear it is applying, and slews the road axis that much faster so it
+  keeps up with a bend. Steering, the lane's push, the collider and the felt speed
+  are as they were. The applied gear chases the lane's over
+  `highway_gear_shift_seconds`, so crossing from a ramp into a highway is an upshift
+  and leaving is a downshift, in time rather than by position. The chase camera is
+  handed the gear's share of each frame's displacement and moves by it rigidly, so
+  its lag is against the felt motion only.
+- `Road.rib_positions()` lays the ribs (and the lamps on them) at
+  `structure_module_length` times the gear, so they pass at the felt rate.
 - The HUD's `gear` row and the `leg` row's by-road estimate.
 
-At `highway_gear` 1 none of this runs and the road is exactly what it was. The
-gate's flying probe (`RoadProbe`) does not use the gear: it flies at `cruise_speed`.
+A ramp also has its own speed limit, `ramp_speed`: the lane's ceiling on a ramp tube.
+The validator floors a ramp's bends at that speed, which is what lets a ramp bend at a
+couple of hundred metres. At `highway_gear` 1 the road is exactly what it was. The
+gate's flying probe (`RoadProbe`) does not use the gear; it flies at the lane's speed.
 
 ## Authoring the map
 

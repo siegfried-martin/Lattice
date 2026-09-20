@@ -222,7 +222,7 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/exit_approach_metres",
 	"exploration/structure_glass_edge_alpha", "exploration/structure_glass_fresnel_power",
 	"exploration/structure_glass_sheen", "exploration/far_compress_power",
-	"exploration/highway_gear", "exploration/highway_gear_shift_metres",
+	"exploration/highway_gear", "exploration/highway_gear_shift_seconds", "exploration/ramp_speed",
 	"exploration/sectors_enabled", "exploration/sector_radius",
 	"exploration/sector_next_power", "exploration/sector_far_power",
 	"exploration/sector_far_rings", "exploration/sector_crossing_seconds",
@@ -2948,47 +2948,37 @@ func _test_hex_sectors() -> void:
 		Tuning.set_value(key, keep[key])
 
 
-## The highway gear (docs/SECTOR_PROTOTYPE.md, prototype 2): first at every junction
-## and open end, full between, ribs spaced to match, and the lane carries it.
+## The highway gear (docs/SECTOR_PROTOTYPE.md, prototype 2): a highway's gear is the
+## key, a ramp's is 1, ribs are spaced to match, and the lane carries it; a ramp has
+## its own speed limit.
 func _test_highway_gear() -> void:
 	var keep_gear: Variant = Tuning.get_raw("exploration/highway_gear")
-	var keep_shift: Variant = Tuning.get_raw("exploration/highway_gear_shift_metres")
 	Tuning.set_value("exploration/highway_gear", 1.0)
 	var path := RoadPath.straight(Vector3.ZERO, Vector3(0.0, 0.0, -20000.0))
 	var road := Road.make("GEAR", "highway", path, 2, 0.0)
-	_expect(not road.geared() and is_equal_approx(road.gear_at(10000.0), 1.0),
-		"at highway_gear 1 the road is in first everywhere", "")
+	_expect(is_equal_approx(road.gear(), 1.0), "at highway_gear 1 the road is in first", "")
 	var plain := road.rib_positions()
 	Tuning.set_value("exploration/highway_gear", 4.0)
-	Tuning.set_value("exploration/highway_gear_shift_metres", 2000.0)
-	_expect(is_equal_approx(road.gear_at(0.0), 1.0) and is_equal_approx(road.gear_at(1000.0), 2.5)
-			and is_equal_approx(road.gear_at(10000.0), 4.0) and is_equal_approx(road.gear_at(19500.0), 1.75),
-		"the gear is 1 at an open end and reaches full a shift away",
-		"%.2f %.2f %.2f %.2f" % [road.gear_at(0.0), road.gear_at(1000.0),
-			road.gear_at(10000.0), road.gear_at(19500.0)])
+	_expect(is_equal_approx(road.gear(), 4.0), "a highway's gear is the key", "%.2f" % road.gear())
 	var ribs := road.rib_positions()
-	_expect(ribs.size() < plain.size(), "in the gear there are fewer ribs on the same road",
+	_expect(ribs.size() < plain.size() and ribs.size() >= 2
+			and is_equal_approx(ribs[1] - ribs[0], road.rib_spacing * 4.0),
+		"in the gear the ribs are the beat times the gear apart, so fewer of them",
 		"%d vs %d" % [ribs.size(), plain.size()])
-	var mid_gap := 0.0
-	for i in ribs.size() - 1:
-		if ribs[i] >= 8000.0 and mid_gap == 0.0:
-			mid_gap = ribs[i + 1] - ribs[i]
-	_expect(is_equal_approx(mid_gap, road.rib_spacing * 4.0),
-		"mid-route the ribs are the beat times the gear apart", "%.0f m" % mid_gap)
 	var on_rib := ribs[ribs.size() / 2]
 	var between := on_rib + road.rib_thickness * 0.5 + 100.0
 	_expect(is_equal_approx(road.rib_margin_at(on_rib), road.rib_protrusion)
 			and is_zero_approx(road.rib_margin_at(between)),
 		"the collision's rib margin follows the stretched ribs", "")
 	var ramp := Road.make("RAMP", "ramp", path, 1, 0.0)
-	_expect(is_equal_approx(ramp.gear_at(10000.0), 1.0), "a ramp is always in first", "")
+	_expect(is_equal_approx(ramp.gear(), 1.0), "a ramp is always in first", "")
 	var lane := road.tubes[0].sample(road.tubes[0].centre(10000.0))
 	_expect(is_equal_approx(lane.gear, 4.0), "the lane sample carries the gear", "%.2f" % lane.gear)
-	road.tubes[0].junctions.append({"t": 10000.0, "kind": "exit", "label": "x", "ramp": ramp.tubes[0]})
-	_expect(is_equal_approx(road.gear_at(10000.0), 1.0),
-		"a junction puts the road back in first", "%.2f" % road.gear_at(10000.0))
+	var ramp_lane := ramp.tubes[0].sample(ramp.tubes[0].centre(10000.0))
+	_expect(is_equal_approx(ramp_lane.base_speed, Tuning.num("exploration/ramp_speed"))
+			and is_equal_approx(lane.base_speed, Tuning.num("exploration/cruise_speed")),
+		"a ramp's lane runs at ramp_speed, a highway's at cruise_speed", "")
 	Tuning.set_value("exploration/highway_gear", keep_gear)
-	Tuning.set_value("exploration/highway_gear_shift_metres", keep_shift)
 
 
 func _test_disc_bounds() -> void:
@@ -3300,6 +3290,10 @@ func _test_exploration_builds() -> void:
 	_expect(packed != null, "exploration.tscn loads", "scene failed to load")
 	if packed == null:
 		return
+	# The control map first: discs and corridors, sectors off, whatever the flag says
+	# in tuning.cfg. The sectors block below turns them on and back to what they were.
+	var sectors_were: Variant = Tuning.get_raw("exploration/sectors_enabled")
+	Tuning.set_value("exploration/sectors_enabled", false)
 	var scene := packed.instantiate() as ExplorationScene
 	add_child(scene)
 	await get_tree().process_frame
@@ -3857,12 +3851,16 @@ func _test_exploration_builds() -> void:
 		"%d of %d frames with nothing around the ship" % [loose, frames])
 	_expect(bounced, "…and pressed into the wall it BOUNCES (ADR 0090) rather than sliding or passing through", "no rebound")
 
+	# Back to whatever the flag says, LAST: a relayout rebuilds the road and drops
+	# its streamed chunks, which the checks above read.
+	Tuning.set_value("exploration/sectors_enabled", sectors_were)
 	scene.queue_free()
 	await get_tree().process_frame
 
 
 static func _tube_name(t: Tube) -> String:
 	return "nothing" if t == null else t.name
+
 
 
 

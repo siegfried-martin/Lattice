@@ -311,8 +311,8 @@ func _build_hud() -> void:
 		var lane := _ship.cruise
 		if lane == null:
 			return "—  (highway_gear %.1f)" % Tuning.num("exploration/highway_gear")
-		return "%.2f  ·  felt %.0f m/s, world %.0f m/s" % [lane.gear,
-			_ship.felt_speed(), _ship.speed()]
+		return "%.2f of %.0f  ·  felt %.0f m/s, world %.0f m/s" % [_ship.applied_gear(),
+			lane.gear, _ship.felt_speed(), _ship.speed()]
 	)
 	_hud.add_row("sector", func() -> String:
 		if not Tuning.flag("exploration/sectors_enabled"):

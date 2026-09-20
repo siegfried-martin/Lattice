@@ -521,7 +521,10 @@ func _validate() -> void:
 		# A ramp may bend harder than a highway: it is short, it is taken on purpose,
 		# and a ramp built to a highway's bends is a ramp no engineer would build.
 		var s := ramp_share if road.kind == "ramp" else share
-		var r_needed := v / (s * w)
+		# At the speed the lane allows there: a ramp has its own limit (`ramp_speed`),
+		# which is what lets it bend as hard as a ramp should.
+		var at := Tuning.num("exploration/ramp_speed") if road.kind == "ramp" else v
+		var r_needed := at / (s * w)
 		var r := road.path.min_radius()
 		if r < r_needed:
 			problems.append("%s: bend radius %.0f m under the %.0f m that %.0f%% of the turn rate allows" % [

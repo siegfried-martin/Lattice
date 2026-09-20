@@ -142,7 +142,9 @@ This is the piece that only makes sense after 1 and 2 have been flown.
 
 ## What is built (2026-09-19)
 
-Prototypes 1 and 2, behind their flags, both off in `tuning.cfg`:
+Prototypes 1 and 2, **on by default** since the first flight: this is what is being
+tested, so the flags default to the test. `sectors_enabled` off and `highway_gear` 1
+are the control.
 
 - **Sectors**: `HexGrid` (the tiling, pure), `HexRegion` (the border, one region in
   the field), `SectorLayer` (the ship's cell, the tiers, the crossing tween and the
@@ -151,26 +153,38 @@ Prototypes 1 and 2, behind their flags, both off in `tuning.cfg`:
   tier and hands the far shaders the same picture as global uniforms, so the road's
   far mesh and markings tier with the bodies. The sign is a label in the exploration
   scene; the `sector` HUD row says which cell you are in and how many crossings.
-- **The gear**: `Road.gear_at`, the lane's `gear`, `Mothership._fly_cruise`, the
-  stretched ribs. `docs/HIGHWAY.md` has the mechanism. The `gear` HUD row shows the
-  felt and world speeds.
+- **The gear**: a property of the road, `highway_gear` on a highway and 1 on a ramp,
+  blended on the ship over `highway_gear_shift_seconds`. `docs/HIGHWAY.md` has the
+  mechanism. The `gear` HUD row shows the applied gear, the felt and world speeds.
 
-To fly them: F2, flip `sectors_enabled`, set `highway_gear`, save. Both hot-reload.
-`sector_radius` starts at 20 km, which puts A and B in neighbouring sectors and C
-two rings out from A.
+After the first flight (2026-09-19), three changes from the human's notes:
+
+- The gear used to shift by distance, to 1 at every junction and back over 2 km, so
+  on a map with a junction every few km the world only sped up between them and the
+  shifting itself was what you noticed. Now the gear is the road's and the ship
+  shifts in time when it changes tube. Entering or leaving at the geared speed is
+  not possible and is not meant to be; the shift is the cost of a ramp.
+- Ramps have a speed limit, `ramp_speed`, and their bends are floored at it. With
+  that, the planet ramps are 0.9 to 1.2 km (were 2.4 to 3.1) and the interchange
+  ramps 10 to 11 km (were 17), on `ramp_bend_radius` 220 at 60°, leads of 150 m, a
+  peel of 400 m at 20°, and mouths 300 m above the highway. Still not the 5× asked
+  for on the interchange; its shape is authored in `data/routes.json` and can be
+  pulled in further once the shorter planet ramps have been flown.
+- The chase camera's lag was against the geared motion, so the boom stretched in
+  the gear. It now carries the gear's displacement rigidly and lags the felt motion.
 
 Known edges, left for the flying to judge:
 
 - Fuel burns on world metres, so a leg in the gear costs the same fuel as before
   while taking less time. If the gear stays, decide whether fuel is per road metre.
-- A ship handing over between a ramp's tube and its host inside the shift zone
-  changes gear by a small step, since the ramp is always in first.
-- The gate's probe flies at cruise speed without the gear.
+- The gate's probe flies at the lane's speed without the gear.
 - The deep field is scattered near the roads and rejected inside playable space, so
   with one border it is mostly below the floor.
 - The border has no mesh yet. The HUD's `bounds` row and the speed clamp work at it,
   but nothing reddens on the way out, since the red faces belong to the hidden discs.
   Worth a mesh if the open world stays.
+- Exits pitch up to 45° in their S-bend, since the rise is the same over a shorter
+  run. `ramp_bend_deg` and `ramp_mouth_height` are the knobs if that reads wrong.
 
 ## Order, and how each one ends
 

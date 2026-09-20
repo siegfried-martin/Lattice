@@ -130,6 +130,11 @@ func _process(delta: float) -> void:
 		+ up * Tuning.num(tuning_prefix + "_follow_height") * boom
 
 	if _initialised:
+		# The highway gear's share of the subject's motion is carried rigidly, so the
+		# lag below is against the felt motion only and the boom does not stretch
+		# with the world going by faster.
+		if subject.has_method("take_gear_displacement"):
+			global_position += subject.call("take_gear_displacement") as Vector3
 		var lag := Tuning.num(tuning_prefix + "_follow_lag")
 		global_position = global_position.lerp(ideal, clampf(lag * delta, 0.0, 1.0))
 	else:
