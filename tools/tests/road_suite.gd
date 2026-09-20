@@ -137,7 +137,8 @@ func _laps() -> void:
 			continue
 		var start_t := tube.start_t() + 150.0 * tube.direction
 		# In gear on a highway; the exits along it are passed on the left, in gear.
-		var seconds := tube.path.length / (_probe.cruise_speed * _gear()) + 20.0
+		var seconds := tube.path.length / (_probe.cruise_speed * _gear()) \
+			+ (tube.junctions.size() + 2) * 2.0 * _zone_seconds() + 20.0
 		_fly("lap of %s" % tube.name, [tube], tube, start_t, seconds, not tube.path.closed, 10.0)
 
 
@@ -165,7 +166,7 @@ func _ramps() -> void:
 		# at cruise.
 		var seconds := 5000.0 / _probe.cruise_speed \
 			+ road.path.length / minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed")) \
-			+ Tuning.num("exploration/highway_downshift_seconds") + 20.0
+			+ Tuning.num("exploration/highway_downshift_seconds") + 4.0 * _zone_seconds() + 20.0
 		_fly("ramp %s" % road.name, route, start_tube, start_t, seconds, to_mouth)
 
 
@@ -192,18 +193,24 @@ func _exits_steered() -> void:
 		var label := "steering 15 deg into exit %s" % rt.name
 		var ok := true
 		var entered := false
+		# The exit taken may be another off this carriageway that opens first (an
+		# interchange ahead of a planet exit): steering right takes the next exit.
+		var taken: Tube = null
 		var window := 9.0 + Tuning.num("exploration/exit_downshift_seconds") \
 			+ Tuning.num("exploration/highway_downshift_seconds")
 		for i in int(window / DT):
 			# Once in the ramp, fly it: what is under test is what ENTERING sharply
 			# costs, not holding a fixed heading into the ramp's own bends.
-			if _probe.tube() == rt:
+			var here := _probe.tube()
+			if taken == null and here != null and here != host and here.is_ramp():
+				taken = here
 				entered = true
-				var lc := rt.local(_probe.position)
+			if taken != null and here == taken:
+				var lc := taken.local(_probe.position)
 				# A fixed TIME ahead, as `_fly` does: at the ramp's limit that is a
 				# reach a ramp's bend can be followed at.
 				var reach := maxf(_probe.speed(), 30.0) * 2.4
-				_probe.aim = (rt.centre(float(lc["t"]) + reach) - _probe.position).normalized()
+				_probe.aim = (taken.centre(float(lc["t"]) + reach) - _probe.position).normalized()
 			elif entered:
 				# Out through the mouth: a planet ramp is short enough to be flown end
 				# to end inside the window, and that is the ramp taken.
@@ -213,9 +220,11 @@ func _exits_steered() -> void:
 				break
 			if i * DT > 1.0:
 				slowest = minf(slowest, _probe.speed())
-		_expect(ok and entered and (_probe.tube() == rt or _probe.tube() == null),
-			label + " ends in the ramp, or out through its mouth",
+		_expect(ok and entered and (_probe.tube() == taken or _probe.tube() == null),
+			label + " ends in an exit ramp off this carriageway, or out through its mouth",
 			"in %s" % _name(_probe.tube()))
+		if taken != null and taken != rt:
+			_warnings.append("%s: took %s, which opens first" % [label, taken.name])
 		# Against the RAMP's limit, which is lower than cruise on purpose: what must
 		# not happen is the lane's edge penalty on top of it.
 		var limit := minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed"))
@@ -226,6 +235,16 @@ func _exits_steered() -> void:
 
 static func _gear() -> float:
 	return maxf(Tuning.num("exploration/highway_gear"), 1.0)
+
+
+## How long one side of a junction's slow zone takes to cross: the zone is
+## `junction_slow_seconds` of world travel at full gear, crossed at a gear easing
+## linearly to 1, which integrates to s·g·ln(g)/(g-1).
+static func _zone_seconds() -> float:
+	var g := _gear()
+	if g <= 1.0:
+		return 0.0
+	return Tuning.num("exploration/junction_slow_seconds") * g * log(g) / (g - 1.0)
 
 
 ## Into every wall at every junction edge and every bend.

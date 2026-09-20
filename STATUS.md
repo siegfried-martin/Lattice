@@ -18,7 +18,7 @@ where they conflict**, at the human's explicit direction.
 | Gate | `make check` — 1357 checks, 0 failed; the road suite alone flies 230k probe steps against 1.5M rendered triangles |
 | Run it | `make fly`. `J` jumps between systems, `K` drops you on the road at the next bend, exit, merge or mouth. `make roads` validates the map. |
 | Built | Exploration POC steps 1–8; **the road, replaced whole on 2026-09-07 (ADR 0096)** |
-| **Do next** | Fly the shorter ramps and the timed gear shift (`docs/SECTOR_PROTOTYPE.md`). Then the interchange, and prototype 3. Ten minutes on A-377B; every exit and entry at B; the interchange X1/X2 and their mirrors. Then success criterion 1, and traffic (steps 9 and 10). |
+| **Do next** | Fly the spread map with the slow zones (`docs/SECTOR_PROTOTYPE.md`). Verdict: keep the gear, or park it for a separate scene. Ten minutes on A-377B; every exit and entry at B; the interchange X1/X2 and their mirrors. Then success criterion 1, and traffic (steps 9 and 10). |
 | **Waiting on you** | The feel calls listed under *What to fly first* below, and the pitch pair `ship/max_pitch_deg` / `camera/ship_pitch_ceiling_deg`, still yours. |
 
 ### A prototype plan is written — 2026-09-19, from the human
@@ -40,8 +40,11 @@ camera too close) led to the exit downshift, separate shift times, felt 120 in g
 10. The third flight found the outside was not moving faster than the inside at all,
 and it was not: the structure was fixed in the world. The road is now a treadmill
 (sliding ribs and lamps, scrolling dashes), the boom change is undone, and the exit
-opening is longer. Prototype 3 is an edit to `data/routes.json` once those have been
-flown.
+opening is longer. The fourth flight asked for the outside to slow before a place with
+ramps: **the slow zone** eases the gear to 1 around every junction, and **prototype 3**
+spreads the systems to three times the spacing so a leg is mostly in gear. The bar the
+human set: if it still feels off in a way no parameter fixes, park the gear and try a
+separate highway scene.
 
 ### The road was replaced whole — 2026-09-07
 

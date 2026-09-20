@@ -224,7 +224,7 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/structure_glass_sheen", "exploration/far_compress_power",
 	"exploration/highway_gear", "exploration/highway_upshift_seconds",
 	"exploration/highway_downshift_seconds", "exploration/exit_downshift_seconds",
-	"exploration/ramp_speed", "camera/road_boom_scale",
+	"exploration/ramp_speed", "camera/road_boom_scale", "exploration/junction_slow_seconds",
 	"exploration/marking_dash_metres", "exploration/marking_gap_metres",
 	"exploration/sectors_enabled", "exploration/sector_radius",
 	"exploration/sector_next_power", "exploration/sector_far_power",
@@ -2957,7 +2957,9 @@ func _test_hex_sectors() -> void:
 ## its own speed limit.
 func _test_highway_gear() -> void:
 	var keep_gear: Variant = Tuning.get_raw("exploration/highway_gear")
+	var keep_zone: Variant = Tuning.get_raw("exploration/junction_slow_seconds")
 	Tuning.set_value("exploration/highway_gear", 1.0)
+	Tuning.set_value("exploration/junction_slow_seconds", 0.0)
 	var path := RoadPath.straight(Vector3.ZERO, Vector3(0.0, 0.0, -20000.0))
 	var road := Road.make("GEAR", "highway", path, 2, 0.0)
 	_expect(is_equal_approx(road.gear(), 1.0), "at highway_gear 1 the road is in first", "")
@@ -3014,6 +3016,16 @@ func _test_highway_gear() -> void:
 	_expect(not left.downshift and not early.downshift
 			and is_equal_approx(early.target_gear(), 4.0),
 		"on the left, or with the exit too far ahead, the lane stays in gear", "")
+	# THE SLOW ZONE: with it on, the gear eases to 1 toward the junction and toward
+	# the open ends, and is full in between.
+	Tuning.set_value("exploration/junction_slow_seconds", 6.0)
+	var zone := 6.0 * Tuning.num("exploration/cruise_speed") * 4.0
+	var mid_zone := tube.sample(tube.centre(10000.0 - zone * 0.5) - right * 20.0 * tube.direction)
+	var at_junction := tube.sample(tube.centre(10000.0) - right * 20.0 * tube.direction)
+	_expect(is_equal_approx(mid_zone.gear, 2.5) and is_equal_approx(at_junction.gear, 1.0),
+		"the gear eases to 1 over the slow zone around a junction",
+		"%.2f mid-zone, %.2f at it" % [mid_zone.gear, at_junction.gear])
+	Tuning.set_value("exploration/junction_slow_seconds", keep_zone)
 	Tuning.set_value("exploration/highway_gear", keep_gear)
 
 

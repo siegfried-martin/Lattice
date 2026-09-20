@@ -199,6 +199,24 @@ not asked for and `road_boom_scale` is back to 1; the exit opening is longer
 (`ramp_exit_length` 800 at 12°) so there is more of it to steer into once out of
 gear.
 
+After the fourth flight (2026-09-20), the human's call: ramps still pass fast,
+which makes sense since a junction is anchored to the world; try slowing the outside
+before a place with ramps, and if it still feels off in a way no parameter fixes,
+park this and try the separate scene. Built:
+
+- **The slow zone**: the gear eases to 1 over `junction_slow_seconds` (6) of world
+  travel each side of every junction and open end, in time rather than distance
+  (`docs/HIGHWAY.md`). With the treadmill, only the outside slows.
+- **Prototype 3**: the systems are three times as far apart in `data/routes.json`
+  (A to B 69 km, A to C 228 km), the highways' bends at 15 km, the interchange
+  moved with B unchanged, the overhangs past the end systems kept at 13 to 14 km.
+  `sector_radius` 60 km, which puts B one sector from A and C two. At felt 120 in
+  gear 10, A to B is about a minute of road with a calm junction at each end.
+
+The bar the human set: if this still feels off in a significant way that no
+parameter fixes, park the gear and try the separate scene (ADR 0057 would be
+superseded then, with what was flown as the evidence).
+
 Known edges, left for the flying to judge:
 
 - Fuel burns on world metres, so a leg in the gear costs the same fuel as before

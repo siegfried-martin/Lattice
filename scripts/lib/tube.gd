@@ -175,7 +175,8 @@ func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO, world_speed: floa
 	# is what taking a ramp is. The road's gear is the road's (`Road.gear`).
 	lane.base_speed = Tuning.num("exploration/ramp_speed") if is_ramp() \
 		else Tuning.num("exploration/cruise_speed")
-	lane.gear = float(road.call("gear")) if road != null else 1.0
+	lane.gear = _gear_here(float(l["t"]), float(road.call("gear")) if road != null else 1.0,
+		lane.base_speed)
 	lane.edge_speed_penalty = Tuning.num("exploration/lane_edge_speed_penalty")
 	lane.push_accel = Tuning.num("exploration/lane_edge_push_accel")
 	lane.clamp_deg = Tuning.num("exploration/cruise_turn_clamp_deg")
@@ -186,6 +187,27 @@ func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO, world_speed: floa
 	lane.downshift = _lined_up_for_exit(float(l["t"]), lane.lateral,
 		world_speed if world_speed >= 0.0 else lane.base_speed * lane.gear)
 	return lane
+
+
+## THE SLOW ZONE around a junction. The road's gear eases to 1 over
+## `junction_slow_seconds` of world travel each side of every junction on this tube
+## and of an open end, so a ramp, a merge or a mouth is met out of gear and the world
+## slows on the approach and winds back up on the way out. A ramp is in first anyway.
+func _gear_here(t: float, road_gear: float, felt: float) -> float:
+	if is_ramp() or road_gear <= 1.0:
+		return road_gear
+	var zone := Tuning.num("exploration/junction_slow_seconds") * felt * road_gear
+	if zone <= 0.0:
+		return road_gear
+	var nearest := INF if path.closed else minf(t, path.length - t)
+	for j in junctions:
+		var d := absf(t - float(j["t"]))
+		if path.closed:
+			d = minf(d, path.length - d)
+		nearest = minf(nearest, d)
+	if nearest == INF:
+		return road_gear
+	return 1.0 + (road_gear - 1.0) * clampf(nearest / zone, 0.0, 1.0)
 
 
 ## Is a ship at t, this far to the driver's right, within `exit_downshift_seconds`

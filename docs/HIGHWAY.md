@@ -77,6 +77,13 @@ and 1 on a ramp. What reads it:
   keeps up with a bend. Steering, the lane's push, the collider and the felt speed
   are as they were. The applied gear chases the lane's target: up over
   `highway_upshift_seconds` after a merge, down over `highway_downshift_seconds`.
+- **The slow zone** (`Tube._gear_here`). Around every junction on a carriageway,
+  and each open end, the lane's gear eases to 1 over `junction_slow_seconds` of
+  world travel each side, so a ramp, a merge or a mouth is met out of gear: the
+  world slows on the approach to a place with ramps and winds back up on the way
+  out, while the road itself keeps passing at the felt speed. A map with a
+  junction every few kilometres is shifting most of the time; the spacing of the
+  systems is what makes a leg mostly in gear.
 - **The exit downshift** (`Tube._lined_up_for_exit`, `CruiseLane.downshift`). In
   gear, an exit's opening passes in a fraction of a second, so an exit is only
   takeable out of gear. The lane's target drops to 1 when the ship is on the right
