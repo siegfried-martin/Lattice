@@ -15,7 +15,7 @@ where they conflict**, at the human's explicit direction.
 | | |
 |---|---|
 | Branch | `feat/highway-tubes` |
-| Gate | `make check` — 1545 checks, 0 failed, nothing leaked at exit; the road suite flies both worlds against their rendered triangles |
+| Gate | `make check` — 1560 checks, 0 failed, nothing leaked at exit; the road suite flies both worlds against their rendered triangles |
 | Run it | `make fly`. `J` jumps between systems, `K` drops you on the road at the next spot in either world. `make roads` validates the map and prints the wormhole's legs in seconds. |
 | Built | Exploration POC steps 1–8; the road (ADR 0096); **the wormhole highway, steps 1–3 of `docs/WORMHOLE_PROTOTYPE.md`, 2026-09-20** |
 | **Do next** | Fly the wormhole (`make fly`, straight up the on-ramp ahead). Then step 4, the tunnel: the streak cylinder, its throat, the mouth at the crossing. Then the deferred list in that doc. |
@@ -23,15 +23,18 @@ where they conflict**, at the human's explicit direction.
 
 ### The wormhole highway is built, unflown — 2026-09-20
 
-Steps 1 to 3 of `docs/WORMHOLE_PROTOTYPE.md`: the highways run inside the wormhole,
+Steps 1 to 4 of `docs/WORMHOLE_PROTOTYPE.md`: the highways run inside the wormhole,
 laid out from the map by `WormholeLayout` (each leg 20 to 30 s at `cruise_speed`,
 at the map's bearings, dead-ending past the end systems); open space holds only each
 ramp's twin, a straight stub from the wormhole's mouth to the planet's; the crossing
 moves the ship to the same place in the twin with its speed, heading, reticle, berth
 and camera carried over. Both worlds are resident; the collider knows every tube of
 both. The gate builds and flies both, and drives the real ship through a crossing
-each way. Not built: step 4, the tunnel visual, so inside is black beyond the road's
-own lamps. The doc's *What is built* section lists where the build departs from the
+each way. Inside, the tunnel: a spindle of streaks around the road that rides with
+the ship and closes to a throat ahead and behind, the sky the wormhole's own colour,
+and a one-sided mouth at every crossing point in both worlds (`make shot` with
+`ROAD_SHOT_SPOT=Mouth` shows the wormhole's from the on-ramp, `Exit` the tunnel from
+inside). The doc's *What is built* section lists where the build departs from the
 plan, the main one being that the ramp footprint sets a leg floor of about 19 s, not
 the 5 s the plan hoped for. Every number is a starting value; the human has not flown
 it. The gate's "ObjectDB instances leaked at exit" warning was the highway gear test

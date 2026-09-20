@@ -65,6 +65,8 @@ var _loaded: Dictionary = {}
 var _pending: Dictionary = {}
 var _portals: Array[Portal] = []
 var _gates: Array[RampGate] = []
+## The openings between the worlds, one at each ramp's crossing point (`WormholeMouth`).
+var _mouths: Array[WormholeMouth] = []
 var _active: Tube = null
 var _floor_thickness: float = 10.0
 var _beam: float = 8.0
@@ -186,6 +188,10 @@ func build_twins(source: RoadNetwork, data: Dictionary, system_positions: Dictio
 				"t": clampf(length - swap + 20.0, 0.0, length)})
 			# A ship riding the wormhole's exit crosses out to this twin here.
 			rec["cross_at"] = road.path.length - swap
+			# Each world's mouth faces the side of the ramp that world draws: space
+			# looks back at this one, having arrived; the wormhole looks ahead at it.
+			_mouth(tt, rec["cross_at"], true)
+			source._mouth(tube, rec["cross_at"], false)
 		else:
 			# Space draws the entry from the planet's mouth to a little past the crossing.
 			twin.draw_to = minf(swap + overlap, length)
@@ -194,6 +200,8 @@ func build_twins(source: RoadNetwork, data: Dictionary, system_positions: Dictio
 			spots.append({"label": "Mouth %s (entry)" % name, "tube": tt, "t": 100.0})
 			# A ship riding this twin crosses in to the wormhole's entry here.
 			record["cross_at"] = swap
+			_mouth(tt, record["cross_at"], false)
+			source._mouth(tube, record["cross_at"], true)
 		rec["twin"] = tt
 		_add_road(twin)
 		ramps.append(record)
@@ -223,8 +231,11 @@ func _reset() -> void:
 		portal.queue_free()
 	for gate in _gates:
 		gate.queue_free()
+	for mouth in _mouths:
+		mouth.queue_free()
 	_portals.clear()
 	_gates.clear()
+	_mouths.clear()
 	_far.clear()
 	_markings.clear()
 	_ribs.clear()
@@ -579,6 +590,20 @@ func _portal(at: Vector3, direction: Vector3, label: String) -> Portal:
 	return portal
 
 
+## The opening between the worlds at `t` along a ramp of this world, seen from ahead
+## of it (`from_ahead`, looking back down the ramp) or from behind. From space it is
+## the wormhole's mouth; from inside it is space opening.
+func _mouth(tube: Tube, t: float, from_ahead: bool) -> WormholeMouth:
+	var mouth := WormholeMouth.new()
+	mouth.name = "Mouth %s" % tube.name.validate_node_name()
+	add_child(mouth)
+	var f := tube.travel_frame(t)
+	var fwd: Vector3 = f["fwd"]
+	mouth.place(tube.centre(t), fwd if from_ahead else -fwd, f["up"], not is_wormhole)
+	_mouths.append(mouth)
+	return mouth
+
+
 ## Neighbours, bend spots and validation.
 func _finish() -> void:
 	for a in tubes:
@@ -897,6 +922,10 @@ func chunk_count() -> int:
 
 func portals() -> Array[Portal]:
 	return _portals
+
+
+func wormhole_mouths() -> Array[WormholeMouth]:
+	return _mouths
 
 
 func gates() -> Array[RampGate]:

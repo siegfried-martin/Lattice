@@ -207,7 +207,7 @@ scripts/ships/         mothership, target ship
 scripts/weapons/       missile, turret rounds, and the one shot resolver
 scripts/view/          camera/control state machine, chase camera, the gun station
 scripts/world/         marker lattice, reference field, the system map, the road
-                       network and its mesh, the berth
+                       network and its mesh, the berth, the wormhole's tunnel and mouths
 scripts/effects/       detonation flash, pulse-beam tracer
 scripts/lib/           pure helpers — no scene tree, no disk, unit tested:
                        FlightGeometry, ReticleSteering, Damage, HullClass,

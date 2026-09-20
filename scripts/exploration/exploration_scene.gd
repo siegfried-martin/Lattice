@@ -323,8 +323,11 @@ func _build_hud() -> void:
 			_ship.felt_speed(), _ship.speed()]
 	)
 	_hud.add_row("world", func() -> String:
-		return "THE WORMHOLE  ·  %s" % _map.place_of(_ship_in_map()) if _map.in_wormhole() \
-			else "open space")
+		if not _map.in_wormhole():
+			return "open space"
+		return "THE WORMHOLE  ·  %s  ·  tunnel r %.0f, throat %.0f m, streaks %.0f m by" % [
+			_map.place_of(_ship_in_map()), Tuning.num("exploration/wormhole_tunnel_radius"),
+			Tuning.num("exploration/wormhole_throat_metres"), _map.tunnel().phase()])
 	_hud.add_row("sector", func() -> String:
 		if not Tuning.flag("exploration/sectors_enabled"):
 			return "off"
@@ -477,10 +480,19 @@ func _build_hud() -> void:
 			+ "J teleport · K drop on road · F1 hud · F2 tune")
 
 
+## Which world the sky was last painted for, so a crossing repaints it once.
+var _painted_inside: bool = false
+
+
+## The sky is the world's: open space's colour, or the wormhole's dark, which is what
+## its tunnel closes to so the throat has no edge.
 func _apply_tuning() -> void:
 	var env := (get_node("WorldEnvironment") as WorldEnvironment).environment
-	env.background_color = Tuning.color("arena/background_color")
-	env.ambient_light_color = Tuning.color("arena/background_color").lightened(0.35)
+	_painted_inside = _map != null and _map.in_wormhole()
+	var sky := Tuning.color("exploration/wormhole_background_color") if _painted_inside \
+		else Tuning.color("arena/background_color")
+	env.background_color = sky
+	env.ambient_light_color = sky.lightened(0.35)
 	env.ambient_light_energy = Tuning.num("exploration/ambient_energy")
 	env.glow_enabled = Tuning.flag("arena/glow_enabled")
 	env.glow_intensity = Tuning.num("arena/glow_intensity")
@@ -496,6 +508,8 @@ func _ship_in_map() -> Vector3:
 
 func _process(delta: float) -> void:
 	_map.observe(_ship, delta)
+	if _map.in_wormhole() != _painted_inside:
+		_apply_tuning()
 	_ship.speed_ceiling_scale = _map.speed_scale()
 	_refresh_strip()
 	_show_the_sign()

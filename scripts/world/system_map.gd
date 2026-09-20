@@ -66,6 +66,9 @@ var _in_wormhole: bool = false
 ## What is out there past the edge. Background-layer only: nothing in it is queryable
 ## and nothing in it collides (CLAUDE.md's LOD/collision rule).
 var _deep: DeepField
+## The inside of the wormhole: the streak spindle that rides with the ship
+## (`WormholeTunnel`). Background layer, like the deep field.
+var _tunnel: WormholeTunnel
 ## The map's legs, system to system, sampled: what the deep field is scattered along.
 var _spine: PackedVector3Array = PackedVector3Array()
 
@@ -144,6 +147,9 @@ func _build() -> void:
 	_deep = DeepField.new()
 	_deep.name = "DeepField"
 	add_child(_deep)
+	_tunnel = WormholeTunnel.new()
+	_tunnel.name = "WormholeTunnel"
+	add_child(_tunnel)
 
 	# One corridor per leg, across every highway. The corridor is what you fly when
 	# you decline the road, so a leg without one is a leg you may only travel by
@@ -301,6 +307,7 @@ func _apply_world() -> void:
 	for star in _stars:
 		star.visible = not _in_wormhole
 	_deep.visible = not _in_wormhole
+	_tunnel.visible = _in_wormhole
 	_road.visible = not _in_wormhole
 	_wormhole.visible = _in_wormhole
 
@@ -410,6 +417,10 @@ func observe(ship: Mothership, delta: float) -> void:
 	_road.light(here, _riding)
 	_wormhole.light(here, _riding)
 	_deep.follow(here)
+	if _in_wormhole:
+		var frame := _tunnel_frame(ship, here)
+		var moved := (here - _previous).dot(frame["fwd"]) if _has_previous and not frame.is_empty() else 0.0
+		_tunnel.follow(frame, moved, delta)
 	_compress_the_distance(here, delta)
 	_previous = here
 	_has_previous = true
@@ -575,6 +586,30 @@ func sectors() -> SectorLayer:
 
 func in_wormhole() -> bool:
 	return _in_wormhole
+
+
+## Where the tunnel goes this frame: centred on the centreline of the road the ship is
+## on, pointed the way its carriageway travels. On a ramp, the highway the ramp joins,
+## so the one tunnel holds both carriageways and the ramp beside them. Empty when the
+## ship is in no tube, and the tunnel stays put.
+func _tunnel_frame(ship: Mothership, here: Vector3) -> Dictionary:
+	var tube: Tube = ship.road.tube if ship.road != null else null
+	if tube == null:
+		return {}
+	if tube.is_ramp():
+		var record := _wormhole.ramp_of(tube)
+		var host: Tube = null
+		if not record.is_empty():
+			host = record["from_tube"] if record["from_tube"] != null else record["to_tube"]
+		if host != null:
+			tube = host
+	var c := tube.path.closest(here)
+	var f := tube.travel_frame(float(c["t"]))
+	return {"pos": c["pos"], "fwd": f["fwd"], "up": f["up"], "right": f["right"]}
+
+
+func tunnel() -> WormholeTunnel:
+	return _tunnel
 
 
 func border() -> HexRegion:

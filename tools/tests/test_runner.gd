@@ -220,7 +220,11 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/wormhole_scale", "exploration/wormhole_exit_min_seconds",
 	"exploration/wormhole_exit_max_seconds", "exploration/wormhole_end_run",
 	"exploration/wormhole_node_gap", "exploration/wormhole_swap_metres",
-	"exploration/wormhole_ramp_overlap",
+	"exploration/wormhole_ramp_overlap", "exploration/wormhole_tunnel_radius",
+	"exploration/wormhole_throat_metres", "exploration/wormhole_streak_speed",
+	"exploration/wormhole_streak_density", "exploration/wormhole_streak_length",
+	"exploration/wormhole_streak_color", "exploration/wormhole_background_color",
+	"exploration/wormhole_mouth_radius",
 	"exploration/ramp_mouth_side_offset",
 	"exploration/ramp_mouth_along_offset", "exploration/ramp_mouth_height",
 	"exploration/exit_approach_metres",
@@ -3756,6 +3760,54 @@ func _test_exploration_builds() -> void:
 		map.place_of(map.to_local(scene.ship().global_position)))
 	_expect(not map.planets()[0].visible and not road.visible and hole.visible,
 		"…open space is hidden and the wormhole shown", "")
+	# THE TUNNEL (step 4): the streak spindle is shown inside, centred on the road the
+	# ramp joins and pointed down it, and the sky is the wormhole's dark.
+	var tunnel := map.tunnel()
+	var host_on: Tube = map.wormhole().ramp_of(hole_on)["to_tube"]
+	var on_axis := host_on.path.closest(map.to_local(scene.ship().global_position))
+	var tunnel_fwd := -tunnel.transform.basis.z
+	# The ship has moved a frame since the tunnel was placed, so: on the centreline,
+	# and within a frame's travel of the ship along it.
+	var off_axis := float(host_on.path.closest(tunnel.position)["dist"])
+	var behind := tunnel.position.distance_to(on_axis["pos"])
+	_expect(tunnel.visible and off_axis < 0.5 and behind < scene.ship().speed() / 60.0 + 5.0
+			and tunnel_fwd.dot(host_on.travel_frame(float(on_axis["t"]))["fwd"]) > 0.999,
+		"inside, the tunnel is shown, centred on the highway the on-ramp joins and pointed down it",
+		"visible %s, %.2f m off the centreline, %.1f m from the ship along it, along %.3f" % [
+			tunnel.visible, off_axis, behind,
+			tunnel_fwd.dot(host_on.travel_frame(float(on_axis["t"]))["fwd"])])
+	var sky := (scene.get_node("WorldEnvironment") as WorldEnvironment).environment
+	_expect(sky.background_color.is_equal_approx(Tuning.color("exploration/wormhole_background_color")),
+		"…and the sky is the wormhole's own colour", str(sky.background_color))
+	var phase_before := tunnel.phase()
+	_step_exploration(scene, 1.0 / 60.0)
+	_expect(tunnel.phase() > phase_before, "the streaks flow while the ship is inside",
+		"%.1f then %.1f" % [phase_before, tunnel.phase()])
+	# THE MOUTHS: one at every crossing point, in both worlds, on the ramp's axis,
+	# facing the side of the ramp that world draws. The crossing point is swap metres
+	# from the planet's end whichever world crosses there: an entry's from its start,
+	# an exit's from its end.
+	var mouths_ok := road.wormhole_mouths().size() == 16 and hole.wormhole_mouths().size() == 16
+	var mouth_in := hole.wormhole_mouths()
+	var mouth_out := road.wormhole_mouths()
+	var placed := 0
+	for network: RoadNetwork in [road, hole]:
+		for rec: Dictionary in network.ramps:
+			if rec["twin"] == null:
+				continue
+			var ramp_tube: Tube = (rec["road"] as Road).tubes[0]
+			var cross_t := swap if rec["kind"] == "entry" else ramp_tube.path.length - swap
+			var at := ramp_tube.centre(cross_t)
+			var fwd: Vector3 = ramp_tube.travel_frame(cross_t)["fwd"]
+			var drawn_behind := (rec["road"] as Road).draw_from <= 0.0
+			for opening: WormholeMouth in network.wormhole_mouths():
+				if opening.position.distance_to(at) < 0.5 \
+						and opening.facing().dot(fwd) * (-1.0 if drawn_behind else 1.0) > 0.999:
+					placed += 1
+					break
+	_expect(mouths_ok and placed == 32,
+		"a mouth stands at every crossing point in both worlds, facing the side its world draws",
+		"%d in space, %d inside, %d placed right" % [mouth_out.size(), mouth_in.size(), placed])
 	# And on into the mainline, under its own power.
 	scene.ship().input_throttle = 1.0
 	frames_up = 0
@@ -3784,6 +3836,10 @@ func _test_exploration_builds() -> void:
 			map.berth().is_berthed(), _tube_name(map.berth().tube())])
 	_expect(map.planets()[0].visible and road.visible and not hole.visible,
 		"…open space is shown again and the wormhole hidden", "")
+	_step_exploration(scene, 1.0 / 60.0)
+	_expect(not map.tunnel().visible and (scene.get_node("WorldEnvironment") as WorldEnvironment)
+			.environment.background_color.is_equal_approx(Tuning.color("arena/background_color")),
+		"…the tunnel is hidden and the sky is open space's again", "")
 	_expect(tank_before - scene.ship().cruise_tank.units < (exit_ramp.path.length + 50.0)
 			* Tuning.num("exploration/cruise_fuel_per_km") / 1000.0,
 		"the crossing itself burns no fuel: only the ramp's metres are charged",

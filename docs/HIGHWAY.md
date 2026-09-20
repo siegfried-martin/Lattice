@@ -38,6 +38,8 @@ by it.
 | `scripts/world/road_network.gd` | Builds the roads and ramps from the data, validates, streams the mesh, owns portals and gates. |
 | `scripts/world/road_mesh.gd` | The visible structure, in chunks, with the one clip rule. |
 | `scripts/world/road_berth.gd` | The dock on the roadway (ADR 0082), on tubes. |
+| `scripts/world/wormhole_tunnel.gd` | The inside of the wormhole: the streak spindle that rides with the ship. Background layer. |
+| `scripts/world/wormhole_mouth.gd` | The opening between the worlds, drawn at a ramp's crossing point in each. Background layer. |
 | `scripts/world/system_map.gd` | Places the systems and corridors, owns both worlds' networks, hands the ship its tube each frame, crosses it between the worlds. |
 | `tools/tests/road_suite.gd` | The flying half of the gate. |
 | `tools/tests/road_report.gd` | `make roads`: build the map headless and list every problem. |
@@ -75,9 +77,26 @@ in (`SystemMap._in_wormhole`), never a mode.
   walls. Ribs, markings and the far mesh all respect it.
 - **What each world shows.** Open space: the discs and corridors (sectors off), the
   planets and stars, the deep field, the ramps' twins. The wormhole: its network, lit
-  by its own lamps, with the road's own tube regions as its playable space. The
-  sector layer is not ticked inside, and names the sector the ship arrives in on the
-  way out.
+  by its own lamps, inside the tunnel, with the road's own tube regions as its
+  playable space. The sky is the world's colour (`arena/background_color` or
+  `wormhole_background_color`), repainted by the scene on a crossing. The sector
+  layer is not ticked inside, and names the sector the ship arrives in on the way out.
+- **The tunnel** (`WormholeTunnel`). A spindle of streaking light,
+  `wormhole_tunnel_radius` around the road's centreline, closing to a throat
+  `wormhole_throat_metres` ahead and the same behind, placed every frame by the map
+  on the road the ship is on: on a ramp, the highway it joins, so the one tunnel
+  holds both carriageways and the ramp beside them. The streaks are fixed in the
+  wormhole (they slide back by what the ship travels) and flow toward it at
+  `wormhole_streak_speed` on top; `wormhole_streak_density`, `_length` and `_color`
+  shape them, and the fill is `wormhole_background_color`, the sky's, so the throat
+  has no edge. Seen through the road's glass walls, which tint it.
+- **The mouths** (`WormholeMouth`). One disc of `wormhole_mouth_radius` on the axis
+  of every ramp at its crossing point, in each world. From space it is the wormhole's
+  own dark with its streaks converging and a rim of their light; from inside it is
+  open space's colour beyond the same rim. One-sided: the camera lags the ship, so
+  right after a crossing the mouth stands between them, and each is shown only to a
+  camera on the side of the ramp its world draws (entries in space and exits inside
+  face the approach; the other two face back down the ramp).
 
 ## The section
 

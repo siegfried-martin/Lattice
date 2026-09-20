@@ -138,7 +138,7 @@ Each step lands gate-clean.
 
 ## What is built — 2026-09-20
 
-Steps 1 to 3 of the build order, and the gate. The plan above is kept as written;
+Steps 1 to 4 of the build order, and the gate. The plan above is kept as written;
 where the build differs, this section says so.
 
 - **Two networks in one frame, not two roots.** There is no floating-origin recentre
@@ -179,9 +179,22 @@ where the build differs, this section says so.
 - **The berth rebinds across the crossing in both directions**, and a berth carried
   down an off-ramp's stub is released at the planet's mouth as any ramp's end
   releases it.
-- **Not built yet: step 4, the tunnel.** Inside, the wormhole is black beyond the
-  road's own lamps; there is no streak cylinder, no throat, and no mouth drawn at the
-  crossing point. The HUD's `world` row says which world the ship is in.
+- **The tunnel closes both ways.** `WormholeTunnel` is a spindle, not a cylinder: it
+  closes to a throat `wormhole_throat_metres` ahead and the same behind, so looking
+  back shows a throat too rather than an open end. Its fill is the sky's colour
+  (`wormhole_background_color`, which the scene paints the sky while inside), so the
+  throat has no edge. The streaks are fixed in the wormhole and flow toward the ship
+  at `wormhole_streak_speed` on top of its travel. Two keys the plan did not list:
+  `wormhole_streak_length` and `wormhole_mouth_radius`. The road's glass walls tint
+  the tunnel and the mouths seen through them; through the open end of a ramp the
+  disc is its true colour, so a rectangle of it reads darker. That is the glass.
+- **The mouths are one-sided.** A disc at every crossing point in both worlds
+  (`WormholeMouth`): from space the wormhole's dark with its streaks converging, from
+  inside a disc of open space's colour, no stars, behind the same rim. Each is shown
+  only to a camera on the side of the ramp its world draws, because the camera lags
+  the ship and would otherwise lose it behind the disc for the first metres after a
+  crossing. The HUD's `world` row says which world the ship is in and the tunnel's
+  numbers.
 
 To fly it: `make fly`; the on-ramp is straight ahead at spawn. `K` drops on spots in
 both worlds (`Mouth` and `Arrive` in space, `Exit`, `Merge` and `Bend` inside);
