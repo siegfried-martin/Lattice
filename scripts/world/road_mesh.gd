@@ -243,6 +243,7 @@ static func markings(tube: Tube) -> MeshInstance3D:
 	# compresses with distance like the far mesh, or the lines would show the road's
 	# true width where the tube is drawn narrower.
 	if _marking_shader == null:
+		ensure_globals()
 		_marking_shader = Shader.new()
 		_marking_shader.code = MARKING_SHADER
 	var mat := ShaderMaterial.new()
@@ -278,6 +279,7 @@ static func materials() -> Array:
 ## colour.
 static func far_materials() -> Array:
 	if _far_materials.is_empty():
+		ensure_globals()
 		var opaque := Shader.new()
 		opaque.code = FAR_OPAQUE_SHADER
 		var glass := Shader.new()
@@ -357,16 +359,102 @@ void fragment() {
 
 ## The far layer's vertex stage: each vertex shrinks toward its ring's centre by
 ## `FarLayer.factor` of the centre's distance from the camera — the same formula.
+##
+## With sectors on (`SectorLayer`), the power comes from the ring's sector relative
+## to the player's — the same tiers the planets use, so the road's far line of lights
+## leads into the next sector the way the bodies do — and a ring past the last drawn
+## tier collapses to its centre. The sector numbers are GLOBAL uniforms, set once a
+## frame by the map (`set_sector_globals`), so the far materials and every chunk's
+## marking material read them without being tracked.
 const COMPRESS_VERTEX := """
 uniform float compress_start = 12000.0;
 uniform float compress_power = 1.0;
+global uniform float sector_on;
+global uniform float sector_radius;
+global uniform vec3 sector_origin;
+global uniform vec2 sector_cell;
+global uniform vec2 sector_prev_cell;
+global uniform float sector_blend;
+global uniform vec3 sector_powers;
+global uniform float sector_far_rings;
+vec2 hex_cell(vec3 p) {
+	float q = (0.57735026919 * p.x - p.z / 3.0) / max(sector_radius, 1.0);
+	float r = (2.0 / 3.0 * p.z) / max(sector_radius, 1.0);
+	float s = -q - r;
+	float rq = round(q);
+	float rr = round(r);
+	float rs = round(s);
+	float dq = abs(rq - q);
+	float dr = abs(rr - r);
+	float ds = abs(rs - s);
+	if (dq > dr && dq > ds) { rq = -rr - rs; } else if (dr > ds) { rr = -rq - rs; }
+	return vec2(rq, rr);
+}
+float sector_factor(float d, vec2 from, vec2 cell) {
+	vec2 diff = cell - from;
+	float ring = (abs(diff.x) + abs(diff.y) + abs(diff.x + diff.y)) * 0.5;
+	if (ring > sector_far_rings + 0.5) { return 0.0; }
+	float p = ring < 0.5 ? sector_powers.x : (ring < 1.5 ? sector_powers.y : sector_powers.z);
+	return (d > compress_start && compress_start > 0.0) ? pow(compress_start / d, p) : 1.0;
+}
 void vertex() {
 	vec3 c = CUSTOM0.xyz;
 	float d = distance(CAMERA_POSITION_WORLD, c);
 	float f = (d > compress_start && compress_start > 0.0) ? pow(compress_start / d, compress_power) : 1.0;
+	if (sector_on > 0.5) {
+		vec2 cell = hex_cell(c - sector_origin);
+		f = mix(sector_factor(d, sector_prev_cell, cell), sector_factor(d, sector_cell, cell), sector_blend);
+	}
 	VERTEX = c + (VERTEX - c) * f;
 }
 """
+
+## The sector globals every far shader reads. Declared once, before any shader that
+## names them compiles; a `global uniform` a shader names has to exist first.
+const SECTOR_GLOBALS: Dictionary = {
+	"sector_on": [RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0],
+	"sector_radius": [RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 1.0],
+	"sector_origin": [RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3.ZERO],
+	"sector_cell": [RenderingServer.GLOBAL_VAR_TYPE_VEC2, Vector2.ZERO],
+	"sector_prev_cell": [RenderingServer.GLOBAL_VAR_TYPE_VEC2, Vector2.ZERO],
+	"sector_blend": [RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 1.0],
+	"sector_powers": [RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3(2.0, 3.0, 4.0)],
+	"sector_far_rings": [RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 2.0],
+}
+static var _globals_declared: bool = false
+
+
+static func ensure_globals() -> void:
+	if _globals_declared:
+		return
+	_globals_declared = true
+	# Added rather than looked up: the list call is editor-only, and nothing else in
+	# the project declares these names, so once per process is right.
+	for key: String in SECTOR_GLOBALS:
+		var spec: Array = SECTOR_GLOBALS[key]
+		RenderingServer.global_shader_parameter_add(StringName(key),
+			spec[0] as RenderingServer.GlobalShaderParameterType, spec[1])
+
+
+## Hand the far shaders this frame's sector picture. `origin` is the map's world
+## position, so cells are worked out in the map's frame whatever the floating origin
+## has done. Off (`on` false) the shaders fall back to `compress_power` alone.
+static func set_sector_globals(on: bool, layer: SectorLayer, origin: Vector3) -> void:
+	ensure_globals()
+	RenderingServer.global_shader_parameter_set(&"sector_on", 1.0 if on else 0.0)
+	if not on or layer == null:
+		return
+	RenderingServer.global_shader_parameter_set(&"sector_radius", layer.radius())
+	RenderingServer.global_shader_parameter_set(&"sector_origin", origin)
+	RenderingServer.global_shader_parameter_set(&"sector_cell",
+		Vector2(layer.cell.x, layer.cell.y))
+	RenderingServer.global_shader_parameter_set(&"sector_prev_cell",
+		Vector2(layer.previous.x, layer.previous.y))
+	RenderingServer.global_shader_parameter_set(&"sector_blend", layer.blend)
+	RenderingServer.global_shader_parameter_set(&"sector_powers", Vector3(
+		SectorLayer.power_for(0), SectorLayer.power_for(1), SectorLayer.power_for(2)))
+	RenderingServer.global_shader_parameter_set(&"sector_far_rings",
+		float(Tuning.integer("exploration/sector_far_rings")))
 
 const FAR_OPAQUE_SHADER := """
 shader_type spatial;

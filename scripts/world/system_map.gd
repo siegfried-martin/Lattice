@@ -59,6 +59,11 @@ var _riding: Tube = null
 ## The berth on the roadway. One per map: it is a thing the player does, not a thing a
 ## stretch of road has (ADR 0082).
 var _berth: RoadBerth = null
+## THE SECTORS (`docs/SECTOR_PROTOTYPE.md`, prototype 1, behind `sectors_enabled`):
+## the world as an open hex tiling inside one border, and which sector the ship is in
+## deciding how every body is drawn. With the flag off neither is touched.
+var _sectors: SectorLayer = SectorLayer.new()
+var _border: HexRegion = HexRegion.new()
 
 ## Whether the map reads the real input devices, or is told what was pressed. See
 ## `Mothership.reads_input`. Harness switch only.
@@ -180,21 +185,61 @@ func relayout() -> void:
 		push_warning("[road] " + problem)
 
 	_field.regions.clear()
+	var open := Tuning.flag("exploration/sectors_enabled")
 	for disc in _discs:
-		_field.regions.append(disc.region())
+		disc.visible = not open
 	for link in _links:
-		_field.regions.append(link.region())
-	# THE ROAD CARRIES ITS OWN SPACE (ADR 0091). An interchange ramp cuts the corner
-	# between two highways and is on no corridor; riding it put the boundary's red
-	# across the view. A region per road: regions UNITE, so this only ever adds space.
-	for road in _road.roads:
-		_field.regions.append(_space_around(road))
+		link.visible = not open
+	if open:
+		# ONE BORDER around everything; inside it, open space. The discs, corridors and
+		# their funnels are hidden rather than removed, so the flag can go back off.
+		_lay_the_border(positions)
+		_field.regions.append(_border)
+	else:
+		for disc in _discs:
+			_field.regions.append(disc.region())
+		for link in _links:
+			_field.regions.append(link.region())
+		# THE ROAD CARRIES ITS OWN SPACE (ADR 0091). An interchange ramp cuts the corner
+		# between two highways and is on no corridor; riding it put the boundary's red
+		# across the view. A region per road: regions UNITE, so this only ever adds space.
+		for road in _road.roads:
+			_field.regions.append(_space_around(road))
 	_field.warning_band = Tuning.num("exploration/bounds_warning_band")
 	_field.stop_distance = Tuning.num("exploration/bounds_stop_distance")
 
 	# LAST, and it needs both of the things above it: the deep field is scattered
 	# around the spine and rejected wherever the boundary says the point is playable.
 	_deep.rebuild(_spine, _field)
+
+
+## The hex prism around the whole map: centred on the systems' centroid, its apothem
+## reaching `sector_border_margin` past the farthest system or highway point, with the
+## disc's ceiling and floor. The sectors are named after the systems centred in them.
+func _lay_the_border(positions: Dictionary) -> void:
+	var centroid := Vector3.ZERO
+	var count := 0
+	for system_name: String in positions:
+		centroid += positions[system_name]
+		count += 1
+	if count > 0:
+		centroid /= count
+	centroid.y = 0.0
+	var extent := 0.0
+	for system_name: String in positions:
+		var at: Vector3 = positions[system_name]
+		extent = maxf(extent, Vector2(at.x - centroid.x, at.z - centroid.z).length())
+	for highway in Routes.data().get("highways", []):
+		for point in highway.get("points", []):
+			if point is Array and point.size() >= 3:
+				extent = maxf(extent, Vector2(float(point[0]) - centroid.x,
+					float(point[2]) - centroid.z).length())
+	_border.center = centroid
+	_border.circumradius = (extent + Tuning.num("exploration/sector_border_margin")) \
+		/ (HexGrid.SQRT3 * 0.5)
+	_border.ceiling = Tuning.num("exploration/system_ceiling_height")
+	_border.floor_depth = Tuning.num("exploration/system_floor_depth")
+	_sectors.name_cells(positions)
 
 
 ## The bounded space around one road. Radius is DERIVED — the section's own corner to
@@ -242,9 +287,11 @@ func observe(ship: Mothership, delta: float) -> void:
 
 	_warning = _field.warning(here)
 	for disc in _discs:
-		disc.paint(_warning)
+		if disc.visible:
+			disc.paint(_warning)
 	for link in _links:
-		link.paint(_warning)
+		if link.visible:
+			link.paint(_warning)
 
 	var heading := _heading_of(ship)
 	_outbound = BoundaryField.outbound_fraction(heading, _field.outward(here))
@@ -273,7 +320,7 @@ func observe(ship: Mothership, delta: float) -> void:
 	_road.stream(here)
 	_road.light(here, _riding)
 	_deep.follow(here)
-	_compress_the_distance()
+	_compress_the_distance(here, delta)
 	_previous = here
 	_has_previous = true
 
@@ -369,19 +416,46 @@ func _forgive_the_junction(ship: Mothership, here: Vector3, clearance: Vector2) 
 ## THE FAR LAYER (`FarLayer`): beyond the road's detail radius, planets and stars are
 ## drawn smaller than perspective makes them, by the same rule the road's far mesh
 ## uses in its shader. Scaled about their own centres, so nothing moves.
-func _compress_the_distance() -> void:
+##
+## With sectors on, the power is the body's tier (`SectorLayer`): home, next, far, or
+## not drawn, tweened across a sector crossing. The ship's position, not the camera's,
+## decides the sector, so the sign says where the ship is.
+func _compress_the_distance(here: Vector3, delta: float) -> void:
 	var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
 	if camera == null:
 		return
 	var eye := to_local(camera.global_position)
-	var start := Tuning.num("exploration/road_detail_radius")
-	var power := Tuning.num("exploration/far_compress_power")
-	for planet in _planets:
-		var f := FarLayer.factor(eye.distance_to(planet.position), start, power)
-		planet.scale = Vector3.ONE * f
-	for star in _stars:
-		var f := FarLayer.factor(eye.distance_to(star.position), start, power)
-		star.scale = Vector3.ONE * f
+	var open := Tuning.flag("exploration/sectors_enabled")
+	if open:
+		_sectors.tick(here, delta)
+		_border.name_of = _sectors.here_name()
+		for planet in _planets:
+			_scale_body(planet, _sectors.scale_for(planet.position, eye))
+		for star in _stars:
+			_scale_body(star, _sectors.scale_for(star.position, eye))
+	else:
+		var start := Tuning.num("exploration/road_detail_radius")
+		var power := Tuning.num("exploration/far_compress_power")
+		for planet in _planets:
+			_scale_body(planet, FarLayer.factor(eye.distance_to(planet.position), start, power))
+		for star in _stars:
+			_scale_body(star, FarLayer.factor(eye.distance_to(star.position), start, power))
+	RoadMesh.set_sector_globals(open, _sectors, global_position)
+
+
+## A body past the last drawn ring is hidden rather than scaled to nothing, which
+## would leave it with a basis nothing can invert.
+static func _scale_body(body: Node3D, factor: float) -> void:
+	body.visible = factor > 0.0001
+	body.scale = Vector3.ONE * maxf(factor, 0.0001)
+
+
+func sectors() -> SectorLayer:
+	return _sectors
+
+
+func border() -> HexRegion:
+	return _border
 
 
 ## The exits ahead on the tube being ridden, nearest first, as

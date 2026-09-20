@@ -222,6 +222,11 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/exit_approach_metres",
 	"exploration/structure_glass_edge_alpha", "exploration/structure_glass_fresnel_power",
 	"exploration/structure_glass_sheen", "exploration/far_compress_power",
+	"exploration/highway_gear", "exploration/highway_gear_shift_metres",
+	"exploration/sectors_enabled", "exploration/sector_radius",
+	"exploration/sector_next_power", "exploration/sector_far_power",
+	"exploration/sector_far_rings", "exploration/sector_crossing_seconds",
+	"exploration/sector_banner_seconds", "exploration/sector_border_margin",
 	"exploration/star_radius_planet_multiple", "exploration/star_gap_below_floor",
 	"exploration/star_offset_metres", "exploration/star_color", "exploration/star_emission",
 	"exploration/star_light_energy", "exploration/star_light_range",
@@ -278,6 +283,8 @@ func _ready() -> void:
 	_test_deep_field()
 	_test_envelope_meter()
 	_test_disc_bounds()
+	_test_hex_sectors()
+	_test_highway_gear()
 	_test_hull_roster()
 	_test_approach_envelope()
 	_test_target_components()
@@ -2865,6 +2872,125 @@ func _test_envelope_meter() -> void:
 ## the ones that make it a telegraph rather than a wall, the heading model that lets
 ## it stop the player without ever taking the stick, and the union that makes a
 ## corridor continuous with the systems at its ends.
+## The hex grid, the border region and the sector layer (docs/SECTOR_PROTOTYPE.md).
+func _test_hex_sectors() -> void:
+	var r := 1000.0
+	var apothem := r * HexGrid.SQRT3 * 0.5
+	var round_trips := true
+	for cell: Vector2i in [Vector2i(0, 0), Vector2i(3, -2), Vector2i(-4, 5), Vector2i(7, 7)]:
+		var c := HexGrid.center(cell, r)
+		if HexGrid.cell_of(c, r) != cell:
+			round_trips = false
+		# Toward an edge: inside at 0.8 of the apothem, over it at 1.2.
+		if HexGrid.cell_of(c + Vector3(apothem * 0.8, 0.0, 0.0), r) != cell:
+			round_trips = false
+		if HexGrid.cell_of(c + Vector3(apothem * 1.2, 0.0, 0.0), r) == cell:
+			round_trips = false
+	_expect(round_trips, "a cell's centre maps back to the cell, and its edge is at the apothem", "")
+	_expect(HexGrid.ring_distance(Vector2i(0, 0), Vector2i(1, -1)) == 1
+			and HexGrid.ring_distance(Vector2i(0, 0), Vector2i(2, 0)) == 2
+			and HexGrid.ring_distance(Vector2i(0, 0), Vector2i(-1, 2)) == 2
+			and HexGrid.ring_distance(Vector2i(2, 2), Vector2i(2, 2)) == 0,
+		"ring distance counts sector edges crossed", "")
+	_expect(is_equal_approx(HexGrid.edge_distance(Vector3.ZERO, Vector2i.ZERO, r), -apothem)
+			and HexGrid.edge_distance(Vector3(apothem * 1.1, 0.0, 0.0), Vector2i.ZERO, r) > 0.0,
+		"edge distance is negative inside a cell and positive past its edge", "")
+
+	var border := HexRegion.new()
+	border.circumradius = 10000.0
+	border.ceiling = 500.0
+	border.floor_depth = 800.0
+	border.name_of = "SECTOR 0,0"
+	var wall := border.circumradius * HexGrid.SQRT3 * 0.5
+	_expect(border.depth(Vector3.ZERO) < 0.0
+			and is_equal_approx(border.depth(Vector3(wall + 50.0, 0.0, 0.0)), 50.0)
+			and is_equal_approx(border.depth(Vector3(0.0, 560.0, 0.0)), 60.0)
+			and is_equal_approx(border.depth(Vector3(0.0, -850.0, 0.0)), 50.0),
+		"the border is a hex prism: six walls, a ceiling and a floor", "")
+	_expect(border.label() == "SECTOR 0,0", "the border's label is the sector's name", border.label())
+
+	var keep := {}
+	for key: String in ["exploration/sector_radius", "exploration/sector_crossing_seconds",
+			"exploration/sector_banner_seconds", "exploration/sector_far_rings",
+			"exploration/sector_next_power", "exploration/sector_far_power"]:
+		keep[key] = Tuning.get_raw(key)
+	Tuning.set_value("exploration/sector_radius", 5000.0)
+	Tuning.set_value("exploration/sector_crossing_seconds", 1.0)
+	Tuning.set_value("exploration/sector_banner_seconds", 3.0)
+	Tuning.set_value("exploration/sector_far_rings", 2)
+	Tuning.set_value("exploration/sector_next_power", 3.0)
+	Tuning.set_value("exploration/sector_far_power", 5.0)
+	var layer := SectorLayer.new()
+	layer.name_cells({"SYSTEM A": Vector3.ZERO, "SYSTEM B": Vector3(23000.0, 0.0, 0.0)})
+	var first := layer.tick(Vector3(100.0, 0.0, 100.0), 0.1)
+	_expect(not first and layer.here_name() == "SYSTEM A" and layer.crossings == 0,
+		"the first tick settles into a sector without an event", layer.here_name())
+	var next_centre := HexGrid.center(Vector2i(1, 0), 5000.0)
+	var crossed := layer.tick(next_centre, 0.1)
+	_expect(crossed and layer.crossings == 1 and layer.blend < 1.0 and layer.banner_alpha() > 0.0,
+		"crossing an edge is an event: a tween starts and the sign shows",
+		"crossed %s, blend %.2f, alpha %.2f" % [crossed, layer.blend, layer.banner_alpha()])
+	_expect(layer.here_name() == HexGrid.label(Vector2i(1, 0)),
+		"a sector with no body is named by the grid", layer.here_name())
+	layer.tick(next_centre, 2.0)
+	_expect(is_equal_approx(layer.blend, 1.0), "the tween settles", "%.2f" % layer.blend)
+	var start := Tuning.num("exploration/road_detail_radius")
+	var far_point := HexGrid.center(Vector2i(3, 0), 5000.0)
+	var next_point := HexGrid.center(Vector2i(2, 0), 5000.0)
+	_expect(is_equal_approx(layer.scale_for(next_centre + Vector3(start * 0.5, 0.0, 0.0), next_centre), 1.0),
+		"a body in the home sector inside the detail radius is drawn at full size", "")
+	var d := next_centre.distance_to(next_point)
+	_expect(is_equal_approx(layer.scale_for(next_point, next_centre), FarLayer.factor(d, start, 3.0)),
+		"a body one sector over compresses with the next-sector power", "")
+	_expect(is_zero_approx(layer.scale_for(far_point + Vector3(30000.0, 0.0, 0.0), next_centre)),
+		"a body past the last drawn ring is not drawn", "")
+	for key: String in keep:
+		Tuning.set_value(key, keep[key])
+
+
+## The highway gear (docs/SECTOR_PROTOTYPE.md, prototype 2): first at every junction
+## and open end, full between, ribs spaced to match, and the lane carries it.
+func _test_highway_gear() -> void:
+	var keep_gear: Variant = Tuning.get_raw("exploration/highway_gear")
+	var keep_shift: Variant = Tuning.get_raw("exploration/highway_gear_shift_metres")
+	Tuning.set_value("exploration/highway_gear", 1.0)
+	var path := RoadPath.straight(Vector3.ZERO, Vector3(0.0, 0.0, -20000.0))
+	var road := Road.make("GEAR", "highway", path, 2, 0.0)
+	_expect(not road.geared() and is_equal_approx(road.gear_at(10000.0), 1.0),
+		"at highway_gear 1 the road is in first everywhere", "")
+	var plain := road.rib_positions()
+	Tuning.set_value("exploration/highway_gear", 4.0)
+	Tuning.set_value("exploration/highway_gear_shift_metres", 2000.0)
+	_expect(is_equal_approx(road.gear_at(0.0), 1.0) and is_equal_approx(road.gear_at(1000.0), 2.5)
+			and is_equal_approx(road.gear_at(10000.0), 4.0) and is_equal_approx(road.gear_at(19500.0), 1.75),
+		"the gear is 1 at an open end and reaches full a shift away",
+		"%.2f %.2f %.2f %.2f" % [road.gear_at(0.0), road.gear_at(1000.0),
+			road.gear_at(10000.0), road.gear_at(19500.0)])
+	var ribs := road.rib_positions()
+	_expect(ribs.size() < plain.size(), "in the gear there are fewer ribs on the same road",
+		"%d vs %d" % [ribs.size(), plain.size()])
+	var mid_gap := 0.0
+	for i in ribs.size() - 1:
+		if ribs[i] >= 8000.0 and mid_gap == 0.0:
+			mid_gap = ribs[i + 1] - ribs[i]
+	_expect(is_equal_approx(mid_gap, road.rib_spacing * 4.0),
+		"mid-route the ribs are the beat times the gear apart", "%.0f m" % mid_gap)
+	var on_rib := ribs[ribs.size() / 2]
+	var between := on_rib + road.rib_thickness * 0.5 + 100.0
+	_expect(is_equal_approx(road.rib_margin_at(on_rib), road.rib_protrusion)
+			and is_zero_approx(road.rib_margin_at(between)),
+		"the collision's rib margin follows the stretched ribs", "")
+	var ramp := Road.make("RAMP", "ramp", path, 1, 0.0)
+	_expect(is_equal_approx(ramp.gear_at(10000.0), 1.0), "a ramp is always in first", "")
+	var lane := road.tubes[0].sample(road.tubes[0].centre(10000.0))
+	_expect(is_equal_approx(lane.gear, 4.0), "the lane sample carries the gear", "%.2f" % lane.gear)
+	road.tubes[0].junctions.append({"t": 10000.0, "kind": "exit", "label": "x", "ramp": ramp.tubes[0]})
+	_expect(is_equal_approx(road.gear_at(10000.0), 1.0),
+		"a junction puts the road back in first", "%.2f" % road.gear_at(10000.0))
+	Tuning.set_value("exploration/highway_gear", keep_gear)
+	Tuning.set_value("exploration/highway_gear_shift_metres", keep_shift)
+
+
 func _test_disc_bounds() -> void:
 	var disc := DiscRegion.new()
 	disc.ceiling = 400.0
@@ -3269,6 +3395,32 @@ func _test_exploration_builds() -> void:
 		"the ship starts inside the playable volume", "it starts outside")
 	_expect(not scene.ship().autopilot and scene.ship().piloted,
 		"the player holds the helm from the first frame", "autopilot on")
+
+	# THE SECTORS FLAG (docs/SECTOR_PROTOTYPE.md, prototype 1). On: one hex border,
+	# every system inside it, the discs and corridors hidden, and the ship's sector
+	# named after the system centred in it. Off again: the map it was.
+	Tuning.set_value("exploration/sectors_enabled", true)
+	map.relayout()
+	_expect(field.regions.size() == 1 and field.regions[0] is HexRegion,
+		"with sectors on, the playable space is one hex border",
+		"%d regions" % field.regions.size())
+	var all_inside := true
+	for i in map.systems().size():
+		if field.overshoot(map.system_center(i)) > 0.0:
+			all_inside = false
+	_expect(all_inside, "every system sits inside the border", "one is outside")
+	_expect(not discs[0].visible and not map.links()[0].visible,
+		"the discs and corridors are hidden while sectors are on", "")
+	map.observe(scene.ship(), 0.016)
+	_expect(map.place_of(map.to_local(scene.ship().global_position)) == "SYSTEM A",
+		"the ship starts in the sector named after SYSTEM A",
+		map.place_of(map.to_local(scene.ship().global_position)))
+	_expect(map.sectors().crossings == 0,
+		"settling into the first sector is not a crossing", "%d" % map.sectors().crossings)
+	Tuning.set_value("exploration/sectors_enabled", false)
+	map.relayout()
+	_expect(discs[0].visible and field.regions.size() > 1,
+		"with sectors off again, the discs and corridors are back", "")
 
 	# --- THE ROAD, AS DATA (ADR 0096) ---
 	var trunk: Road = road.road_named("A-377B")

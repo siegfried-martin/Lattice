@@ -65,6 +65,25 @@ tube it rides or the nearest one. The ship's `Headlight` is a spot on the nose w
 two visible lamps, toggled with `L`. Everything you would nudge is under `;;; Lights`
 in `tuning.cfg`, and the HUD's `lights` row says what is live.
 
+## The gear (a prototype, behind `highway_gear`)
+
+`docs/SECTOR_PROTOTYPE.md`, prototype 2. `Road.gear_at(t)` is 1 at every junction
+and open end of a highway, and climbs to `highway_gear` over
+`highway_gear_shift_metres`; a ramp is always 1. Three things read it:
+
+- `Mothership._fly_cruise` multiplies only the velocity's component along the road
+  axis by the lane's `gear`, and slews the road axis that much faster so it keeps up
+  with a bend. Steering, the lane's push, the collider and the felt speed are as
+  they were.
+- `Road.rib_positions()` walks the path in steps of `structure_module_length` times
+  the gear there, so the ribs (and the lamps on them) pass at the felt rate.
+  `rib_margin_at` looks the stretched ribs up instead of doing the modular
+  arithmetic.
+- The HUD's `gear` row and the `leg` row's by-road estimate.
+
+At `highway_gear` 1 none of this runs and the road is exactly what it was. The
+gate's flying probe (`RoadProbe`) does not use the gear: it flies at `cruise_speed`.
+
 ## Authoring the map
 
 `data/routes.json`, metres in the map's frame, Y up, the combat plane at y = 0:

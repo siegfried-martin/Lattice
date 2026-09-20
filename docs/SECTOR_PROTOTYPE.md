@@ -58,12 +58,14 @@ tiering, so it visibly leads into the next sector.
 ### Knobs, all in `tuning.cfg` under a new `;;; Sectors` group
 
 - `sectors_enabled` — the flag. Off is today's discs and corridors.
-- `sector_radius` — centre to vertex. Start at the current system spacing.
-- `sector_home_power`, `sector_next_power`, `sector_far_power` — the far layer's
-  compression per tier. The existing `far_compress_power` becomes the home value.
+- `sector_radius` — centre to vertex. Starts at 20 km, near the A to B spacing.
+- `sector_next_power`, `sector_far_power` — the far layer's compression for the
+  next tier and the one past it. The existing `far_compress_power` is the home value.
 - `sector_far_rings` — how many rings out are drawn at all. Start at 2.
 - `sector_crossing_seconds` — the tween. Start at 1.0.
 - `sector_banner_seconds` — how long the name stays on the HUD.
+- `sector_border_margin` — how far past the farthest system or highway point the
+  one border reaches.
 
 ### What to fly, and what we are watching
 
@@ -137,6 +139,38 @@ map can be spread out. Triple the system spacing in `data/routes.json` with a ge
 road as proportionate.
 
 This is the piece that only makes sense after 1 and 2 have been flown.
+
+## What is built (2026-09-19)
+
+Prototypes 1 and 2, behind their flags, both off in `tuning.cfg`:
+
+- **Sectors**: `HexGrid` (the tiling, pure), `HexRegion` (the border, one region in
+  the field), `SectorLayer` (the ship's cell, the tiers, the crossing tween and the
+  sign). `SystemMap.relayout` hides the discs and corridors and lays the border
+  when `sectors_enabled` is on; `_compress_the_distance` scales planets and stars by
+  tier and hands the far shaders the same picture as global uniforms, so the road's
+  far mesh and markings tier with the bodies. The sign is a label in the exploration
+  scene; the `sector` HUD row says which cell you are in and how many crossings.
+- **The gear**: `Road.gear_at`, the lane's `gear`, `Mothership._fly_cruise`, the
+  stretched ribs. `docs/HIGHWAY.md` has the mechanism. The `gear` HUD row shows the
+  felt and world speeds.
+
+To fly them: F2, flip `sectors_enabled`, set `highway_gear`, save. Both hot-reload.
+`sector_radius` starts at 20 km, which puts A and B in neighbouring sectors and C
+two rings out from A.
+
+Known edges, left for the flying to judge:
+
+- Fuel burns on world metres, so a leg in the gear costs the same fuel as before
+  while taking less time. If the gear stays, decide whether fuel is per road metre.
+- A ship handing over between a ramp's tube and its host inside the shift zone
+  changes gear by a small step, since the ramp is always in first.
+- The gate's probe flies at cruise speed without the gear.
+- The deep field is scattered near the roads and rejected inside playable space, so
+  with one border it is mostly below the floor.
+- The border has no mesh yet. The HUD's `bounds` row and the speed clamp work at it,
+  but nothing reddens on the way out, since the red faces belong to the hidden discs.
+  Worth a mesh if the open world stays.
 
 ## Order, and how each one ends
 

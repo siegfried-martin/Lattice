@@ -170,6 +170,7 @@ func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO) -> CruiseLane:
 	lane.roundness = Tuning.num("exploration/lane_corner_roundness")
 	lane.edge_softness = Tuning.num("exploration/lane_edge_softness")
 	lane.base_speed = Tuning.num("exploration/cruise_speed")
+	lane.gear = float(road.call("gear_at", l["t"])) if road != null else 1.0
 	lane.edge_speed_penalty = Tuning.num("exploration/lane_edge_speed_penalty")
 	lane.push_accel = Tuning.num("exploration/lane_edge_push_accel")
 	lane.clamp_deg = Tuning.num("exploration/cruise_turn_clamp_deg")

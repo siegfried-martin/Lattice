@@ -32,6 +32,9 @@ var _hud: DebugHud
 ## (ADR 0035), and on a road inside a steering cone that lag is the difference
 ## between holding a line and guessing at one.
 var _overlay: FlightOverlay
+## The sector sign: the name of the sector just entered, centred, for a few seconds
+## (`docs/SECTOR_PROTOTYPE.md`). Nothing when sectors are off.
+var _sector_sign: Label
 var _dock: DockScreen
 ## Everything in map space hangs off one node, so the floating origin is a move of
 ## this and nothing else has to know (ADR 0020). At 7.5 km centre to centre the
@@ -168,6 +171,16 @@ func _build_hud() -> void:
 	_overlay.reticle_provider = func() -> Node3D:
 		return null if _map.is_docked() else _ship
 	overlay_layer.add_child(_overlay)
+	_sector_sign = Label.new()
+	_sector_sign.name = "SectorSign"
+	_sector_sign.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sector_sign.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_sector_sign.anchor_top = 0.22
+	_sector_sign.anchor_bottom = 0.22
+	_sector_sign.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_sector_sign.add_theme_font_size_override("font_size", 44)
+	_sector_sign.modulate.a = 0.0
+	overlay_layer.add_child(_sector_sign)
 
 	# THE STRIP. Its own CanvasLayer under the dock screen, like everything else here.
 	_nav = FlightHud.new()
@@ -292,6 +305,22 @@ func _build_hud() -> void:
 	# Lane position, stated as metres rather than as a bar. The lane boundary is soft
 	# and the penalty is proportional, so "how far out am I" is the number that
 	# explains why the speed row is reading low.
+	# THE HIGHWAY GEAR (`docs/SECTOR_PROTOTYPE.md`): felt speed against the ribs, and
+	# what the world outside is passing at.
+	_hud.add_row("gear", func() -> String:
+		var lane := _ship.cruise
+		if lane == null:
+			return "—  (highway_gear %.1f)" % Tuning.num("exploration/highway_gear")
+		return "%.2f  ·  felt %.0f m/s, world %.0f m/s" % [lane.gear,
+			_ship.felt_speed(), _ship.speed()]
+	)
+	_hud.add_row("sector", func() -> String:
+		if not Tuning.flag("exploration/sectors_enabled"):
+			return "off"
+		var layer := _map.sectors()
+		return "%s  ·  cell %s  ·  %d crossings  ·  %.0f m sectors" % [
+			layer.here_name(), layer.cell, layer.crossings, layer.radius()]
+	)
 	_hud.add_row("lane", func() -> String:
 		var lane := _ship.cruise
 		if lane == null:
@@ -357,7 +386,11 @@ func _build_hud() -> void:
 		# gives a number that is true of no journey. What this row is for is the
 		# comparison — by road against by hand — and both halves have to be the speed
 		# the trip is actually made at.
-		var by_road := Tuning.num("exploration/cruise_speed")
+		# Times the gear: between systems the road moves the ship through the world
+		# that much faster than the felt speed. An estimate, since the gear shifts
+		# in and out around every junction.
+		var by_road := Tuning.num("exploration/cruise_speed") \
+			* maxf(Tuning.num("exploration/highway_gear"), 1.0)
 		var by_hand := HullClass.max_speed(_ship.hull_class)
 		var span := _map.system_center(next).distance_to(_map.system_center(onward))
 		if by_road <= 0.0 or by_hand <= 0.0:
@@ -454,6 +487,7 @@ func _process(delta: float) -> void:
 	_map.observe(_ship, delta)
 	_ship.speed_ceiling_scale = _map.speed_scale()
 	_refresh_strip()
+	_show_the_sign()
 	# The berth frees the pointer so the strip's exits can be clicked, and takes it
 	# back on the way out. Applied every frame rather than on an event because the
 	# berth is engaged and released by the map, not by anything this scene sees.
@@ -466,6 +500,17 @@ func _process(delta: float) -> void:
 	# other (ADR 0072).
 	_camera.heading_override = Vector3.ZERO if _ship.cruise == null \
 		else _ship.road_axis()
+
+
+## The sector sign, while a crossing's banner is running.
+func _show_the_sign() -> void:
+	if _sector_sign == null:
+		return
+	var alpha := _map.sectors().banner_alpha() \
+		if Tuning.flag("exploration/sectors_enabled") else 0.0
+	_sector_sign.modulate.a = alpha
+	if alpha > 0.0:
+		_sector_sign.text = _map.sectors().here_name()
 
 
 ## Arriving takes the helm, because there is nowhere to fly from a docked ship. The

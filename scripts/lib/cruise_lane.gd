@@ -44,6 +44,9 @@ var edge_softness: float = 1.0
 var clearance_cap: float = 0.5
 
 var base_speed: float = 0.0
+## The highway gear here (`Road.gear_at`): what the along-axis motion through the
+## world is multiplied by. 1 everywhere but the middle of a highway leg.
+var gear: float = 1.0
 var edge_speed_penalty: float = 1.0
 var push_accel: float = 0.0
 var clamp_deg: float = 0.0

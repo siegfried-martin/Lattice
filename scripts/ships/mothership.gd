@@ -674,8 +674,10 @@ func _fly_cruise(delta: float) -> void:
 		_road_axis = cruise.axis
 		axis = _road_axis
 	else:
+		# Times the gear: in the gear the ship covers a bend's world metres that much
+		# faster, and the axis has to keep up with the road under it.
 		_road_axis = FlightGeometry.turn_towards(_road_axis, cruise.axis,
-			deg_to_rad(cruise.turn_rate_deg) * delta)
+			deg_to_rad(cruise.turn_rate_deg) * delta * cruise.gear)
 		axis = _road_axis
 	var cone := deg_to_rad(cruise.clamp_deg)
 	basis = FlightGeometry.basis_from_forward(
@@ -696,6 +698,12 @@ func _fly_cruise(delta: float) -> void:
 	# throttle would make the correction vanish exactly when it is needed.
 	_velocity = (-basis.z * _speed + basis.x * strafe) \
 		.limit_length(maxf(_speed, top)) + cruise.push()
+	# THE HIGHWAY GEAR (`Road.gear_at`): only the motion along the road's axis is
+	# multiplied. Steering across the lane, the push and the felt speed are unchanged,
+	# which is what keeps the road feeling like the same road while the world outside
+	# goes by faster.
+	if cruise.gear != 1.0:
+		_velocity += axis * (_velocity.dot(axis) * (cruise.gear - 1.0))
 	position += _velocity * delta
 
 
@@ -1052,6 +1060,12 @@ func muzzle_position() -> Vector3:
 
 func velocity() -> Vector3:
 	return _velocity
+
+
+## The speed the ship is being flown at, before the highway gear: what the ribs pass
+## at. Equal to `speed()` everywhere but in the gear.
+func felt_speed() -> float:
+	return _speed
 
 
 func speed() -> float:
