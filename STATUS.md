@@ -45,8 +45,11 @@ ramps: **the slow zone** eases the gear to 1 around every junction, and **protot
 spreads the systems to three times the spacing so a leg is mostly in gear. The fifth
 flight: felt speed right, outside barely faster, trip too long. Now the zones ease to
 `junction_gear` 3 rather than 1, the gear is 16, and dust lines every road so there is
-something beside it to whizz. The bar the human set: if it still feels off in a way no
-parameter fixes, park the gear and try a separate highway scene.
+something beside it to whizz. The sixth flight: exits were an invisible wall and then a
+jerk. The exit's head now runs beside the carriageway (`ramp_head_offset`), straddling
+the wall, so the opening is full depth from its first metre. The bar the human set: if
+it still feels off in a way no parameter fixes, park the gear and try a separate
+highway scene.
 
 ### The road was replaced whole — 2026-09-07
 

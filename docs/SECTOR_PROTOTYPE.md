@@ -227,6 +227,14 @@ than 1, over 4 s; `highway_gear` 16; and the deep field's dust now lines every r
 in the open world, world-fixed, so there is something beside the road to read the
 gear against.
 
+Sixth flight (2026-09-20): exits felt like an invisible wall, then a jerk onto the
+ramp, and often would not let the ship through at all. Cause: the exit's box began
+coincident with the carriageway and peeled at 12°, so the wall opening started as a
+sliver narrower than the hull; the ship was held until it widened, then crossed onto
+the ramp's far edge and was pushed to its centre. Now the head runs beside the
+carriageway (`ramp_head_offset`, half a lane), straddling the wall: full-depth
+opening from the first metre, no push on crossing, no axis snap.
+
 Known edges, left for the flying to judge:
 
 - Fuel burns on world metres, so a leg in the gear costs the same fuel as before

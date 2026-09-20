@@ -225,6 +225,7 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/highway_gear", "exploration/highway_upshift_seconds",
 	"exploration/highway_downshift_seconds", "exploration/exit_downshift_seconds",
 	"exploration/ramp_speed", "camera/road_boom_scale", "exploration/junction_slow_seconds",
+	"exploration/ramp_head_offset",
 	"exploration/junction_gear",
 	"exploration/marking_dash_metres", "exploration/marking_gap_metres",
 	"exploration/sectors_enabled", "exploration/sector_radius",

@@ -433,13 +433,17 @@ func _step_checked(label: String, i: int) -> bool:
 		var fr: Dictionary = _probe.frame
 		var fwd: Vector3 = fr["fwd"]
 		var side: Vector3 = fr["right"]
+		var up: Vector3 = fr["up"]
 		for d: Vector3 in [fr["right"], -fr["right"], fr["up"], -fr["up"]]:
 			# A ray exactly along a seam between two of a clipped wall's triangles, or
-			# through a shared edge, can slip through the physics test; three origins a
-			# metre apart cannot all hit the same seam.
+			# through a shared edge, can slip through the physics test; four origins a
+			# metre apart, not all in one plane, cannot all hit the same seam. (A dive
+			# from a tube's centre-line held at a strip's ring runs every horizontal
+			# origin through the vertex four wall quads share.)
 			if _ray(after, after + d * 2500.0).is_empty() \
 					and _ray(after + fwd * 0.7, after + fwd * 0.7 + d * 2500.0).is_empty() \
-					and _ray(after + side * 0.7 + fwd * 0.3, after + side * 0.7 + fwd * 0.3 + d * 2500.0).is_empty():
+					and _ray(after + side * 0.7 + fwd * 0.3, after + side * 0.7 + fwd * 0.3 + d * 2500.0).is_empty() \
+					and _ray(after + up * 0.7 + fwd * 0.4, after + up * 0.7 + fwd * 0.4 + d * 2500.0).is_empty():
 				_expect(false, label, "no structure within 2.5 km toward %s at %s (t=%.1fs in %s)" % [
 					d, after, i * DT, _name(_probe.tube())])
 				return false

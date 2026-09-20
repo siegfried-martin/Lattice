@@ -171,6 +171,15 @@ still flies, so the report is the loop and the gate is the stop.
 
 Every ramp's two ends are built the same way, from the `exploration/ramp_*` keys:
 
+**The head sits beside the carriageway.** An exit's box runs `ramp_head_offset` to
+the driver's right of the carriageway's centre, half the lane width by default, so it
+straddles the wall: the opening is full depth from its first metre, a ship on the wall
+is at the ramp's centre when it crosses, and the ramp's axis is the road's until the
+peel bends away. Coincident, the opening began as a sliver narrower than a hull and
+the ship was held on the wall until it widened, then shoved onto the ramp's centre:
+an invisible wall and a jerk, from the seat. Entries still end coincident, inside the
+carriageway.
+
 - **Exit head**: from the carriageway's centre at `from`, level for `ramp_exit_lead`,
   then a bend of `ramp_exit_radius` onto a leg diverging right at `ramp_exit_angle_deg`
   for `ramp_exit_length`. The ramp's tube nests inside the carriageway for the lead

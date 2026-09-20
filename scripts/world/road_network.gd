@@ -204,12 +204,15 @@ func _planet_ramp(tube: Tube, system: String, centre: Vector3, kind: String) -> 
 		var f := tube.travel_frame(t_mouth)
 		var c: Vector3 = f["pos"]
 		var mouth: Vector3 = c + (f["right"] as Vector3) * lateral + (f["up"] as Vector3) * (mouth_y - c.y)
-		var across := lateral - length * sin(angle)
+		# The head sits `ramp_head_offset` beside the carriageway (see `_ramp`), so the
+		# S-bend has that much less of the side offset to carry.
+		var head := Tuning.num("exploration/ramp_head_offset")
+		var across := lateral - head - length * sin(angle)
 		var off: Vector3 = (f["right"] as Vector3) * across + (f["up"] as Vector3) * (mouth_y - c.y)
 		var run := off.length() / tan(theta)
 		var t0 := tube.path.wrap_t(t_mouth - tube.direction * (lead + length * cos(angle) + run + 2.0 * d))
 		var f0 := tube.travel_frame(t0)
-		var p0: Vector3 = f0["pos"]
+		var p0: Vector3 = (f0["pos"] as Vector3) + (f0["right"] as Vector3) * head
 		var p1: Vector3 = p0 + (f0["fwd"] as Vector3) * lead
 		var p2: Vector3 = p1 + (f0["fwd"] as Vector3).rotated(f0["up"], -angle) * length
 		var m2: Vector3 = mouth - (f["fwd"] as Vector3) * 2.0 * d
@@ -320,7 +323,13 @@ func _ramp(name: String, from_tube: Tube, from_t: float, to_tube: Tube, to_t: fl
 	var bend := Tuning.num("exploration/ramp_bend_radius")
 	if from_tube != null:
 		var f := from_tube.travel_frame(from_t)
-		var p0: Vector3 = f["pos"]
+		# THE HEAD SITS BESIDE THE CARRIAGEWAY, not on it: `ramp_head_offset` to the
+		# driver's right, so the ramp's box straddles the wall and the opening is full
+		# depth from the first metre. Coincident, the box peeled away at a shallow angle
+		# and the opening began as a sliver narrower than a hull: the ship was held on
+		# the wall until it widened, then popped through onto the ramp's far edge and
+		# was shoved to its centre. From the seat that was an invisible wall and a jerk.
+		var p0: Vector3 = (f["pos"] as Vector3) + (f["right"] as Vector3) * Tuning.num("exploration/ramp_head_offset")
 		var p1: Vector3 = p0 + (f["fwd"] as Vector3) * lead
 		var d: Vector3 = (f["fwd"] as Vector3).rotated(f["up"],
 			-deg_to_rad(Tuning.num("exploration/ramp_exit_angle_deg")))
