@@ -5,7 +5,7 @@ extends RefCounted
 ## tree, no tuning, no disk.
 ##
 ## A sample rather than a description, because everything the ship needs from the
-## road depends on where it is in it. `RoadDeck` fills one of these in each frame
+## road depends on where it is in it. `Tube.sample` fills one of these in each frame
 ## and hands it to the ship; the ship never looks the road up.
 ##
 ## **The lane boundary pushes, and the system boundary does not** (ADR 0064). That
@@ -44,6 +44,19 @@ var edge_softness: float = 1.0
 var clearance_cap: float = 0.5
 
 var base_speed: float = 0.0
+## The highway gear here (`Road.gear`): what the along-axis motion through the
+## world is multiplied by. 1 on a ramp.
+var gear: float = 1.0
+## Lined up for an exit ahead: on the exit side of the lane, with the opening within
+## `exit_downshift_seconds` at the speed the ship is making through the world. The
+## ship drops out of gear for it (`target_gear`), which is what makes an exit
+## takeable at all: in gear the opening would pass in a fraction of a second.
+var downshift: bool = false
+
+
+## The gear the ship should be applying here.
+func target_gear() -> float:
+	return 1.0 if downshift else gear
 var edge_speed_penalty: float = 1.0
 var push_accel: float = 0.0
 var clamp_deg: float = 0.0

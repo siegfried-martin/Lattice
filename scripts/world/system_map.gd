@@ -1,113 +1,97 @@
 class_name SystemMap
 extends Node3D
-## The test map: systems in a line, joined by corridors
+## The test map: five systems on two crossing highways, joined by corridors
 ## (`docs/EXPLORATION_POC_IMPLEMENTATION.md`).
 ##
-##     [ A ]────local────[ B ]────────────trunk────────────[ C ]
+##     [ D ]
+##        ╲
+##  [ A ]──[ B ]────────[ C ]      A-377B runs A, B, C; K-112 runs D, B, E.
+##           ╲
+##           [ E ]
 ##
-## **Step 5 builds A, B and the local leg.** Step 8 appends the trunk and C, which
-## is one entry in `LEG_KEYS` — the layout walks the list, so adding a system is
-## adding a leg rather than editing a topology.
+## **Where everything is comes from `data/routes.json`** (ADR 0096): the systems'
+## positions, which systems each highway joins, and which ramps exist. This node owns
+## three things nothing else should: the **layout** (placing the discs and corridors
+## from that data), the **boundary** composed from every piece of it, and the **hot
+## reload** of both — on `Tuning.reloaded` and on `Routes.reloaded`. The discs and
+## links do not subscribe themselves: their geometry depends on a layout they do not own.
 ##
-## This node owns three things nothing else should: the **layout** (where the
-## systems are, which way each aperture faces, where each corridor attaches), the
-## **boundary** composed from every piece of it, and the **hot reload** of both. The
-## discs and links deliberately do not subscribe to `Tuning.reloaded` themselves:
-## their geometry depends on a layout they do not own, and rebuilding in signal
-## order would have them do it against stale positions.
+## **Two worlds** (`docs/WORMHOLE_PROTOTYPE.md`): open space, and the wormhole the
+## highways run inside, far below it in the same frame. Only the ramps exist in both.
+## The ship's collider knows every tube of both, so which world the ship is in is a
+## fact about the tube it is in; the crossing between them happens on a ramp.
 ##
-## Legs are measured **portal to portal** (an amendment to the POC doc), so centre
-## to centre is the leg plus one system radius at each end. That is why the system
-## diameter being a slider moves the systems apart as well as making them bigger.
+## The road is a place, not a mode (ADR 0057): the map knows where the ship is and the
+## ship only ever receives a sample of the road under it. Which tube the ship is in is
+## decided by the road's own geometry (`RoadCollider`), never by a rule here.
 
-## The legs, in order. One key per leg; systems are legs + 1, and the layout walks
-## the list — so adding a system is adding a leg rather than editing a topology.
-const LEG_KEYS: PackedStringArray = ["exploration/local_leg_length",
-	"exploration/trunk_leg_length", "exploration/cross_inbound_leg_length",
-	"exploration/cross_outbound_leg_length"]
 ## Placeholder identity. The POC doc calls them A, B and C; D and E arrived with the
 ## crossing highway, and naming them anything more is content this POC does not test.
 const NAMES: PackedStringArray = ["SYSTEM A", "SYSTEM B", "SYSTEM C",
 	"SYSTEM D", "SYSTEM E"]
 const LETTERS: PackedStringArray = ["A", "B", "C", "D", "E"]
 
-## TWO HIGHWAYS, CROSSING AT SYSTEM B. A route is the systems on it in order, the legs
-## between them, a bearing off the map's own, and the height its road rides at. A
-## system on more than one route is where they meet (ADR 0085).
-##
-## Each route is anchored on one system whose position is already fixed: route 0
-## anchors A at the origin and lays the rest out from it; route 1 anchors on B, which
-## route 0 has already placed, so the two can never drift apart.
-const ROUTE_SYSTEMS := [[0, 1, 2], [3, 1, 4]]
-const ROUTE_LEGS := [[0, 1], [2, 3]]
-const ROUTE_ANCHORS := [0, 1]
-const ROUTE_BEARING_KEYS: PackedStringArray = ["", "exploration/crossing_bearing_deg"]
-const ROUTE_HEIGHT_KEYS: PackedStringArray = ["exploration/road_height",
-	"exploration/crossing_road_height"]
-## ROADS HAVE NAMES. "Stay on highway A-377B" is a sentence a player can act on;
-## "stay on this road" is not, and while berthed the routing readout is the only thing
-## telling them what happens if they do nothing (ADR 0083).
-##
-## Authored here rather than derived from the systems they connect, because a real
-## route number outlives the places on it — a road keeps its name when a new system is
-## built on it, and deriving one would rename the whole highway.
-const ROUTE_NAMES: PackedStringArray = ["A-377B", "K-112"]
-
 ## Relayed from whichever system's envelope fired, so the dock screen can say where
 ## it is without the scene tracking which envelope belongs to which planet.
 signal arrived(place: String)
 signal departed()
+## The ship has just crossed between the worlds by `move`, in the map's frame: the
+## rigid transform that took it from where it was to where it is. The scene moves the
+## camera by the same, so the crossing is not a cut.
+signal crossed(move: Transform3D)
 
 var _discs: Array[SystemDisc] = []
 var _planets: Array[Planet] = []
+## One star per planet: below and beside it, the system's only light.
+var _stars: Array[Star] = []
 var _approaches: Array[ApproachEnvelope] = []
 var _links: Array[SystemLink] = []
-## The road: two mainlines running the length of the map, and a pair of ramps at each
-## system. It spans the whole map rather than one leg, because the highway runs
-## through the systems rather than stopping at them (ADR 0065).
+## Which two systems each link joins, in `NAMES` order, built from the highways.
+var _link_ends: Array[Vector2i] = []
+## The road in open space: the ramps' twins, and nothing else.
 var _road: RoadNetwork
-## Every piece of playable space, united. Systems and corridors are regions in one
-## list rather than two systems to be checked in turn (ADR 0062).
+## The road inside the wormhole: every highway, and the ramps that join them.
+var _wormhole: RoadNetwork
+## Both networks' tubes and roads, for the one collider.
+var _all_tubes: Array[Tube] = []
+var _all_roads: Array[Road] = []
+## Every piece of playable space, united (ADR 0062).
 var _field: BoundaryField = BoundaryField.new()
+## The playable space inside the wormhole: the tunnels around its roads.
+var _void: BoundaryField = BoundaryField.new()
+## Which world the ship is in. Derived from the tube it is in whenever it is in one,
+## so a debug drop onto either world's road puts the map there; kept while it is in
+## open space or in the wormhole's void.
+var _in_wormhole: bool = false
 ## What is out there past the edge. Background-layer only: nothing in it is queryable
-## and nothing in it collides (see `DeepField` and CLAUDE.md's LOD/collision rule).
+## and nothing in it collides (CLAUDE.md's LOD/collision rule).
 var _deep: DeepField
-## The line the whole highway is laid on, through every system and along every leg.
-## Kept because the road, the corridors and the deep field all have to agree about
-## where the route goes, and the way to guarantee that is one polyline.
+## The inside of the wormhole: the streak spindle that rides with the ship
+## (`WormholeTunnel`). Background layer, like the deep field.
+var _tunnel: WormholeTunnel
+## The map's legs, system to system, sampled: what the deep field is scattered along.
 var _spine: PackedVector3Array = PackedVector3Array()
 
-## Seconds the player has spent outside on this excursion. Resets on return, so two
-## short dips do not add up into damage the player did not see coming.
 var _seconds_outside: float = 0.0
-## Live, for the HUD. The player is told the timer is running before it costs them.
 var _warning: float = 0.0
-## What the boundary and the approach sequences together want the ship's speed
-## ceiling multiplied by this frame — the tightest of them, composed here so two
-## systems writing the same field cannot silently fight over it.
 var _speed_scale: float = 1.0
-## How much of the ship's heading was outbound, 0 to 1. Kept because the HUD has to
-## report the same number the clamp used.
 var _outbound: float = 0.0
-## The deck the player is riding, or null. The cruise drive is not a mode the ship
-## carries — it is a place the ship is in (ADR 0057), so the map knows where it is
-## and the ship only ever receives a sample of the road under it.
-var _riding: RoadDeck = null
-## The berth on the roadway. One per map rather than one per road: it is a thing the
-## player does, not a thing a stretch of road has (ADR 0082).
+## The tube the player is riding with the cruise drive running, or null.
+var _riding: Tube = null
+## The berth on the roadway. One per map: it is a thing the player does, not a thing a
+## stretch of road has (ADR 0082).
 var _berth: RoadBerth = null
+## THE SECTORS (`docs/SECTOR_PROTOTYPE.md`, prototype 1, behind `sectors_enabled`):
+## the world as an open hex tiling inside one border, and which sector the ship is in
+## deciding how every body is drawn. With the flag off neither is touched.
+var _sectors: SectorLayer = SectorLayer.new()
+var _border: HexRegion = HexRegion.new()
 
 ## Whether the map reads the real input devices, or is told what was pressed. See
-## `Mothership.reads_input`: a capture harness renders into a real window, and a map
-## that polls the keyboard in one is not reproducible. Harness switch only.
+## `Mothership.reads_input`. Harness switch only.
 var reads_input: bool = true
-## One-shot presses a harness queues instead. Consumed by the next observation, so a
-## harness sets one the way a player taps a key rather than holding a flag down.
 var pressed_dock: bool = false
 var pressed_click: bool = false
-## Last frame's position, for the SWEPT portal test. At 96.7 m/s a ship covers 1.6 m
-## in a frame, and a portal tested against a position rather than a segment is one
-## that intermittently does not exist.
 var _previous: Vector3 = Vector3.ZERO
 var _has_previous: bool = false
 
@@ -116,14 +100,17 @@ func _ready() -> void:
 	_build()
 	relayout()
 	Tuning.reloaded.connect(relayout)
+	# Saving `data/routes.json` relays the map out under the ship, the way saving
+	# `tuning.cfg` re-tunes it. The road is data, and data you cannot nudge while
+	# looking at it is a worse instrument than a slider (ADR 0096).
+	Routes.reloaded.connect(relayout)
 
 
 func _build() -> void:
-	var count := NAMES.size()
 	_berth = RoadBerth.new()
 	_berth.name = "Berth"
 	add_child(_berth)
-	for i in count:
+	for i in NAMES.size():
 		var letter := LETTERS[i]
 		var disc := SystemDisc.new()
 		disc.name = "Disc" + letter
@@ -134,6 +121,12 @@ func _build() -> void:
 		planet.name = "Planet" + letter
 		add_child(planet)
 		_planets.append(planet)
+
+		var star := Star.new()
+		star.name = "Star" + letter
+		star.index = i
+		add_child(star)
+		_stars.append(star)
 
 		var approach := ApproachEnvelope.new()
 		approach.name = "Approach" + letter
@@ -147,18 +140,29 @@ func _build() -> void:
 	_road = RoadNetwork.new()
 	_road.name = "Road"
 	add_child(_road)
+	_wormhole = RoadNetwork.new()
+	_wormhole.name = "Wormhole"
+	add_child(_wormhole)
 
 	_deep = DeepField.new()
 	_deep.name = "DeepField"
 	add_child(_deep)
+	_tunnel = WormholeTunnel.new()
+	_tunnel.name = "WormholeTunnel"
+	add_child(_tunnel)
 
-	# One corridor per leg, across every route. The corridor is what you fly when you
-	# decline the road, so a leg without one is a leg you may only travel by highway.
-	for route in ROUTE_SYSTEMS.size():
-		var on_route: Array = ROUTE_SYSTEMS[route]
+	# One corridor per leg, across every highway. The corridor is what you fly when
+	# you decline the road, so a leg without one is a leg you may only travel by
+	# highway. The legs are read from the route data once; a highway added to
+	# `routes.json` needs a restart to get its corridors, which is the one thing the
+	# hot reload does not cover.
+	for highway in Routes.highway_names():
+		var on_route := Routes.systems_on(highway)
 		for i in on_route.size() - 1:
-			var from_system: int = on_route[i]
-			var to_system: int = on_route[i + 1]
+			var from_system := NAMES.find(on_route[i])
+			var to_system := NAMES.find(on_route[i + 1])
+			if from_system < 0 or to_system < 0:
+				continue
 			var link := SystemLink.new()
 			link.name = "Link%s%s" % [LETTERS[from_system], LETTERS[to_system]]
 			link.link_name = "%s to %s" % [NAMES[from_system], NAMES[to_system]]
@@ -166,78 +170,30 @@ func _build() -> void:
 			link.to_name = NAMES[to_system]
 			add_child(link)
 			_links.append(link)
+			_link_ends.append(Vector2i(from_system, to_system))
 
 
-## Place everything, and recompose the boundary from what was placed.
-##
-## Called on every tuning reload, because the diameter, the leg lengths and the
-## aperture bearing are all sliders and every one of them moves the map.
+## Place everything, and recompose the boundary from what was placed. Called on every
+## tuning and route reload.
 func relayout() -> void:
+	var positions := Routes.system_positions()
 	var radius := Tuning.num("exploration/system_diameter") * 0.5
-	var bearing := Tuning.num("exploration/aperture_bearing_deg")
-	# Apertures accumulate across routes: a system on two roads has a mouth facing
-	# each way along each of them, which is what makes B an interchange rather than a
-	# place two roads happen to pass.
 	var facings: Array[Array] = []
 	for i in _discs.size():
 		facings.append([] as Array[float])
-	var spines: Array[PackedVector3Array] = []
-	var link_index := 0
-
-	for route in ROUTE_SYSTEMS.size():
-		var on_route: Array = ROUTE_SYSTEMS[route]
-		var key: String = ROUTE_BEARING_KEYS[route]
-		var route_bearing := bearing \
-			+ (0.0 if key.is_empty() else Tuning.num(key))
-		var step := SystemDisc.bearing_to_direction(route_bearing)
-		var anchor: int = ROUTE_ANCHORS[route]
-
-		# Walk BACK from the anchor and then forward from it, so a route hung on a
-		# system another route already placed cannot move it.
-		var here: Vector3 = _discs[on_route[anchor]].position
-		var legs: Array[PackedVector3Array] = []
-		var lengths := PackedFloat32Array()
-		for i in on_route.size() - 1:
-			lengths.append(Tuning.num(LEG_KEYS[(ROUTE_LEGS[route] as Array)[i]]))
-		var at := here
-		for i in range(anchor - 1, -1, -1):
-			at -= step * (lengths[i] + radius * 2.0)
-			_discs[on_route[i]].position = at
-		at = here
-		for i in range(anchor, on_route.size() - 1):
-			at += step * (lengths[i] + radius * 2.0)
-			_discs[on_route[i + 1]].position = at
-
-		# The legs, once every system on the route is placed.
-		for i in on_route.size() - 1:
-			var from_at: Vector3 = _discs[on_route[i]].position
-			legs.append(RoadPath.weave(from_at + step * radius, step, lengths[i],
-				Tuning.num("exploration/road_curve_deg"),
-				Tuning.num("exploration/road_curve_period"),
-				Tuning.num("exploration/road_rise_deg"),
-				Tuning.num("exploration/road_rise_period")))
-			# The CORRIDOR is mouth to mouth: the bounded space between two systems,
-			# handed the leg's own centre-line rather than two endpoints, so the
-			# corridor and the highway inside it cannot drift apart.
-			_links[link_index].follow(legs[i])
-			link_index += 1
-			(facings[on_route[i]] as Array[float]).append(route_bearing)
-			(facings[on_route[i + 1]] as Array[float]).append(route_bearing + 180.0)
-
-		# The SPINE: behind the first system on the route, through every centre, along
-		# every leg, and out past the last. The road is laid on this and the deep field
-		# is scattered around it, so one polyline per route is the only place a route
-		# is written down.
-		var spine := PackedVector3Array()
-		spine.append(_discs[on_route[0]].position - step * radius)
-		for i in on_route.size():
-			spine.append(_discs[on_route[i]].position)
-			if i < legs.size():
-				for point: Vector3 in legs[i]:
-					spine.append(point)
-		spine.append(_discs[on_route[on_route.size() - 1]].position + step * radius)
-		spines.append(spine)
-
+		_discs[i].position = positions.get(NAMES[i], Vector3.ZERO)
+	# Apertures accumulate across highways: a system on two roads has a mouth facing
+	# each way along each of them, which is what makes B an interchange.
+	for i in _links.size():
+		var ends := _link_ends[i]
+		var from_at := _discs[ends.x].position
+		var to_at := _discs[ends.y].position
+		var step := (to_at - from_at).normalized()
+		var bearing := SystemDisc.direction_to_bearing(step)
+		(facings[ends.x] as Array[float]).append(bearing)
+		(facings[ends.y] as Array[float]).append(bearing + 180.0)
+		# The CORRIDOR is mouth to mouth: the bounded space between two systems.
+		_links[i].follow(RoadPath.straight(from_at + step * radius, to_at - step * radius))
 	for i in _discs.size():
 		var disc := _discs[i]
 		disc.system_name = NAMES[i]
@@ -245,67 +201,143 @@ func relayout() -> void:
 		disc.rebuild()
 		_planets[i].base = disc.position
 		_planets[i].rebuild()
+		_stars[i].base = disc.position
+		_stars[i].planet_position = _planets[i].position
+		_stars[i].rebuild()
 		_approaches[i].position = _planets[i].position
 		_approaches[i].rebuild()
 
-	# THE ROAD NETWORK. Each route spans its whole run in one piece, through every
-	# system on it — a highway that stops at each system is the thing ADR 0065 exists
-	# to forbid — and the routes are joined afterwards, where they cross (ADR 0085).
-	_spine = spines[0]
-	_road.rebuild()
-	for route in ROUTE_SYSTEMS.size():
-		var on_route: Array = ROUTE_SYSTEMS[route]
-		var centres: Array[Vector3] = []
-		var names := PackedStringArray()
-		for index: int in on_route:
-			centres.append(_discs[index].position)
-			names.append(NAMES[index])
-		_road.add_route(spines[route], centres, names, ROUTE_NAMES[route],
-			Tuning.num(ROUTE_HEIGHT_KEYS[route]))
-	_road.link_routes()
+	RoadNetwork.build_worlds(_road, _wormhole, Routes.data(), positions)
+	_all_tubes = _road.tubes + _wormhole.tubes
+	_all_roads = _road.roads + _wormhole.roads
+	_spine = _legs(positions)
+	for problem in _road.problems + _wormhole.problems:
+		push_warning("[road] " + problem)
 
 	_field.regions.clear()
-	for disc in _discs:
-		_field.regions.append(disc.region())
-	for link in _links:
-		_field.regions.append(link.region())
-	# THE ROAD CARRIES ITS OWN SPACE (ADR 0091). A corridor is drawn between two
-	# systems and an interchange ramp is not on one — it cuts the corner between two
-	# highways crossing at an angle — so riding it put the boundary's red across the
-	# view and, past `bounds_stop_distance`, walked the speed ceiling toward zero on a
-	# road the player was legitimately on. Measured at 388 m outside.
-	#
-	# A region per deck rather than a wider corridor: the corridor is what off-road
-	# travel is bounded by and widening it everywhere to cover one ramp would cost that
-	# its meaning. Regions UNITE, so this can only ever add space, and the corridor
-	# still governs wherever both apply.
-	for deck in _road.decks():
-		_field.regions.append(_space_around(deck))
+	var open := Tuning.flag("exploration/sectors_enabled")
+	if open:
+		# ONE BORDER around everything; inside it, open space. The discs, corridors and
+		# their funnels are hidden rather than removed, so the flag can go back off.
+		_lay_the_border(positions)
+		_field.regions.append(_border)
+	else:
+		for disc in _discs:
+			_field.regions.append(disc.region())
+		for link in _links:
+			_field.regions.append(link.region())
+		# THE ROAD CARRIES ITS OWN SPACE (ADR 0091). An interchange ramp cuts the corner
+		# between two highways and is on no corridor; riding it put the boundary's red
+		# across the view. A region per road: regions UNITE, so this only ever adds space.
+		for road in _road.roads:
+			_field.regions.append(_space_around(road))
 	_field.warning_band = Tuning.num("exploration/bounds_warning_band")
 	_field.stop_distance = Tuning.num("exploration/bounds_stop_distance")
+	# Inside the wormhole the playable space is the road's own, and nothing else.
+	_void.regions.clear()
+	for road in _wormhole.roads:
+		_void.regions.append(_space_around(road))
+	_void.warning_band = _field.warning_band
+	_void.stop_distance = _field.stop_distance
+	_apply_world()
 
 	# LAST, and it needs both of the things above it: the deep field is scattered
-	# around the spine and rejected wherever the boundary says the point is still
-	# playable space, so it cannot exist until the field is composed.
-	_deep.rebuild(_spine, _field)
+	# around the spine and rejected wherever the boundary says the point is playable.
+	# In the open world the only wall is the far border, so the field is scattered
+	# around every road instead, just past the road's own space: it is the thing beside
+	# the road that the gear's speed is read against between systems.
+	if open:
+		var road_space := BoundaryField.new()
+		for road in _road.roads:
+			road_space.regions.append(_space_around(road))
+		_deep.rebuild(_spine, road_space)
+	else:
+		_deep.rebuild(_spine, _field)
 
 
-## The bounded space around one carriageway. Radius is DERIVED — the lane's own
-## corner-to-corner plus the warning band — so riding a road can never redden it and
-## nothing here is a feel value to be tuned against the lane it wraps.
-func _space_around(deck: RoadDeck) -> TubeRegion:
+## Every highway's legs, system to system, as a sampled polyline. With the highways
+## inside the wormhole this is the line between the systems in open space.
+static func _legs(positions: Dictionary) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for highway in Routes.highway_names():
+		var on_route := Routes.systems_on(highway)
+		for i in on_route.size() - 1:
+			if not positions.has(on_route[i]) or not positions.has(on_route[i + 1]):
+				continue
+			out.append_array(RoadPath.straight(positions[on_route[i]],
+				positions[on_route[i + 1]]).points(200.0))
+	return out
+
+
+## The hex prism around the whole map: centred on the systems' centroid, its apothem
+## reaching `sector_border_margin` past the farthest system or highway point, with the
+## disc's ceiling and floor. The sectors are named after the systems centred in them.
+func _lay_the_border(positions: Dictionary) -> void:
+	var centroid := Vector3.ZERO
+	var count := 0
+	for system_name: String in positions:
+		centroid += positions[system_name]
+		count += 1
+	if count > 0:
+		centroid /= count
+	centroid.y = 0.0
+	var extent := 0.0
+	for system_name: String in positions:
+		var at: Vector3 = positions[system_name]
+		extent = maxf(extent, Vector2(at.x - centroid.x, at.z - centroid.z).length())
+	_border.center = centroid
+	_border.circumradius = (extent + Tuning.num("exploration/sector_border_margin")) \
+		/ (HexGrid.SQRT3 * 0.5)
+	_border.ceiling = Tuning.num("exploration/system_ceiling_height")
+	_border.floor_depth = Tuning.num("exploration/system_floor_depth")
+	_sectors.name_cells(positions)
+
+
+## Show one world and hide the other. Open space is the discs and corridors (when
+## the sectors are off), the planets and stars, the deep field and the ramps' twins;
+## the wormhole is its own network. Both stay resident: nothing loads at a crossing.
+func _apply_world() -> void:
+	var open := Tuning.flag("exploration/sectors_enabled")
+	for disc in _discs:
+		disc.visible = not open and not _in_wormhole
+	for link in _links:
+		link.visible = not open and not _in_wormhole
+	for planet in _planets:
+		planet.visible = not _in_wormhole
+	for star in _stars:
+		star.visible = not _in_wormhole
+	_deep.visible = not _in_wormhole
+	_tunnel.visible = _in_wormhole
+	_road.visible = not _in_wormhole
+	_wormhole.visible = _in_wormhole
+
+
+func _enter_world(wormhole: bool) -> void:
+	if wormhole == _in_wormhole:
+		return
+	_in_wormhole = wormhole
+	_apply_world()
+
+
+## The bounded space around one road. Radius is DERIVED — the section's own corner to
+## corner plus the warning band — so riding a road can never redden it.
+func _space_around(road: Road) -> TubeRegion:
 	var tube := TubeRegion.new()
-	tube.name_of = deck.deck_name
-	tube.follow(deck.path().points)
-	var half := Vector2(Tuning.num("exploration/lane_width"),
-		Tuning.num("exploration/lane_height")) * 0.5
-	tube.radius = sqrt(half.x * half.x + half.y * half.y) \
+	tube.name_of = road.name
+	tube.follow(road.path)
+	tube.radius = sqrt(road.half_width * road.half_width + road.half_height * road.half_height) \
 		+ Tuning.num("exploration/bounds_warning_band")
-	# No flare: a road does not narrow at its ends, and a tube that tapered would put
-	# the edge back across the mouth this exists to keep clear.
 	tube.mouth_radius = tube.radius
 	tube.flare_length = 0.0
 	return tube
+
+
+## Give the ship its collider against this map's road. Called once by the scene; the
+## collider is the ship's because "which tube am I in" is a fact about the hull.
+func attach(ship: Mothership) -> void:
+	if ship.road == null:
+		ship.road = RoadCollider.new()
+	ship.road.setup(_all_tubes, _all_roads)
 
 
 ## Run the whole map against the ship for this frame.
@@ -318,67 +350,82 @@ func observe(ship: Mothership, delta: float) -> void:
 	_outbound = 0.0
 	if ship == null or not is_instance_valid(ship) or delta <= 0.0:
 		return
+	if ship.road == null or ship.road.tubes != _all_tubes:
+		var was := ship.road.tube.name if ship.road != null and ship.road.tube != null else ""
+		attach(ship)
+		if not was.is_empty():
+			ship.road.tube = tube_named(was)
 	var here := to_local(ship.global_position)
-	# Taken BEFORE the road runs, because `_ride_the_road` moves `_previous` on its
-	# berthed path. Metres, not seconds: fuel is priced by the route (ADR 0017), so
-	# nothing that changes a speed may change what a leg costs.
 	var travelled := here.distance_to(_previous) if _has_previous else 0.0
-	# Both keys are read once, up front, and the harness's are consumed here — so the
-	# two consumers below cannot disagree about what was pressed this frame.
 	var took_dock := Input.is_action_just_pressed("dock") if reads_input \
 		else pressed_dock
 	pressed_dock = false
 	pressed_click = false
 
-	_warning = _field.warning(here)
+	# The world is where the tube is (`_in_wormhole`).
+	if ship.road != null and ship.road.tube != null:
+		_enter_world(_wormhole.tubes.has(ship.road.tube))
+	var bounds := field()
+	_warning = bounds.warning(here)
 	for disc in _discs:
-		disc.paint(_warning)
+		if disc.visible:
+			disc.paint(_warning)
 	for link in _links:
-		link.paint(_warning)
+		if link.visible:
+			link.paint(_warning)
 
 	var heading := _heading_of(ship)
-	_outbound = BoundaryField.outbound_fraction(heading, _field.outward(here))
-	_speed_scale = _field.speed_ceiling_scale(here, heading)
+	_outbound = BoundaryField.outbound_fraction(heading, bounds.outward(here))
+	_speed_scale = bounds.speed_ceiling_scale(here, heading)
 
-	# The approach sequences constrain the same ceiling. Composed here and assigned
-	# once by the scene, so the tightest wins rather than whichever ran last.
-	for approach in _approaches:
-		approach.observe(ship, delta)
-		_speed_scale = minf(_speed_scale, approach.speed_scale())
+	if not _in_wormhole:
+		for approach in _approaches:
+			approach.observe(ship, delta)
+			_speed_scale = minf(_speed_scale, approach.speed_scale())
 
 	_ride_the_road(ship, here)
-	# AFTER the road, because a berth binds to the deck the ship is on and the road is
-	# what decides which one that is. Reading the key here rather than inside the
-	# berth keeps `RoadBerth` drivable by the gate, which has no input device.
-	#
-	# The union's answer goes with it. A berth never changes roads on proximity (ADR
-	# 0082), but a road that has ENDED is not a choice — there is exactly one thing it
-	# becomes — and releasing there dropped a player at the merge they berthed for.
-	_berth.observe(ship, _riding,
-		_road.governing(here, ship.road_axis(), _riding, ship.lane_clearance()),
-		took_dock, delta)
-	# THE SHELL, measured before the ship moves and enforced after it has (ADR 0087).
-	ship.hull_barrier = _shell_for(ship, here)
-	# HIGHWAY METRES, whoever is doing the steering. A berth is carried by the road at
-	# a fraction of cruise (ADR 0082), and a berth that also travelled free would be
-	# the range-optimal way to cross the map — which is exactly the "automation is
-	# never optimal" clause it was built to satisfy. So it costs the same per metre
-	# and buys comfort rather than range (ADR 0086).
+	here = _cross_if_due(ship, here)
+	# AFTER the road, because a berth binds to the tube the ship is in. A ramp that has
+	# ENDED hands the berth to the road it merged into (ADR 0096).
+	var onward: Tube = null
+	if _riding != null and _riding.is_ramp():
+		var record := ramp_of(_riding)
+		if not record.is_empty():
+			onward = record["to_tube"]
+	_berth.observe(ship, _riding, onward, took_dock, delta)
+	# An exit taken from the strip is an exit lined up for, whichever side of the
+	# lane the ship is on.
+	if ship.cruise != null and _berth.taking() != null:
+		ship.cruise.downshift = true
+	# HIGHWAY METRES, whoever is doing the steering (ADR 0086).
 	if ship.is_cruising():
 		ship.cruise_tank.burn(travelled)
-	_offer_exits()
 	_name_the_ways()
-	for gate in _road.gates():
+	for gate in _road.gates() + _wormhole.gates():
 		gate.repaint(delta)
 	_road.set_active(_riding)
-	# The starfield rides with the player so it never gets nearer, the way a sky does.
-	# Everything else in the deep field stays where it was put, which is what makes it
-	# parallax against the ship instead of moving with it.
+	_wormhole.set_active(_riding)
+	_road.stream(here)
+	_wormhole.stream(here)
+	# THE TREADMILL (`Road.slip`): the ridden road's ribs slide along with the ship by
+	# the gear's surplus, so they pass at the felt speed.
+	if _riding != null and _riding.road != null:
+		var fwd: Vector3 = _riding.travel_frame(_riding.local(here)["t"])["fwd"]
+		(_riding.road as Road).roll(ship.gear_moved().dot(fwd) * _riding.direction)
+	_road.roll()
+	_wormhole.roll()
+	_road.light(here, _riding)
+	_wormhole.light(here, _riding)
 	_deep.follow(here)
+	if _in_wormhole:
+		var frame := _tunnel_frame(ship, here)
+		var moved := (here - _previous).dot(frame["fwd"]) if _has_previous and not frame.is_empty() else 0.0
+		_tunnel.follow(frame, moved, delta)
+	_compress_the_distance(here, delta)
 	_previous = here
 	_has_previous = true
 
-	if _field.overshoot(here) <= 0.0:
+	if bounds.overshoot(here) <= 0.0:
 		_seconds_outside = 0.0
 		return
 	_seconds_outside += delta
@@ -392,257 +439,278 @@ func observe(ship: Mothership, delta: float) -> void:
 
 ## Getting on and off the road.
 ##
-## Entry is **on contact and instant** (ADR 0057): crossing a start portal in its own
-## direction of travel puts the cruise drive on, and there is no alignment, no
-## sequence and no prompt between those two things. Leaving is the far portal, or
-## turning round and going back out the way you came in.
+## **Where the ship is, the geometry decides.** The collider says which tube the hull
+## is in: it entered one through a mouth, crossed from one to another through an open
+## wall, or left through a mouth into open space. Nothing here chooses a road.
 ##
-## Every portal's colour is set from the hull the player is flying *this frame*, so
-## cycling the debug roster recolours the map (ADR 0060). A fighter has no cruise
-## drive, sees red everywhere, and is refused — which is one property wearing a
-## colour rather than a second rule about who may use a portal.
+## Entry is **on contact and instant** (ADR 0057): being inside a tube with a drive
+## that can run puts the cruise drive on. Leaving is flying out of a mouth. Every
+## portal's colour is set from the hull the player is flying THIS frame (ADR 0060).
 func _ride_the_road(ship: Mothership, here: Vector3) -> void:
 	var allowed := ship.has_cruise_drive()
-	# ENGAGING needs fuel; STAYING does not. A portal is refused on an empty tank —
-	# it opens for a drive that can run, and a dry one cannot (ADR 0060) — but a tank
-	# that empties mid-leg leaves the ship on the road at hull speed rather than
-	# putting it out in open space, which would be the road dropping the player.
+	# ENGAGING needs fuel; STAYING does not (ADR 0086).
 	var can_engage := allowed and not ship.cruise_tank.is_dry()
-	# A BERTHED SHIP DOES NOT CHANGE ROADS. The berth is bound to one carriageway and
-	# follows its centre-line; letting the union hand it to a ramp on proximity would
-	# be the berth choosing a route, which is the one thing it must never do (ADR
-	# 0082). It still gets a lane sample, because the HUD and the speed ceiling read
-	# it, and it still comes off the road when the drive or the road runs out.
-	if ship.is_berthed() and _riding != null:
-		if not allowed:
-			_riding = null
-			ship.cruise = null
-			ship.leave_road()
-			ship.reset_reticle()
-			return
-		# The one thing that DOES change the road under a berthed ship is the player
-		# taking an exit, and that switch is the berth's (ADR 0083).
-		if _berth.deck() != null:
-			_riding = _berth.deck()
-		ship.cruise = _riding.sample(here, ship.lane_clearance())
-		_previous = here
-		return
-	# The hull's own half-section. The lane is measured against the ship rather than
-	# against a point, and every sample below has to be taken with the SAME clearance
-	# or the union would compare a hull-measured depth against a point-measured one.
-	var clearance := ship.lane_clearance()
 	_road.set_permitted(can_engage)
-	if not _has_previous:
-		return
-
-	if _riding != null:
-		# Losing the drive mid-road drops you where you are, at hull speed. That is
-		# the honest reading of the drive belonging to the hull, and it is the only
-		# way the roster can answer "what is the road worth" for a fighter.
-		if not allowed or _left_through_a_portal(here):
+	_wormhole.set_permitted(can_engage)
+	var clearance := ship.lane_clearance()
+	var inside: Tube = ship.road.tube
+	if inside == null:
+		if _riding != null:
 			_riding = null
 			ship.cruise = null
 			ship.leave_road()
 			ship.reset_reticle()
-			return
-		# Merging and diverging, with no junction logic in it. Every deck going the
-		# player's way is asked how far outside it they are; steering toward a ramp
-		# makes the ramp the nearer answer and it takes over, and running to the end
-		# of a ramp hands off to whatever else contains the ship. The handover happens
-		# because the geometry says so, not because a rule fired (ADR 0063's rule,
-		# applied to lanes instead of regions).
-		var lane := _riding.sample(here, clearance)
-		# Candidates are limited to decks the ship could actually be steered onto, so
-		# a handover is a merge rather than a snap (ADR 0072).
-		var alternative := _road.governing(here, ship.road_axis(), _riding,
-			clearance)
-		if lane.metres_remaining <= 0.001:
-			# Off the end of this deck. A ramp ends on the mainline and hands over; a
-			# mainline ends at the edge of the map, where there is nothing to hand to
-			# and the road has simply run out.
-			if alternative == null or alternative.sample(here, clearance).is_outside():
-				_riding = null
-				ship.cruise = null
-				ship.leave_road()
-				ship.reset_reticle()
-				return
-			_riding = alternative
-		# BY A MARGIN, not by a hair. Near a divergence the mainline and the ramp are
-		# nearly equally near and the winner alternates frame to frame — the road you
-		# are on flickers between the two, and with it the lane's speed penalty, which
-		# is felt as a stutter. ADR 0072 forbade hysteresis as a fix for the SNAP, and
-		# that stands: the snap is fixed by the slew, and this is a different defect
-		# with a different cause (ADR 0076).
-		elif alternative != null \
-				and alternative.sample(here, clearance).edge_distance() \
-					< lane.edge_distance() - Tuning.num("exploration/lane_handover_margin"):
-			_riding = alternative
-		ship.cruise = _riding.sample(here, clearance)
 		return
-
-	if not can_engage:
-		return
-	for deck in _road.decks():
-		if deck.start_portal() != null \
-				and deck.start_portal().crossed(_previous, here) > 0:
-			_riding = deck
-			ship.cruise = deck.sample(here, clearance)
-			ship.adopt_road_axis(ship.cruise.axis)
-			ship.reset_reticle()
+	if _riding == null:
+		if not can_engage:
 			return
+		_riding = inside
+		ship.cruise = inside.sample(here, clearance, ship.speed())
+		_forgive_the_junction(ship, here, clearance)
+		ship.adopt_road_axis(ship.cruise.axis)
+		ship.reset_reticle()
+		return
+	if not allowed:
+		# Losing the drive mid-road (the debug roster) leaves you in the tube at hull
+		# speed. That is the honest reading of the drive belonging to the hull.
+		_riding = null
+		ship.cruise = null
+		ship.leave_road()
+		ship.reset_reticle()
+		return
+	# Merging and diverging, with no junction logic: the hull crossed an open wall and
+	# the tube on the far side is the road now (ADR 0063's rule, applied to lanes).
+	_riding = inside
+	ship.cruise = _riding.sample(here, clearance, ship.speed())
+	_forgive_the_junction(ship, here, clearance)
 
 
-## Did the ship just fly out through a portal? Out an off-ramp's mouth, or back out
-## the on-ramp it came in by.
+## THE CROSSING (`docs/WORMHOLE_PROTOTYPE.md`). A ship in a ramp that has a twin in
+## the other world, past the ramp's `cross_at`, is moved to the same (t, u, v) in the
+## twin by the rigid transform between the two ramps' frames there: the same tube,
+## the same place in it, the same speed and heading against the road; only the world
+## around it changes. Forward only: a ship that drifts back past the point stays
+## where it is, held by the same walls, so nothing can flap between the worlds.
+## Returns where the ship is now, in the map's frame.
+func _cross_if_due(ship: Mothership, here: Vector3) -> Vector3:
+	var inside: Tube = ship.road.tube if ship.road != null else null
+	if inside == null or not inside.is_ramp():
+		return here
+	var record := ramp_of(inside)
+	if record.is_empty() or record["twin"] == null or float(record["cross_at"]) < 0.0:
+		return here
+	var l := inside.local(here)
+	if float(l["t"]) < float(record["cross_at"]):
+		return here
+	return _cross(ship, inside, record["twin"], l)
+
+
+func _cross(ship: Mothership, from_tube: Tube, twin: Tube, l: Dictionary) -> Vector3:
+	var t := float(l["t"])
+	var fa := from_tube.travel_frame(t)
+	var fb := twin.travel_frame(t)
+	var ba := Basis(fa["right"] as Vector3, fa["up"] as Vector3, -(fa["fwd"] as Vector3))
+	var bb := Basis(fb["right"] as Vector3, fb["up"] as Vector3, -(fb["fwd"] as Vector3))
+	var rot := (bb * ba.inverse()).orthonormalized()
+	var from := to_local(ship.global_position)
+	var to := twin.world(t, float(l["u"]), float(l["v"]))
+	var move := Transform3D(rot, to - rot * from)
+	ship.global_position = to_global(to)
+	ship.carry_across(rot)
+	ship.road.tube = twin
+	if _riding == from_tube:
+		_riding = twin
+		ship.cruise = twin.sample(to, ship.lane_clearance(), ship.speed())
+		ship.adopt_road_axis(ship.cruise.axis)
+	_berth.rebind(from_tube, twin)
+	# The metres of the jump are not travelled (fuel, ADR 0086).
+	_previous = to
+	_enter_world(_wormhole.tubes.has(twin))
+	crossed.emit(move)
+	return to
+
+
+## Inside a junction and on the approach to an exit the lane does not penalise
+## (`Tube.forgive`, shared with the gate's probe).
+func _forgive_the_junction(ship: Mothership, here: Vector3, _clearance: Vector2) -> void:
+	if ship.cruise == null or _riding == null:
+		return
+	_riding.forgive(ship.cruise, here)
+
+
+## THE FAR LAYER (`FarLayer`): beyond the road's detail radius, planets and stars are
+## drawn smaller than perspective makes them, by the same rule the road's far mesh
+## uses in its shader. Scaled about their own centres, so nothing moves.
 ##
-## Both are the player's own flying. Nothing else ends cruise — there is no
-## interdiction, and a road that could drop you would be one.
-func _left_through_a_portal(here: Vector3) -> bool:
-	for deck in _road.decks():
-		if deck.end_portal() != null \
-				and deck.end_portal().crossed(_previous, here) > 0:
-			return true
-		if deck.start_portal() != null \
-				and deck.start_portal().crossed(_previous, here) < 0:
-			return true
-	return false
+## With sectors on, the power is the body's tier (`SectorLayer`): home, next, far, or
+## not drawn, tweened across a sector crossing. The ship's position, not the camera's,
+## decides the sector, so the sign says where the ship is.
+func _compress_the_distance(here: Vector3, delta: float) -> void:
+	var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
+	if camera == null:
+		return
+	var eye := to_local(camera.global_position)
+	var open := Tuning.flag("exploration/sectors_enabled")
+	if _in_wormhole:
+		# No sectors, no bodies: the wormhole is its own place. The sector layer keeps
+		# the cell the ship left, and names the one it arrives in on the way out.
+		RoadMesh.set_sector_globals(false, _sectors, global_position)
+		return
+	if open:
+		_sectors.tick(here, delta)
+		_border.name_of = _sectors.here_name()
+		for planet in _planets:
+			_scale_body(planet, _sectors.scale_for(planet.position, eye))
+		for star in _stars:
+			_scale_body(star, _sectors.scale_for(star.position, eye))
+	else:
+		var start := Tuning.num("exploration/road_detail_radius")
+		var power := Tuning.num("exploration/far_compress_power")
+		for planet in _planets:
+			_scale_body(planet, FarLayer.factor(eye.distance_to(planet.position), start, power))
+		for star in _stars:
+			_scale_body(star, FarLayer.factor(eye.distance_to(star.position), start, power))
+	RoadMesh.set_sector_globals(open, _sectors, global_position)
 
 
-## Which exits belong to the road under the ship, and which one is going to happen.
-##
-## **Nothing is picked here any more** (ADR 0091). An exit is read and taken on the
-## strip along the bottom of the screen; picking a sign with the reticle could not be
-## made to work, because the reticle is a direction from the SHIP and it is drawn
-## projected from a camera behind and above it, so what the player aimed at and what
-## the pick measured were two different rays.
-##
-## What is left is the fact the strip and the (optional) signs both read: an exit is
-## yours if it is bolted to the carriageway you are on (ADR 0088). The signs are not
-## drawn by default; `exit_signs_visible` puts them back as scenery.
-func _offer_exits() -> void:
-	var taking := _berth.taking()
-	for sign in _road.signs():
-		sign.set_relevant(_riding != null and sign.from_deck == _riding)
-		sign.set_selected(taking != null and sign.ramp == taking)
+## A body past the last drawn ring is hidden rather than scaled to nothing, which
+## would leave it with a basis nothing can invert.
+static func _scale_body(body: Node3D, factor: float) -> void:
+	body.visible = factor > 0.0001
+	body.scale = Vector3.ONE * maxf(factor, 0.0001)
 
 
-## The exits ahead on the road being ridden, nearest first, as
+func sectors() -> SectorLayer:
+	return _sectors
+
+
+func in_wormhole() -> bool:
+	return _in_wormhole
+
+
+## Where the tunnel goes this frame: centred on the centreline of the road the ship is
+## on, pointed the way its carriageway travels. On a ramp, the highway the ramp joins,
+## so the one tunnel holds both carriageways and the ramp beside them. Empty when the
+## ship is in no tube, and the tunnel stays put.
+func _tunnel_frame(ship: Mothership, here: Vector3) -> Dictionary:
+	var tube: Tube = ship.road.tube if ship.road != null else null
+	if tube == null:
+		return {}
+	if tube.is_ramp():
+		var record := _wormhole.ramp_of(tube)
+		var host: Tube = null
+		if not record.is_empty():
+			host = record["from_tube"] if record["from_tube"] != null else record["to_tube"]
+		if host != null:
+			tube = host
+	var c := tube.path.closest(here)
+	var f := tube.travel_frame(float(c["t"]))
+	return {"pos": c["pos"], "fwd": f["fwd"], "up": f["up"], "right": f["right"]}
+
+
+func tunnel() -> WormholeTunnel:
+	return _tunnel
+
+
+func border() -> HexRegion:
+	return _border
+
+
+## The exits ahead on the tube being ridden, nearest first, as
 ## `[[ramp, label, metres_ahead, may_take], …]`. Empty off the road.
 ##
-## A **closed** exit is listed and refused rather than hidden. ADR 0084's rule is that
-## a refusal you only find out about after choosing is not a refusal — so the turning
-## is on the strip, greyed, and pressing it does nothing.
-##
-## Measured to where the RAMP LEAVES rather than to where its sign hangs: what the
-## player is deciding about is the turning, and the sign was only ever a lead distance
-## in front of it. An exit already taken stays listed a little past zero, so the one
-## that is about to happen does not vanish off the strip at the moment it matters.
+## A **closed** exit is listed and refused rather than hidden (ADR 0084). Measured to
+## where the ramp begins to DIVERGE from the carriageway, which is the turning the
+## player is deciding about. An exit already taken stays listed a little past zero.
 func upcoming_exits(here: Vector3) -> Array:
 	var found: Array = []
 	if _riding == null:
 		return found
-	var line := _riding.path()
-	var ship_at: float = line.closest(here)[0]
+	var t_ship: float = _riding.local(here)["t"]
 	var horizon := Tuning.num("exploration/nav_exit_horizon_metres")
 	var taking := _berth.taking()
-	for sign in _road.signs():
-		if sign.from_deck != _riding or sign.ramp == null:
+	for j in _riding.junctions:
+		if j["kind"] != "exit":
 			continue
-		var metres: float = line.closest(sign.ramp.path().start())[0] - ship_at
+		var ramp: Tube = j["ramp"]
+		# To where the wall OPENS, which is the turning the player is deciding about.
+		var metres: float = _riding.path.ahead(t_ship, float(j.get("opens_at", j["t"])),
+			_riding.direction)
+		if _riding.path.closed and metres > _riding.path.length * 0.5:
+			metres -= _riding.path.length
 		if metres > horizon:
 			continue
-		# A ramp that is behind you is a turning you have missed — unless it is the one
-		# you have chosen, which the strip keeps until the rebind actually happens.
-		if metres < 0.0 and sign.ramp != taking:
+		if metres < 0.0 and ramp != taking:
 			continue
-		found.append([sign.ramp, sign.label_text, metres, sign.ramp.passable])
-	found.sort_custom(func(a, b) -> bool: return (a[2] as float) < (b[2] as float))
+		found.append([ramp, j["label"], metres, ramp.passable])
+	found.sort_custom(func(a: Array, b: Array) -> bool: return (a[2] as float) < (b[2] as float))
 	return found
 
 
-## Take an exit, from the strip. The rail rebind is still the berth's and still happens
-## when the ramp arrives rather than when the button is pressed (ADR 0083); this is the
-## same toggle the sign click was, moved to a control that can actually be hit.
-func take_exit(ramp: RoadDeck) -> void:
+## Take an exit, from the strip. The rail rebind is the berth's and happens when the
+## ramp arrives rather than when the button is pressed (ADR 0083).
+func take_exit(ramp: Tube) -> void:
 	if ramp != null and not ramp.passable:
 		return
 	_berth.take_exit(null if ramp == _berth.taking() else ramp)
 
 
-## Which mouths say where they go.
-##
-## Off the road, the ways ON are the choices and they are named; on it, the way OFF the
-## road you are riding is. A mouth that is neither is still DRAWN — it is a built thing
-## and a structure that came and went would be worse than clutter — it simply stops
-## shouting its destination across the system (ADR 0088).
+## Which mouths say where they go. Off the road, the ways ON are the choices and they
+## are named; on it, the way OFF the road you are riding is (ADR 0096).
 func _name_the_ways() -> void:
-	for deck in _road.decks():
-		var joining := deck.start_portal()
-		var leaving := deck.end_portal()
-		if joining != null:
-			joining.set_named(_riding == null or _riding == deck)
-		if leaving != null:
-			leaving.set_named(_riding == deck)
+	for record in _road.ramps:
+		var tube: Tube = (record["road"] as Road).tubes[0]
+		var entry: Portal = record["entry_portal"]
+		var exit: Portal = record["exit_portal"]
+		if entry != null:
+			entry.set_named(_riding == null)
+		if exit != null:
+			exit.set_named(_riding == tube)
 
 
-## The shell the ship is held against this frame, in the SHIP's own frame (ADR 0087).
-##
-## Measured here rather than in the ship because the road is the map's, and handed down
-## exactly as `cruise` is: the ship never looks the road up. The conversion is not
-## ceremony — a barrier carries a POINT, and a point is the one thing a floating-origin
-## recentre can invalidate (ADR 0020).
-func _shell_for(ship: Mothership, here: Vector3) -> HullBarrier:
-	var held := _road.barrier(here, ship.lane_clearance())
-	if held == null:
-		return null
-	var parent := ship.get_parent_node_3d()
-	if parent != null:
-		held.centre = parent.to_local(to_global(held.centre))
-	return held
-
-
-## The exit that is going to happen, as its sign. For the HUD and for tests.
-func selected_sign() -> ExitSign:
-	for sign in _road.signs():
-		if sign.is_selected():
-			return sign
-	return null
-
-
-## The deck the player is riding, or null. For the HUD and for tests.
-func riding() -> RoadDeck:
+## The tube the player is riding, or null. For the HUD and for tests.
+func riding() -> Tube:
 	return _riding
 
 
-## The berth on the roadway. For the HUD and for tests.
 func berth() -> RoadBerth:
 	return _berth
 
 
-## Every portal on the map. Only the ramps carry one — a mainline is joined and left
-## through them, which is what keeps the highway continuous through a system.
 func portals() -> Array[Portal]:
 	return _road.portals()
 
 
+## The road in open space: the ramps' twins.
 func road() -> RoadNetwork:
 	return _road
 
 
-## What is out there past the boundary. For the scene and for the gate; nothing in
-## the game queries it, and CLAUDE.md's LOD/collision rule says nothing may.
+## The road inside the wormhole: the highways and their ramps.
+func wormhole() -> RoadNetwork:
+	return _wormhole
+
+
+func tube_named(n: String) -> Tube:
+	var t := _road.tube_named(n)
+	return t if t != null else _wormhole.tube_named(n)
+
+
+## The ramp record whose tube this is, in whichever world, or empty.
+func ramp_of(tube: Tube) -> Dictionary:
+	var record := _road.ramp_of(tube)
+	return record if not record.is_empty() else _wormhole.ramp_of(tube)
+
+
 func deep_field() -> DeepField:
 	return _deep
 
 
-## The line the whole highway is laid on. For tests and for anything that needs to
-## know where the route goes without asking a deck which piece of it it owns.
 func spine() -> PackedVector3Array:
 	return _spine
 
 
-## The nearest way on or off the road. For the HUD — the player is meant to read the
-## answer off the portal's colour, not off a readout.
+## The nearest way on or off the road. For the HUD.
 func nearest_portal(point: Vector3) -> Portal:
 	var best: Portal = null
 	var best_distance := INF
@@ -654,13 +722,6 @@ func nearest_portal(point: Vector3) -> Portal:
 	return best
 
 
-## Where the ship is trying to go.
-##
-## Velocity is the truthful answer — it includes thrusters, which genuinely move you
-## — but at the far edge the clamp drives velocity to zero, and a zero vector has no
-## heading to judge. The nose is what the throttle would push along, so it is the
-## right thing to fall back to and it keeps the stopped case from chattering between
-## "outbound" and "no idea".
 func _heading_of(ship: Mothership) -> Vector3:
 	var moving := ship.velocity()
 	if moving.length_squared() > 0.01:
@@ -670,8 +731,9 @@ func _heading_of(ship: Mothership) -> Vector3:
 
 # --- what the scene and the HUD ask it ---------------------------------------
 
+## The boundary of the world the ship is in.
 func field() -> BoundaryField:
-	return _field
+	return _void if _in_wormhole else _field
 
 
 func systems() -> Array[SystemDisc]:
@@ -686,17 +748,18 @@ func planets() -> Array[Planet]:
 	return _planets
 
 
+func stars() -> Array[Star]:
+	return _stars
+
+
 func approaches() -> Array[ApproachEnvelope]:
 	return _approaches
 
 
-## What the player would call where they are — a system's name, or the corridor's.
 func place_of(point: Vector3) -> String:
-	return _field.label(point)
+	return field().label(point)
 
 
-## The system nearest this point, and how far its centre is. Two returns because
-## every caller wants both and computing it twice is the way they drift apart.
 func nearest_system(point: Vector3) -> int:
 	var best := -1
 	var best_distance := INF
@@ -717,52 +780,91 @@ func system_name(index: int) -> String:
 	return "—" if index < 0 or index >= NAMES.size() else NAMES[index]
 
 
-## Put a ship in a system, back from one of its apertures and facing out along it.
-##
-## One placement rule, used by the spawn and by the debug teleport, so a teleport
-## lands the ship exactly where a fresh run would put it — anywhere else and the two
-## would slowly diverge into "it behaves differently after a jump". The offset keeps
-## the ship well clear of the planet's approach envelope, which sits on the centre:
-## arriving already inside a landing sequence nobody asked for is the thing ADR 0012
-## exists to prevent.
+## Put a ship in a system: a short way behind the system's first entry mouth, facing
+## into it, so the first thing on screen is the way onto the road. One placement
+## rule, used by the spawn and by the debug teleport. A system with no entry (none
+## on this map) falls back to the middle of the disc facing its aperture.
 func place_ship(ship: Node3D, index: int) -> void:
 	if ship == null or index < 0 or index >= _discs.size():
 		return
+	_enter_world(false)
 	var disc := _discs[index]
+	for record in _road.ramps:
+		var portal: Portal = record["entry_portal"]
+		if portal == null or String(record["mouth_of"]) != NAMES[index]:
+			continue
+		var back := Tuning.num("exploration/spawn_behind_mouth_metres")
+		ship.global_position = to_global(portal.position - portal.travel * back)
+		_face(ship, to_global(portal.position))
+		return
 	var home := disc.position
 	var mouth := disc.aperture_mouth(disc.aperture_count() - 1)
 	var out := (mouth - home).normalized()
 	ship.global_position = to_global(home - out * disc.radius() * 0.45)
-	ship.look_at(to_global(mouth), Vector3.UP)
+	_face(ship, to_global(mouth))
 
 
-## THE DEBUG TELEPORT (POC step 7). It exists so fuel and route choices can be tested
-## without flying every leg, and it is a debug tool rather than a mechanic: nothing in
-## the game may call it, and the HUD says loudly that it was used, because a silent
-## teleport contaminates the travel-time verdict this POC is measuring.
-##
-## The ship is taken off the road first. Being moved several kilometres while a lane
-## sample from the old road is still attached would hand the ship a road that is no
-## longer under it, and the ship's own memory of where the road went — the slewed axis
-## and the wound-up spool — would arrive at the far end as an engine running in open
-## space.
-func warp_to_system(ship: Mothership, index: int) -> void:
-	if ship == null or index < 0 or index >= _discs.size():
-		return
+## Point a placed ship at something. The nose follows the reticle every frame, so a
+## bare `look_at` is undone within a second as the ship turns back to where the
+## reticle was left; the reticle has to come with it, as the debug drop's does.
+func _face(ship: Node3D, target: Vector3) -> void:
+	ship.look_at(target, Vector3.UP)
+	if ship is Mothership:
+		(ship as Mothership).reset_reticle()
+
+
+## Take the ship off whatever it was on. Being moved kilometres while a lane sample
+## from the old road is still attached would arrive as an engine running in open space.
+func _lift_off(ship: Mothership) -> void:
+	if ship.road == null:
+		attach(ship)
 	_berth.release(ship)
 	_riding = null
 	ship.cruise = null
 	ship.leave_road()
 	ship.reset_reticle()
+	if ship.road != null:
+		ship.road.tube = null
+
+
+## THE DEBUG TELEPORT (POC step 7). Debug only: nothing in the game may call it, and
+## the HUD says loudly that it was used.
+func warp_to_system(ship: Mothership, index: int) -> void:
+	if ship == null or index < 0 or index >= _discs.size():
+		return
+	_lift_off(ship)
 	place_ship(ship, index)
-	# The previous position is a system away now, and the segment between the two
-	# crosses whatever happens to lie on the line. Forgetting it is what keeps the
-	# portal-crossing test from reading a jump as a trip through a portal.
 	_has_previous = false
 	_previous = to_local(ship.global_position)
 
 
-## Whichever approach sequence is doing something, or the nearest one when none is.
+## THE DEBUG DROP: put the ship on a tube, pointing along it, with the drive running
+## if the hull has one. Stands in for flying to a bend or a junction to look at it.
+func drop_on_road(ship: Mothership, tube: Tube, t: float) -> void:
+	if ship == null or tube == null:
+		return
+	_lift_off(ship)
+	_enter_world(_wormhole.tubes.has(tube))
+	var f := tube.travel_frame(tube.path.wrap_t(t))
+	ship.global_position = to_global(f["pos"])
+	ship.look_at(to_global((f["pos"] as Vector3) + (f["fwd"] as Vector3) * 1000.0), Vector3.UP)
+	ship.road.tube = tube
+	_previous = f["pos"]
+	_has_previous = true
+	if not ship.has_cruise_drive():
+		return
+	_riding = tube
+	ship.cruise = tube.sample(f["pos"], ship.lane_clearance())
+	ship.adopt_road_axis(ship.cruise.axis)
+	ship.reset_reticle()
+
+
+## The road's teleport spots in both worlds: every mouth and arrival in space, every
+## bend, exit and merge in the wormhole.
+func spots() -> Array[Dictionary]:
+	return _road.spots + _wormhole.spots
+
+
 func active_approach(point: Vector3) -> ApproachEnvelope:
 	for approach in _approaches:
 		if approach.state() != ApproachEnvelope.State.CLEAR:
@@ -778,14 +880,12 @@ func is_docked() -> bool:
 	return false
 
 
-## Let go of wherever the player is docked. One of them is; the rest no-op.
 func depart() -> void:
 	for approach in _approaches:
 		if approach.is_docked():
 			approach.depart()
 
 
-## Every ramp mouth on the map. For the HUD and for tests.
 func ramp_sites() -> Array[Vector3]:
 	var sites: Array[Vector3] = []
 	for portal in _road.portals():

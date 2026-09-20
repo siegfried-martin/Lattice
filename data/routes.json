@@ -1,0 +1,179 @@
+{
+  "_comment": [
+    "THE MAP (ADR 0096, docs/WORMHOLE_PROTOTYPE.md). Coordinates are metres in the map's frame, Y up; the combat plane is y = 0.",
+    "systems: where each system disc sits on the plane. highways: the systems each one joins, in order.",
+    "The highway itself runs inside the wormhole: WormholeLayout lays it out from this order at the",
+    "map's bearings, each leg the world leg times wormhole_scale clamped to wormhole_exit_min/max_seconds",
+    "of travel, two carriageways side by side, traffic on the right. planet_ramps: which systems get",
+    "ramps on which highway; a system at the end of a highway gets an on-ramp and an off-ramp, one in",
+    "the middle gets four, all shaped by the ramp rule in RoadNetwork from the exploration/ramp_* and",
+    "wormhole_* tuning keys, built once in the wormhole and placed again in open space at the planet's",
+    "mouth. mouth_height (m above the plane) and mouth_along (m from the system centre) move a highway's",
+    "planet mouths; K-112's sit higher and further out at B so its ramps pass clear of A-377B's.",
+    "ramps: interchanges, authored as waypoints between the standard exit head and merge tail; kept",
+    "for when interchanges come back to the wormhole, not built now.",
+    "Saving this file relays the map out under the ship. The gate (and the console on load) names any",
+    "bend that is too tight, any ramp that touches a road it does not join, and any highway that pitches too steeply."
+  ],
+  "systems": {
+    "SYSTEM A": [
+      0,
+      0,
+      0
+    ],
+    "SYSTEM B": [
+      69000,
+      0,
+      0
+    ],
+    "SYSTEM C": [
+      228000,
+      0,
+      -12000
+    ],
+    "SYSTEM D": [
+      22500,
+      0,
+      -80538
+    ],
+    "SYSTEM E": [
+      108438,
+      0,
+      111408
+    ]
+  },
+  "highways": [
+    {
+      "name": "A-377B",
+      "systems": [
+        "SYSTEM A",
+        "SYSTEM B",
+        "SYSTEM C"
+      ],
+      "closed": false
+    },
+    {
+      "name": "K-112",
+      "systems": [
+        "SYSTEM D",
+        "SYSTEM B",
+        "SYSTEM E"
+      ],
+      "closed": false,
+      "mouth_height": -1050,
+      "mouth_along": 1000
+    }
+  ],
+  "planet_ramps": [
+    {
+      "highway": "A-377B",
+      "system": "SYSTEM A"
+    },
+    {
+      "highway": "A-377B",
+      "system": "SYSTEM B"
+    },
+    {
+      "highway": "A-377B",
+      "system": "SYSTEM C"
+    },
+    {
+      "highway": "K-112",
+      "system": "SYSTEM D"
+    },
+    {
+      "highway": "K-112",
+      "system": "SYSTEM B"
+    },
+    {
+      "highway": "K-112",
+      "system": "SYSTEM E"
+    }
+  ],
+  "ramps": [
+    {
+      "name": "X1 A-377B > K-112",
+      "from": {
+        "highway": "A-377B",
+        "side": "R",
+        "near": [
+          62000,
+          -1650,
+          100
+        ]
+      },
+      "to": {
+        "highway": "K-112",
+        "side": "R",
+        "at": "SYSTEM B",
+        "offset": 5000
+      },
+      "points": [
+        [
+          67320,
+          -1350,
+          540
+        ],
+        [
+          69900,
+          -1350,
+          1560
+        ]
+      ],
+      "radii": [
+        1400,
+        1400
+      ]
+    },
+    {
+      "name": "X2 K-112 > A-377B",
+      "from": {
+        "highway": "K-112",
+        "side": "R",
+        "at": "SYSTEM B",
+        "offset": -5000
+      },
+      "to": {
+        "highway": "A-377B",
+        "side": "R",
+        "near": [
+          74700,
+          -1650,
+          100
+        ]
+      },
+      "points": [
+        [
+          67380,
+          -1360,
+          -1920
+        ],
+        [
+          68700,
+          -1560,
+          -900
+        ],
+        [
+          71400,
+          -1770,
+          -360
+        ]
+      ],
+      "radii": [
+        1400,
+        1400,
+        1400
+      ]
+    },
+    {
+      "name": "X3 A-377B > K-112 (reverse)",
+      "mirror_of": "X1 A-377B > K-112",
+      "about": "SYSTEM B"
+    },
+    {
+      "name": "X4 K-112 > A-377B (reverse)",
+      "mirror_of": "X2 K-112 > A-377B",
+      "about": "SYSTEM B"
+    }
+  ]
+}

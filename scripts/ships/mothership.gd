@@ -74,22 +74,24 @@ var cruise: CruiseLane = null
 ## between a threshold you might cross by accident and a berth you deliberately
 ## entered. It is left the way it was entered: by pressing the key again.
 var berth: BerthHold = null
-## The road's shell, where the ship is, or null out in the open. Handed down by the
-## map each frame exactly as `cruise` is, and for the same reason: the road belongs to
-## the map and the ship never looks it up.
+## The road's collision, for this hull (ADR 0096). Given by the map once; the ship
+## keeps it because "which tube am I in" is a fact about the hull that geometry
+## updates rather than re-derives. Null in the arena, where there is no road.
 ##
-## **The lane is soft and the shell is not** (ADR 0087). The lane's push is a slope
-## that keeps you near the centre-line; this is the building, and you do not fly
+## **The lane is soft and the structure is not.** The lane's push is a slope that
+## keeps you near the centre-line; the structure is the building, and you do not fly
 ## through a building — you bounce off it (ADR 0090).
-var hull_barrier: HullBarrier = null
+var road: RoadCollider = null
 ## The bounce, still bleeding off. Carried rather than applied in one frame, because a
 ## rebound that lasts one frame is a displacement and reads as a stutter; over a few
 ## tenths it reads as coming off a wall.
 var _rebound: Vector3 = Vector3.ZERO
 ## Whether the hull was against a surface last frame. The cost of a bounce is charged
 ## on the RISING EDGE and nowhere else: charged per frame, a ship sliding along a wall
-## would be brought to a stop by it, which is the one thing the shell may not do.
-var _shell_contact: bool = false
+## would be brought to a stop by it, which is the one thing the structure may not do.
+var _road_contact: bool = false
+## Where the ship was before this frame's flying, for the road's swept hold.
+var _before_move: Vector3 = Vector3.ZERO
 
 ## The cruise drive's tank (POC step 7, ADR 0017). It is the SHIP's rather than the
 ## map's because it is a fitting on this hull, and because the arena — which has no
@@ -145,6 +147,14 @@ var _cruise_ceiling: float = 0.0
 ## rate it can be steered, and the camera — which frames the road, not the nose —
 ## follows the same vector, so the two can never disagree about where the road is.
 var _road_axis: Vector3 = Vector3.ZERO
+## The highway gear the ship is actually applying, blended toward the lane's target
+## over `highway_upshift_seconds` or `highway_downshift_seconds`, so a change of tube
+## or an exit lined up for is a shift rather than a jump.
+var _applied_gear: float = 1.0
+## The extra displacement the gear added this frame, for the chase camera, which
+## follows the felt motion and is carried along with the geared part rigidly.
+var _gear_shift: Vector3 = Vector3.ZERO
+var _gear_moved: Vector3 = Vector3.ZERO
 
 var _velocity: Vector3 = Vector3.ZERO
 ## Forward speed, carried between frames so it can be RATE-LIMITED on the way down.
@@ -158,6 +168,10 @@ var _velocity: Vector3 = Vector3.ZERO
 var _speed: float = 0.0
 var _orbit_sign: float = 1.0
 var _hull: MeshInstance3D
+## The lamp on the nose (`Headlight`). L toggles it.
+var headlight: Headlight
+## The tiny lamps on the hull's extremities (`MarkerLights`), so the ship can be seen.
+var markers: MarkerLights
 var _last_standoff: float = -1.0
 var _last_depth: float = -1.0
 ## 0 to 1. Held, not impulsive: this is the difference the human asked for between
@@ -195,6 +209,10 @@ func _ready() -> void:
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_hull.material_override = mat
 	add_child(_hull)
+	headlight = Headlight.new()
+	add_child(headlight)
+	markers = MarkerLights.new()
+	add_child(markers)
 
 	# The view controller sets this from the crew roster on the first frame; this is
 	# only so a Mothership built on its own (the headless gate does that) starts
@@ -226,6 +244,10 @@ func _on_tuning_reloaded() -> void:
 
 func _apply_tuning() -> void:
 	_hull.scale = Vector3.ONE * hull_scale()
+	# On the hull's foremost point, at the hull's scale, so it moves with the roster.
+	var aabb: AABB = _hull.mesh.get_aabb()
+	headlight.fit(Vector3(0.0, 0.0, aabb.position.z) * hull_scale(), hull_scale())
+	markers.fit(aabb, hull_scale())
 	var mat := _hull.material_override as StandardMaterial3D
 	mat.albedo_color = Tuning.color("ship/hull_tint")
 	mat.metallic = Tuning.num("ship/metallic")
@@ -235,6 +257,7 @@ func _apply_tuning() -> void:
 
 
 func _process(delta: float) -> void:
+	_gear_shift = Vector3.ZERO
 	if delta <= 0.0:
 		return
 	# The tube reloads regardless of who is flying, or whether anyone is: the
@@ -245,6 +268,7 @@ func _process(delta: float) -> void:
 	_mouse_speed = _mouse_pixels / delta
 	_mouse_pixels = 0.0
 	_spool(delta)
+	_before_move = position
 	if berth != null:
 		_fly_berthed(delta)
 	elif autopilot:
@@ -258,9 +282,9 @@ func _process(delta: float) -> void:
 		# nothing is acting on it — there is no flight model here, and there is not
 		# meant to be one (ADR 0003).
 		position += _velocity * delta
-	# LAST, and for every way the ship can have moved. A shell you can pass through by
-	# picking the right flight mode is not a shell (ADR 0087).
-	_hold_against_the_shell(delta)
+	# LAST, and for every way the ship can have moved. A structure you can pass
+	# through by picking the right flight mode is not a structure.
+	_hold_against_the_road(delta)
 
 
 # --- autopilot ---------------------------------------------------------------
@@ -507,6 +531,38 @@ func adopt_road_axis(axis: Vector3) -> void:
 
 func leave_road() -> void:
 	_road_axis = Vector3.ZERO
+	_applied_gear = 1.0
+
+
+## The ship has been moved rigidly to the other world (`SystemMap._cross`): turn
+## everything it carries in the world's frame by the same rotation, so the nose, the
+## velocity, the reticle and the road axis all point the same way relative to the
+## road as they did a frame ago. Position is the caller's.
+func carry_across(rot: Basis) -> void:
+	basis = (rot * basis).orthonormalized()
+	_velocity = rot * _velocity
+	_reticle.aim_basis = (rot * _reticle.aim_basis).orthonormalized()
+	if _road_axis.length_squared() > 0.0:
+		_road_axis = (rot * _road_axis).normalized()
+
+
+## The displacement the highway gear added this frame, handed over once: the chase
+## camera moves by it rigidly and lags only the felt motion, so the gear does not
+## stretch the boom.
+func take_gear_displacement() -> Vector3:
+	var shift := _gear_shift
+	_gear_shift = Vector3.ZERO
+	_gear_moved = shift
+	return shift
+
+
+## The same displacement, kept for the frame for the road's treadmill (`Road.roll`).
+func gear_moved() -> Vector3:
+	return _gear_moved if _gear_shift == Vector3.ZERO else _gear_shift
+
+
+func applied_gear() -> float:
+	return _applied_gear
 
 
 ## Read the class back out of tuning. Called at build and on every hot reload, so
@@ -659,8 +715,10 @@ func _fly_cruise(delta: float) -> void:
 		_road_axis = cruise.axis
 		axis = _road_axis
 	else:
+		# Times the gear: in the gear the ship covers a bend's world metres that much
+		# faster, and the axis has to keep up with the road under it.
 		_road_axis = FlightGeometry.turn_towards(_road_axis, cruise.axis,
-			deg_to_rad(cruise.turn_rate_deg) * delta)
+			deg_to_rad(cruise.turn_rate_deg) * delta * _applied_gear)
 		axis = _road_axis
 	var cone := deg_to_rad(cruise.clamp_deg)
 	basis = FlightGeometry.basis_from_forward(
@@ -681,6 +739,19 @@ func _fly_cruise(delta: float) -> void:
 	# throttle would make the correction vanish exactly when it is needed.
 	_velocity = (-basis.z * _speed + basis.x * strafe) \
 		.limit_length(maxf(_speed, top)) + cruise.push()
+	# THE HIGHWAY GEAR (`Road.gear`): only the motion along the road's axis is
+	# multiplied. Steering across the lane, the push and the felt speed are unchanged,
+	# which is what keeps the road feeling like the same road while the world outside
+	# goes by faster. The applied gear chases the lane's over a few seconds, so
+	# crossing from a ramp into a highway (or back) is a shift, not a jump.
+	var target := cruise.target_gear()
+	var shift := maxf(Tuning.num("exploration/highway_upshift_seconds" if target > _applied_gear
+		else "exploration/highway_downshift_seconds"), 0.001)
+	_applied_gear = move_toward(_applied_gear, target,
+		delta * maxf(absf(target - _applied_gear), 1.0) / shift)
+	if _applied_gear != 1.0:
+		_gear_shift = axis * (_velocity.dot(axis) * (_applied_gear - 1.0)) * delta
+		_velocity += axis * (_velocity.dot(axis) * (_applied_gear - 1.0))
 	position += _velocity * delta
 
 
@@ -713,8 +784,13 @@ func _fly_berthed(delta: float) -> void:
 	var budget := brake_limited(_speed, berth.speed, manual_max_speed(),
 		brake_seconds, delta)
 	var was_at := position
+	# In the road's gear, like the lane: the felt budget is multiplied through the
+	# world, and the ship keeps applying that gear so leaving the berth carries on at
+	# the same world speed.
+	_applied_gear = berth.gear
 	position = position.move_toward(berth.point,
-		(budget + berth.closing_speed()) * delta)
+		(budget * berth.gear + berth.closing_speed()) * delta)
+	_gear_shift = berth.axis * (budget * (berth.gear - 1.0)) * delta
 
 	# The nose comes round to the road at the ship's OWN turn rate, so a berth taken
 	# while pointing off the lane looks like the ship straightening rather than like
@@ -745,7 +821,12 @@ func _fly_berthed(delta: float) -> void:
 		Tuning.num("exploration/berth_look_cone_deg"))
 
 	_velocity = (position - was_at) / delta
-	_speed = _velocity.length()
+	# Felt, not world: what the ship carries out of the berth is the rail's speed
+	# before the gear — the BUDGET, not the displacement. Read back from the
+	# displacement it included the pull onto the rail, the next frame's budget eased
+	# down from that, and a berth taken forty metres off the rail wound the ship up
+	# to twice cruise while it slid on.
+	_speed = budget
 	# The throttle is kept honest against the speed being held, so leaving the berth
 	# does not lurch: the ship carries on at what it was already doing.
 	_throttle = clampf(_speed / maxf(manual_max_speed(), 0.001), 0.0, 1.0)
@@ -753,41 +834,36 @@ func _fly_berthed(delta: float) -> void:
 
 ## Put back against the face it was crossing, and **bounced off it** (ADR 0090).
 ##
+## The road decides where the hull may be (`RoadCollider`); this applies the answer.
 ## The rebound is carried and bled off over `structure_bounce_seconds`, because a
 ## rebound applied in one frame is a displacement rather than a bounce.
 ##
 ## **The cost is charged on the rising edge of contact, and it is charged to the
-## THROTTLE.** Two things follow from that and both are deliberate. Charged per frame,
-## a ship sliding along a wall would be brought to a stop by it — a shell that stops
-## you is the one thing this may not be. And `_speed` climbs straight back to
-## `_throttle * top` on the next frame because acceleration is paced by the throttle's
-## own travel (`brake_limited` only limits going down), so cutting the speed alone
-## would have been invisible; cutting the throttle means the ship spools back up over
-## its own `accel_seconds`, which is what makes flying straight worth something.
-##
-## The penalty scales with how SQUARE the hit was. A glancing touch costs nearly
-## nothing and a dive into the roadway costs the whole of it.
-func _hold_against_the_shell(delta: float) -> void:
+## THROTTLE.** Charged per frame, a ship sliding along a wall would be brought to a
+## stop by it. And `_speed` climbs straight back to `_throttle * top` on the next
+## frame, so cutting the speed alone would be invisible; cutting the throttle means
+## the ship spools back up over its own `accel_seconds`, which is what makes flying
+## straight worth something. The penalty scales with how SQUARE the hit was. It never
+## takes the throttle below `structure_bounce_throttle_floor`, so nothing stops you.
+func _hold_against_the_road(delta: float) -> void:
 	var fade := maxf(Tuning.num("exploration/structure_bounce_seconds"), 0.01)
 	_rebound *= maxf(1.0 - delta / fade, 0.0)
-	if hull_barrier == null:
-		_shell_contact = false
+	if road == null:
+		_road_contact = false
 		position += _rebound * delta
 		return
-	var arriving := _velocity.length()
-	var held := hull_barrier.hold(position, _velocity)
-	position = held[0]
-	_velocity = held[1]
-	var into_wall: float = held[3]
-	var touching := into_wall > 0.0
-	if touching and not _shell_contact:
-		_rebound = held[2]
-		var square := clampf(into_wall / maxf(arriving, 0.001), 0.0, 1.0)
-		var keep := lerpf(1.0,
-			Tuning.num("exploration/structure_bounce_speed_keep"), square)
-		_throttle *= keep
+	var held := road.hold(_before_move, position, _velocity, basis, hull_extents() * 0.5, delta)
+	position = held["pos"]
+	_velocity = held["vel"]
+	var touching: bool = held["hit"]
+	if touching and not _road_contact:
+		_rebound = held["kick"]
+		var keep := lerpf(1.0, Tuning.num("exploration/structure_bounce_speed_keep"),
+			float(held["squareness"]))
+		_throttle = maxf(Tuning.num("exploration/structure_bounce_throttle_floor"),
+			_throttle * keep)
 		_speed *= keep
-	_shell_contact = touching
+	_road_contact = touching
 	position += _rebound * delta
 	_velocity += _rebound
 
@@ -1042,6 +1118,12 @@ func muzzle_position() -> Vector3:
 
 func velocity() -> Vector3:
 	return _velocity
+
+
+## The speed the ship is being flown at, before the highway gear: what the ribs pass
+## at. Equal to `speed()` everywhere but in the gear.
+func felt_speed() -> float:
+	return _speed
 
 
 func speed() -> float:

@@ -1,0 +1,153 @@
+class_name Road
+extends RefCounted
+## A built structure along one `RoadPath` carrying one or two carriageways (`Tube`s).
+## A highway has two carriageways under one roof with a glass median; a ramp has one.
+## Rendering and rib layout are per road; collision is per tube. Pure apart from the
+## tuning it is sized from.
+
+var name: String = ""
+## "highway" or "ramp".
+var kind: String = "highway"
+var path: RoadPath
+var tubes: Array[Tube] = []
+var carriageway_w: float = 240.0
+var carriageway_h: float = 150.0
+## Centre-to-centre distance of the two carriageways.
+var separation: float = 240.0
+var rib_spacing: float = 400.0
+var rib_thickness: float = 60.0
+var rib_protrusion: float = 24.0
+## t of the first rib. Lets a ramp continue the mainline's beat rather than restart it,
+## because the beat is the road's strongest speed cue.
+var rib_phase: float = 0.0
+## Half extents of the whole section.
+var half_width: float = 0.0
+var half_height: float = 0.0
+## Open ends into space: `{t, label}`.
+var mouths: Array[Dictionary] = []
+var bounds: AABB
+## The stretch of the road that is DRAWN, as path t: the whole road unless set. A
+## ramp that exists in both worlds draws only its own side of the crossing in each
+## (`docs/WORMHOLE_PROTOTYPE.md`); the collider ignores this, the tube is whole.
+var draw_from: float = 0.0
+var draw_to: float = INF
+
+
+static func make(road_name: String, road_kind: String, road_path: RoadPath,
+		lanes: int, inset: float) -> Road:
+	var r := Road.new()
+	r.name = road_name
+	r.kind = road_kind
+	r.path = road_path
+	r.carriageway_w = Tuning.num("exploration/lane_width") - 2.0 * inset
+	r.carriageway_h = Tuning.num("exploration/lane_height") - 2.0 * inset
+	r.separation = Tuning.num("exploration/deck_separation")
+	r.rib_spacing = Tuning.num("exploration/structure_module_length")
+	r.rib_thickness = Tuning.num("exploration/structure_rib_thickness")
+	r.rib_protrusion = Tuning.num("exploration/structure_rib_protrusion")
+	if road_path.closed:
+		# Keep the beat continuous across the seam of a loop.
+		r.rib_spacing = road_path.length / maxf(1.0, roundf(road_path.length / r.rib_spacing))
+	var hw := r.carriageway_w * 0.5
+	var hh := r.carriageway_h * 0.5
+	if lanes == 2:
+		# Traffic on the right: the +1 carriageway sits to the path's right, the -1 one
+		# to its left, which is ITS right as its own traffic travels (ADR 0077).
+		for side: int in [1, -1]:
+			var t := Tube.new()
+			t.name = road_name + (" R" if side == 1 else " L")
+			t.road = r
+			t.path = road_path
+			t.u0 = side * r.separation * 0.5
+			t.hw = hw
+			t.hh = hh
+			t.direction = side
+			t.route_name = road_name
+			t.compute_bounds()
+			r.tubes.append(t)
+		r.half_width = r.separation * 0.5 + hw
+	else:
+		var t := Tube.new()
+		t.name = road_name
+		t.road = r
+		t.path = road_path
+		t.hw = hw
+		t.hh = hh
+		t.direction = 1
+		t.compute_bounds()
+		r.tubes.append(t)
+		r.half_width = hw
+	r.half_height = hh
+	r.bounds = road_path.aabb(0.0)
+	r.draw_to = road_path.length
+	return r
+
+
+## Break the cycle a road and its tubes form (each tube holds its road, and tubes hold
+## the tubes they join), so a dropped road is freed. `RoadNetwork` calls this for every
+## road it tears down; a road made by hand, as in the gate, is released the same way.
+func release() -> void:
+	for t in tubes:
+		t.road = null
+		t.neighbours.clear()
+		t.sealed.clear()
+		t.junctions.clear()
+	tubes.clear()
+
+
+## Whether path t is inside the drawn stretch.
+func drawn(t: float) -> bool:
+	return t >= draw_from and t <= draw_to
+
+
+## THE HIGHWAY GEAR (`docs/SECTOR_PROTOTYPE.md`, prototype 2). A highway pushes the
+## ship through the world at `highway_gear` times the felt speed, and spaces its
+## structure to match, so the ribs pass at the felt rate while the world outside
+## passes faster. A ramp is always in first. The gear is a property of the road, not
+## of where on it you are: the ship blends between the two when it changes tube
+## (`Mothership._fly_cruise`), over `highway_gear_shift_seconds`.
+func gear() -> float:
+	if kind == "ramp":
+		return 1.0
+	return maxf(Tuning.num("exploration/highway_gear"), 1.0)
+
+
+## THE TREADMILL. In gear the ship goes through the world faster than it feels, so
+## the ribs — the thing it is measuring its speed against — slide along the road with
+## it by the surplus (`roll`), and pass at the felt speed. `slip` is where the beat
+## currently sits, in metres of t, wrapped to one spacing. The mesh (`RoadRibs`) and
+## the collision (`rib_margin_at`) both read it.
+var slip: float = 0.0
+
+
+## Slide the ribs `metres` along t.
+func roll(metres: float) -> void:
+	var step := rib_spacing * gear()
+	slip = fposmod(slip + metres, step) if step > 0.0 else 0.0
+
+
+## Rib collar t-positions along the path: `rib_spacing` times the gear apart, so the
+## beat a ship at the felt speed passes is the beat the road was tuned with, slid by
+## `slip`.
+func rib_positions() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var step := rib_spacing * gear()
+	var t := fposmod(rib_phase + slip, step)
+	var end := path.length - (0.0 if path.closed else rib_thickness * 0.5)
+	while t <= end:
+		if (path.closed or t >= rib_thickness * 0.5) and drawn(t):
+			out.append(t)
+		t += step
+	return out
+
+
+## How far the built structure stands out from the glass at t: the rib's protrusion
+## inside a collar, nothing between them. The outside collision reads this.
+func rib_margin_at(t: float) -> float:
+	if not drawn(t):
+		return 0.0
+	var step := rib_spacing * gear()
+	var local := fposmod(t - rib_phase - slip, step)
+	if local < rib_thickness * 0.5 or local > step - rib_thickness * 0.5:
+		return rib_protrusion
+	return 0.0

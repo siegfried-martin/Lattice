@@ -32,6 +32,9 @@ var _hud: DebugHud
 ## (ADR 0035), and on a road inside a steering cone that lag is the difference
 ## between holding a line and guessing at one.
 var _overlay: FlightOverlay
+## The sector sign: the name of the sector just entered, centred, for a few seconds
+## (`docs/SECTOR_PROTOTYPE.md`). Nothing when sectors are off.
+var _sector_sign: Label
 var _dock: DockScreen
 ## Everything in map space hangs off one node, so the floating origin is a move of
 ## this and nothing else has to know (ADR 0020). At 7.5 km centre to centre the
@@ -47,6 +50,8 @@ var _refuel: Button
 ## on the screen untrue, and this POC exists to read travel figures.
 var _teleports: int = 0
 var _last_teleport: String = ""
+## Which of the road's spots the debug drop is on.
+var _drop: int = -1
 ## The strip along the bottom: the ship off the road, the road's own nav on it, with
 ## the exits clickable while berthed (ADR 0091).
 var _nav: FlightHud
@@ -63,7 +68,6 @@ var _reads_input: bool = true
 
 func _ready() -> void:
 	_build_environment()
-	_build_lights()
 	_build_world()
 	_build_ship()
 	_build_hud()
@@ -92,18 +96,8 @@ func _build_environment() -> void:
 	add_child(world_env)
 
 
-func _build_lights() -> void:
-	var key := DirectionalLight3D.new()
-	key.name = "KeyLight"
-	key.light_color = Color(1.0, 0.96, 0.9)
-	add_child(key)
-
-	var fill := DirectionalLight3D.new()
-	fill.name = "FillLight"
-	fill.light_color = Color(0.42, 0.56, 0.78)
-	add_child(fill)
-
-
+## No lights here. Each system's star is its light (`Star`), and the only other
+## illumination is the environment's ambient, which is a slider.
 func _build_world() -> void:
 	_root = Node3D.new()
 	_root.name = "SystemRoot"
@@ -114,6 +108,13 @@ func _build_world() -> void:
 	_root.add_child(_map)
 	_map.arrived.connect(_on_arrived)
 	_map.departed.connect(_on_departed)
+	# THE CROSSING is not a cut: the camera is moved by the same rigid transform as
+	# the ship, and goes on lagging the felt motion from where it was.
+	_map.crossed.connect(func(move: Transform3D) -> void:
+		if _camera == null:
+			return
+		var world_move := _map.global_transform * move * _map.global_transform.affine_inverse()
+		_camera.global_transform = world_move * _camera.global_transform)
 
 	_dock = DockScreen.new()
 	_dock.name = "DockScreen"
@@ -133,6 +134,8 @@ func _build_ship() -> void:
 	# the autopilot — which is what happens when nobody is flying — never runs.
 	_ship.set_autopilot(false)
 	_ship.piloted = true
+	# The road's collision is the ship's to keep (ADR 0096); the map hands it over.
+	_map.attach(_ship)
 	# Started in system A, on the combat plane, back from the aperture and facing
 	# down the leg — so the first thing on screen is the way out of the system and
 	# the trip that is being measured. The map owns the rule, because the debug
@@ -158,6 +161,9 @@ func _build_hud() -> void:
 	_hud = DebugHud.new()
 	_hud.name = "DebugHud"
 	add_child(_hud)
+	# Put away at the start: the readout covers the left half of the view and the
+	# human cannot steer with it up. F1 brings it back.
+	_hud.visible = false
 
 	# Its own layer, above the world and below the dock screen, exactly as the arena
 	# stacks it. The tube gauge is off: there is no launch tube here, and a reload
@@ -172,12 +178,22 @@ func _build_hud() -> void:
 	_overlay.reticle_provider = func() -> Node3D:
 		return null if _map.is_docked() else _ship
 	overlay_layer.add_child(_overlay)
+	_sector_sign = Label.new()
+	_sector_sign.name = "SectorSign"
+	_sector_sign.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sector_sign.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_sector_sign.anchor_top = 0.22
+	_sector_sign.anchor_bottom = 0.22
+	_sector_sign.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_sector_sign.add_theme_font_size_override("font_size", 44)
+	_sector_sign.modulate.a = 0.0
+	overlay_layer.add_child(_sector_sign)
 
 	# THE STRIP. Its own CanvasLayer under the dock screen, like everything else here.
 	_nav = FlightHud.new()
 	_nav.name = "FlightHud"
 	add_child(_nav)
-	_nav.exit_picked.connect(func(ramp: RoadDeck) -> void: _map.take_exit(ramp))
+	_nav.exit_picked.connect(func(ramp: Tube) -> void: _map.take_exit(ramp))
 
 	# THE DEBUG TELEPORT, and it is the FIRST row on purpose. Every travel figure
 	# below it stops being a reading the moment a jump is made, and this POC exists to
@@ -284,10 +300,9 @@ func _build_hud() -> void:
 		var staying := "stay on highway %s" % riding.route_name \
 			if riding != null and not riding.route_name.is_empty() \
 			else "stay on this road"
-		var taken := _map.selected_sign()
+		var taken := _map.berth().taking()
 		if taken != null:
-			return "%s  ·  click it again on the strip to cancel" % \
-				taken.label_text.to_upper()
+			return "%s  ·  click it again on the strip to cancel" % taken.name.to_upper()
 		var ahead := _map.upcoming_exits(_ship_in_map())
 		if ahead.is_empty():
 			return "%s  ·  no exits ahead" % staying.to_upper()
@@ -297,6 +312,29 @@ func _build_hud() -> void:
 	# Lane position, stated as metres rather than as a bar. The lane boundary is soft
 	# and the penalty is proportional, so "how far out am I" is the number that
 	# explains why the speed row is reading low.
+	# THE HIGHWAY GEAR (`docs/SECTOR_PROTOTYPE.md`): felt speed against the ribs, and
+	# what the world outside is passing at.
+	_hud.add_row("gear", func() -> String:
+		var lane := _ship.cruise
+		if lane == null:
+			return "—  (highway_gear %.1f)" % Tuning.num("exploration/highway_gear")
+		return "%.2f of %.0f%s  ·  felt %.0f m/s, world %.0f m/s" % [_ship.applied_gear(),
+			lane.gear, "  ·  DOWNSHIFT, exit lined up" if lane.downshift else "",
+			_ship.felt_speed(), _ship.speed()]
+	)
+	_hud.add_row("world", func() -> String:
+		if not _map.in_wormhole():
+			return "open space"
+		return "THE WORMHOLE  ·  %s  ·  tunnel r %.0f, throat %.0f m, streaks %.0f m by" % [
+			_map.place_of(_ship_in_map()), Tuning.num("exploration/wormhole_tunnel_radius"),
+			Tuning.num("exploration/wormhole_throat_metres"), _map.tunnel().phase()])
+	_hud.add_row("sector", func() -> String:
+		if not Tuning.flag("exploration/sectors_enabled"):
+			return "off"
+		var layer := _map.sectors()
+		return "%s  ·  cell %s  ·  %d crossings  ·  %.0f m sectors" % [
+			layer.here_name(), layer.cell, layer.crossings, layer.radius()]
+	)
 	_hud.add_row("lane", func() -> String:
 		var lane := _ship.cruise
 		if lane == null:
@@ -308,25 +346,27 @@ func _build_hud() -> void:
 		return "OUT OF LANE  ·  %.0f m past  ·  speed limit at %.0f%%, pushed back" % [
 			past, (lane.top_speed() / maxf(lane.base_speed, 0.001)) * 100.0]
 	)
-	# THE SHELL you are held against (ADR 0087). The barrier never bumps, so from the
-	# seat a held ship looks exactly like one that chose to fly level — this row is what
-	# tells the difference, and it is where a wall in the wrong place shows up as a
-	# building you are inside and should not be.
-	_hud.add_row("shell", func() -> String:
-		var held := _ship.hull_barrier
-		if held == null:
-			return "clear of every building"
-		var ways := PackedStringArray()
-		for face: Array in [[held.open_right, "right"], [held.open_left, "left"],
-				[held.open_above, "above"], [held.open_below, "below"]]:
-			if face[0]:
-				ways.append(face[1] as String)
+	# THE TUBE you are in and the last thing you hit (ADR 0096). From the seat a held
+	# ship looks exactly like one that chose to fly level — this row is what tells the
+	# difference, and it is where a wall in the wrong place shows up.
+	_hud.add_row("tube", func() -> String:
+		var road := _ship.road
+		if road == null:
+			return "no road"
+		var contact: Dictionary = road.last_contact
+		var hit := "" if float(contact["age"]) > 1e6 else "  ·  last hit %s, %.0f%% square, %.1f s ago" % [
+			contact["wall"], float(contact["squareness"]) * 100.0, float(contact["age"])]
 		var kicked := _ship.rebound_speed()
-		return "%s  ·  %s  ·  %+.0f across, %+.0f up  ·  %.0f m to the nearest face%s%s" % [
-			held.shell_name, "INSIDE" if held.inside else "outside",
-			held.across, held.lift, absf(held.room()),
-			"" if ways.is_empty() else "  ·  open %s" % ", ".join(ways),
-			"" if kicked < 0.5 else "  ·  BOUNCING OFF at %.0f m/s" % kicked])
+		var where := "open space" if road.tube == null else "inside %s" % road.tube.name
+		return "%s%s%s  ·  %d of %d chunks built" % [where, hit,
+			"" if kicked < 0.5 else "  ·  BOUNCING OFF at %.0f m/s" % kicked,
+			_map.road().loaded_chunk_count(), _map.road().chunk_count()])
+	# THE LIGHTS: whether the headlight is on and how many track lights are live. The
+	# track lights are a pool that follows the ship, so this is where a reach that
+	# asks for too many of them shows up.
+	_hud.add_row("lights", func() -> String:
+		return "headlight %s  ·  %s" % ["on" if _ship.headlight.on else "off",
+			_map.road().lamps.status()])
 	# Where the nearest way on or off is, and whether it will open. The colour is the
 	# whole of the answer (ADR 0060); this row is for reading it from the terminal
 	# while tuning, not a second channel the player is meant to need.
@@ -360,7 +400,11 @@ func _build_hud() -> void:
 		# gives a number that is true of no journey. What this row is for is the
 		# comparison — by road against by hand — and both halves have to be the speed
 		# the trip is actually made at.
-		var by_road := Tuning.num("exploration/cruise_speed")
+		# Times the gear: between systems the road moves the ship through the world
+		# that much faster than the felt speed. An estimate, since the gear shifts
+		# in and out around every junction.
+		var by_road := Tuning.num("exploration/cruise_speed") \
+			* maxf(Tuning.num("exploration/highway_gear"), 1.0)
 		var by_hand := HullClass.max_speed(_ship.hull_class)
 		var span := _map.system_center(next).distance_to(_map.system_center(onward))
 		if by_road <= 0.0 or by_hand <= 0.0:
@@ -433,23 +477,25 @@ func _build_hud() -> void:
 		return "%d across the map" % _map.marker_count())
 	_hud.add_row("keys", func() -> String:
 		return "W/S throttle · A/D thrusters · mouse steers · C berth · H hull · " \
-			+ "J teleport · F1 hud · F2 tune")
+			+ "J teleport · K drop on road · F1 hud · F2 tune")
 
 
+## Which world the sky was last painted for, so a crossing repaints it once.
+var _painted_inside: bool = false
+
+
+## The sky is the world's: open space's colour, or the wormhole's dark, which is what
+## its tunnel closes to so the throat has no edge.
 func _apply_tuning() -> void:
 	var env := (get_node("WorldEnvironment") as WorldEnvironment).environment
-	env.background_color = Tuning.color("arena/background_color")
-	env.ambient_light_color = Tuning.color("arena/background_color").lightened(0.35)
-	env.ambient_light_energy = Tuning.num("arena/ambient_energy")
+	_painted_inside = _map != null and _map.in_wormhole()
+	var sky := Tuning.color("exploration/wormhole_background_color") if _painted_inside \
+		else Tuning.color("arena/background_color")
+	env.background_color = sky
+	env.ambient_light_color = sky.lightened(0.35)
+	env.ambient_light_energy = Tuning.num("exploration/ambient_energy")
 	env.glow_enabled = Tuning.flag("arena/glow_enabled")
 	env.glow_intensity = Tuning.num("arena/glow_intensity")
-
-	var key := get_node("KeyLight") as DirectionalLight3D
-	key.light_energy = Tuning.num("arena/key_light_energy")
-	key.rotation_degrees = Tuning.vec3("arena/key_light_angles_deg")
-	var fill := get_node("FillLight") as DirectionalLight3D
-	fill.light_energy = Tuning.num("arena/fill_light_energy")
-	fill.rotation_degrees = Tuning.vec3("arena/fill_light_angles_deg")
 
 
 # --- flight ------------------------------------------------------------------
@@ -462,8 +508,11 @@ func _ship_in_map() -> Vector3:
 
 func _process(delta: float) -> void:
 	_map.observe(_ship, delta)
+	if _map.in_wormhole() != _painted_inside:
+		_apply_tuning()
 	_ship.speed_ceiling_scale = _map.speed_scale()
 	_refresh_strip()
+	_show_the_sign()
 	# The berth frees the pointer so the strip's exits can be clicked, and takes it
 	# back on the way out. Applied every frame rather than on an event because the
 	# berth is engaged and released by the map, not by anything this scene sees.
@@ -476,6 +525,17 @@ func _process(delta: float) -> void:
 	# other (ADR 0072).
 	_camera.heading_override = Vector3.ZERO if _ship.cruise == null \
 		else _ship.road_axis()
+
+
+## The sector sign, while a crossing's banner is running.
+func _show_the_sign() -> void:
+	if _sector_sign == null:
+		return
+	var alpha := _map.sectors().banner_alpha() \
+		if Tuning.flag("exploration/sectors_enabled") else 0.0
+	_sector_sign.modulate.a = alpha
+	if alpha > 0.0:
+		_sector_sign.text = _map.sectors().here_name()
 
 
 ## Arriving takes the helm, because there is nowhere to fly from a docked ship. The
@@ -528,12 +588,10 @@ func _refresh_strip() -> void:
 	if riding == null:
 		_nav.show_ship(_ship.throttle(), _ship.hp_fraction())
 		return
-	# The deck's name already opens with the road's — "A-377B SYSTEM C bound" — so
-	# prefixing the route again reads "A-377B · A-377B SYSTEM C bound". A ramp's name
-	# does not, and gets the road it belongs to in front of it.
-	var heading := riding.deck_name
-	if not riding.route_name.is_empty() \
-			and not heading.begins_with(riding.route_name):
+	# A carriageway's name already opens with the road's ("A-377B R"); a ramp's does
+	# not, and gets the road it belongs to in front of it.
+	var heading: String = riding.name
+	if not riding.route_name.is_empty() and not heading.begins_with(riding.route_name):
 		heading = "%s  ·  %s" % [riding.route_name, heading]
 	_nav.show_road(heading, _map.upcoming_exits(_ship_in_map()),
 		_map.berth().taking(), _map.berth().is_berthed())
@@ -573,6 +631,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		cycle_hull()
 	elif event.is_action_pressed("debug_teleport"):
 		teleport_onward()
+	elif event.is_action_pressed("headlight"):
+		_ship.headlight.toggle()
 
 
 ## The debug roster (POC step 3). Instant, because the whole point is feeling the
@@ -614,6 +674,25 @@ func teleport_onward() -> void:
 	_last_teleport = "%s at %.0f s" % [_map.system_name(next),
 		Time.get_ticks_msec() / 1000.0]
 	print("[debug] teleport %d — to %s" % [_teleports, _last_teleport])
+
+
+## THE DEBUG DROP. K puts the ship on the road at the next bend, exit, merge or entry
+## mouth in the network's list, drive running. A junction is judged from the seat, and
+## flying to each of thirty of them is a session by itself. Counted and said out loud
+## exactly as J is.
+func drop_onward() -> void:
+	if not Tuning.flag("exploration/debug_teleport_enabled"):
+		return
+	var spots := _map.spots()
+	if spots.is_empty():
+		return
+	_drop = (_drop + 1) % spots.size()
+	var spot: Dictionary = spots[_drop]
+	_map.drop_on_road(_ship, spot["tube"], float(spot["t"]))
+	_camera.snap()
+	_teleports += 1
+	_last_teleport = "%s at %.0f s" % [spot["label"], Time.get_ticks_msec() / 1000.0]
+	print("[debug] drop %d — %s" % [_teleports, _last_teleport])
 
 
 ## How many jumps have been made this session. For the gate, which asserts that the
