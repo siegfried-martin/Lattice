@@ -844,13 +844,8 @@ func _chunk_named(key: String) -> Dictionary:
 ## Break the reference cycles between roads, their tubes and their neighbours, so a
 ## torn-down network is actually freed rather than leaked on every hot reload.
 func _release() -> void:
-	for t in tubes:
-		t.road = null
-		t.neighbours.clear()
-		t.sealed.clear()
-		t.junctions.clear()
 	for r in roads:
-		r.tubes.clear()
+		r.release()
 	for ramp in ramps:
 		ramp.clear()
 	roads.clear()

@@ -3119,6 +3119,9 @@ func _test_highway_gear() -> void:
 	Tuning.set_value("exploration/junction_gear", keep_floor)
 	Tuning.set_value("exploration/junction_slow_seconds", keep_zone)
 	Tuning.set_value("exploration/highway_gear", keep_gear)
+	# A road and its tubes hold each other; dropped without this they leak at exit.
+	road.release()
+	ramp.release()
 
 
 func _test_disc_bounds() -> void:

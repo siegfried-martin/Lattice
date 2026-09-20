@@ -83,6 +83,18 @@ static func make(road_name: String, road_kind: String, road_path: RoadPath,
 	return r
 
 
+## Break the cycle a road and its tubes form (each tube holds its road, and tubes hold
+## the tubes they join), so a dropped road is freed. `RoadNetwork` calls this for every
+## road it tears down; a road made by hand, as in the gate, is released the same way.
+func release() -> void:
+	for t in tubes:
+		t.road = null
+		t.neighbours.clear()
+		t.sealed.clear()
+		t.junctions.clear()
+	tubes.clear()
+
+
 ## Whether path t is inside the drawn stretch.
 func drawn(t: float) -> bool:
 	return t >= draw_from and t <= draw_to

@@ -15,7 +15,7 @@ where they conflict**, at the human's explicit direction.
 | | |
 |---|---|
 | Branch | `feat/highway-tubes` |
-| Gate | `make check` — CHECKCOUNT checks, 0 failed; the road suite flies both worlds against their rendered triangles |
+| Gate | `make check` — 1545 checks, 0 failed, nothing leaked at exit; the road suite flies both worlds against their rendered triangles |
 | Run it | `make fly`. `J` jumps between systems, `K` drops you on the road at the next spot in either world. `make roads` validates the map and prints the wormhole's legs in seconds. |
 | Built | Exploration POC steps 1–8; the road (ADR 0096); **the wormhole highway, steps 1–3 of `docs/WORMHOLE_PROTOTYPE.md`, 2026-09-20** |
 | **Do next** | Fly the wormhole (`make fly`, straight up the on-ramp ahead). Then step 4, the tunnel: the streak cylinder, its throat, the mouth at the crossing. Then the deferred list in that doc. |
@@ -34,7 +34,9 @@ each way. Not built: step 4, the tunnel visual, so inside is black beyond the ro
 own lamps. The doc's *What is built* section lists where the build departs from the
 plan, the main one being that the ramp footprint sets a leg floor of about 19 s, not
 the 5 s the plan hoped for. Every number is a starting value; the human has not flown
-it.
+it. The gate's "ObjectDB instances leaked at exit" warning was the highway gear test
+dropping two hand-made roads without breaking the road–tube cycle; `Road.release()`
+breaks it now, for the network and for tests alike.
 
 ### The gear is parked; the wormhole is next — 2026-09-20, from the human
 
