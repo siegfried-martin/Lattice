@@ -78,12 +78,18 @@ and 1 on a ramp. What reads it:
   are as they were. The applied gear chases the lane's target: up over
   `highway_upshift_seconds` after a merge, down over `highway_downshift_seconds`.
 - **The slow zone** (`Tube._gear_here`). Around every junction on a carriageway,
-  and each open end, the lane's gear eases to 1 over `junction_slow_seconds` of
-  world travel each side, so a ramp, a merge or a mouth is met out of gear: the
-  world slows on the approach to a place with ramps and winds back up on the way
-  out, while the road itself keeps passing at the felt speed. A map with a
-  junction every few kilometres is shifting most of the time; the spacing of the
-  systems is what makes a leg mostly in gear.
+  and each open end, the lane's gear eases to `junction_gear` over
+  `junction_slow_seconds` of world travel each side, so a ramp, a merge or a mouth
+  is met at a few times the felt speed rather than at the full gear: the world
+  slows on the approach to a place with ramps and winds back up on the way out,
+  while the road itself keeps passing at the felt speed. The exit downshift takes
+  the last step to 1 for the exit actually taken. A cluster of junctions (an
+  interchange) is a slow stretch rather than a crawl.
+- **Something beside the road.** Between systems there is nothing near enough to
+  read the geared speed against, so in the open world the deep field's dust is
+  scattered just past every road's own space along the whole map
+  (`SystemMap.relayout`, `RoadNetwork.spine_all`), world-fixed, and it is what
+  whizzes.
 - **The exit downshift** (`Tube._lined_up_for_exit`, `CruiseLane.downshift`). In
   gear, an exit's opening passes in a fraction of a second, so an exit is only
   takeable out of gear. The lane's target drops to 1 when the ship is on the right

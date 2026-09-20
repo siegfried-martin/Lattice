@@ -239,12 +239,13 @@ static func _gear() -> float:
 
 ## How long one side of a junction's slow zone takes to cross: the zone is
 ## `junction_slow_seconds` of world travel at full gear, crossed at a gear easing
-## linearly to 1, which integrates to s·g·ln(g)/(g-1).
+## linearly to `junction_gear` f, which integrates to s·g·ln(g/f)/(g-f).
 static func _zone_seconds() -> float:
 	var g := _gear()
-	if g <= 1.0:
+	var f := clampf(Tuning.num("exploration/junction_gear"), 1.0, g)
+	if g <= f:
 		return 0.0
-	return Tuning.num("exploration/junction_slow_seconds") * g * log(g) / (g - 1.0)
+	return Tuning.num("exploration/junction_slow_seconds") * g * log(g / f) / (g - f)
 
 
 ## Into every wall at every junction edge and every bend.

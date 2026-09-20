@@ -217,6 +217,16 @@ The bar the human set: if this still feels off in a significant way that no
 parameter fixes, park the gear and try the separate scene (ADR 0057 would be
 superseded then, with what was flown as the evidence).
 
+After the fifth flight (2026-09-20): the felt speed is right ("nice and lazy"), the
+outside only seemed slightly faster, and gear 10 took a long time to the next
+system. Two structural causes: the only things near enough to whizz past (planets,
+junction structure) sat inside the slow zones, and between systems there was nothing
+beside the road at all; and B's interchange is a 13 km cluster of junctions whose
+zones overlapped into a crawl. Changed: the zone eases to `junction_gear` (3) rather
+than 1, over 4 s; `highway_gear` 16; and the deep field's dust now lines every road
+in the open world, world-fixed, so there is something beside the road to read the
+gear against.
+
 Known edges, left for the flying to judge:
 
 - Fuel burns on world metres, so a leg in the gear costs the same fuel as before

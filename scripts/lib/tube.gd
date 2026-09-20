@@ -189,7 +189,7 @@ func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO, world_speed: floa
 	return lane
 
 
-## THE SLOW ZONE around a junction. The road's gear eases to 1 over
+## THE SLOW ZONE around a junction. The road's gear eases to `junction_gear` over
 ## `junction_slow_seconds` of world travel each side of every junction on this tube
 ## and of an open end, so a ramp, a merge or a mouth is met out of gear and the world
 ## slows on the approach and winds back up on the way out. A ramp is in first anyway.
@@ -207,7 +207,11 @@ func _gear_here(t: float, road_gear: float, felt: float) -> float:
 		nearest = minf(nearest, d)
 	if nearest == INF:
 		return road_gear
-	return 1.0 + (road_gear - 1.0) * clampf(nearest / zone, 0.0, 1.0)
+	# Down to `junction_gear`, not to 1: a junction passed at a few times the felt
+	# speed is calm enough, and the exit downshift covers the last step for the exit
+	# actually taken. A cluster of junctions is then a slow stretch, not a crawl.
+	var floor_gear := clampf(Tuning.num("exploration/junction_gear"), 1.0, road_gear)
+	return floor_gear + (road_gear - floor_gear) * clampf(nearest / zone, 0.0, 1.0)
 
 
 ## Is a ship at t, this far to the driver's right, within `exit_downshift_seconds`

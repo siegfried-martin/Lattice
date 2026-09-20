@@ -857,3 +857,12 @@ func spine() -> PackedVector3Array:
 		if road.kind == "highway":
 			return road.path.points(200.0)
 	return PackedVector3Array()
+
+
+## Every road's centre-line, sampled, so a field scattered around it furnishes the
+## whole map rather than the first highway.
+func spine_all() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for road in roads:
+		out.append_array(road.path.points(200.0))
+	return out

@@ -42,9 +42,11 @@ and it was not: the structure was fixed in the world. The road is now a treadmil
 (sliding ribs and lamps, scrolling dashes), the boom change is undone, and the exit
 opening is longer. The fourth flight asked for the outside to slow before a place with
 ramps: **the slow zone** eases the gear to 1 around every junction, and **prototype 3**
-spreads the systems to three times the spacing so a leg is mostly in gear. The bar the
-human set: if it still feels off in a way no parameter fixes, park the gear and try a
-separate highway scene.
+spreads the systems to three times the spacing so a leg is mostly in gear. The fifth
+flight: felt speed right, outside barely faster, trip too long. Now the zones ease to
+`junction_gear` 3 rather than 1, the gear is 16, and dust lines every road so there is
+something beside it to whizz. The bar the human set: if it still feels off in a way no
+parameter fixes, park the gear and try a separate highway scene.
 
 ### The road was replaced whole — 2026-09-07
 

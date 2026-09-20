@@ -210,7 +210,16 @@ func relayout() -> void:
 
 	# LAST, and it needs both of the things above it: the deep field is scattered
 	# around the spine and rejected wherever the boundary says the point is playable.
-	_deep.rebuild(_spine, _field)
+	# In the open world the only wall is the far border, so the field is scattered
+	# around every road instead, just past the road's own space: it is the thing beside
+	# the road that the gear's speed is read against between systems.
+	if open:
+		var road_space := BoundaryField.new()
+		for road in _road.roads:
+			road_space.regions.append(_space_around(road))
+		_deep.rebuild(_road.spine_all(), road_space)
+	else:
+		_deep.rebuild(_spine, _field)
 
 
 ## The hex prism around the whole map: centred on the systems' centroid, its apothem
