@@ -41,7 +41,9 @@ it, in the gate, against its own rendered triangles.
 carriageway centres, so a highway is `deck_separation + lane_width` across. The floor
 is a slab of `structure_floor_thickness`; the walls, roof and median are glass; corner
 beams of `structure_beam_size` and a collar every `structure_module_length` of
-`structure_rib_thickness`, standing out by `structure_rib_protrusion`. All of it sits
+`structure_rib_thickness`, standing out by `structure_rib_protrusion`. The collars are
+instances rather than part of the chunk mesh, because they move (the gear's
+treadmill, below). All of it sits
 *outside* the flyable box (ADR 0078's unit-section rule survives): the space the ship
 flies is exactly `lane_width × lane_height`, less its own hull.
 
@@ -84,8 +86,18 @@ and 1 on a ramp. What reads it:
 - The chase camera is handed the gear's share of each frame's displacement and
   moves by it rigidly, so its lag is against the felt motion only. On the road the
   boom is `road_boom_scale` times longer.
-- `Road.rib_positions()` lays the ribs (and the lamps on them) at
-  `structure_module_length` times the gear, so they pass at the felt rate.
+- **The treadmill** (`Road.slip`, `RoadRibs`). Spacing the ribs by the gear only
+  made one pass every few seconds; each still swept past at world speed, and so
+  did the lane paint, so nothing near the ship moved at the felt speed. Now the
+  ridden road's ribs slide along with the ship by the gear's surplus
+  (`SystemMap` calls `Road.roll` with the ship's `gear_moved`), so a collar passes
+  at the felt speed while the world outside passes faster. The collars and the
+  lamp bars on them are instances placed every frame from `rib_positions()`
+  rather than part of the chunk mesh, hidden where they would stand inside a
+  neighbouring tube; `rib_margin_at` reads the same slip, so the collision moves
+  with them. The lane paint's inner three lines are dashed
+  (`marking_dash_metres`, `marking_gap_metres`) and the dashes scroll with the
+  slip in the marking shader.
 - The berth's rail runs at the lane's speed times the road's gear, so a berth on a
   highway is slower than driving it by `berth_speed_fraction` and not by the gear
   as well. Rebinding to a ramp drops it to the ramp's speed at once.

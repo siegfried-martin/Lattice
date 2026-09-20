@@ -80,33 +80,36 @@ static func fixture_frame(road: Road, tube: Tube, t: float) -> Transform3D:
 	return Transform3D(Basis(right, up, right.cross(up)), origin)
 
 
-## The lamp bars for one chunk's stretch of a road: one per rib per carriageway,
-## instanced. Built on the main thread at commit, because it is a few transforms.
-static func fixtures(road: Road, chunk: Dictionary) -> MultiMeshInstance3D:
+## The lamp bars for a whole road: one per rib per carriageway, instanced, placed by
+## `place_fixtures` every frame because the ribs move (`Road.slip`).
+static func fixture_instance(road: Road) -> MultiMeshInstance3D:
 	_fixture_style()
-	var t0 := float(chunk["t0"])
-	var t1 := float(chunk["t1"])
-	var size := Vector3(Tuning.num("exploration/track_lamp_metres"),
-		Tuning.num("exploration/track_lamp_thickness"), road.rib_thickness * ALONG_SHARE)
-	var frames: Array[Transform3D] = []
-	for tr in road.rib_positions():
-		if tr < t0 or tr >= t1:
-			continue
-		for tube in road.tubes:
-			frames.append(fixture_frame(road, tube, tr))
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = _fixture_mesh
-	mm.instance_count = frames.size()
-	for i in frames.size():
-		var f := frames[i]
-		mm.set_instance_transform(i, Transform3D(f.basis.scaled_local(size), f.origin))
+	mm.instance_count = road.rib_positions().size() * road.tubes.size()
 	var mi := MultiMeshInstance3D.new()
 	mi.name = "Lamps"
 	mi.multimesh = mm
 	mi.material_override = _fixture_material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
+
+
+## Put a road's lamp bars on its ribs, wherever they are this frame.
+static func place_fixtures(mi: MultiMeshInstance3D, road: Road, ribs: PackedFloat32Array) -> void:
+	var size := Vector3(Tuning.num("exploration/track_lamp_metres"),
+		Tuning.num("exploration/track_lamp_thickness"), road.rib_thickness * ALONG_SHARE)
+	var mm := mi.multimesh
+	var wanted := ribs.size() * road.tubes.size()
+	if mm.instance_count != wanted:
+		mm.instance_count = wanted
+	var i := 0
+	for tr in ribs:
+		for tube in road.tubes:
+			var f := fixture_frame(road, tube, tr)
+			mm.set_instance_transform(i, Transform3D(f.basis.scaled_local(size), f.origin))
+			i += 1
 
 
 ## Put the pool's lights on the fixtures within reach of `here`, along the tube the

@@ -186,6 +186,19 @@ the stretched boom had read right.
   as before while the inside is the lazy drive asked for. `ramp_speed` 80.
 - `road_boom_scale` 4 puts the camera further back on the road.
 
+After the third flight (2026-09-19): the human could not see the outside moving
+faster than the inside, and was right. Spacing the ribs by the gear made one pass
+every few seconds, but each rib, lamp and floor line was a fixed thing in the
+world and swept past at world speed; nothing near the ship moved at the felt
+speed, which is also why the speed read as high. Now the road is a treadmill: the
+ridden road's ribs and lamp bars slide along with the ship by the gear's surplus,
+and the lane paint's inner lines are dashed and scroll the same way, so what is
+near the ship passes at the felt speed and the planets and far road pass at the
+geared one. `docs/HIGHWAY.md` has the mechanism. Also: the camera change was
+not asked for and `road_boom_scale` is back to 1; the exit opening is longer
+(`ramp_exit_length` 800 at 12°) so there is more of it to steer into once out of
+gear.
+
 Known edges, left for the flying to judge:
 
 - Fuel burns on world metres, so a leg in the gear costs the same fuel as before

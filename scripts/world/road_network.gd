@@ -47,6 +47,8 @@ var _mesh_root: Node3D
 var lamps: RoadLamps
 var _far: Dictionary = {}
 var _markings: Dictionary = {}
+## Each road's rib collars and lamp bars, placed every frame (`RoadRibs`).
+var _ribs: Array[RoadRibs] = []
 var _chunks: Array[Dictionary] = []
 var _loaded: Dictionary = {}
 var _pending: Dictionary = {}
@@ -81,6 +83,7 @@ func build(data: Dictionary, system_positions: Dictionary) -> void:
 	_gates.clear()
 	_far.clear()
 	_markings.clear()
+	_ribs.clear()
 	_loaded.clear()
 	_chunks.clear()
 	_release()
@@ -139,6 +142,10 @@ func build(data: Dictionary, system_positions: Dictionary) -> void:
 			var lines := RoadMesh.markings(tube)
 			_mesh_root.add_child(lines)
 			_markings[tube.name] = lines
+		var ribs := RoadRibs.new()
+		_mesh_root.add_child(ribs)
+		ribs.setup(road)
+		_ribs.append(ribs)
 	repaint()
 
 
@@ -635,6 +642,17 @@ func _plan_chunks() -> void:
 
 ## Light the road around `here`: the track lights follow the ship along the tube it
 ## rides, or the nearest one. Called every frame by the map, with the streaming.
+## The moving structure: every road's ribs and lamp bars where its slip puts them
+## this frame, and its dashes scrolled to match.
+func roll() -> void:
+	for ribs in _ribs:
+		ribs.place()
+	for tube in tubes:
+		var lines: MeshInstance3D = _markings.get(tube.name)
+		if lines != null and tube.road != null:
+			RoadMesh.slide_markings(lines, float(tube.road.get("slip")))
+
+
 func light(here: Vector3, riding: Tube) -> void:
 	if lamps != null:
 		lamps.follow(here, riding, tubes)
@@ -696,8 +714,6 @@ func _build_job(chunk: Dictionary, out: Dictionary) -> void:
 
 func _commit_chunk(chunk: Dictionary, built: Dictionary) -> void:
 	var node := RoadMesh.commit(chunk["road"], chunk["index"], built)
-	# The rib lamps come with the detailed chunk and go with it (`RoadLamps`).
-	node.add_child(RoadLamps.fixtures(chunk["road"], chunk))
 	_mesh_root.add_child(node)
 	_loaded[chunk["key"]] = node
 	# The far version of this stretch steps aside for the detailed one.

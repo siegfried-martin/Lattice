@@ -89,12 +89,27 @@ func gear() -> float:
 	return maxf(Tuning.num("exploration/highway_gear"), 1.0)
 
 
+## THE TREADMILL. In gear the ship goes through the world faster than it feels, so
+## the ribs — the thing it is measuring its speed against — slide along the road with
+## it by the surplus (`roll`), and pass at the felt speed. `slip` is where the beat
+## currently sits, in metres of t, wrapped to one spacing. The mesh (`RoadRibs`) and
+## the collision (`rib_margin_at`) both read it.
+var slip: float = 0.0
+
+
+## Slide the ribs `metres` along t.
+func roll(metres: float) -> void:
+	var step := rib_spacing * gear()
+	slip = fposmod(slip + metres, step) if step > 0.0 else 0.0
+
+
 ## Rib collar t-positions along the path: `rib_spacing` times the gear apart, so the
-## beat a ship at the felt speed passes is the beat the road was tuned with.
+## beat a ship at the felt speed passes is the beat the road was tuned with, slid by
+## `slip`.
 func rib_positions() -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	var step := rib_spacing * gear()
-	var t := fposmod(rib_phase, step)
+	var t := fposmod(rib_phase + slip, step)
 	var end := path.length - (0.0 if path.closed else rib_thickness * 0.5)
 	while t <= end:
 		if path.closed or t >= rib_thickness * 0.5:
@@ -107,7 +122,7 @@ func rib_positions() -> PackedFloat32Array:
 ## inside a collar, nothing between them. The outside collision reads this.
 func rib_margin_at(t: float) -> float:
 	var step := rib_spacing * gear()
-	var local := fposmod(t - rib_phase, step)
+	var local := fposmod(t - rib_phase - slip, step)
 	if local < rib_thickness * 0.5 or local > step - rib_thickness * 0.5:
 		return rib_protrusion
 	return 0.0

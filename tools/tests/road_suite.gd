@@ -138,7 +138,7 @@ func _laps() -> void:
 		var start_t := tube.start_t() + 150.0 * tube.direction
 		# In gear on a highway; the exits along it are passed on the left, in gear.
 		var seconds := tube.path.length / (_probe.cruise_speed * _gear()) + 20.0
-		_fly("lap of %s" % tube.name, [tube], tube, start_t, seconds, not tube.path.closed)
+		_fly("lap of %s" % tube.name, [tube], tube, start_t, seconds, not tube.path.closed, 10.0)
 
 
 ## Every ramp: host, ramp, then the road it merges into or the mouth it ends at.
@@ -268,8 +268,10 @@ func _drunk() -> void:
 # --- flights -------------------------------------------------------------------
 
 ## Follow a route of tubes with a look-ahead pilot.
+## `hold_left` metres left of the centre-line: a lap passes every exit on the left,
+## in gear, rather than lining up for one by a hair and shifting down for it.
 func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds: float,
-		ends_in_space: bool) -> void:
+		ends_in_space: bool, hold_left: float = 0.0) -> void:
 	_probe.place(start_tube, start_t)
 	_probe.throttle = 1.0
 	var idx := 0
@@ -302,6 +304,8 @@ func _fly(label: String, route: Array, start_tube: Tube, start_t: float, seconds
 		if not cur.path.closed and (ta > cur.path.length or ta < 0.0):
 			var end_t := clampf(ta, 0.0, cur.path.length)
 			target = cur.centre(end_t) + (cur.travel_frame(end_t)["fwd"] as Vector3) * absf(ta - end_t)
+		if hold_left > 0.0 and cur == start_tube:
+			target -= (cur.travel_frame(clampf(ta, 0.0, cur.path.length))["right"] as Vector3) * hold_left
 		_probe.aim = (target - _probe.position).normalized()
 		var before := _probe.forward()
 		_probe.throttle = 1.0

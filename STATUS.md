@@ -37,8 +37,11 @@ ramps have a speed limit and are half to a third as long; the camera no longer
 stretches in the gear. The doc's "What is built" section lists the edges left for the
 flying to judge. The second flight's notes (fast inside, hard exits, instant upshift,
 camera too close) led to the exit downshift, separate shift times, felt 120 in gear
-10, and a longer boom on the road. Prototype 3 is an edit to `data/routes.json` once
-those have been flown.
+10. The third flight found the outside was not moving faster than the inside at all,
+and it was not: the structure was fixed in the world. The road is now a treadmill
+(sliding ribs and lamps, scrolling dashes), the boom change is undone, and the exit
+opening is longer. Prototype 3 is an edit to `data/routes.json` once those have been
+flown.
 
 ### The road was replaced whole — 2026-09-07
 

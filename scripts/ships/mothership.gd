@@ -154,6 +154,7 @@ var _applied_gear: float = 1.0
 ## The extra displacement the gear added this frame, for the chase camera, which
 ## follows the felt motion and is carried along with the geared part rigidly.
 var _gear_shift: Vector3 = Vector3.ZERO
+var _gear_moved: Vector3 = Vector3.ZERO
 
 var _velocity: Vector3 = Vector3.ZERO
 ## Forward speed, carried between frames so it can be RATE-LIMITED on the way down.
@@ -539,7 +540,13 @@ func leave_road() -> void:
 func take_gear_displacement() -> Vector3:
 	var shift := _gear_shift
 	_gear_shift = Vector3.ZERO
+	_gear_moved = shift
 	return shift
+
+
+## The same displacement, kept for the frame for the road's treadmill (`Road.roll`).
+func gear_moved() -> Vector3:
+	return _gear_moved if _gear_shift == Vector3.ZERO else _gear_shift
 
 
 func applied_gear() -> float:

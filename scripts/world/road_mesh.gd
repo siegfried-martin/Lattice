@@ -120,7 +120,8 @@ static func build_chunk(road: Road, foreign: Array[Tube], chunk: Dictionary,
 	var last := int(round(float(chunk["t1"]) / ring))
 	var road_diag := sqrt(road.half_width * road.half_width + road.half_height * road.half_height) \
 		+ road.rib_protrusion + 20.0
-	var ribs := road.rib_positions()
+	# The rib collars are not here: they move (`Road.slip`) and are placed as
+	# instances every frame by `RoadRibs`.
 	for i in range(first, last):
 		var f0 := road.path.frame(minf(i * ring, road.path.length))
 		var f1 := road.path.frame(minf((i + 1) * ring, road.path.length))
@@ -128,11 +129,6 @@ static func build_chunk(road: Road, foreign: Array[Tube], chunk: Dictionary,
 			f1 = road.path.frame(0.0)
 		b._select_foreign(foreign, road.path.at((i + 0.5) * ring, 0.0, 0.0), road_diag + ring)
 		b._strip(f0, f1)
-		for tr in ribs:
-			if tr >= i * ring and tr < (i + 1) * ring:
-				b._select_foreign(foreign, road.path.at(tr, 0.0, 0.0), road_diag + road.rib_thickness)
-				b._rib(road.path.frame(tr - road.rib_thickness * 0.5),
-					road.path.frame(tr + road.rib_thickness * 0.5))
 	return {"verts": b._verts, "norms": b._norms, "faces": b._faces}
 
 
@@ -219,8 +215,13 @@ static func markings(tube: Tube) -> MeshInstance3D:
 			centres[r].append(centre)
 	var verts := PackedVector3Array()
 	var custom := PackedFloat32Array()
+	# Each vertex also carries its t and whether its line is dashed (the inner lines
+	# are, the edge lines are solid), so the shader can scroll the dashes with the
+	# road's slip: the lane paint is the other thing the felt speed is read against.
+	var along := PackedFloat32Array()
 	for r in runs.size():
 		var run := runs[r]
+		var dashed := 1.0 if r > 0 and r < MARKING_COUNT - 1 else 0.0
 		for i in run.size() - 1:
 			for k in [i, i + 1]:
 				verts.append(run[k])
@@ -228,13 +229,17 @@ static func markings(tube: Tube) -> MeshInstance3D:
 				custom.append(c.x)
 				custom.append(c.y)
 				custom.append(c.z)
+				along.append(span * float(k) / float(stations))
+				along.append(dashed)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_CUSTOM0] = custom
+	arrays[Mesh.ARRAY_CUSTOM1] = along
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays, [], {},
-		Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+		(Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+		| (Mesh.ARRAY_CUSTOM_RG_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT))
 	var mi := MeshInstance3D.new()
 	mi.name = "Markings " + tube.name
 	mi.mesh = mesh
@@ -264,6 +269,13 @@ static func paint_markings(mi: MeshInstance3D, tube: Tube, active: bool) -> void
 	mat.set_shader_parameter("albedo", color)
 	mat.set_shader_parameter("compress_start", Tuning.num("exploration/road_detail_radius"))
 	mat.set_shader_parameter("compress_power", Tuning.num("exploration/far_compress_power"))
+	mat.set_shader_parameter("dash_len", Tuning.num("exploration/marking_dash_metres"))
+	mat.set_shader_parameter("gap_len", Tuning.num("exploration/marking_gap_metres"))
+
+
+## Scroll a tube's dashes with its road's slip. Every frame, for the roads that move.
+static func slide_markings(mi: MeshInstance3D, slip: float) -> void:
+	(mi.material_override as ShaderMaterial).set_shader_parameter("slip", slip)
 
 
 # --- materials ---------------------------------------------------------------
@@ -366,7 +378,7 @@ void fragment() {
 ## tier collapses to its centre. The sector numbers are GLOBAL uniforms, set once a
 ## frame by the map (`set_sector_globals`), so the far materials and every chunk's
 ## marking material read them without being tracked.
-const COMPRESS_VERTEX := """
+const COMPRESS_FUNCS := """
 uniform float compress_start = 12000.0;
 uniform float compress_power = 1.0;
 global uniform float sector_on;
@@ -397,8 +409,9 @@ float sector_factor(float d, vec2 from, vec2 cell) {
 	float p = ring < 0.5 ? sector_powers.x : (ring < 1.5 ? sector_powers.y : sector_powers.z);
 	return (d > compress_start && compress_start > 0.0) ? pow(compress_start / d, p) : 1.0;
 }
-void vertex() {
-	vec3 c = CUSTOM0.xyz;
+"""
+
+const COMPRESS_BODY := """	vec3 c = CUSTOM0.xyz;
 	float d = distance(CAMERA_POSITION_WORLD, c);
 	float f = (d > compress_start && compress_start > 0.0) ? pow(compress_start / d, compress_power) : 1.0;
 	if (sector_on > 0.5) {
@@ -406,8 +419,14 @@ void vertex() {
 		f = mix(sector_factor(d, sector_prev_cell, cell), sector_factor(d, sector_cell, cell), sector_blend);
 	}
 	VERTEX = c + (VERTEX - c) * f;
-}
 """
+
+const COMPRESS_VERTEX := COMPRESS_FUNCS + "void vertex() {\n" + COMPRESS_BODY + "}\n"
+
+## The markings' vertex stage: the same, plus the per-vertex t and dash flag handed
+## to the fragment stage.
+const MARKING_VERTEX := COMPRESS_FUNCS + "void vertex() {\n\tt_along = CUSTOM1.x;\n\tdashed = CUSTOM1.y;\n" \
+	+ COMPRESS_BODY + "}\n"
 
 ## The sector globals every far shader reads. Declared once, before any shader that
 ## names them compiles; a `global uniform` a shader names has to exist first.
@@ -489,12 +508,26 @@ void fragment() {
 }
 """
 
+## The lane paint. The inner lines are dashed, `dash_len` on and `gap_len` off in
+## road metres, and the pattern scrolls with the road's `slip` so it passes at the
+## felt speed in gear (`Road.slip`).
 const MARKING_SHADER := """
 shader_type spatial;
 render_mode unshaded, blend_mix, cull_disabled;
 uniform vec4 albedo : source_color = vec4(0.4, 0.7, 0.9, 0.7);
-""" + COMPRESS_VERTEX + """
+uniform float slip = 0.0;
+uniform float dash_len = 20.0;
+uniform float gap_len = 40.0;
+varying float t_along;
+varying float dashed;
+""" + MARKING_VERTEX + """
 void fragment() {
+	if (dashed > 0.5 && gap_len > 0.0) {
+		float period = dash_len + gap_len;
+		float phase = mod(t_along - slip, period);
+		if (phase < 0.0) { phase += period; }
+		if (phase > dash_len) { discard; }
+	}
 	ALBEDO = albedo.rgb;
 	ALPHA = albedo.a;
 }

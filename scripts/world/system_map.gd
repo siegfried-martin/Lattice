@@ -322,6 +322,12 @@ func observe(ship: Mothership, delta: float) -> void:
 		gate.repaint(delta)
 	_road.set_active(_riding)
 	_road.stream(here)
+	# THE TREADMILL (`Road.slip`): the ridden road's ribs slide along with the ship by
+	# the gear's surplus, so they pass at the felt speed.
+	if _riding != null and _riding.road != null:
+		var fwd: Vector3 = _riding.travel_frame(_riding.local(here)["t"])["fwd"]
+		(_riding.road as Road).roll(ship.gear_moved().dot(fwd) * _riding.direction)
+	_road.roll()
 	_road.light(here, _riding)
 	_deep.follow(here)
 	_compress_the_distance(here, delta)

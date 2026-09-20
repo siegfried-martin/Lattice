@@ -225,6 +225,7 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/highway_gear", "exploration/highway_upshift_seconds",
 	"exploration/highway_downshift_seconds", "exploration/exit_downshift_seconds",
 	"exploration/ramp_speed", "camera/road_boom_scale",
+	"exploration/marking_dash_metres", "exploration/marking_gap_metres",
 	"exploration/sectors_enabled", "exploration/sector_radius",
 	"exploration/sector_next_power", "exploration/sector_far_power",
 	"exploration/sector_far_rings", "exploration/sector_crossing_seconds",
@@ -2973,6 +2974,19 @@ func _test_highway_gear() -> void:
 	_expect(is_equal_approx(road.rib_margin_at(on_rib), road.rib_protrusion)
 			and is_zero_approx(road.rib_margin_at(between)),
 		"the collision's rib margin follows the stretched ribs", "")
+	# THE TREADMILL: rolling the road slides every rib, and the collision with them.
+	var before_roll := ribs[2]
+	road.roll(250.0)
+	var slid := false
+	for tr in road.rib_positions():
+		if absf(tr - (before_roll + 250.0)) < 0.01:
+			slid = true
+	_expect(slid and is_equal_approx(road.rib_margin_at(before_roll + 250.0), road.rib_protrusion)
+			and is_zero_approx(road.rib_margin_at(before_roll)),
+		"rolling the road slides the ribs and the rib collision with them",
+		"no rib at %.0f" % (before_roll + 250.0))
+	road.roll(road.rib_spacing * 4.0 - 250.0)
+	_expect(is_zero_approx(road.slip), "a whole spacing of roll wraps to no slip", "%.1f" % road.slip)
 	var ramp := Road.make("RAMP", "ramp", path, 1, 0.0)
 	_expect(is_equal_approx(ramp.gear(), 1.0), "a ramp is always in first", "")
 	var lane := road.tubes[0].sample(road.tubes[0].centre(10000.0))
