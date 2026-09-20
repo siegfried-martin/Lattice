@@ -235,6 +235,11 @@ the ramp's far edge and was pushed to its centre. Now the head runs beside the
 carriageway (`ramp_head_offset`, half a lane), straddling the wall: full-depth
 opening from the first metre, no push on crossing, no axis snap.
 
+**Parked 2026-09-20.** After the seventh flight (exits fixed by the head offset), the
+human could see roughly what this would feel like polished, and chose to park it and
+build the separate-scene comparison: `docs/WORMHOLE_PROTOTYPE.md`. The code stays,
+behind `highway_gear` 1 and `sectors_enabled`; the numbers below are where it was left.
+
 Known edges, left for the flying to judge:
 
 - Fuel burns on world metres, so a leg in the gear costs the same fuel as before
