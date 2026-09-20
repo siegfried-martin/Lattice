@@ -136,7 +136,8 @@ func _laps() -> void:
 		if tube.is_ramp():
 			continue
 		var start_t := tube.start_t() + 150.0 * tube.direction
-		var seconds := tube.path.length / _probe.cruise_speed + 20.0
+		# In gear on a highway; the exits along it are passed on the left, in gear.
+		var seconds := tube.path.length / (_probe.cruise_speed * _gear()) + 20.0
 		_fly("lap of %s" % tube.name, [tube], tube, start_t, seconds, not tube.path.closed)
 
 
@@ -163,7 +164,8 @@ func _ramps() -> void:
 		# The ramp itself is flown at its own limit (`ramp_speed`), the host stretches
 		# at cruise.
 		var seconds := 5000.0 / _probe.cruise_speed \
-			+ road.path.length / minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed")) + 20.0
+			+ road.path.length / minf(_probe.cruise_speed, Tuning.num("exploration/ramp_speed")) \
+			+ Tuning.num("exploration/highway_downshift_seconds") + 20.0
 		_fly("ramp %s" % road.name, route, start_tube, start_t, seconds, to_mouth)
 
 
@@ -177,17 +179,22 @@ func _exits_steered() -> void:
 			continue
 		var host: Tube = ramp["from_tube"]
 		var rt: Tube = (ramp["road"] as Road).tubes[0]
-		var start := host.path.wrap_t(float(ramp["from_t"]) - 600.0 * host.direction)
+		# Far enough back to be in gear and shift down for it, the way a ship would.
+		var run_up := Tuning.num("exploration/exit_downshift_seconds") * _probe.cruise_speed * _gear() + 600.0
+		var start := host.path.wrap_t(float(ramp["from_t"]) - run_up * host.direction)
 		_probe.place(host, start)
 		_probe.throttle = 1.0
 		_probe.velocity = _probe.forward() * _probe.cruise_speed
+		_probe.gear = _gear()
 		var f := host.travel_frame(start)
 		_probe.aim = (f["fwd"] as Vector3).rotated(f["up"], -deg_to_rad(15.0))
 		var slowest := INF
 		var label := "steering 15 deg into exit %s" % rt.name
 		var ok := true
 		var entered := false
-		for i in int(9.0 / DT):
+		var window := 9.0 + Tuning.num("exploration/exit_downshift_seconds") \
+			+ Tuning.num("exploration/highway_downshift_seconds")
+		for i in int(window / DT):
 			# Once in the ramp, fly it: what is under test is what ENTERING sharply
 			# costs, not holding a fixed heading into the ramp's own bends.
 			if _probe.tube() == rt:
@@ -215,6 +222,10 @@ func _exits_steered() -> void:
 		_expect(slowest > limit * 0.7,
 			label + " is never slowed below 70%% of the ramp's limit on the way",
 			"%.0f m/s at slowest against %.0f" % [slowest, limit])
+
+
+static func _gear() -> float:
+	return maxf(Tuning.num("exploration/highway_gear"), 1.0)
 
 
 ## Into every wall at every junction edge and every bend.

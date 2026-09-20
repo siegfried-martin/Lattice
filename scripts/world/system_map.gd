@@ -310,6 +310,10 @@ func observe(ship: Mothership, delta: float) -> void:
 		if not record.is_empty():
 			onward = record["to_tube"]
 	_berth.observe(ship, _riding, onward, took_dock, delta)
+	# An exit taken from the strip is an exit lined up for, whichever side of the
+	# lane the ship is on.
+	if ship.cruise != null and _berth.taking() != null:
+		ship.cruise.downshift = true
 	# HIGHWAY METRES, whoever is doing the steering (ADR 0086).
 	if ship.is_cruising():
 		ship.cruise_tank.burn(travelled)
@@ -363,7 +367,7 @@ func _ride_the_road(ship: Mothership, here: Vector3) -> void:
 		if not can_engage:
 			return
 		_riding = inside
-		ship.cruise = inside.sample(here, clearance)
+		ship.cruise = inside.sample(here, clearance, ship.speed())
 		_forgive_the_junction(ship, here, clearance)
 		ship.adopt_road_axis(ship.cruise.axis)
 		ship.reset_reticle()
@@ -379,7 +383,7 @@ func _ride_the_road(ship: Mothership, here: Vector3) -> void:
 	# Merging and diverging, with no junction logic: the hull crossed an open wall and
 	# the tube on the far side is the road now (ADR 0063's rule, applied to lanes).
 	_riding = inside
-	ship.cruise = _riding.sample(here, clearance)
+	ship.cruise = _riding.sample(here, clearance, ship.speed())
 	_forgive_the_junction(ship, here, clearance)
 
 

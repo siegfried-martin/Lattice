@@ -44,9 +44,19 @@ var edge_softness: float = 1.0
 var clearance_cap: float = 0.5
 
 var base_speed: float = 0.0
-## The highway gear here (`Road.gear_at`): what the along-axis motion through the
-## world is multiplied by. 1 everywhere but the middle of a highway leg.
+## The highway gear here (`Road.gear`): what the along-axis motion through the
+## world is multiplied by. 1 on a ramp.
 var gear: float = 1.0
+## Lined up for an exit ahead: on the exit side of the lane, with the opening within
+## `exit_downshift_seconds` at the speed the ship is making through the world. The
+## ship drops out of gear for it (`target_gear`), which is what makes an exit
+## takeable at all: in gear the opening would pass in a fraction of a second.
+var downshift: bool = false
+
+
+## The gear the ship should be applying here.
+func target_gear() -> float:
+	return 1.0 if downshift else gear
 var edge_speed_penalty: float = 1.0
 var push_accel: float = 0.0
 var clamp_deg: float = 0.0

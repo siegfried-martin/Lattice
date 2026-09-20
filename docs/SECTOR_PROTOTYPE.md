@@ -173,6 +173,19 @@ After the first flight (2026-09-19), three changes from the human's notes:
 - The chase camera's lag was against the geared motion, so the boom stretched in
   the gear. It now carries the gear's displacement rigidly and lags the felt motion.
 
+After the second flight (2026-09-19), from the human's notes: the highway felt fast
+and exits were hard to take; the merge upshift was near instant; the far camera of
+the stretched boom had read right.
+
+- The cause of the hard exits: the highway is in gear through the junction, so at
+  1250 m/s a 400 m opening passes in a third of a second. Now the ship shifts down
+  when it is lined up for an exit (on the right, opening within
+  `exit_downshift_seconds` ahead at world speed) or has taken it from the strip.
+- Two shift times: `highway_upshift_seconds` 6 and `highway_downshift_seconds` 2.5.
+- Felt `cruise_speed` 120 with `highway_gear` 10, so the world goes by about as fast
+  as before while the inside is the lazy drive asked for. `ramp_speed` 80.
+- `road_boom_scale` 4 puts the camera further back on the road.
+
 Known edges, left for the flying to judge:
 
 - Fuel burns on world metres, so a leg in the gear costs the same fuel as before

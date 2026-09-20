@@ -65,7 +65,7 @@ func observe(ship: Mothership, riding: Tube, onward: Tube, pressed: bool,
 			release(ship)
 			return
 		if _hold != null:
-			_along = _tube.path.wrap_t(_along + _hold.speed * delta * _tube.direction)
+			_along = _tube.path.wrap_t(_along + _hold.speed * _hold.gear * delta * _tube.direction)
 		_hold = _sample(ship)
 		ship.berth = _hold
 		return
@@ -115,8 +115,13 @@ func _sample(ship: Mothership) -> BerthHold:
 	# berth the road is UNDER you.
 	hold.point = _tube.world(_along, 0.0,
 		-maxf(_tube.hh - Tuning.num("exploration/berth_ride_height"), 0.0))
-	hold.speed = Tuning.num("exploration/cruise_speed") \
-		* Tuning.num("exploration/berth_speed_fraction")
+	# The rail runs at the lane's speed here (a ramp's own on a ramp), times the
+	# road's gear, so a berth on a highway is still slower than driving it yourself
+	# rather than slower by the gear as well.
+	var base := Tuning.num("exploration/ramp_speed") if _tube.is_ramp() \
+		else Tuning.num("exploration/cruise_speed")
+	hold.gear = float(_tube.road.call("gear")) if _tube.road != null else 1.0
+	hold.speed = base * Tuning.num("exploration/berth_speed_fraction")
 	hold.pull = Tuning.num("exploration/berth_pull_rate")
 	hold.error = hold.point.distance_to(ship.position)
 	hold.deck_name = _tube.name

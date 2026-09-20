@@ -35,8 +35,10 @@ human's first flight (2026-09-19) called the direction right and asked for three
 things, all done: the gear is the road's and shifts in time rather than by distance;
 ramps have a speed limit and are half to a third as long; the camera no longer
 stretches in the gear. The doc's "What is built" section lists the edges left for the
-flying to judge. Prototype 3 is an edit to `data/routes.json` once those have been
-flown.
+flying to judge. The second flight's notes (fast inside, hard exits, instant upshift,
+camera too close) led to the exit downshift, separate shift times, felt 120 in gear
+10, and a longer boom on the road. Prototype 3 is an edit to `data/routes.json` once
+those have been flown.
 
 ### The road was replaced whole — 2026-09-07
 

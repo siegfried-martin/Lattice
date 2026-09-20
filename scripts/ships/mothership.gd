@@ -147,8 +147,9 @@ var _cruise_ceiling: float = 0.0
 ## rate it can be steered, and the camera — which frames the road, not the nose —
 ## follows the same vector, so the two can never disagree about where the road is.
 var _road_axis: Vector3 = Vector3.ZERO
-## The highway gear the ship is actually applying, blended toward the lane's over
-## `highway_gear_shift_seconds` so a change of tube is a shift rather than a jump.
+## The highway gear the ship is actually applying, blended toward the lane's target
+## over `highway_upshift_seconds` or `highway_downshift_seconds`, so a change of tube
+## or an exit lined up for is a shift rather than a jump.
 var _applied_gear: float = 1.0
 ## The extra displacement the gear added this frame, for the chase camera, which
 ## follows the felt motion and is carried along with the geared part rigidly.
@@ -724,9 +725,11 @@ func _fly_cruise(delta: float) -> void:
 	# which is what keeps the road feeling like the same road while the world outside
 	# goes by faster. The applied gear chases the lane's over a few seconds, so
 	# crossing from a ramp into a highway (or back) is a shift, not a jump.
-	var shift := maxf(Tuning.num("exploration/highway_gear_shift_seconds"), 0.001)
-	_applied_gear = move_toward(_applied_gear, cruise.gear,
-		delta * maxf(absf(cruise.gear - _applied_gear), 1.0) / shift)
+	var target := cruise.target_gear()
+	var shift := maxf(Tuning.num("exploration/highway_upshift_seconds" if target > _applied_gear
+		else "exploration/highway_downshift_seconds"), 0.001)
+	_applied_gear = move_toward(_applied_gear, target,
+		delta * maxf(absf(target - _applied_gear), 1.0) / shift)
 	if _applied_gear != 1.0:
 		_gear_shift = axis * (_velocity.dot(axis) * (_applied_gear - 1.0)) * delta
 		_velocity += axis * (_velocity.dot(axis) * (_applied_gear - 1.0))
@@ -762,8 +765,13 @@ func _fly_berthed(delta: float) -> void:
 	var budget := brake_limited(_speed, berth.speed, manual_max_speed(),
 		brake_seconds, delta)
 	var was_at := position
+	# In the road's gear, like the lane: the felt budget is multiplied through the
+	# world, and the ship keeps applying that gear so leaving the berth carries on at
+	# the same world speed.
+	_applied_gear = berth.gear
 	position = position.move_toward(berth.point,
-		(budget + berth.closing_speed()) * delta)
+		(budget * berth.gear + berth.closing_speed()) * delta)
+	_gear_shift = berth.axis * (budget * (berth.gear - 1.0)) * delta
 
 	# The nose comes round to the road at the ship's OWN turn rate, so a berth taken
 	# while pointing off the lane looks like the ship straightening rather than like
@@ -794,7 +802,9 @@ func _fly_berthed(delta: float) -> void:
 		Tuning.num("exploration/berth_look_cone_deg"))
 
 	_velocity = (position - was_at) / delta
-	_speed = _velocity.length()
+	# Felt, not world: what the ship carries out of the berth is the rail's speed
+	# before the gear.
+	_speed = _velocity.length() / maxf(berth.gear, 1.0)
 	# The throttle is kept honest against the speed being held, so leaving the berth
 	# does not lurch: the ship carries on at what it was already doing.
 	_throttle = clampf(_speed / maxf(manual_max_speed(), 0.001), 0.0, 1.0)

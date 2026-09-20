@@ -153,7 +153,9 @@ func compute_bounds() -> void:
 ##
 ## `clearance` is half the asking ship's own section: the lane is measured against the
 ## hull rather than against a point (ADR 0068).
-func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO) -> CruiseLane:
+## `world_speed` is what the ship is making through the world, gear included, for the
+## exit downshift rule; negative means "assume the lane's own geared speed".
+func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO, world_speed: float = -1.0) -> CruiseLane:
 	var l := local(point)
 	var f := travel_frame(l["t"])
 	var lane := CruiseLane.new()
@@ -181,4 +183,24 @@ func sample(point: Vector3, clearance: Vector2 = Vector2.ZERO) -> CruiseLane:
 	lane.deck_name = name
 	lane.metres_travelled = travelled(l["t"])
 	lane.metres_remaining = remaining(l["t"])
+	lane.downshift = _lined_up_for_exit(float(l["t"]), lane.lateral,
+		world_speed if world_speed >= 0.0 else lane.base_speed * lane.gear)
 	return lane
+
+
+## Is a ship at t, this far to the driver's right, within `exit_downshift_seconds`
+## of an exit's opening at this speed? Nothing to shift down from on a ramp.
+func _lined_up_for_exit(t: float, lateral: float, world_speed: float) -> bool:
+	if lateral <= 0.0 or is_ramp() or junctions.is_empty():
+		return false
+	var window := Tuning.num("exploration/exit_downshift_seconds") * maxf(world_speed, 1.0)
+	var beside := Tuning.num("exploration/ramp_exit_length")
+	for j in junctions:
+		if j["kind"] != "exit":
+			continue
+		var ahead: float = path.ahead(t, float(j.get("opens_at", j["t"])), direction)
+		if path.closed and ahead > path.length * 0.5:
+			ahead -= path.length
+		if ahead >= -beside and ahead <= window:
+			return true
+	return false

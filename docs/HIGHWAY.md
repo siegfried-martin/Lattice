@@ -68,24 +68,34 @@ in `tuning.cfg`, and the HUD's `lights` row says what is live.
 ## The gear (a prototype, `highway_gear`)
 
 `docs/SECTOR_PROTOTYPE.md`, prototype 2. `Road.gear()` is `highway_gear` on a highway
-and 1 on a ramp. Three things read it:
+and 1 on a ramp. What reads it:
 
 - `Mothership._fly_cruise` multiplies only the velocity's component along the road
   axis by the gear it is applying, and slews the road axis that much faster so it
   keeps up with a bend. Steering, the lane's push, the collider and the felt speed
-  are as they were. The applied gear chases the lane's over
-  `highway_gear_shift_seconds`, so crossing from a ramp into a highway is an upshift
-  and leaving is a downshift, in time rather than by position. The chase camera is
-  handed the gear's share of each frame's displacement and moves by it rigidly, so
-  its lag is against the felt motion only.
+  are as they were. The applied gear chases the lane's target: up over
+  `highway_upshift_seconds` after a merge, down over `highway_downshift_seconds`.
+- **The exit downshift** (`Tube._lined_up_for_exit`, `CruiseLane.downshift`). In
+  gear, an exit's opening passes in a fraction of a second, so an exit is only
+  takeable out of gear. The lane's target drops to 1 when the ship is on the right
+  of the lane with an exit's opening within `exit_downshift_seconds` ahead at the
+  speed it is making through the world, or has taken the exit from the strip.
+  Drift back left and it shifts back up. A missed exit costs one hop, as before.
+- The chase camera is handed the gear's share of each frame's displacement and
+  moves by it rigidly, so its lag is against the felt motion only. On the road the
+  boom is `road_boom_scale` times longer.
 - `Road.rib_positions()` lays the ribs (and the lamps on them) at
   `structure_module_length` times the gear, so they pass at the felt rate.
+- The berth's rail runs at the lane's speed times the road's gear, so a berth on a
+  highway is slower than driving it by `berth_speed_fraction` and not by the gear
+  as well. Rebinding to a ramp drops it to the ramp's speed at once.
 - The HUD's `gear` row and the `leg` row's by-road estimate.
 
 A ramp also has its own speed limit, `ramp_speed`: the lane's ceiling on a ramp tube.
 The validator floors a ramp's bends at that speed, which is what lets a ramp bend at a
 couple of hundred metres. At `highway_gear` 1 the road is exactly what it was. The
-gate's flying probe (`RoadProbe`) does not use the gear; it flies at the lane's speed.
+gate's probe (`RoadProbe`) applies the gear the way the ship does, downshift included,
+so the laps are flown in gear and the steered exits are taken out of it.
 
 ## Authoring the map
 

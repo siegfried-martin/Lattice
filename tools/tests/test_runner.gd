@@ -222,7 +222,9 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/exit_approach_metres",
 	"exploration/structure_glass_edge_alpha", "exploration/structure_glass_fresnel_power",
 	"exploration/structure_glass_sheen", "exploration/far_compress_power",
-	"exploration/highway_gear", "exploration/highway_gear_shift_seconds", "exploration/ramp_speed",
+	"exploration/highway_gear", "exploration/highway_upshift_seconds",
+	"exploration/highway_downshift_seconds", "exploration/exit_downshift_seconds",
+	"exploration/ramp_speed", "camera/road_boom_scale",
 	"exploration/sectors_enabled", "exploration/sector_radius",
 	"exploration/sector_next_power", "exploration/sector_far_power",
 	"exploration/sector_far_rings", "exploration/sector_crossing_seconds",
@@ -2749,7 +2751,8 @@ func _test_lane_geometry() -> void:
 	# The speed ladder's whole purpose is that the highway beats flying it yourself
 	# by a lot at range and by little up close. If cruise ever stops beating a
 	# fighter, the road has no reason to exist.
-	_expect(Tuning.num("exploration/cruise_speed")
+	# Through the world: the felt speed times the highway's gear.
+	_expect(Tuning.num("exploration/cruise_speed") * maxf(Tuning.num("exploration/highway_gear"), 1.0)
 			> HullClass.max_speed(HullClass.Kind.FIGHTER) * 2.0,
 		"cruise is at least twice the fastest hull, or the road buys nothing",
 		"cruise %.1f vs fighter %.1f" % [Tuning.num("exploration/cruise_speed"),
@@ -2978,6 +2981,25 @@ func _test_highway_gear() -> void:
 	_expect(is_equal_approx(ramp_lane.base_speed, Tuning.num("exploration/ramp_speed"))
 			and is_equal_approx(lane.base_speed, Tuning.num("exploration/cruise_speed")),
 		"a ramp's lane runs at ramp_speed, a highway's at cruise_speed", "")
+	# THE EXIT DOWNSHIFT: lined up on the right with an exit's opening a few seconds
+	# ahead at world speed, the lane asks for first; on the left, or too far off, it
+	# does not.
+	road.tubes[0].junctions.append({"t": 10000.0, "kind": "exit", "label": "x",
+		"ramp": ramp.tubes[0], "opens_at": 10000.0})
+	var window := Tuning.num("exploration/exit_downshift_seconds") * 1200.0
+	var tube := road.tubes[0]
+	var right := tube.travel_frame(10000.0 - window * 0.5)["right"] as Vector3
+	var lined := tube.sample(tube.centre(10000.0 - window * 0.5) + right * 20.0 * tube.direction,
+		Vector2.ZERO, 1200.0)
+	var left := tube.sample(tube.centre(10000.0 - window * 0.5) - right * 20.0 * tube.direction,
+		Vector2.ZERO, 1200.0)
+	var early := tube.sample(tube.centre(10000.0 - window * 2.0) + right * 20.0 * tube.direction,
+		Vector2.ZERO, 1200.0)
+	_expect(lined.downshift and is_equal_approx(lined.target_gear(), 1.0),
+		"lined up on the right within the window of an exit, the lane asks for first", "")
+	_expect(not left.downshift and not early.downshift
+			and is_equal_approx(early.target_gear(), 4.0),
+		"on the left, or with the exit too far ahead, the lane stays in gear", "")
 	Tuning.set_value("exploration/highway_gear", keep_gear)
 
 
@@ -3342,7 +3364,10 @@ func _test_exploration_builds() -> void:
 	_expect(lit_ship.markers != null and lit_ship.markers.get_child_count() == 4,
 		"the ship carries four marker lights", "")
 	_expect(road.lamps != null, "the road has its lamp pool", "")
-	var on_road := road.tubes[0].centre(2000.0)
+	# At a rib, where a lamp is: in gear the ribs are far apart.
+	var first_road: Road = road.tubes[0].road
+	var ribs_here := first_road.rib_positions()
+	var on_road := road.tubes[0].centre(ribs_here[mini(1, ribs_here.size() - 1)])
 	road.light(on_road, road.tubes[0])
 	_expect(road.lamps.live_count() > 0 and road.lamps.live_count() <= RoadLamps.MAX_LIGHTS,
 		"the track lights follow a ship on the road, within the pool's cap",
@@ -3556,6 +3581,11 @@ func _test_exploration_builds() -> void:
 	var was_off := berth.hold().error
 	var biggest_step := 0.0
 	var before_step := scene.ship().position
+	# The rail's step is what the ship was doing, eased down to the rail's speed,
+	# plus the pull: the bound is that, at the road's gear.
+	var step_bound := (maxf(scene.ship().felt_speed(), Tuning.num("exploration/cruise_speed"))
+		* maxf(Tuning.num("exploration/highway_gear"), 1.0)
+		+ Tuning.num("exploration/berth_pull_rate") * was_off) / 60.0 * 1.5
 	for _i in 90:
 		_step_exploration(scene, 1.0 / 60.0)
 		biggest_step = maxf(biggest_step, (scene.ship().position - before_step).length())
@@ -3563,15 +3593,17 @@ func _test_exploration_builds() -> void:
 	_expect(berth.hold().error < was_off,
 		"…and the ship slides ONTO the rail rather than being put on it",
 		"%.1f m off, was %.1f" % [berth.hold().error, was_off])
-	_expect(biggest_step < Tuning.num("exploration/cruise_speed") / 60.0 * 1.5,
-		"…never moving further in a frame than a ship at cruise could have", "%.1f m" % biggest_step)
+	_expect(biggest_step < step_bound,
+		"…never moving further in a frame than a ship at cruise could have",
+		"%.1f m against %.1f" % [biggest_step, step_bound])
 	var bound := berth.tube()
 	scene.ship().add_mouse_steer(Vector2(400.0, 0.0))
 	_step_exploration(scene, 1.0 / 60.0)
 	_expect(berth.is_berthed() and berth.tube() == bound,
 		"looking around does not abort the berth, and does not change which road it is on", "")
 	var carried := scene.ship().speed()
-	_expect(carried < Tuning.num("exploration/cruise_speed") - 1.0,
+	_expect(carried < Tuning.num("exploration/cruise_speed")
+			* maxf(Tuning.num("exploration/highway_gear"), 1.0) - 1.0,
 		"…and it carries the ship below cruise speed", "%.0f m/s" % carried)
 
 	# --- EXITS ON THE STRIP (ADR 0091), taken by a rail rebind (ADR 0083) ---
@@ -3620,7 +3652,11 @@ func _test_exploration_builds() -> void:
 	_expect(berth.taking() == null, "…and pressing it again cancels", "still taken")
 	map.take_exit(chosen)
 	var frames := 0
-	while berth.tube() == forward and frames < 60 * 90:
+	# As long as the ride there takes at the rail's speed, and a little.
+	var rail_speed := Tuning.num("exploration/cruise_speed") \
+		* Tuning.num("exploration/berth_speed_fraction") * maxf(Tuning.num("exploration/highway_gear"), 1.0)
+	var ride_frames := int((chosen_metres / maxf(rail_speed, 1.0) + 30.0) * 60.0)
+	while berth.tube() == forward and frames < ride_frames:
 		_step_exploration(scene, 1.0 / 60.0)
 		frames += 1
 	_expect(berth.tube() == chosen and berth.taking() == null,
@@ -3633,10 +3669,14 @@ func _test_exploration_builds() -> void:
 	_expect(scene.ship().road.tube == chosen and map.riding() == chosen,
 		"…and carried along the ramp the ship leaves the mainline through the open wall into the ramp's tube",
 		"in %s" % _tube_name(scene.ship().road.tube))
+	# What it carries out is what the rail was doing HERE, on the ramp, out of gear.
+	carried = scene.ship().speed()
 	berth.release(scene.ship())
 	_step_exploration(scene, 1.0 / 60.0)
 	_expect(not berth.is_berthed() and scene.ship().speed() > carried * 0.8 and map.riding() != null,
-		"pressing dock again leaves the berth, still carrying its speed, still on the road", "")
+		"pressing dock again leaves the berth, still carrying its speed, still on the road",
+		"berthed %s, %.0f of %.0f m/s, riding %s" % [berth.is_berthed(), scene.ship().speed(),
+			carried, _tube_name(map.riding())])
 
 	# --- GETTING OFF: out of an exit's mouth into open space, drive winding down ---
 	var exit_end: Vector3 = exit_ramp.centre(exit_ramp.path.length)

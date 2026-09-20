@@ -27,6 +27,8 @@ var _contact: bool = false
 var turn_rate_deg: float = 34.0
 var pitch_limit_deg: float = 7.0
 var cruise_speed: float = 250.0
+## The highway gear being applied, blended like the ship's. 1 off the road.
+var gear: float = 1.0
 var open_space_speed: float = 80.0
 var accel: float = 80.0
 
@@ -61,6 +63,7 @@ func place(t: Tube, at_t: float) -> void:
 	aim = f["fwd"]
 	velocity = Vector3.ZERO
 	throttle = 0.0
+	gear = 1.0
 	frame = f
 
 
@@ -68,7 +71,7 @@ func step(dt: float) -> void:
 	time += dt
 	var here := collider.tube
 	if here != null:
-		lane = here.sample(position, Vector2(half.x, half.y))
+		lane = here.sample(position, Vector2(half.x, half.y), speed() * gear)
 		frame = here.travel_frame(here.local(position)["t"])
 		# Inside a junction the lane does not penalise (see `SystemMap`).
 		for other in here.neighbours:
@@ -103,7 +106,16 @@ func step(dt: float) -> void:
 	# The lane's nudge is a velocity for THIS frame, exactly as the mothership adds
 	# it, never accumulated into the probe's own.
 	var moving := velocity + (lane.push() if lane != null else Vector3.ZERO)
-	var next := position + moving * dt
+	# THE GEAR, as the ship applies it: the along-axis motion is multiplied, blended
+	# up or down in time, and an exit lined up for drops it (`CruiseLane.downshift`).
+	var target := lane.target_gear() if lane != null else 1.0
+	var shift := maxf(Tuning.num("exploration/highway_upshift_seconds" if target > gear
+		else "exploration/highway_downshift_seconds"), 0.001)
+	gear = move_toward(gear, target, dt * maxf(absf(target - gear), 1.0) / shift)
+	var geared := moving
+	if lane != null and gear != 1.0:
+		geared += lane.axis * (moving.dot(lane.axis) * (gear - 1.0))
+	var next := position + geared * dt
 	var held := collider.hold(position, next, moving, basis, half, dt)
 	position = held["pos"]
 	velocity = (held["vel"] as Vector3) + (held["kick"] as Vector3) \

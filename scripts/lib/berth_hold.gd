@@ -19,6 +19,9 @@ var point: Vector3 = Vector3.ZERO
 var axis: Vector3 = Vector3.FORWARD
 ## How fast the berth carries you. A fraction of cruise, never all of it.
 var speed: float = 0.0
+## The road's highway gear where the rail runs: the rail advances at `speed` times
+## this through the world, and the ship keeps `speed` as its felt speed.
+var gear: float = 1.0
 ## How quickly the ship converges onto the rail, in metres per second of closing
 ## speed per metre of error. Engaging is a move the ship makes, not a snap: a berth
 ## that teleported you onto the centre-line would be the one moment on the road that
