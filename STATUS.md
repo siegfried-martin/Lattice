@@ -14,11 +14,23 @@ the human's explicit direction.
 
 | | |
 |---|---|
-| Branch | `feat/exploration-tuning-and-hud`, PR #14 |
-| Gate | `make check` — 938 checks, 0 failed |
+| Branch | `feat/highway-clean`, from `bf97b40` (the last commit before any road) |
+| Gate | `make check` — 938 checks, 0 failed, as at that commit |
 | Run it | `make run SCENE=res://scenes/exploration.tscn` |
 | Built | Exploration POC steps 1–5, plus the system border (ADRs 0062, 0063) |
-| **Do next** | **POC step 6** — portals and the highway tube on the local leg. See `docs/EXPLORATION_POC_IMPLEMENTATION.md`. The corridor it goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
+| **Do next** | **Build the highway from `docs/HIGHWAY_BRIEF.md`**, ignoring both earlier highways. The corridor it goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
+
+### A clean start on the highway — 2026-09-20
+
+Two highways were built after this commit and set aside: the first (on `main`,
+2026-08-29 to 09-06, ADRs 0057 to 0095) and its replacement (on `feat/highway-tubes`,
+ADR 0096, with a working wormhole and ramps in both worlds). The human's call was to
+start the next attempt from before either existed, with the earlier code ignored
+rather than read. `docs/HIGHWAY_BRIEF.md` is the brief: the one-sentence
+requirement, the rules from `docs/EXPLORATION_DESIGN.md` (brought forward from `main`
+so it has the side-by-side carriageways), the wormhole picture as the target, and
+the two lessons worth keeping. Everything else about the old roads stays on their
+branches.
 
 Everything under §Where the build is and below is the **combat POC's history**,
 kept for its reasoning. It is not a to-do list, and its §Next is superseded by the
