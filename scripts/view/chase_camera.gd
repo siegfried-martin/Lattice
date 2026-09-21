@@ -28,6 +28,15 @@ var pitch_share_key: String = ""
 ## keeps the ship the same size on screen whatever class it is, so what the player
 ## is comparing is how it flies rather than how far away it looks.
 var boom_scale: float = 1.0
+## A frame the camera may be held to instead of the subject's own, and how much.
+##
+## For the highway: `EXPLORATION_DESIGN.md` fixes the camera to the road's direction
+## while cruising. This is that, and only that — the boom and the look are turned
+## toward `reference_basis`, and the subject is never touched, so the ship's nose
+## stays wherever the player put it (ADR 0012: no auto-steer, ever). Zero is the
+## behaviour every other view has always had.
+var reference_basis: Basis = Basis.IDENTITY
+var reference_share: float = 0.0
 
 ## Optional tuning key for this view's own field of view. Empty means the shared
 ## `camera/fov_base`. The turret uses it: a narrow FOV is a zoom, and it is the
@@ -64,6 +73,9 @@ func _process(delta: float) -> void:
 		return
 
 	var subject_basis := subject.global_transform.basis
+	if reference_share > 0.0:
+		subject_basis = subject_basis.orthonormalized().slerp(
+			reference_basis.orthonormalized(), clampf(reference_share, 0.0, 1.0))
 	var back := subject_basis.z
 	var up := subject_basis.y
 	if not pitch_share_key.is_empty():

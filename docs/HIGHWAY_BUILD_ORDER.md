@@ -67,27 +67,37 @@ to `exploration/cruise_speed`, and a fighter — no cruise drive — flies it at
 speed. `Mothership` has two new channels: a decaying knock from the walls, and the
 cruise ceiling the road raises. Neither can turn the ship.
 
-### Step 2 — A road with somewhere to go  ← *next*
+### Step 2 — A road with somewhere to go ✅
 
-The step that makes the road worth driving. One PR, because every piece is only
-judgeable next to the others:
+Built, and one PR:
 
-- **It bends and climbs.** Each tile gets a yaw and a pitch; the road is a list of
-  them. The seam between tiles is open because neither tile makes a wall there, so
-  *connect* is the same rule as *open*.
-- **Both carriageways and the median**, traffic on the right, in one tunnel shape, so
-  there is an opposing lane to look across.
-- **Exits and entrances.** An off-ramp is a branch — a side wall that is not there,
-  opening onto a spur tile that peels away — and an on-ramp is the same shape merging
-  in. Several along a longer road, so a missed exit costs the next one.
-- **The camera held to the road's direction** while cruising (`EXPLORATION_DESIGN.md`,
-  locked), which only makes sense once the road bends.
+- **It bends and climbs.** The tile is now any four-walled piece between two frames,
+  so a bend, a climb and a taper are all the same tile with different ends. The
+  spine alternates straight junction stretches with bends that turn left or right
+  and rise or dip on the way through. No roll, ever (ADR 0045).
+- **Both carriageways and the median**, each on its own traffic's right, with their
+  ribs coloured by direction so which way a tube runs reads across the median.
+- **Exits and entrances** on the right of each carriageway at every junction. An
+  exit is a taper where the road's right wall and the ramp's left wall are both
+  missing, a knife-edge gore where they close, and a tail turning off into open
+  space. An entrance is the same, backwards, and comes first at each junction so the
+  two tails point away from each other.
+- **Traffic**, with the brief's deferral lifted by the human: lanes by speed, slow on
+  the right, every ship in a lane at that lane's speed so none ever closes on
+  another. It does not react to the player; touching it glances off.
+- **The camera held to the road's direction** — the camera only. See below.
 
-In this step the ramps end in open space in the same world. Crossing into the
-wormhole is step 4.
+**Flagged, not built: the cruise heading clamp.** `EXPLORATION_DESIGN.md` gives the
+cruising player "a limited maximum turn angle off the road axis". A clamp that keeps
+the nose within a cone of a road that bends has to turn the nose to follow the bend,
+and ADR 0012 forbids auto-steer "ever, for any reason, in any system". So the camera
+looks down the road (`highway/camera_road_share`) and the ship's nose stays the
+player's; the walls are what bound it. The two documents disagree, and which one
+gives is the human's call.
 
-**Fly:** on at one ramp, down a bending road, off at a chosen exit, back on the other
-carriageway. Clip the lip of an exit on the way past.
+**Fly:** `make fly`. You start outside the first northbound on-ramp. On, merge, down
+the bends, off at an exit or past it, and look across the median at the southbound
+traffic. Clip the gore nose on the way past one.
 
 ### Step 3 — Interchanges
 
@@ -109,11 +119,11 @@ Highway nodes at the map's bearings, each leg a tuned fraction of the world leg,
 dead-ending a short run past the first and last systems. A to B on the road against A
 to B by hand, back to back.
 
-### Not in any step: traffic
+### Traffic
 
-The brief defers traffic: *"Traffic is not in this prototype; the tunnel is shaped for
-it."* The human listed other ships among what step 1 was missing. Until that deferral
-is lifted, the opposing lane in step 2 is empty.
+The brief deferred it; the human lifted that deferral on 2026-09-20, and step 2
+carries the least traffic that makes a road read as one. Traffic that changes lanes,
+merges at ramps, or reacts to anything is not built.
 
 ---
 
@@ -129,6 +139,6 @@ is lifted, the opposing lane in step 2 is empty.
 
 ## Deferred, and staying deferred
 
-Traffic (above), the comms channel, signs and the map inset, fuel per hop,
+Smarter traffic (above), the comms channel, signs and the map inset, fuel per hop,
 interchanges as junctions inside the wormhole, what is past the last exit. All
 listed in the brief; none of them are in these five steps.
