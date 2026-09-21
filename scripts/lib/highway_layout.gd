@@ -20,8 +20,10 @@ extends RefCounted
 ##   wall is open and a ramp tile beside it grows out of nothing, its left wall open
 ##   too; then both walls close and the ramp steps away, leaving a knife-edge nose
 ##   between them. Then it turns off into open space and ends in a mouth.
-## - **An on-ramp** is the same shape played backwards: in from open space, closing
-##   on the carriageway, then tapering to nothing into it.
+## - **An on-ramp** comes in from open space, turning until it touches the
+##   carriageway, and from that moment the wall between them is gone: a run
+##   alongside, then a taper to nothing into it. No gap and no gore on the way in —
+##   a wall between two tubes is open for exactly as long as they touch.
 ##
 ## On-ramp before off-ramp at each junction, so the two ramps' tails point away from
 ## each other and can never cross.
@@ -161,33 +163,40 @@ func _lay_junction(carriageway_id: int, frames: Array[Transform3D],
 	var gap := float(_p["ramp_gap"])
 	var road_name := routes[carriageway_id].name
 
-	# --- on-ramp: in from space, closing on the road, tapering into it -------------
+	# --- on-ramp: in from space, touching the road, open, tapering into it -------
+	# No gap on the way in. The rule is that the wall between two tubes is open for
+	# exactly as long as they touch (the human, 2026-09-21: "I should be able to get
+	# on as long as they are touching"), and an entrance that closed on the road
+	# across a gap had a stretch of wall where the two looked joined and were not.
+	# So the tail turns in until it touches, and from that frame to the end of the
+	# taper — `diverge` tiles alongside, then `taper` tiles narrowing — there is no
+	# wall between them at all. The exit keeps its gore: there the walls close at
+	# exactly the point the tubes stop touching, which is the same rule.
 	var join := zone + 1
 	var on_frames: Array[Transform3D] = []
 	var on_halves := PackedFloat32Array()
 	for k in diverge + 1:
-		var edge := gap * (1.0 - float(k) / float(diverge))
-		on_frames.append(_beside(frames[join + k], road_half + edge + ramp_half))
+		on_frames.append(_beside(frames[join + k], road_half + ramp_half))
 		on_halves.append(ramp_half)
 	for k in range(1, taper + 1):
 		var half := ramp_half * (1.0 - float(k) / float(taper))
 		on_frames.append(_beside(frames[join + diverge + k], road_half + half))
 		on_halves.append(half)
-	for k in taper:
-		open_right[join + diverge + k] = true
+	for k in diverge + taper:
+		open_right[join + k] = true
 	# The tail ends ON the first converge frame, so that frame is shared rather than
 	# repeated — a repeated frame is a tile of zero length, and a wall of zero area.
 	var tail := _tail(on_frames[0], headings[join], -1.0)
 	var on := _ramp_route("%s on-ramp %d" % [road_name, number],
-		HighwayRoute.Kind.ON_RAMP, carriageway_id, join + diverge)
+		HighwayRoute.Kind.ON_RAMP, carriageway_id, join)
 	var all_frames: Array[Transform3D] = tail.duplicate()
 	all_frames.append_array(on_frames.slice(1))
 	var all_halves := PackedFloat32Array()
 	for _i in tail.size():
 		all_halves.append(ramp_half)
 	all_halves.append_array(on_halves.slice(1))
-	var first_taper := tail.size() - 1 + diverge
-	_fill_ramp(on, all_frames, all_halves, first_taper, first_taper + taper)
+	var first_touch := tail.size() - 1
+	_fill_ramp(on, all_frames, all_halves, first_touch, first_touch + diverge + taper)
 
 	# --- off-ramp: growing out of the road, a gore, then away into space ------------
 	var leave := join + diverge + taper + int(_p["gap_tiles"])

@@ -3369,13 +3369,35 @@ func _test_highway_layout() -> void:
 		for section in ramp.sections:
 			if section.open & HighwaySection.Wall.LEFT:
 				open_count += 1
-		if open_count != maxi(Tuning.integer("highway/ramp_taper_tiles"), 1):
+		var touching := maxi(Tuning.integer("highway/ramp_taper_tiles"), 1)
+		if ramp.kind == HighwayRoute.Kind.ON_RAMP:
+			touching += maxi(Tuning.integer("highway/ramp_diverge_tiles"), 1)
+		if open_count != touching:
 			shared_open = false
 	_expect(ramp_right, "every ramp leaves and joins on the right of its carriageway",
 		"a ramp is on the median side")
 	_expect(shared_open,
-		"…and runs open-sided beside the road for exactly the taper, then closes",
+		"…and is open to the road for exactly as long as the two touch",
 		"a ramp's open stretch is the wrong length")
+
+	# THE RULE, as the wall the human hit on the first flight of this: an entrance
+	# running ALONGSIDE the road — parallel to it, nothing left to turn — with its
+	# wall still up. Every entrance tile that has stopped turning in must be one open
+	# space with the road; only the tail, still curving in, may keep its wall.
+	var walled_alongside := ""
+	for ramp in ramps:
+		if ramp.kind != HighwayRoute.Kind.ON_RAMP:
+			continue
+		var road := layout.routes[ramp.carriageway]
+		var heading := -road.sample(ramp.joins_at).basis.z
+		for section in ramp.sections:
+			var parallel := (-section.start.basis.z).angle_to(heading) < 0.001 \
+				and (-section.end.basis.z).angle_to(heading) < 0.001
+			if parallel and not (section.open & HighwaySection.Wall.LEFT):
+				walled_alongside = ramp.name
+	_expect(walled_alongside.is_empty(),
+		"no entrance runs alongside the road behind a wall — touching is open",
+		"the %s has a walled stretch parallel to the road" % walled_alongside)
 
 	# FLY EVERY TUBE. A hull driven down each one while being shoved from wall to
 	# wall, settled every step, and at no step inside a drawn wall. The scene check

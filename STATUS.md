@@ -56,6 +56,13 @@ entrance and an exit each way, and 18 traffic ships in three lanes per direction
   auto-steer ADR 0012 forbids. Only the camera half is built, as a slider. **Flagged
   for the human: the two documents disagree.**
 
+**Second flight, 2026-09-21.** The human: an entrance kept its wall between ramp
+and road where the two looked joined ("I should be able to get on as long as they
+are touching"), and everything is too slow to judge steering. Entrances now have no
+gap: they turn in until they touch and are open from there to the end of the taper.
+Every hull is x3 and cruise x2 — except the fighter, which the speed hierarchy
+holds at 95% of missile speed (55 m/s) until the missile is made faster.
+
 **Open feel questions:**
 
 - Is a 3.3 km bend radius enough curve to drive, and is a 1 deg/tile climb visible?
