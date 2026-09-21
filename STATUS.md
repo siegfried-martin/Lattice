@@ -18,7 +18,8 @@ the human's explicit direction.
 | Gate | `make check` — 938 checks, 0 failed, as at that commit |
 | Run it | `make run SCENE=res://scenes/exploration.tscn` |
 | Built | Exploration POC steps 1–5, plus the system border (ADRs 0062, 0063) |
-| **Do next** | **Build the highway from `docs/HIGHWAY_BRIEF.md`**, ignoring both earlier highways. The corridor it goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
+| Fly the road | `make fly` — the highway harness, one road and one ship |
+| **Do next** | **Highway build order step 2**, once step 1 has been flown: see `docs/HIGHWAY_BUILD_ORDER.md`. The corridor the road eventually goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
 
 ### A clean start on the highway — 2026-09-20
 
@@ -31,6 +32,40 @@ requirement, the rules from `docs/EXPLORATION_DESIGN.md` (brought forward from `
 so it has the side-by-side carriageways), the wormhole picture as the target, and
 the two lessons worth keeping. Everything else about the old roads stays on their
 branches.
+
+### Highway step 1 is built — one square tube, and walls that push back — 2026-09-20
+
+`make fly` opens `scenes/highway.tscn`: a straight run of 24 square tiles, 150 x 100 m,
+4.8 km of road, with a ship that bounces off the walls. `docs/HIGHWAY_BUILD_ORDER.md`
+has the seven steps and what each one ends in.
+
+**The one mechanism choice.** The wall list *is* the road. `HighwaySection` emits a
+quad per wall it actually has; `HighwayShell` is every one of them; the mesh is those
+quads drawn and the collider is those quads collided. An opening is a quad that was
+never made, so there is no second rule about where a wall is open — which is the
+brief's first lesson made structural. The gate asserts the drawn triangles and the
+collided quads are the same set, vertex for vertex, and then flies a hull into a wall
+in the live scene and checks it comes back out.
+
+**One conflict flagged, not settled.** `EXPLORATION_DESIGN.md` wants a rounded
+lozenge; the brief's one-sentence requirement says square tubes and says to judge
+against it first. Built square. The old `exploration/lane_*` and `portal_*` keys are
+untouched and unread; the new road has its own `[highway]` section.
+
+**Open feel questions, all waiting on a flight:**
+
+- Is 150 x 100 m the right tube against a 43.6 m hull, and is a 200 m tile the right
+  rib spacing at 15.5 m/s?
+- Should a wall kick, scrape or stop? `bounce_restitution` is at 0.45 and
+  `bounce_decay_seconds` at 0.9, both guesses.
+- `wall_alpha` is at 0.10 because from inside the tube every wall layer stacks and
+  0.3 read as fog. That number decides whether the lane is visually open or a tunnel.
+- The chase camera sits 16 m above the ship in a tube 50 m to the ceiling, so flying
+  high puts the lens through the roof. Whether that is fixed by the tube's height,
+  the camera's, or a rule, is a decision not yet made.
+
+Nothing here has an ADR. Nothing about the highway gets one until it has been flown
+and kept.
 
 Everything under §Where the build is and below is the **combat POC's history**,
 kept for its reasoning. It is not a to-do list, and its §Next is superseded by the

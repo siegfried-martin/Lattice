@@ -169,6 +169,14 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"exploration/dock_title_font_size", "exploration/dock_title_color",
 	"exploration/corridor_diameter", "exploration/local_leg_length",
 	"exploration/trunk_leg_length", "exploration/debug_teleport_enabled",
+	# The highway, built from scratch (docs/HIGHWAY_BRIEF.md). Step 1: one straight
+	# run of square tiles with walls you bounce off.
+	"highway/section_length", "highway/section_count",
+	"highway/tube_width", "highway/tube_height",
+	"highway/wall_color", "highway/wall_alpha",
+	"highway/rib_color", "highway/rib_alpha", "highway/rib_width",
+	"highway/wall_clearance", "highway/bounce_restitution",
+	"highway/bounce_decay_seconds", "highway/bounce_max_speed_fraction",
 ]
 
 const REQUIRED_ACTIONS: Array[String] = [
@@ -180,7 +188,7 @@ const REQUIRED_ACTIONS: Array[String] = [
 	"cam_forward", "cam_back", "cam_left", "cam_right", "cam_up", "cam_down",
 	"cam_boost", "cam_look",
 	"debug_toggle_hud", "debug_toggle_panel", "debug_reload_tuning",
-	"debug_reverse_arc", "debug_cycle_hull", "quit",
+	"debug_reverse_arc", "debug_reset_road", "debug_cycle_hull", "quit",
 ]
 
 var _failures: PackedStringArray = []
@@ -219,9 +227,11 @@ func _ready() -> void:
 	_test_tuning_writer()
 	_test_debug_panel()
 	_test_autopilot_holds_standoff()
+	_test_highway_shell()
 	await _test_sandbox_builds()
 	await _test_arena_builds()
 	await _test_exploration_builds()
+	await _test_highway_builds()
 
 	print("── %d checks, %d failed ──" % [_checks, _failures.size()])
 	for f in _failures:
@@ -3177,3 +3187,245 @@ func _test_approach_envelope() -> void:
 	ship.free()
 	envelope.free()
 	host.free()
+
+
+## THE ROAD'S OWN RULE: a wall that is drawn is a wall that is there.
+##
+## The brief's first lesson is that the first road computed collision as path
+## arithmetic and drew a mesh decoupled from it, and the human found missing glass
+## and wrong collision within seconds of every flight. The answer here is that there
+## is only one description — `HighwayShell.quads()` — and these checks are what make
+## that a fact rather than an intention. See `docs/HIGHWAY_BUILD_ORDER.md`.
+func _test_highway_shell() -> void:
+	var shell := HighwayShell.new()
+	shell.build_chain(Transform3D.IDENTITY, 3, 200.0, 150.0, 100.0)
+
+	_expect(shell.sections.size() == 3 and shell.quads().size() == 12,
+		"a chain of 3 square tiles is 3 tiles and 12 walls — four each, no end caps",
+		"%d tiles, %d walls" % [shell.sections.size(), shell.quads().size()])
+	_expect(is_equal_approx(shell.total_length(), 600.0),
+		"…600 m of road", "%.1f m" % shell.total_length())
+
+	# Tiles CONNECT: each one begins exactly where the last ended, and neither puts
+	# a wall across the seam. That is the whole of "connect" — there is no join to
+	# get wrong, because an end was never a wall.
+	var contiguous := true
+	for i in shell.sections.size() - 1:
+		if shell.sections[i].exit().origin.distance_to(
+				shell.sections[i + 1].entry.origin) > 0.001:
+			contiguous = false
+	_expect(contiguous, "each tile starts exactly where the last one ended",
+		"a seam has a gap in it")
+
+	# An OPEN wall is a wall that was never made. This is what step 3's branch cuts
+	# with, and the reason a branch cannot grow collision where there is no mesh.
+	var opened := HighwaySection.make(Transform3D.IDENTITY, 200.0, 150.0, 100.0,
+		HighwaySection.Wall.LEFT, 0)
+	_expect(opened.walls().size() == 3 and opened.ribs(8.0, 0.35).size() == 3,
+		"a tile with one wall open has three walls AND three ribs — one rule, not two",
+		"%d walls, %d ribs" % [opened.walls().size(), opened.ribs(8.0, 0.35).size()])
+	var has_left := false
+	for quad in opened.walls():
+		if quad.wall_name == "left":
+			has_left = true
+	_expect(not has_left, "…and the one that is open is the one that is gone",
+		"the left wall is still there")
+
+	# Wall normals point INTO the tube, or every push is backwards.
+	var inward := true
+	for quad in shell.quads():
+		if quad.normal.dot(shell.sections[0].center() - quad.center) < 0.0:
+			inward = false
+	_expect(inward, "every wall pushes towards the middle of the road",
+		"a normal points out")
+
+	# Down the middle is clear, and the clearance row reads the true half-width.
+	var middle := Vector3(0.0, 0.0, -300.0)
+	_expect(shell.contacts(middle, 24.0).is_empty(),
+		"a hull down the centre of the road touches nothing",
+		"%d contacts" % shell.contacts(middle, 24.0).size())
+	_expect(is_equal_approx(float(shell.clearance(middle)["distance"]), 50.0),
+		"…and the nearest wall is the ceiling at half the tube's height",
+		"%.1f m to the %s" % [float(shell.clearance(middle)["distance"]),
+			String(shell.clearance(middle)["wall"])])
+
+	# A hull pressed against the right wall is put back exactly clear of it — not
+	# approximately, and not inside it.
+	var radius := 24.0
+	var pressed := Vector3(70.0, 0.0, -300.0)
+	var settled := shell.settle(pressed, radius)
+	var fixed: Vector3 = settled["position"]
+	_expect(is_equal_approx(fixed.x, 75.0 - radius),
+		"a hull against the right wall is set down exactly its own radius clear",
+		"x %.2f, wanted %.2f" % [fixed.x, 75.0 - radius])
+	_expect(not settled["contacts"].is_empty()
+			and (settled["contacts"][0] as HighwayContact).wall_name == "right",
+		"…and it says which wall did it", "no contact reported")
+
+	# A hull caught part-way THROUGH a wall is brought back in, not pushed the rest
+	# of the way out. The sign of that push is the difference between a wall and a
+	# trapdoor, and it is what makes a fast hull safe at a frame boundary.
+	var escaped := shell.settle(Vector3(85.0, 0.0, -300.0), radius)
+	_expect(is_equal_approx(float(Vector3(escaped["position"]).x), 75.0 - radius),
+		"a hull caught inside a wall is pushed back into the road, not out of it",
+		"x %.1f" % float(Vector3(escaped["position"]).x))
+
+	# And a hull that is properly OUTSIDE is left alone: the wall is a surface, not
+	# a magnet. This is the behaviour step 3's branch and step 6's ramp mouths rely
+	# on — leaving the road through a gap must not be undone by the wall beside it.
+	_expect(shell.contacts(Vector3(200.0, 0.0, -300.0), radius).is_empty(),
+		"…while a hull well outside the road is not dragged back to it",
+		"a wall reached %.0f m to grab something" % (200.0 - 75.0))
+
+	# A corner is two walls at once, and both of them act.
+	var corner := shell.settle(Vector3(70.0, 45.0, -300.0), radius)
+	var out: Vector3 = corner["position"]
+	_expect(out.x <= 75.0 - radius + 0.001 and out.y <= 50.0 - radius + 0.001,
+		"a hull in a corner is cleared of BOTH walls, not whichever was tested first",
+		"(%.1f, %.1f)" % [out.x, out.y])
+
+	# Off the end of the road there is nothing to hit. The road is a place with
+	# ends, and step 6's ramps attach at them.
+	_expect(shell.contacts(Vector3(0.0, 0.0, 200.0), radius).is_empty()
+			and int(shell.progress(Vector3(0.0, 0.0, 200.0))["section"]) == -1,
+		"past the mouth there is no road and nothing to collide with",
+		"the road extends behind its own start")
+
+	# FLY IT. Not a data check: a hull is stepped the length of the road while being
+	# driven sideways into the walls, and every single frame is asserted to be inside
+	# them. This is the shape of the check the brief asks for, and the mesh test
+	# below is what makes "inside the walls" mean "inside what is drawn".
+	var flown := Vector3(0.0, 0.0, -10.0)
+	var drift := Vector3(40.0, 18.0, 0.0)
+	var step := 1.0 / 60.0
+	var deepest := 0.0
+	var touched := 0
+	for i in 900:
+		flown += (Vector3(0.0, 0.0, -60.0) + drift) * step
+		if flown.z < -590.0:
+			break
+		var result := shell.settle(flown, radius)
+		flown = result["position"]
+		if not result["contacts"].is_empty():
+			touched += 1
+			# Reverse the drift on contact, the way the road's bounce does, so the
+			# hull works both walls instead of grinding along one.
+			drift = -drift
+		var clear := float(shell.clearance(flown)["distance"])
+		deepest = minf(deepest, clear - radius)
+	_expect(deepest > -0.001,
+		"flown the length of the road into both walls, the hull is never inside one",
+		"%.3f m of penetration at the worst frame" % -deepest)
+	_expect(touched > 0, "…and it actually hit them, so the check meant something",
+		"%d contacts in 900 frames" % touched)
+
+
+## The scene builds, and — the check this road exists to be able to make — the
+## triangles on screen and the walls the ship bounces off are THE SAME SET.
+##
+## Set equality, not a count: a wall drawn where nothing collides is missing glass,
+## and collision where nothing is drawn is the invisible wall. Both are one failure
+## here rather than two bug reports later.
+func _test_highway_builds() -> void:
+	var packed := load("res://scenes/highway.tscn") as PackedScene
+	_expect(packed != null, "highway.tscn loads", "scene failed to load")
+	if packed == null:
+		return
+	var scene := packed.instantiate() as HighwayScene
+	add_child(scene)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	for path in ["WorldEnvironment", "KeyLight", "FillLight", "RoadRoot",
+			"RoadRoot/Highway", "RoadRoot/Highway/Walls", "RoadRoot/Highway/Ribs",
+			"RoadRoot/Ship", "ChaseCamera", "DebugHud"]:
+		_expect(scene.get_node_or_null(path) != null,
+			"the highway harness builds " + path, "missing")
+
+	var road := scene.road()
+	var walls := scene.get_node_or_null("RoadRoot/Highway/Walls") as MeshInstance3D
+	if road == null or walls == null or walls.mesh == null:
+		_expect(false, "the highway draws a wall mesh", "no mesh")
+		return
+
+	var drawn: PackedVector3Array = walls.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var collided := road.shell().triangles()
+	_expect(drawn.size() == collided.size() and drawn.size() > 0,
+		"the road draws exactly as many triangles as it collides against",
+		"%d drawn, %d collided" % [drawn.size(), collided.size()])
+
+	var same := drawn.size() == collided.size()
+	for i in mini(drawn.size(), collided.size()):
+		if drawn[i].distance_to(collided[i]) > 0.001:
+			same = false
+	_expect(same,
+		"THE MESH AND THE COLLIDER ARE THE SAME SURFACE, vertex for vertex — one "
+			+ "rule for where a wall is open, not two that can drift",
+		"a drawn vertex is not where the collider thinks the wall is")
+
+	# The count is the tile count times four, so a tuning edit that loses a tile
+	# loses it from both at once and this notices.
+	_expect(road.shell().quads().size()
+			== Tuning.integer("highway/section_count") * 4,
+		"every tile in tuning contributes its four walls",
+		"%d walls for %d tiles" % [road.shell().quads().size(),
+			Tuning.integer("highway/section_count")])
+
+	# The ship starts ON the road, pointing down it. A harness that spawns you
+	# outside the tube answers a different question than the one being asked.
+	var ship := scene.ship()
+	var where := road.shell().progress(road.ship_in_road())
+	_expect(int(where["section"]) == 0,
+		"the ship starts inside the first tile", "tile %d" % int(where["section"]))
+	_expect(ship.global_basis.z.dot(Vector3.BACK) > 0.99,
+		"…and pointing down the road rather than at a wall",
+		"facing %.2f %.2f %.2f" % [-ship.global_basis.z.x,
+			-ship.global_basis.z.y, -ship.global_basis.z.z])
+	_expect(float(road.shell().clearance(road.ship_in_road())["distance"])
+			> road.wall_clearance(),
+		"…and clear of every wall", "it starts inside one")
+
+	# The bounce is a PUSH and never a steer (ADR 0012). The ship is shoved at a
+	# wall and the only things allowed to change are where it is and how it is
+	# moving — not where its nose points.
+	var facing := ship.global_basis
+	ship.push(Vector3(30.0, 0.0, 0.0), 0.9, 100.0)
+	await get_tree().process_frame
+	_expect(ship.global_basis.is_equal_approx(facing),
+		"a knock moves the ship and does not turn it — magnitude, never direction",
+		"the hull was rotated by a wall")
+
+	# …and it fades, rather than being a permanent velocity the player did not ask
+	# for. Stepped by hand so the check does not depend on the frame rate.
+	var before := ship.external_velocity().length()
+	ship.set_process(false)
+	for _i in 60:
+		ship.carry_push(1.0 / 60.0)
+	ship.set_process(true)
+	_expect(ship.external_velocity().length() < before * 0.6 and before > 0.0,
+		"…and a knock fades instead of becoming free speed",
+		"%.2f m/s became %.2f" % [before, ship.external_velocity().length()])
+
+	# FLY IT INTO A WALL, in the live scene, against the surfaces that are actually
+	# drawn. This is the brief's second lesson: a check that only reads the data is
+	# not a check. The ship is put just inside the right wall and shoved at it, and
+	# the road has to catch it, report it, and hand it back a push the other way.
+	var half_width := Tuning.num("highway/tube_width") * 0.5
+	ship.reset_motion()
+	ship.position = Vector3(half_width - road.wall_clearance() * 0.5, 0.0,
+		-Tuning.num("highway/section_length") * 1.5)
+	ship.push(Vector3(25.0, 0.0, 0.0), 0.9, 100.0)
+	for _i in 4:
+		await get_tree().process_frame
+	_expect(road.seconds_since_bounce() < INF
+			and road.last_bounce_wall() == "right",
+		"flown into the right wall in the live scene, the road reports the hit",
+		"wall '%s', %.2f s ago" % [road.last_bounce_wall(),
+			road.seconds_since_bounce()])
+	_expect(ship.position.x <= half_width - road.wall_clearance() + 0.01,
+		"…and the hull ends up clear of it rather than inside the drawn surface",
+		"x %.2f against a limit of %.2f" % [ship.position.x,
+			half_width - road.wall_clearance()])
+	_expect(ship.external_velocity().x < 0.0,
+		"…and is pushed back off it, which is what a bounce is",
+		"drift %.2f m/s, still heading into the wall" % ship.external_velocity().x)

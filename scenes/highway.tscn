@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+; Deliberately empty shell. All content is built in code by highway_scene.gd.
+; See CLAUDE.md, code-first scene policy, and docs/HIGHWAY_BUILD_ORDER.md.
+
+[ext_resource type="Script" path="res://scripts/highway/highway_scene.gd" id="1"]
+
+[node name="HighwayScene" type="Node3D"]
+script = ExtResource("1")

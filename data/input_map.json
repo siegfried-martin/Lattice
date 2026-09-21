@@ -9,6 +9,8 @@
 
   "_note_hulls": "H cycles the player's hull class (taxi/fighter/capital). The speed ladder is per class (ADR 0059) and the classes only mean anything felt back to back, so this is the exploration POC's debug roster arriving early — 'is 15.5 m/s the right taxi speed' is the anchor for every number downstream of it and is answerable in the arena that already exists.",
 
+  "_note_highway": "R is bound twice, the way W/A/S/D are: debug_reverse_arc in the combat arena and debug_reset_road in the highway harness. Each scene polls only its own action and the two scenes never run together, so one key means one thing wherever you are standing. The reset exists because a bounce is something you do repeatedly at slightly different angles, and flying 4.8 km back between attempts is how a feel question goes unanswered.",
+
   "_note_turret": "G mans the guns exactly as T takes the helm, and the two are peers — the player is at one station or the other, never both. fire_primary/fire_secondary are the turret's own triggers rather than a reuse of 'fire', because 'fire' launches a ridden missile and that only happens from the helm; sharing the binding would make one button mean two things in two views. 1 and 2 switch loadout, which is what makes four weapons cost something to reach across two buttons.",
 
   "actions": {
@@ -50,6 +52,7 @@
     "debug_toggle_panel":   ["key:F2"],
     "debug_reload_tuning":  ["key:F5"],
     "debug_reverse_arc":    ["key:R"],
+    "debug_reset_road":     ["key:R", "joybutton:back"],
     "debug_cycle_hull":     ["key:H"],
     "quit":                 ["key:Escape"]
   }

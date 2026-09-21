@@ -57,6 +57,16 @@ var hull_class: HullClass.Kind = HullClass.DEFAULT
 var speed_ceiling_scale: float = 1.0
 
 var _velocity: Vector3 = Vector3.ZERO
+## Velocity the *world* gave the ship rather than the player: a highway wall
+## pushing back. It decays to nothing on its own.
+##
+## It is a second channel rather than an addition to `_velocity` because
+## `_velocity` is rebuilt from the throttle every frame — a bounce written there
+## would be erased before it was seen. And it never touches `basis`: ADR 0012's
+## rule is magnitude, never direction, so a wall may move the ship and may not turn
+## it. There is still no code path in this file that can produce a heading.
+var _external: Vector3 = Vector3.ZERO
+var _external_decay_seconds: float = 1.0
 var _orbit_sign: float = 1.0
 var _hull: MeshInstance3D
 var _last_standoff: float = -1.0
@@ -143,6 +153,25 @@ func _process(delta: float) -> void:
 		# nothing is acting on it — there is no flight model here, and there is not
 		# meant to be one (ADR 0003).
 		position += _velocity * delta
+	carry_push(delta)
+
+
+## Carry whatever the world pushed the ship with, and let it fade.
+##
+## A time constant rather than a hard stop: the push is strongest the instant it
+## lands and trails off, which is what a knock looks like. Applied in every mode,
+## including the autopilot's — a wall that only pushed the player would be a wall
+## that knows who is flying.
+##
+## Public, and called from `_process`, so the gate can step it by hand rather than
+## against whatever frame rate a headless run happens to produce.
+func carry_push(delta: float) -> void:
+	if _external.length_squared() <= 0.000001:
+		_external = Vector3.ZERO
+		return
+	position += _external * delta
+	_external = _external.lerp(Vector3.ZERO,
+		clampf(delta / maxf(_external_decay_seconds, 0.001), 0.0, 1.0))
 
 
 # --- autopilot ---------------------------------------------------------------
@@ -503,12 +532,43 @@ func muzzle_position() -> Vector3:
 	return position + (-basis.z) * Tuning.num("ship/muzzle_offset")
 
 
+## How the ship is actually moving — what the player commanded plus whatever the
+## world is pushing it with. Both, because a heading read off this is used to judge
+## where the ship is going, and a bounce genuinely changes that.
 func velocity() -> Vector3:
-	return _velocity
+	return _velocity + _external
 
 
 func speed() -> float:
-	return _velocity.length()
+	return velocity().length()
+
+
+## Take a knock. `decay_seconds` is how quickly it fades and `speed_limit` caps
+## what the accumulated push may ever reach, so no amount of scraping along a wall
+## can produce a ship that outruns its own class.
+##
+## Deliberately the only way in: the caller hands over a velocity change and gets
+## no say over the ship's heading, which keeps ADR 0012 a property of the interface
+## rather than of the caller's good manners.
+func push(change: Vector3, decay_seconds: float, speed_limit: float) -> void:
+	_external = (_external + change).limit_length(maxf(speed_limit, 0.0))
+	_external_decay_seconds = decay_seconds
+
+
+## The part of the ship's motion that is not the player's. What the HUD reads to
+## report a bounce.
+func external_velocity() -> Vector3:
+	return _external
+
+
+## Put the ship at rest: no throttle, no velocity, no knock, reticle back on the
+## nose. For *placing* a ship — a harness scene's reset key, the headless gate —
+## never as a gameplay verb. Nothing in the game may stop the player's ship.
+func reset_motion() -> void:
+	_throttle = 0.0
+	_velocity = Vector3.ZERO
+	_external = Vector3.ZERO
+	_reticle.reset(basis)
 
 
 ## 0 to 1. Meaningless under autopilot, which sets its own speed.

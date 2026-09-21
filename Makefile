@@ -3,16 +3,20 @@
 
 GODOT ?= godot
 SCENE ?= res://scenes/arena.tscn
+HIGHWAY ?= res://scenes/highway.tscn
 SHOTS ?= .shots
 
 .DEFAULT_GOAL := help
-.PHONY: help run check import assets shot editor apiref clean
+.PHONY: help run fly check import assets shot editor apiref clean
 
 help:  ## Show this help
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
 run:  ## Play the combat arena in a window (SCENE=res://scenes/exploration.tscn for the travel POC, sandbox.tscn for the asset harness)
 	$(GODOT) --scene $(SCENE)
+
+fly:  ## Fly the highway harness: one road, one ship, the instrument HUD (docs/HIGHWAY_BUILD_ORDER.md)
+	$(GODOT) --scene $(HIGHWAY)
 
 check: import  ## Headless gate: compiles, Godot-3 API lint, tuning keys, assets, scene build
 	@# `timeout` is a watchdog, not a nicety: if the runner script itself fails to

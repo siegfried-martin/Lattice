@@ -14,6 +14,7 @@ session; the rules below are not suggestions.
 | What is being built *right now*, in detail | `docs/EXPLORATION_POC_IMPLEMENTATION.md` |
 | The travel layer's locked decisions — roads, portals, the speed ladder, crew | `docs/EXPLORATION_DESIGN.md` |
 | **The highway, to be built from scratch on this branch: what, not how** | `docs/HIGHWAY_BRIEF.md` |
+| The highway's build order, and what each step ends in | `docs/HIGHWAY_BUILD_ORDER.md` |
 | The combat bet, now built | `docs/TURRET_MODE_IMPLEMENTATION.md` |
 | What comes after the combat bet, and in what order | `docs/ROADMAP.md` |
 | The full design of record | `docs/PROJECT_OVERVIEW.md` |
@@ -183,6 +184,7 @@ project.godot          minimal; autoloads and window config only
 tuning.cfg             every feel value in the game, with inline comments
 data/input_map.json    input bindings
 scenes/arena.tscn      main scene: the combat POC arena (shell only)
+scenes/highway.tscn    the highway harness: one road, one ship (shell only)
 scenes/sandbox.tscn    asset/harness scene with the debug fly-cam (shell only)
 scripts/autoload/      Tuning, Bindings
 scripts/arena/         the combat arena builder
@@ -194,7 +196,9 @@ scripts/effects/       detonation flash, pulse-beam tracer
 scripts/lib/           pure helpers — no scene tree, no disk, unit tested:
                        FlightGeometry, ReticleSteering, Damage, HullClass,
                        BoundaryField and its regions, EnvelopeMeter,
-                       TuningSchema, TuningWriter
+                       TuningSchema, TuningWriter, and the highway's
+                       HighwayQuad / HighwaySection / HighwayShell
+scripts/highway/       the highway harness scene
 scripts/sandbox/       the asset harness scene
 scripts/debug/         HUD, debug fly-cam, the F2 tuning panel
 assets/                models and textures (+ committed .import files)
