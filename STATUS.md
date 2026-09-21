@@ -19,7 +19,7 @@ the human's explicit direction.
 | Run it | `make run SCENE=res://scenes/exploration.tscn` |
 | Built | Exploration POC steps 1–5, plus the system border (ADRs 0062, 0063) |
 | Fly the road | `make fly` — the highway harness, one road and one ship |
-| **Do next** | **Highway build order step 2**, once step 1 has been flown: see `docs/HIGHWAY_BUILD_ORDER.md`. The corridor the road eventually goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
+| **Do next** | **Highway build order step 2 — a road with somewhere to go**: curves, both carriageways, exits and entrances. See `docs/HIGHWAY_BUILD_ORDER.md` (re-cut after the first flight). The corridor the road eventually goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
 
 ### A clean start on the highway — 2026-09-20
 
@@ -52,7 +52,15 @@ lozenge; the brief's one-sentence requirement says square tubes and says to judg
 against it first. Built square. The old `exploration/lane_*` and `portal_*` keys are
 untouched and unread; the new road has its own `[highway]` section.
 
-**Open feel questions, all waiting on a flight:**
+**First flight, 2026-09-20.** The human: works, far too slow, nothing remarkable to
+test. The cruise drive had been scheduled for step 4, so the road was 4.8 km at taxi
+speed with no knob for it. It now runs on the road — `exploration/cruise_speed`
+(96.7 m/s) spooled over `highway/cruise_spool_seconds` — and the build order is re-cut
+into five fuller steps, the next carrying curves, both carriageways and the ramps.
+
+**Open feel questions:**
+
+- Is 96.7 m/s cruise fast enough, and is a 4 s spool a climb or a lag?
 
 - Is 150 x 100 m the right tube against a 43.6 m hull, and is a 200 m tile the right
   rib spacing at 15.5 m/s?

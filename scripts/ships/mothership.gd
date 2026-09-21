@@ -55,6 +55,19 @@ var hull_class: HullClass.Kind = HullClass.DEFAULT
 ## and the last one to run winning. Zero is reachable, and means docked: the
 ## boundary never uses it, because ADR 0011's faces must never be a hard stop.
 var speed_ceiling_scale: float = 1.0
+## The cruise drive's speed while it is running, in m/s. Zero means it is not.
+##
+## **Set by the road and only by the road.** The cruise drive is a separate engine
+## that works on the highway and nowhere else (ADR 0057), so the ship carries no rule
+## about when it is on — the road walks this up while the ship is inside it and back
+## down when it leaves. A hull without a cruise drive never has it raised.
+##
+## It sits above missile speed on purpose, and that is not a hole in the speed
+## hierarchy: `EXPLORATION_DESIGN.md`'s ladder puts highway cruise at ~6x a taxi,
+## weapons are disabled on the road, and what the hierarchy protects is *"a missile
+## outruns its intended targets"* — there are none on the road. `HullClass.max_speed`
+## is untouched, so off the road the clamp holds exactly as before.
+var cruise_ceiling: float = 0.0
 
 var _velocity: Vector3 = Vector3.ZERO
 ## Velocity the *world* gave the ship rather than the player: a highway wall
@@ -258,7 +271,14 @@ func _fly_autopilot(delta: float) -> void:
 ## `HullClass` applies the clamp. What the invariant protects widens from "missiles
 ## outrun ships" to "a missile outruns its intended targets".
 func manual_max_speed() -> float:
-	return HullClass.max_speed(hull_class) * clampf(speed_ceiling_scale, 0.0, 1.0)
+	return engine_max_speed() * clampf(speed_ceiling_scale, 0.0, 1.0)
+
+
+## Whichever engine is faster right now: the hull's own, or the cruise drive while
+## the road has it running. Never below the hull's, so a cruise drive spooling down
+## hands the ship back its own top speed rather than stopping it.
+func engine_max_speed() -> float:
+	return maxf(HullClass.max_speed(hull_class), cruise_ceiling)
 
 
 ## Read the class back out of tuning. Called at build and on every hot reload, so
@@ -566,6 +586,7 @@ func external_velocity() -> Vector3:
 ## never as a gameplay verb. Nothing in the game may stop the player's ship.
 func reset_motion() -> void:
 	_throttle = 0.0
+	cruise_ceiling = 0.0
 	_velocity = Vector3.ZERO
 	_external = Vector3.ZERO
 	_reticle.reset(basis)

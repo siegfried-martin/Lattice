@@ -129,6 +129,7 @@ func _process(delta: float) -> void:
 	# is placed somewhere or the origin shifts under it.
 	var to_road := global_transform.affine_inverse()
 	var here: Vector3 = to_road * ship.global_position
+	drive_cruise(here, delta)
 	var radius := wall_clearance()
 
 	var settled := _shell.settle(here, radius)
@@ -167,6 +168,36 @@ func _process(delta: float) -> void:
 			_seconds_since_bounce = 0.0
 
 	_touched = still_touching
+
+
+## Run the cruise drive while the ship is on the road, and wind it down when it is
+## not. Spooled rather than switched, so crossing onto the road is a climb and not a
+## launch — the brief's "no big acceleration on entering", and the same dial the
+## ramps will need when there are ramps.
+##
+## The throttle is still the player's. This raises what full throttle means; it never
+## moves the lever, so a ship at rest on the road stays at rest.
+##
+## Public so the gate can step it by hand; `_process` is the only caller in the game.
+func drive_cruise(here: Vector3, delta: float) -> void:
+	var cruise := Tuning.num("exploration/cruise_speed")
+	var on_road := int(_shell.progress(here)["section"]) >= 0
+	var wanted := cruise if on_road and ship.has_cruise_drive() else 0.0
+	var rate := cruise / maxf(Tuning.num("highway/cruise_spool_seconds"), 0.001)
+	# Spooled between the hull's own speed and cruise, never from zero: below the
+	# hull's speed the cruise drive changes nothing, and a spool that spent its
+	# first second there would read as lag.
+	var hull := HullClass.max_speed(ship.hull_class)
+	var next := move_toward(maxf(ship.cruise_ceiling, hull), maxf(wanted, hull),
+		rate * delta)
+	ship.cruise_ceiling = 0.0 if wanted <= 0.0 and next <= hull else next
+
+
+## Is the cruise drive running, and how far up is it? For the HUD.
+func cruise_share() -> float:
+	var cruise := Tuning.num("exploration/cruise_speed")
+	return 0.0 if ship == null or cruise <= 0.0 \
+		else clampf(ship.cruise_ceiling / cruise, 0.0, 1.0)
 
 
 ## How far the hull is held off a wall.

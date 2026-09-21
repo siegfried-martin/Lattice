@@ -51,98 +51,84 @@ them is a later step's job, once something has replaced them.
 Each one ends in something to fly (`make fly`) or look at (`make shot`), and each is
 one PR.
 
-### Step 1 — One tube, and the walls push back  ← *building now*
+*Re-cut 2026-09-20 after the first flight.* The human's verdict on step 1: it works,
+it is far too slow, and there is nothing in it worth testing — no ramps, no exits, no
+opposing lane, no other ships. Two lessons. The cruise drive belonged in step 1, not
+step 4; without it the road is a corridor at taxi speed. And steps were cut too thin:
+a straight tube proves the mechanism and gives a flight nothing to judge. So the steps
+below are fewer and each carries a whole road-shaped thing.
 
-The tile, the chain, and the bounce. A straight run of identical square sections in
-their own harness scene, the ship at one end, walls you can bump.
+### Step 1 — One tube, the walls push back, and the cruise drive ✅
 
-- `HighwayQuad` / `HighwaySection` / `HighwayShell` in `scripts/lib/` — pure, no
-  scene tree. A section is a box with four walls and two open ends; the shell is
-  every wall of every section, and resolves a moving sphere against them.
-- `HighwayRoad` in `scripts/world/` — builds the sections from tuning, draws the
-  shell's own quads, and constrains the ship after it has moved.
-- `Mothership` gets one new channel: an external velocity that decays. The wall may
-  move the ship and may push back; **it may never turn it.** Heading stays the
-  player's (ADR 0012, magnitude never direction).
-- `scenes/highway.tscn` + `make fly`, an instrument HUD, and a `make shot` harness.
+A straight run of square tiles in its own harness scene; walls you bounce off; the
+wall list is the road (drawn and collided off one array). The cruise drive runs inside
+the road and nowhere else, spooled from hull speed over `highway/cruise_spool_seconds`
+to `exploration/cruise_speed`, and a fighter — no cruise drive — flies it at its own
+speed. `Mothership` has two new channels: a decaying knock from the walls, and the
+cruise ceiling the road raises. Neither can turn the ship.
 
-**Fly:** `make fly`. Down the tube, into a wall at a shallow angle, into one head-on,
-along one while holding throttle.
-**I will ask:** how big the tube should be against the ship, and what a bounce should
-do — kick, scrape, or stop.
+### Step 2 — A road with somewhere to go  ← *next*
 
-### Step 2 — It connects: the road curves and climbs
+The step that makes the road worth driving. One PR, because every piece is only
+judgeable next to the others:
 
-The tile gains a turn: each section's exit frame is its entry frame advanced and
-rotated by a yaw and a pitch. A road becomes a list of those deltas. The seam between
-two sections is open by construction — neither emits a wall there — so *connect* is
-the same one rule as *open*.
+- **It bends and climbs.** Each tile gets a yaw and a pitch; the road is a list of
+  them. The seam between tiles is open because neither tile makes a wall there, so
+  *connect* is the same rule as *open*.
+- **Both carriageways and the median**, traffic on the right, in one tunnel shape, so
+  there is an opposing lane to look across.
+- **Exits and entrances.** An off-ramp is a branch — a side wall that is not there,
+  opening onto a spur tile that peels away — and an on-ramp is the same shape merging
+  in. Several along a longer road, so a missed exit costs the next one.
+- **The camera held to the road's direction** while cruising (`EXPLORATION_DESIGN.md`,
+  locked), which only makes sense once the road bends.
 
-**Fly:** a road that bends and climbs, and the same wall test through a bend, where
-the inside wall is the one that catches you.
-**I will ask:** how tight a bend is too tight, and whether curvature is the thing
-that makes a straight road worth driving.
+In this step the ramps end in open space in the same world. Crossing into the
+wormhole is step 4.
 
-### Step 3 — It branches
+**Fly:** on at one ramp, down a bending road, off at a chosen exit, back on the other
+carriageway. Clip the lip of an exit on the way past.
 
-A section may open a side wall onto a spur. Same declaration, same mesh, same
-collider: a branch is a wall that is not there. This is the step where the resolver
-stops being trivially correct, and where the first road's bug lived — so it gets a
-gate check that flies through the opening and along the lip of it.
+### Step 3 — Interchanges
 
-**Fly:** take the branch, miss the branch, clip the corner of it.
-**I will ask:** whether a branch is legible from far enough back to choose.
+The brief defers interchanges in favour of *"taking one's off-ramp and the other's
+on-ramp"*. With step 2's ramps that is already buildable: two roads, and a system
+where one's exit sits by the other's entrance. Built that way unless the human wants
+the deferral lifted and a junction built inside the tunnel instead.
 
-*After step 3 the one-sentence requirement is met: a tileset of square tubes that
-connect and branch, with bounce collision on the walls. Everything below is the
-place it sits in.*
+### Step 4 — The wormhole, and the ramps in both worlds
 
-### Step 4 — Two carriageways, and the median
+The streak cylinder that rides with the ship and closes to a throat ahead; the road
+the slow part and the streaks the speed. Each ramp placed twice — once against its
+carriageway, once in open space with its mouth at the planet's — and the ship carried
+across partway along it, keeping its place in the ramp, its speed and its heading.
 
-The road becomes a pair in one tunnel, traffic on the right, median between
-(`EXPLORATION_DESIGN.md`, locked). The cruise drive works here and the camera is held
-to the road's direction.
+### Step 5 — Wired to the map
 
-**Fly:** the length of it, and look across the median at where the other side's
-traffic will be.
+Highway nodes at the map's bearings, each leg a tuned fraction of the world leg,
+dead-ending a short run past the first and last systems. A to B on the road against A
+to B by hand, back to back.
 
-### Step 5 — The wormhole around it
+### Not in any step: traffic
 
-The streak cylinder that rides with the ship and closes to a throat a tuned distance
-ahead, nearer than the concept art. The road is the slow part; the streaks are the
-speed.
-
-**Look:** `make shot` for the throat; fly for the streaks.
-
-### Step 6 — The ramps, in both worlds
-
-One ramp shape, placed twice: once against the carriageway inside, once in open space
-with its mouth at the planet's. The crossing happens partway along it, carrying
-position-in-ramp, speed and heading. No fade, no cut.
-
-**Fly:** on at one end and off at the other, and out again from the middle of a ramp
-to see what it looks like from the wrong side.
-
-### Step 7 — Wired to the map
-
-Highway nodes at the map's own bearings, each leg a tuned fraction of the world leg,
-dead-ending a short run past the first and last systems.
-
-**Fly:** A to B on the road against A to B by hand, back to back.
+The brief defers traffic: *"Traffic is not in this prototype; the tunnel is shaped for
+it."* The human listed other ships among what step 1 was missing. Until that deferral
+is lifted, the opposing lane in step 2 is empty.
 
 ---
 
 ## How each step is verified
 
 - `make check` — every step extends it in the same PR. Step 1 adds: the mesh-equals-
-  collider set check, the bounce reflection arithmetic, and a headless flight down
-  the road asserting the ship is never outside the drawn surfaces.
+  collider set check, the bounce reflection arithmetic, a headless flight down the
+  road asserting the ship is never outside the drawn surfaces, and the cruise drive
+  spooling on the road and off it.
 - `make fly` — the harness scene, a HUD row per thing that could be wrong.
 - `make shot SCENE=res://tools/shots/highway_shot.tscn` — a frame, so a visual change
   is checked here before it is handed over.
 
 ## Deferred, and staying deferred
 
-Traffic, the comms channel, signs and the map inset, fuel per hop, interchanges as
-junctions inside the wormhole, what is past the last exit. All listed in the brief;
-none of them are in these seven steps.
+Traffic (above), the comms channel, signs and the map inset, fuel per hop,
+interchanges as junctions inside the wormhole, what is past the last exit. All
+listed in the brief; none of them are in these five steps.

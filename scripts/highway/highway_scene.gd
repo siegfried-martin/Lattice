@@ -143,13 +143,27 @@ func _build_hud() -> void:
 		return "%.1f m/s into the %s wall, %.1f s ago  ·  drift %.1f m/s" % [
 			_road.last_bounce_speed(), _road.last_bounce_wall(),
 			_road.seconds_since_bounce(), _ship.external_velocity().length()])
+	# The row that was missing: without it the road is a 4.8 km corridor at taxi
+	# speed and there is no way to tell that cruise is the thing absent.
+	_hud.add_row("cruise", func() -> String:
+		var cruise := Tuning.num("exploration/cruise_speed")
+		if not _ship.has_cruise_drive():
+			return "NO CRUISE DRIVE  ·  a %s flies the road at its own %.1f m/s" % [
+				HullClass.name_of(_ship.hull_class), _ship.engine_max_speed()]
+		if _ship.cruise_ceiling <= 0.0:
+			return "off  ·  only runs inside the road"
+		if _road.cruise_share() < 0.995:
+			return "SPOOLING  ·  full throttle is %.0f of %.0f m/s" % [
+				_ship.cruise_ceiling, cruise]
+		return "CRUISE  ·  %.0f m/s  ·  the whole road in %.0f s" % [
+			cruise, _road.shell().total_length() / maxf(cruise, 0.001)])
 	_hud.add_row("flight", func() -> String:
 		return "throttle %3.0f%%  ·  %.0f m/s of %.0f" % [
 			_ship.throttle() * 100.0, _ship.speed(), _ship.manual_max_speed()])
 	_hud.add_row("class", func() -> String:
 		return "%s  ·  %.1f m/s top  ·  %.0f deg/s turn" % [
 			HullClass.name_of(_ship.hull_class).to_upper(),
-			_ship.manual_max_speed(), _ship.turn_rate_deg_per_sec()])
+			HullClass.max_speed(_ship.hull_class), _ship.turn_rate_deg_per_sec()])
 	_hud.add_row("keys", func() -> String:
 		return "W/S throttle · A/D thrusters · mouse steers · R back to the start · H hull · F1 hud · F2 tune")
 

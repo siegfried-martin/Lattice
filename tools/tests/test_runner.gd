@@ -177,6 +177,7 @@ const REQUIRED_TUNING_KEYS: Array[String] = [
 	"highway/rib_color", "highway/rib_alpha", "highway/rib_width",
 	"highway/wall_clearance", "highway/bounce_restitution",
 	"highway/bounce_decay_seconds", "highway/bounce_max_speed_fraction",
+	"highway/cruise_spool_seconds",
 ]
 
 const REQUIRED_ACTIONS: Array[String] = [
@@ -3429,3 +3430,46 @@ func _test_highway_builds() -> void:
 	_expect(ship.external_velocity().x < 0.0,
 		"…and is pushed back off it, which is what a bounce is",
 		"drift %.2f m/s, still heading into the wall" % ship.external_velocity().x)
+
+	# THE CRUISE DRIVE runs on the road and nowhere else (ADR 0057). Stepped by hand
+	# against the road's own spool, so the check reads the arithmetic and not the
+	# headless frame rate.
+	ship.reset_motion()
+	ship.set_hull_class(HullClass.Kind.TAXI)
+	ship.position = Vector3(0.0, 0.0, -Tuning.num("highway/section_length") * 2.0)
+	var cruise := Tuning.num("exploration/cruise_speed")
+	var hull := HullClass.max_speed(HullClass.Kind.TAXI)
+	road.set_process(false)
+	road.drive_cruise(road.ship_in_road(), 0.1)
+	_expect(ship.engine_max_speed() > hull and ship.engine_max_speed() < cruise,
+		"on the road the cruise drive SPOOLS up from hull speed — a climb, not a launch",
+		"%.1f m/s after 0.1 s, hull %.1f, cruise %.1f" % [
+			ship.engine_max_speed(), hull, cruise])
+	for _i in int(Tuning.num("highway/cruise_spool_seconds") / 0.1) + 2:
+		road.drive_cruise(road.ship_in_road(), 0.1)
+	_expect(is_equal_approx(ship.manual_max_speed(), cruise),
+		"…and reaches cruise, which is what full throttle now means on the road",
+		"%.1f of %.1f m/s" % [ship.manual_max_speed(), cruise])
+	_expect(is_zero_approx(ship.throttle()),
+		"…without moving the throttle: a ship at rest on the road stays at rest",
+		"throttle %.2f" % ship.throttle())
+
+	ship.position = Vector3(0.0, 0.0, 400.0)
+	for _i in int(Tuning.num("highway/cruise_spool_seconds") / 0.1) + 2:
+		road.drive_cruise(road.ship_in_road(), 0.1)
+	_expect(is_equal_approx(ship.manual_max_speed(), hull),
+		"off the road the drive winds down and the hull gets its OWN speed back",
+		"%.1f m/s against a hull of %.1f" % [ship.manual_max_speed(), hull])
+
+	# A fighter has no cruise drive, and that is the one property (ADR 0060) — so on
+	# the road it flies at its own speed and nothing else.
+	ship.set_hull_class(HullClass.Kind.FIGHTER)
+	ship.position = Vector3(0.0, 0.0, -Tuning.num("highway/section_length") * 2.0)
+	for _i in int(Tuning.num("highway/cruise_spool_seconds") / 0.1) + 2:
+		road.drive_cruise(road.ship_in_road(), 0.1)
+	_expect(is_equal_approx(ship.manual_max_speed(),
+			HullClass.max_speed(HullClass.Kind.FIGHTER)),
+		"a fighter on the road gets no cruise — it has no drive to run",
+		"%.1f m/s" % ship.manual_max_speed())
+	road.set_process(true)
+
