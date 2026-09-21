@@ -19,7 +19,7 @@ the human's explicit direction.
 | Run it | `make run SCENE=res://scenes/exploration.tscn` |
 | Built | Exploration POC steps 1–5, plus the system border (ADRs 0062, 0063) |
 | Fly the road | `make fly` — the highway harness, one road and one ship |
-| **Do next** | **Highway build order step 2 — a road with somewhere to go**: curves, both carriageways, exits and entrances. See `docs/HIGHWAY_BUILD_ORDER.md` (re-cut after the first flight). The corridor the road eventually goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
+| **Do next** | **Fly highway step 2** (`make fly`), then step 3 — interchanges. See `docs/HIGHWAY_BUILD_ORDER.md`. The corridor the road eventually goes inside is built and flyable: `SystemLink`, attached at `SystemMap.systems()[i].aperture_mouth(…)`. |
 
 ### A clean start on the highway — 2026-09-20
 
@@ -32,6 +32,38 @@ requirement, the rules from `docs/EXPLORATION_DESIGN.md` (brought forward from `
 so it has the side-by-side carriageways), the wormhole picture as the target, and
 the two lessons worth keeping. Everything else about the old roads stays on their
 branches.
+
+### Highway step 2 is built — a road with somewhere to go — 2026-09-20
+
+`make fly` now starts you outside the first northbound on-ramp of a 14.2 km road:
+two carriageways that bend and climb, a 60 m median, three junctions with an
+entrance and an exit each way, and 18 traffic ships in three lanes per direction.
+
+- **The tile generalised.** A tile is now any four-walled piece between two frames:
+  a bend, a climb and a ramp's taper are the same tile with different ends. Walls are
+  collided as their own triangles, so collision is exact against whatever is drawn,
+  and a zero-area triangle is dropped from both at once. The mesh-equals-collider
+  check still holds vertex for vertex, ramps and gores included.
+- **Ramps are branches.** An exit is the road's right wall and the ramp's left wall
+  both missing for the taper, then a knife-edge gore, then a tail off into space.
+  The gate flies a hull along the right wall through an exit and asserts the gore
+  pushes it off, never through into the gap.
+- **Traffic** (deferral lifted by the human): lanes by speed, slow on the right, one
+  speed per lane so nobody closes on anybody. It never reacts to the player, and
+  touching it glances off through the same push the walls use.
+- **The camera is held to the road; the nose is not.** `EXPLORATION_DESIGN.md`'s
+  cruise heading clamp would have to turn the nose round every bend, which is the
+  auto-steer ADR 0012 forbids. Only the camera half is built, as a slider. **Flagged
+  for the human: the two documents disagree.**
+
+**Open feel questions:**
+
+- Is a 3.3 km bend radius enough curve to drive, and is a 1 deg/tile climb visible?
+- Is the gore nose a thing you enjoy threading or a thing you resent hitting?
+- Does the camera on the road (`highway/camera_road_share`) help or fight you when
+  you look off-axis?
+- Traffic density is `exploration/road_traffic_per_km` = 0.6: one ship per lane every
+  few kilometres. Populated, or empty?
 
 ### Highway step 1 is built — one square tube, and walls that push back — 2026-09-20
 

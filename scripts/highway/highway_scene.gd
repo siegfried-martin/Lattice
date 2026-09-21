@@ -1,25 +1,32 @@
 class_name HighwayScene
 extends Node3D
-## The highway harness: one road, one ship, and every number that could be wrong
-## on the HUD. `make fly`.
+## The highway harness: one road, its traffic, one ship, and every number that
+## could be wrong on the HUD. `make fly`.
 ##
-## **Build order step 1** (`docs/HIGHWAY_BUILD_ORDER.md`). A scene of its own rather
-## than a change to `exploration.tscn`, because the road has to be flyable before it
-## has anywhere to be — and because a harness that loads in two seconds is what makes
-## a bounce value worth iterating on. It joins the map at step 7.
+## **Build order step 2** (`docs/HIGHWAY_BUILD_ORDER.md`): a road with somewhere to
+## go. The ship starts in open space outside the mouth of the first northbound
+## on-ramp, so the first thing flown is getting on.
 ##
-## Nothing here is content. There is no system, no planet, no boundary, no portal:
-## the only question this scene asks is what a square tube feels like to fly down and
-## bump into. Everything is built in code from tuning; the `.tscn` is a shell.
+## A scene of its own rather than a change to `exploration.tscn`, because the road
+## has to be flyable before it has anywhere to be. It joins the map at step 5.
+## Everything is built in code from tuning; the `.tscn` is a shell.
 
-## How far inside the mouth the ship starts, and where a reset puts it back.
-## Infrastructure: far enough in to see the first rib, near enough to see the way in.
-const START_INSIDE_METRES: float = 120.0
+## How far outside the on-ramp's mouth the ship starts, and where a reset puts it.
+## Infrastructure: far enough back to see the mouth as a thing to aim at.
+const START_OUTSIDE_METRES: float = 260.0
+## The ramp the harness starts at. The first junction northbound is the one nearest
+## the start of the road.
+const START_RAMP: String = "northbound on-ramp 1"
 
 var _road: HighwayRoad
+var _traffic: HighwayTraffic
 var _ship: Mothership
 var _camera: ChaseCamera
 var _hud: DebugHud
+## How much the camera is held to the road right now. Walked toward the tuned share
+## on the road and toward zero off it, so leaving by a ramp mouth is a turn of the
+## camera and not a cut.
+var _camera_share: float = 0.0
 ## Everything in road space hangs off one node, so a floating-origin shift is a move
 ## of this and nothing else has to know (ADR 0020).
 var _root: Node3D
@@ -72,6 +79,12 @@ func _build_road() -> void:
 	_road.name = "Highway"
 	_root.add_child(_road)
 
+	# A child of the road, so it is drawn in the road's frame and moves with it.
+	_traffic = HighwayTraffic.new()
+	_traffic.name = "Traffic"
+	_traffic.road = _road
+	_road.add_child(_traffic)
+
 
 func _build_ship() -> void:
 	_ship = Mothership.new()
@@ -80,7 +93,7 @@ func _build_ship() -> void:
 	_ship.set_autopilot(false)
 	_ship.piloted = true
 	_road.ship = _ship
-	_place_at_mouth()
+	_traffic.ship = _ship
 
 	_camera = ChaseCamera.new()
 	_camera.name = "ChaseCamera"
@@ -88,22 +101,24 @@ func _build_ship() -> void:
 	_camera.tuning_prefix = "camera/ship"
 	_camera.boom_scale = _ship.hull_scale()
 	add_child(_camera)
-	_camera.snap()
+	_place_at_start()
 	_camera.current = true
 
 
-## Put the ship back at the start of the road, at rest, pointing down it.
+## Put the ship back outside the first on-ramp, at rest, pointing into its mouth.
 ##
-## The harness's one convenience. A bounce is a thing you do over and over at
-## slightly different angles, and 4.8 km of turning around between attempts is how
-## a feel question goes unanswered.
-func _place_at_mouth() -> void:
-	var mouth := _road.shell().mouth()
+## The harness's one convenience: getting on, bouncing, and taking an exit are all
+## things done over and over, and the road is too long to fly back along.
+func _place_at_start() -> void:
+	var ramp := _road.route_named(START_RAMP)
+	var mouth := _road.shell().mouth() if ramp == null or ramp.sections.is_empty() \
+		else ramp.sections[0].start
 	_ship.transform = Transform3D(mouth.basis,
-		mouth.origin + (-mouth.basis.z) * START_INSIDE_METRES)
+		mouth.origin + mouth.basis.z * START_OUTSIDE_METRES)
 	_ship.reset_motion()
-	if _camera != null:
-		_camera.snap()
+	_camera_share = 0.0
+	_camera.reference_share = 0.0
+	_camera.snap()
 
 
 func _build_hud() -> void:
@@ -111,40 +126,60 @@ func _build_hud() -> void:
 	_hud.name = "DebugHud"
 	add_child(_hud)
 
-	_hud.add_row("tube", func() -> String:
-		var shell := _road.shell()
-		return "%.0f x %.0f m square  ·  %d tiles of %.0f m  ·  %.0f m of road" % [
-			Tuning.num("highway/tube_width"), Tuning.num("highway/tube_height"),
-			shell.sections.size(), Tuning.num("highway/section_length"),
-			shell.total_length()])
-	# Where on the road the ship is. Section -1 is the honest answer for "out of the
-	# end", and it is worth seeing rather than being rounded into the nearest tile:
-	# a road you can leave is the thing steps 3 and 6 are going to cut holes in.
 	_hud.add_row("road", func() -> String:
+		var routes := _road.shell().routes
+		var carriageways := 0
+		for route in routes:
+			if route.kind == HighwayRoute.Kind.CARRIAGEWAY:
+				carriageways += 1
+		return "%d carriageways of %.1f km  ·  %d ramps  ·  %.0f x %.0f m tube  ·  median %.0f m" % [
+			carriageways, routes[0].length() / 1000.0, routes.size() - carriageways,
+			Tuning.num("highway/tube_width"), Tuning.num("highway/tube_height"),
+			Tuning.num("highway/median_width")])
+	# Where the ship is, in the road's own words. "Off the road" is worth seeing
+	# rather than being rounded into the nearest tube: leaving through a ramp mouth is
+	# the thing the ramps are for.
+	_hud.add_row("on", func() -> String:
 		var where := _road.shell().progress(_road.ship_in_road())
-		if int(where["section"]) < 0:
-			return "OFF THE ROAD  ·  past an end"
-		return "tile %d of %d  ·  %.0f m of %.0f" % [
-			int(where["section"]) + 1, _road.shell().sections.size(),
-			float(where["along"]), float(where["total"])])
-	# The clearance row is the instrument the wall is judged with. A negative number
-	# means the hull is outside a wall it should be inside, which is a bug and should
-	# be readable as one without a debugger.
+		if int(where["route"]) < 0:
+			return "OFF THE ROAD"
+		return "%s  ·  %.1f of %.1f km" % [String(where["name"]).to_upper(),
+			float(where["along"]) / 1000.0, float(where["total"]) / 1000.0])
+	_hud.add_row("next", func() -> String:
+		return _next_junction())
+	# The camera row says how much of what is on screen is the road's direction and
+	# how much is the ship's, because the two diverge the moment the player looks
+	# off-axis and "the camera is wrong" and "the ship is pointing there" look alike.
+	_hud.add_row("heading", func() -> String:
+		var road_basis: Variant = _road.road_basis_at_ship()
+		if road_basis == null:
+			return "free  ·  camera on the ship"
+		var off := rad_to_deg((-_ship.global_basis.z).angle_to(
+			-(road_basis as Basis).z))
+		return "%.0f deg off the road's axis  ·  camera %.0f%% on the road" % [
+			off, _camera_share * 100.0])
 	_hud.add_row("clearance", func() -> String:
 		var near := _road.shell().clearance(_road.ship_in_road())
 		var distance := float(near["distance"])
 		if distance == INF:
-			return "no road"
-		return "%.0f m to the %s wall  ·  hull held %.0f m off" % [
-			distance, String(near["wall"]), _road.wall_clearance()])
+			return "no road nearby"
+		return "%.0f m to the %s wall of the %s  ·  hull held %.0f m off" % [
+			distance, String(near["wall"]), String(near["tube"]), _road.wall_clearance()])
 	_hud.add_row("bounce", func() -> String:
-		if _road.seconds_since_bounce() == INF:
-			return "no contact yet"
-		return "%.1f m/s into the %s wall, %.1f s ago  ·  drift %.1f m/s" % [
-			_road.last_bounce_speed(), _road.last_bounce_wall(),
-			_road.seconds_since_bounce(), _ship.external_velocity().length()])
-	# The row that was missing: without it the road is a 4.8 km corridor at taxi
-	# speed and there is no way to tell that cruise is the thing absent.
+		var wall := "no contact yet" if _road.seconds_since_bounce() == INF else \
+			"%.1f m/s into the %s, %.1f s ago" % [_road.last_bounce_speed(),
+				_road.last_bounce_wall(), _road.seconds_since_bounce()]
+		return "%s  ·  drift %.1f m/s" % [wall, _ship.external_velocity().length()])
+	_hud.add_row("traffic", func() -> String:
+		var near := _traffic.nearest(_road.ship_in_road())
+		if float(near["distance"]) == INF:
+			return "none"
+		var lanes := maxi(Tuning.integer("highway/traffic_lanes"), 1)
+		var touched := "" if _traffic.seconds_since_contact() == INF else \
+			"  ·  last glanced off one %.1f s ago" % _traffic.seconds_since_contact()
+		return "%d ships  ·  nearest %.0f m, %s lane %d of %d, %.0f m/s%s" % [
+			_traffic.count(), float(near["distance"]), String(near["route"]),
+			int(near["lane"]) + 1, lanes, float(near["speed"]), touched])
 	_hud.add_row("cruise", func() -> String:
 		var cruise := Tuning.num("exploration/cruise_speed")
 		if not _ship.has_cruise_drive():
@@ -155,8 +190,7 @@ func _build_hud() -> void:
 		if _road.cruise_share() < 0.995:
 			return "SPOOLING  ·  full throttle is %.0f of %.0f m/s" % [
 				_ship.cruise_ceiling, cruise]
-		return "CRUISE  ·  %.0f m/s  ·  the whole road in %.0f s" % [
-			cruise, _road.shell().total_length() / maxf(cruise, 0.001)])
+		return "CRUISE  ·  %.0f m/s" % cruise)
 	_hud.add_row("flight", func() -> String:
 		return "throttle %3.0f%%  ·  %.0f m/s of %.0f" % [
 			_ship.throttle() * 100.0, _ship.speed(), _ship.manual_max_speed()])
@@ -166,6 +200,41 @@ func _build_hud() -> void:
 			HullClass.max_speed(_ship.hull_class), _ship.turn_rate_deg_per_sec()])
 	_hud.add_row("keys", func() -> String:
 		return "W/S throttle · A/D thrusters · mouse steers · R back to the start · H hull · F1 hud · F2 tune")
+
+
+## The next ramp ahead on the carriageway the ship is on, or where the ramp it is on
+## goes. What a sign will say one day; for now the HUD says it.
+func _next_junction() -> String:
+	var where := _road.shell().progress(_road.ship_in_road())
+	var route_id := int(where["route"])
+	if route_id < 0:
+		return "—"
+	var routes := _road.shell().routes
+	var here := routes[route_id]
+	if here.kind == HighwayRoute.Kind.OFF_RAMP:
+		return "on an exit  ·  the mouth is %.0f m ahead" % (
+			here.length() - float(where["along"]))
+	if here.kind == HighwayRoute.Kind.ON_RAMP:
+		return "on an entrance  ·  merges into the %s in %.0f m" % [
+			routes[here.carriageway].name, here.length() - float(where["along"])]
+	var along := float(where["along"])
+	var best_exit := INF
+	var exit_name := ""
+	var best_entry := INF
+	for route in routes:
+		if route.carriageway != route_id or route.joins_at < along:
+			continue
+		if route.kind == HighwayRoute.Kind.OFF_RAMP and route.joins_at - along < best_exit:
+			best_exit = route.joins_at - along
+			exit_name = route.name
+		if route.kind == HighwayRoute.Kind.ON_RAMP and route.joins_at - along < best_entry:
+			best_entry = route.joins_at - along
+	var parts := PackedStringArray()
+	parts.append("no more exits  ·  the road ends in %.0f m" % (here.length() - along) \
+		if best_exit == INF else "exit in %.0f m (%s)" % [best_exit, exit_name])
+	if best_entry != INF:
+		parts.append("traffic joins in %.0f m" % best_entry)
+	return "  ·  ".join(parts)
 
 
 func _apply_tuning() -> void:
@@ -186,6 +255,22 @@ func _apply_tuning() -> void:
 
 # --- flying it ---------------------------------------------------------------
 
+## Hold the camera to the road while the ship is on it. The camera only: the ship's
+## nose is never touched (ADR 0012), so looking off-axis on the road shows the hull
+## at an angle to a view that still runs down the tube.
+func _process(delta: float) -> void:
+	if _road == null or _ship == null:
+		return
+	var road_basis: Variant = _road.road_basis_at_ship()
+	var wanted := 0.0 if road_basis == null \
+		else clampf(Tuning.num("highway/camera_road_share"), 0.0, 1.0)
+	_camera_share = move_toward(_camera_share, wanted,
+		delta / maxf(Tuning.num("highway/camera_road_blend_seconds"), 0.001))
+	if road_basis != null:
+		_camera.reference_basis = road_basis
+	_camera.reference_share = _camera_share
+
+
 func _apply_mouse_mode() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if DebugPanel.is_open() \
 		else Input.MOUSE_MODE_CAPTURED
@@ -204,7 +289,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("debug_reload_tuning"):
 		Tuning.reload()
 	elif event.is_action_pressed("debug_reset_road"):
-		_place_at_mouth()
+		_place_at_start()
 	elif event.is_action_pressed("debug_cycle_hull"):
 		_ship.set_hull_class(HullClass.next(_ship.hull_class))
 		_camera.boom_scale = _ship.hull_scale()
@@ -214,5 +299,13 @@ func road() -> HighwayRoad:
 	return _road
 
 
+func traffic() -> HighwayTraffic:
+	return _traffic
+
+
 func ship() -> Mothership:
 	return _ship
+
+
+func camera() -> ChaseCamera:
+	return _camera
