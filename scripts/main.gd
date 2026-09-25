@@ -14,11 +14,18 @@ const HighwayWorld := preload("res://scripts/highway_world.gd")
 const SLEEVE_SHADER := preload("res://shaders/hop_sleeve.gdshader")
 
 enum Mode { SPACE, HIGHWAY, HOP }
+## Which job the player holds in open space. The ship holds its heading and speed while the
+## player is at the turret or flying a missile.
+enum Station { PILOT, TURRET, MISSILE }
 
 const DOCK_TIME := 1.5
 const DOCK_MAX_ALT := 40.0
 const HOP_SPEED := 600.0
 const HOP_ACCEL := 80.0
+const TURRET_MOUNT := Vector3(0.0, 4.1, 2.5)      # freighter turret, first-person eye point
+const FREIGHTER_LAUNCHER := Vector3(0.0, 2.2, -9.5)
+const FIGHTER_NOSE := Vector3(0.0, 0.0, -6.0)
+const MISSILE_RETURN_DELAY := 0.9                  # s to watch the missile end before returning
 
 var mode: int = Mode.SPACE
 var space_world: Node3D
@@ -49,6 +56,19 @@ var _other_timer := 0.0
 var blend_t := 1.0   # 0..1 ease from blend_ship / blend_cam to the live transforms
 var blend_ship := Transform3D()
 var blend_cam := Transform3D()
+
+# Combat state
+var station: int = Station.PILOT
+var station_before_missile: int = Station.PILOT
+var turret_yaw := 0.0
+var turret_pitch := 0.0
+var hull := 0.0
+var cannon_t := 0.0
+var blocker_cd := 0.0
+var missile_cd := 0.0
+var missile_end_t := -1.0
+var _last_missile_cam := Transform3D()
+var _laser_on := false
 
 # Hop state
 var hop: Dictionary = {}
@@ -135,10 +155,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_A:
 				if docked:
 					drive.change_lane(-1)
+				elif station == Station.MISSILE:
+					space_world.combat.dodge_player_missile(-1)
 			KEY_D:
 				if docked:
 					drive.change_lane(1)
-	elif event is InputEventMouseButton and event.pressed and not docked and input_override.is_empty():
+				elif station == Station.MISSILE:
+					space_world.combat.dodge_player_missile(1)
+			KEY_G:
+				to_turret()
+			KEY_T:
+				to_pilot()
+			KEY_X:
+				fire_missile()
+			KEY_P, KEY_O, KEY_I:
+				spawn_test_ship(event.physical_keycode)
+	elif event is InputEventMouseButton and event.pressed and not docked and input_override.is_empty() \
+			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -179,6 +212,8 @@ func _set_ship_class(cls: Dictionary) -> void:
 	else:
 		ship = ShipMesh.build(Color(0.62, 0.66, 0.72), Color(0.4, 0.8, 1.0))
 	add_child(ship)
+	hull = cls.hull
+	station = Station.PILOT
 
 
 ## POC shortcut for trying both classes: swap ships in open space.
@@ -229,11 +264,18 @@ func _apply_blend(delta: float, ship_xf: Transform3D, cam_xf: Transform3D) -> vo
 # --- Open space ---------------------------------------------------------------------------
 
 func _process_space(delta: float, rel: Vector2, thrust: float) -> void:
-	flight.aim(rel)
+	# Only the pilot flies the ship; at the turret or on a missile it holds heading and speed.
+	var piloting := station == Station.PILOT
+	flight.aim(rel if piloting else Vector2.ZERO)
 	var prev := flight.pos
-	flight.update(delta, thrust)
+	flight.update(delta, thrust if piloting else 0.0)
 	_space_limits(prev)
 	prev = _rebase(prev)
+	if station == Station.TURRET:
+		turret_yaw -= rel.x * SpaceFlight.MOUSE_SENS
+		turret_pitch = clampf(turret_pitch - rel.y * SpaceFlight.MOUSE_SENS, deg_to_rad(-60.0), deg_to_rad(85.0))
+	elif station == Station.MISSILE:
+		space_world.combat.steer_player_missile(rel, _held(KEY_W, "boost"), _held(KEY_S, "brake"))
 
 	for g in space_world.current_gates():
 		if not GateBuilder.is_entry(g) or not GateBuilder.crossed(g, space_world.gate_local(g), prev, flight.pos):
@@ -247,8 +289,14 @@ func _process_space(delta: float, rel: Vector2, thrust: float) -> void:
 		_say("No threader fitted  -  fighters can't enter the Lattice  (Tab swaps to the freighter)")
 
 	ship.transform = Transform3D(flight.ship_basis(), flight.pos)
-	ShipMesh.set_throttle(ship, flight.throttle_vis)
-	camera.transform = flight.camera_transform()
+	ShipMesh.set_engine_glow(ship, _speed_frac())
+	if ship.has_meta("turret_head"):
+		var head: Node3D = ship.get_meta("turret_head")
+		var aim_basis := Basis.from_euler(Vector3(turret_pitch, turret_yaw, 0.0)) if station == Station.TURRET else flight.ship_basis()
+		head.basis = flight.ship_basis().inverse() * aim_basis
+	_weapons(delta)
+	_update_combat(delta)
+	camera.transform = _space_camera(delta)
 	space_world.update(delta, flight.pos, camera.global_position)
 	_hud_space()
 
@@ -294,6 +342,7 @@ func _rebase(prev: Vector3) -> Vector3:
 
 
 func _enter_highway(g: Dictionary) -> void:
+	_leave_combat()
 	var local: Transform3D = space_world.gate_local(g).affine_inverse() * ship.transform
 	var speed := flight.forward_speed()
 	remove_child(space_world)
@@ -335,9 +384,161 @@ func _exit_to_space(g: Dictionary) -> void:
 	_process_space(0.0, Vector2.ZERO, 0.0)
 
 
+# --- Combat -------------------------------------------------------------------------------
+
+func _held(key: Key, override_name: String) -> bool:
+	if not input_override.is_empty():
+		return input_override.get(override_name, false)
+	return Input.is_physical_key_pressed(key)
+
+
+func _mouse_held(button: MouseButton, override_name: String) -> bool:
+	if not input_override.is_empty():
+		return input_override.get(override_name, false)
+	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(button)
+
+
+func _speed_frac() -> float:
+	return flight.velocity.length() / (flight.cls.max_speed as float)
+
+
+## Sector-local position to the world coordinates combat works in.
+func _to_world(p: Vector3) -> Vector3:
+	return p + space_world.center
+
+
+func _turret_dir() -> Vector3:
+	return -Basis.from_euler(Vector3(turret_pitch, turret_yaw, 0.0)).z
+
+
+func to_turret() -> void:
+	if mode != Mode.SPACE or station == Station.MISSILE:
+		return
+	if not flight.cls.turret:
+		_say("No turret on the fighter  -  its guns fire forward from the pilot's seat", 2.5)
+		return
+	if station != Station.TURRET:
+		turret_yaw = flight.yaw
+		turret_pitch = flight.pitch
+	station = Station.TURRET
+
+
+func to_pilot() -> void:
+	if mode == Mode.SPACE and station == Station.TURRET:
+		station = Station.PILOT
+
+
+## X from any seat: the view goes with the missile until it ends.
+func fire_missile() -> void:
+	if mode != Mode.SPACE or station == Station.MISSILE:
+		return
+	if missile_cd > 0.0:
+		_say("Launcher reloading  -  %.1f s" % missile_cd, 1.2)
+		return
+	var offset := FREIGHTER_LAUNCHER if flight.cls.turret else FIGHTER_NOSE
+	var origin := _to_world(ship.transform * offset)
+	space_world.combat.launch_missile(origin, flight.forward(), true, null)
+	missile_cd = Combat.T.missile_cooldown
+	station_before_missile = station
+	station = Station.MISSILE
+	missile_end_t = -1.0
+
+
+func spawn_test_ship(key: Key) -> void:
+	if mode != Mode.SPACE:
+		return
+	var here := _to_world(flight.pos)
+	var fwd := flight.forward()
+	var combat: Combat = space_world.combat
+	var freighter_speed: float = SpaceFlight.FREIGHTER.max_speed
+	match key:
+		KEY_P:
+			combat.spawn_dummy(here + fwd * 300.0, freighter_speed)
+			_say("Target drone released", 2.0)
+		KEY_O:
+			combat.spawn_freighter(here + fwd * 900.0 + fwd.cross(Vector3.UP) * 200.0, here, freighter_speed)
+			_say("Hostile freighter inbound  -  it carries one missile and one blocker", 3.0)
+		KEY_I:
+			combat.spawn_fighter(here + fwd * 1200.0, here, SpaceFlight.FIGHTER.max_speed, SpaceFlight.FIGHTER.turn_yaw)
+			_say("Hostile fighter inbound", 2.0)
+
+
+## Turret (freighter): left = auto-cannon, right = blocker. Pilot seat (fighter): left =
+## auto-cannon straight ahead, right = laser (held, with heat).
+func _weapons(delta: float) -> void:
+	var combat: Combat = space_world.combat
+	cannon_t -= delta
+	blocker_cd -= delta
+	missile_cd = maxf(0.0, missile_cd - delta)
+	var lmb := _mouse_held(MOUSE_BUTTON_LEFT, "fire")
+	var rmb := _mouse_held(MOUSE_BUTTON_RIGHT, "alt")
+	var vel := flight.velocity
+	var nose := _to_world(ship.transform * FIGHTER_NOSE)
+	_laser_on = false
+	if station == Station.TURRET:
+		var aim := _turret_dir()
+		var origin := _to_world(ship.transform * TURRET_MOUNT) + aim * 4.0
+		if lmb and cannon_t <= 0.0:
+			cannon_t = Combat.T.cannon_interval
+			combat.fire_cannon(origin, aim, vel, true)
+		if rmb and blocker_cd <= 0.0:
+			blocker_cd = Combat.T.blocker_cooldown
+			combat.fire_blocker(origin, aim, vel, true)
+	elif station == Station.PILOT and not flight.cls.turret:
+		if lmb and cannon_t <= 0.0:
+			cannon_t = Combat.T.cannon_interval
+			combat.fire_cannon(nose, flight.forward(), vel, true)
+		_laser_on = rmb
+	# Always called, so the laser cools when it isn't firing.
+	combat.player_laser(nose, flight.forward(), _laser_on, delta)
+
+
+func _update_combat(delta: float) -> void:
+	var combat: Combat = space_world.combat
+	var events: Array = combat.update(delta, {"pos": _to_world(flight.pos), "vel": flight.velocity,
+		"radius": flight.cls.radius, "alive": true})
+	for e in events:
+		match e.type:
+			"player_hit":
+				hull -= e.dmg
+				flash_rect.color = Color(1.0, 0.3, 0.2, maxf(flash_rect.color.a, minf(0.5, e.dmg / 60.0)))
+				if hull <= 0.0:
+					hull = flight.cls.hull
+					space_world.flash(_to_world(flight.pos), Color(1.0, 0.6, 0.3), 80.0)
+					_say("Hull destroyed  -  restored for testing", 3.0)
+			"message":
+				_say(e.text, 2.5)
+			"missile_ended":
+				missile_end_t = MISSILE_RETURN_DELAY
+	if station == Station.MISSILE and missile_end_t >= 0.0:
+		missile_end_t -= delta
+		if missile_end_t < 0.0:
+			station = station_before_missile
+
+
+func _space_camera(delta: float) -> Transform3D:
+	match station:
+		Station.TURRET:
+			return Transform3D(Basis.from_euler(Vector3(turret_pitch, turret_yaw, 0.0)), ship.transform * TURRET_MOUNT)
+		Station.MISSILE:
+			var combat: Combat = space_world.combat
+			if not combat.player_missile.is_empty():
+				var c := combat.player_missile_camera()
+				_last_missile_cam = Transform3D(c.basis, c.origin - space_world.center)
+			return _last_missile_cam
+	return flight.camera_transform()
+
+
+func _leave_combat() -> void:
+	space_world.combat.cancel_player_missile()
+	space_world.combat.player_laser(Vector3.ZERO, Vector3.FORWARD, false, 0.0)
+	station = Station.PILOT
+
+
 # --- Hop lanes ----------------------------------------------------------------------------
 
 func _enter_hop(g: Dictionary) -> void:
+	_leave_combat()
 	hop = g.hop
 	hop_s = 0.0
 	hop_speed = maxf(flight.forward_speed(), 20.0)
@@ -375,7 +576,7 @@ func _process_hop(delta: float) -> void:
 		hop = {}
 		return
 	ship.transform = Transform3D(flight.ship_basis(), flight.pos)
-	ShipMesh.set_throttle(ship, 1.0)
+	ShipMesh.set_engine_glow(ship, 1.0)
 	camera.transform = flight.camera_transform()
 	sleeve.transform = Transform3D(Basis.looking_at(dir, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5), flight.pos + dir * 150.0)
 	sleeve_mat.set_shader_parameter("intensity", clampf(hop_speed / HOP_SPEED, 0.0, 1.0))
@@ -443,7 +644,7 @@ func _process_hw_free(delta: float, rel: Vector2, thrust: float) -> void:
 	var cam := flight.camera_transform()
 	cam.origin.y = clampf(cam.origin.y, 1.0, HighwayWorld.CAM_CEILING)
 	_apply_blend(delta, Transform3D(flight.ship_basis(), flight.pos), cam)
-	ShipMesh.set_throttle(ship, flight.throttle_vis)
+	ShipMesh.set_engine_glow(ship, _speed_frac())
 	var r := hw_road
 	var d := hw_d
 	var dv := hw_dv
@@ -539,7 +740,7 @@ func _process_docked(delta: float) -> void:
 		_exit_to_space(drive.exit_gate)
 		return
 	_apply_blend(delta, drive.ship_xform, drive.cam_xform)
-	ShipMesh.set_throttle(ship, drive.throttle_vis)
+	ShipMesh.set_engine_glow(ship, drive.speed / (flight.cls.max_speed as float))
 	var cw := drive.ref_carriageway()
 	hw_road = cw.x
 	hw_d = cw.y
@@ -561,16 +762,54 @@ func _center_msg(fallback: String) -> String:
 
 
 func _hud_space() -> void:
+	var combat: Combat = space_world.combat
+	var seat: String = ["PILOT", "GUNNER", "MISSILE"][station]
 	hud.left_lines = [
-		["OPEN SPACE  -  %s" % flight.cls.name, Color(0.6, 0.9, 1.0), 13],
+		["OPEN SPACE  -  %s  -  %s" % [flight.cls.name, seat], Color(0.6, 0.9, 1.0), 13],
 		["SECTOR  %s" % Galaxy.sector_name(space_world.current), Color.WHITE, 22],
 		["%d m/s" % int(flight.velocity.length()), Color(0.8, 0.9, 1.0), 16],
 	]
 	hud.right_lines = []
 	hud.center_msg = _center_msg("Edge of charted space" if edge_warn > 0.0 else "")
-	hud.help = "Mouse: aim   W / S: thrust / brake   Tab: swap fighter / freighter   Green frames: Lattice entrance (needs a threader)   Violet frames: hop lane   Esc: release mouse"
-	_hud_flight(true)
+	_hud_flight(station == Station.PILOT)
+	hud.speed_frac = _speed_frac()
+	hud.crosshair = station == Station.TURRET
+	hud.bars = _combat_bars(combat)
+
+	var incoming := combat.incoming_missiles()
+	hud.warning = ""
+	if not incoming.is_empty():
+		var nearest := INF
+		for m in incoming:
+			nearest = minf(nearest, _to_world(flight.pos).distance_to(m.pos))
+		hud.warning = "MISSILE INBOUND  %s" % _fmt_dist(nearest) + ("  -  G for the turret" if flight.cls.turret and station != Station.TURRET else "")
+
+	match station:
+		Station.TURRET:
+			hud.help = "Mouse: aim turret   Left: auto-cannon   Right: blocker   X: missile   T: back to the helm"
+		Station.MISSILE:
+			hud.help = "Mouse: steer   W: boost   S: slow and turn tighter   A / D: dodge"
+			var m: Dictionary = combat.player_missile
+			if not m.is_empty():
+				var mp: Vector3 = (m.pos as Vector3) - space_world.center
+				var aim_pt := mp + combat.player_missile_aim_dir() * 800.0
+				var fwd_pt := mp - Combat.missile_basis(m).z * 800.0
+				hud.reticle = camera.unproject_position(aim_pt) if not camera.is_position_behind(aim_pt) else Vector2(-1, -1)
+				hud.heading = camera.unproject_position(fwd_pt) if not camera.is_position_behind(fwd_pt) else Vector2(-1, -1)
+		_:
+			var weapons := "Left: cannon   Right: laser   " if not flight.cls.turret else "G: turret   "
+			hud.help = "Mouse: aim   W / S: thrust / brake   " + weapons + "X: missile   P / O / I: drone / freighter / fighter   Tab: swap ship"
+
 	var markers: Array = hud.markers
+	for s in combat.ships:
+		var p: Vector3 = (s.pos as Vector3) - space_world.center
+		var col := Color(1.0, 0.45, 0.35) if s.kind != "dummy" else Color(1.0, 0.85, 0.5)
+		var mk_count := markers.size()
+		_marker(markers, p, "%s  %s" % [s.name, _fmt_dist(p.distance_to(flight.pos))], col, true)
+		if markers.size() > mk_count and not markers[-1].arrow:
+			markers[-1].bar = (s.hp as float) / (s.max_hp as float)
+	for m in incoming:
+		_marker(markers, (m.pos as Vector3) - space_world.center, "MISSILE", GateBuilder.OFF_TINT.lerp(Color.RED, 0.6), true)
 	for g in space_world.current_gates():
 		if not GateBuilder.is_entry(g):
 			continue
@@ -587,6 +826,26 @@ func _hud_space() -> void:
 			col = Color(0.85, 0.8, 0.7, 0.7)
 		_marker(markers, b.pos, txt, col, cur and b.kind == "planet")
 	hud.queue_redraw()
+
+
+func _combat_bars(combat: Combat) -> Array:
+	var bars: Array = [{"label": "HULL", "frac": hull / (flight.cls.hull as float), "color": Color(0.55, 0.9, 0.6), "text": "%d" % int(hull)}]
+	var m: Dictionary = combat.player_missile
+	if station == Station.MISSILE and not m.is_empty():
+		bars.append({"label": "BOOST  (W)", "frac": (m.boost_left as float) / Combat.T.missile_boost_time, "color": Color(1.0, 0.7, 0.3)})
+		bars.append({"label": "FUSE", "frac": (m.fuse as float) / Combat.T.missile_fuse, "color": Color(0.8, 0.8, 0.85), "text": "%.1f s" % m.fuse})
+	else:
+		var ready := missile_cd <= 0.0
+		bars.append({"label": "MISSILE  (X)", "frac": 1.0 - missile_cd / Combat.T.missile_cooldown,
+			"color": Color(0.6, 0.85, 1.0) if ready else Color(0.45, 0.5, 0.6), "text": "ready" if ready else "%.1f s" % missile_cd})
+	if station == Station.TURRET:
+		var b_ready := blocker_cd <= 0.0
+		bars.append({"label": "BLOCKER", "frac": 1.0 - maxf(blocker_cd, 0.0) / Combat.T.blocker_cooldown,
+			"color": Combat.BLOCKER_PLAYER if b_ready else Color(0.45, 0.5, 0.6)})
+	if not flight.cls.turret:
+		bars.append({"label": "LASER HEAT", "frac": combat.laser_heat,
+			"color": Color(1.0, 0.3, 0.25) if combat.laser_locked else Color(1.0, 0.7, 0.4), "text": "OVERHEATED" if combat.laser_locked else ""})
+	return bars
 
 
 func _hud_hop(length: float) -> void:
@@ -606,6 +865,12 @@ func _hud_hop(length: float) -> void:
 func _hud_flight(show: bool) -> void:
 	hud.markers = []
 	hud.show_flight = show
+	hud.crosshair = false
+	hud.bars = []
+	hud.warning = ""
+	hud.speed_frac = _speed_frac() if mode != Mode.HIGHWAY or not docked else drive.speed / (flight.cls.max_speed as float)
+	hud.reticle = Vector2(-1, -1)
+	hud.heading = Vector2(-1, -1)
 	if not show:
 		return
 	var fwd_pt := flight.pos + flight.forward() * 800.0

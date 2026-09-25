@@ -8,11 +8,13 @@ const FIGHTER := {
 	"name": "FIGHTER", "highway": false,  # "highway": has a threader, so can enter the Lattice
 	"max_speed": 100.0, "accel": 12.0, "brake": 20.0, "reverse": -15.0,
 	"turn_yaw": 50.0, "turn_pitch": 40.0, "damp": 1.2, "cam": Vector3(0.0, 4.2, 16.0), "radius": 5.0,
+	"hull": 150.0, "turret": false,
 }
 const FREIGHTER := {
 	"name": "FREIGHTER", "highway": true,
 	"max_speed": 40.0, "accel": 4.0, "brake": 8.0, "reverse": -8.0,
 	"turn_yaw": 22.0, "turn_pitch": 16.0, "damp": 0.8, "cam": Vector3(0.0, 9.0, 34.0), "radius": 9.0,
+	"hull": 400.0, "turret": true,
 }
 
 const MAX_PITCH := deg_to_rad(60.0)

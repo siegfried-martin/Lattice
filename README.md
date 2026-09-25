@@ -19,17 +19,21 @@ Godot 4.7 (`godot` on your PATH).
 make run        # play
 make check      # parse every script and build both worlds headless
 make tour       # scripted fly-through with screenshots
+make tour-combat  # scripted combat run with screenshots
 ```
 
 ## Controls
 
 | | |
 |---|---|
-| Mouse | aim (the ship turns toward the reticle) |
-| W / S | thrust / brake |
+| Mouse | aim (the ship, the turret or the missile) |
+| W / S | thrust / brake; on a missile, boost / slow-and-turn |
+| T / G / X | pilot / turret (freighter) / fire a missile (from any station) |
+| Left / right mouse | auto-cannon / blocker at the turret; auto-cannon / laser on the fighter |
+| A / D | missile dodge; change lane while docked |
+| P / O / I | release a target drone / hostile freighter / hostile fighter (testing) |
 | Tab | swap fighter / freighter (prototype shortcut) |
 | C | dock to / undock from the road, on the Lattice |
-| A / D | change lane while docked |
 | Esc | release the mouse |
 
 Fly through a **green** frame to enter the Lattice (freighter only), an **amber** one
@@ -41,5 +45,6 @@ to leave it, and a **violet** one to ride a hop lane.
 |---|---|
 | `docs/VISION.md` | what the game is, the playstyles it supports, how it gets built |
 | `docs/WORLD_AND_TRAVEL.md` | the world's layout and how travel works and feels (design of record) |
+| `docs/COMBAT.md` | the combat prototype: stations, weapons, enemies |
 | `docs/ROADMAP.md` | what comes next, in order |
 | `CLAUDE.md` | working notes for AI-assisted sessions |

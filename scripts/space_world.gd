@@ -33,6 +33,7 @@ var ast_time := 0.0
 var npcs: Array = []
 var gate_timer := 2.0
 var rng := RandomNumberGenerator.new()
+var combat: Combat
 
 
 func build() -> void:
@@ -72,6 +73,8 @@ func build() -> void:
 	for b in Galaxy.bodies:
 		body_vis.append(_build_body(b))
 	_build_asteroids()
+	combat = Combat.new()
+	add_child(combat)
 
 
 func _build_env() -> void:
@@ -424,11 +427,11 @@ func _update_npcs(delta: float, player_world: Vector3) -> void:
 		if n.kind == "into_gate":
 			var gw: Transform3D = n.gate.world
 			if (gw.affine_inverse() * node.position).z <= 0.0:
-				_flash(node.position, GateBuilder.tint_for(n.gate), 40.0)
+				flash(node.position, GateBuilder.tint_for(n.gate), 40.0)
 				_remove_npc(n)
 				continue
 		elif n.age > n.life or node.position.distance_to(player_world) > NPC_RANGE:
-			_flash(node.position, Color(0.6, 0.8, 1.0), 30.0)
+			flash(node.position, Color(0.6, 0.8, 1.0), 30.0)
 			_remove_npc(n)
 			continue
 		if n.kind == "wander":
@@ -465,12 +468,12 @@ func _spawn_npc(p: Vector3, vel: Vector3, kind: String, extra: Dictionary) -> vo
 	var hull: Color = NPC_HULLS[rng.randi() % NPC_HULLS.size()]
 	var glow := Color(1.0, 0.55, 0.3) if rng.randf() < 0.5 else Color(0.5, 0.8, 1.0)
 	var node := ShipMesh.build(hull, glow, true) if extra.get("fighter", false) else ShipMesh.build_freighter(hull, glow, true)
-	ShipMesh.set_throttle(node, 0.7)
+	ShipMesh.set_engine_glow(node, vel.length() / (SpaceFlight.FIGHTER.max_speed if extra.get("fighter", false) else SpaceFlight.FREIGHTER.max_speed))
 	node.position = p
 	node.basis = Basis.looking_at(vel.normalized(), Vector3.UP)
 	node.scale = Vector3.ONE * 0.01
 	add_child(node)
-	_flash(p, glow, 30.0)
+	flash(p, glow, 30.0)
 	var n := {"node": node, "vel": vel, "age": 0.0, "life": rng.randf_range(40.0, 90.0), "kind": kind}
 	n.merge(extra)
 	npcs.append(n)
@@ -481,7 +484,7 @@ func _remove_npc(n: Dictionary) -> void:
 	npcs.erase(n)
 
 
-func _flash(p: Vector3, tint: Color, size: float) -> void:
+func flash(p: Vector3, tint: Color, size: float) -> void:
 	var q := MeshInstance3D.new()
 	q.mesh = QuadMesh.new()
 	q.material_override = flash_mat

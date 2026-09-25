@@ -4,16 +4,21 @@ extends Control
 const CYAN := Color(0.5, 0.85, 1.0)
 const DIM := Color(0.5, 0.65, 0.8, 0.7)
 const PANEL := Color(0.02, 0.05, 0.1, 0.6)
+const WARN := Color(1.0, 0.35, 0.25)
 
-var show_flight := true      # reticle, heading pip, pitch gauge
-var left_lines: Array = []    # [text, color]
+var show_flight := true      # pitch gauge
+var left_lines: Array = []   # [text, color, size]
 var right_lines: Array = []
 var center_msg := ""
 var help := ""
 var reticle := Vector2(-1, -1)
 var heading := Vector2(-1, -1)
-var markers: Array = []       # {pos: Vector2, text, color, arrow: bool}
-var pitch_frac := 0.0         # ship pitch / max pitch
+var crosshair := false       # turret: fixed centre crosshair
+var markers: Array = []      # {pos, text, color, arrow, bar (optional 0..1)}
+var pitch_frac := 0.0        # ship pitch / max pitch
+var speed_frac := -1.0       # speed / top speed; hidden when negative
+var bars: Array = []         # {label, frac, color, text}
+var warning := ""            # blinking alert, e.g. an incoming missile
 
 
 func _draw() -> void:
@@ -22,31 +27,49 @@ func _draw() -> void:
 	if not right_lines.is_empty():
 		_panel(font, Vector2(size.x - 16, 16), right_lines, true)
 
+	for m in markers:
+		_marker(font, m)
+	if heading.x >= 0.0:
+		draw_circle(heading, 3.0, Color(1, 1, 1, 0.6))
+	if reticle.x >= 0.0:
+		draw_arc(reticle, 16.0, 0.0, TAU, 40, CYAN, 1.5)
+		for a in 4:
+			var d := Vector2.RIGHT.rotated(a * PI * 0.5)
+			draw_line(reticle + d * 10.0, reticle + d * 22.0, CYAN, 1.5)
+	if crosshair:
+		var c := size * 0.5
+		for a in 4:
+			var d := Vector2.RIGHT.rotated(a * PI * 0.5)
+			draw_line(c + d * 6.0, c + d * 18.0, CYAN, 2.0)
+		draw_circle(c, 1.5, CYAN)
 	if show_flight:
-		for m in markers:
-			var p: Vector2 = m.pos
-			var c: Color = m.color
-			if m.arrow:
-				var dir := (p - size * 0.5).normalized()
-				var tip := p
-				draw_colored_polygon(PackedVector2Array([tip, tip - dir * 14 + dir.orthogonal() * 7, tip - dir * 14 - dir.orthogonal() * 7]), c)
-				draw_string(font, p - dir * 22 + Vector2(-40, 4), m.text, HORIZONTAL_ALIGNMENT_CENTER, 80, 12, c)
-			else:
-				var pts := PackedVector2Array([p + Vector2(0, -7), p + Vector2(7, 0), p + Vector2(0, 7), p + Vector2(-7, 0), p + Vector2(0, -7)])
-				draw_polyline(pts, c, 1.5)
-				draw_string(font, p + Vector2(11, 4), m.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
-		if heading.x >= 0.0:
-			draw_circle(heading, 3.0, Color(1, 1, 1, 0.6))
-		if reticle.x >= 0.0:
-			draw_arc(reticle, 16.0, 0.0, TAU, 40, CYAN, 1.5)
-			for a in 4:
-				var d := Vector2.RIGHT.rotated(a * PI * 0.5)
-				draw_line(reticle + d * 10.0, reticle + d * 22.0, CYAN, 1.5)
 		_pitch_gauge(font)
+	if speed_frac >= 0.0:
+		_speed_meter(font)
+	_bars(font)
 
+	if warning != "" and fmod(Time.get_ticks_msec() / 1000.0, 0.6) < 0.4:
+		draw_string(font, Vector2(0, size.y * 0.2), warning, HORIZONTAL_ALIGNMENT_CENTER, size.x, 26, WARN)
 	if center_msg != "":
 		draw_string(font, Vector2(0, size.y * 0.3), center_msg, HORIZONTAL_ALIGNMENT_CENTER, size.x, 22, Color(1.0, 0.75, 0.4))
 	draw_string(font, Vector2(16, size.y - 16), help, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, DIM)
+
+
+func _marker(font: Font, m: Dictionary) -> void:
+	var p: Vector2 = m.pos
+	var c: Color = m.color
+	if m.arrow:
+		var dir := (p - size * 0.5).normalized()
+		draw_colored_polygon(PackedVector2Array([p, p - dir * 14 + dir.orthogonal() * 7, p - dir * 14 - dir.orthogonal() * 7]), c)
+		draw_string(font, p - dir * 22 + Vector2(-40, 4), m.text, HORIZONTAL_ALIGNMENT_CENTER, 80, 12, c)
+		return
+	var pts := PackedVector2Array([p + Vector2(0, -7), p + Vector2(7, 0), p + Vector2(0, 7), p + Vector2(-7, 0), p + Vector2(0, -7)])
+	draw_polyline(pts, c, 1.5)
+	draw_string(font, p + Vector2(11, 4), m.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
+	if m.has("bar"):
+		var r := Rect2(p + Vector2(-20, 11), Vector2(40, 4))
+		draw_rect(r, Color(0, 0, 0, 0.6))
+		draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(m.bar, 0.0, 1.0), r.size.y)), c)
 
 
 func _panel(font: Font, anchor: Vector2, lines: Array, right_align: bool) -> void:
@@ -82,3 +105,30 @@ func _pitch_gauge(font: Font) -> void:
 	var py := cy - clampf(pitch_frac, -1.0, 1.0) * h
 	draw_colored_polygon(PackedVector2Array([Vector2(x - 8, py), Vector2(x - 18, py - 6), Vector2(x - 18, py + 6)]), c)
 	draw_string(font, Vector2(x - 30, cy - h - 10), "PITCH", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+
+
+## Speed as a share of top speed, filling from the bottom.
+func _speed_meter(font: Font) -> void:
+	var r := Rect2(Vector2(30.0, size.y * 0.5 - 110.0), Vector2(12.0, 220.0))
+	draw_rect(r, Color(0, 0, 0, 0.45))
+	var f := clampf(speed_frac, 0.0, 1.0)
+	var fill := Rect2(Vector2(r.position.x, r.end.y - r.size.y * f), Vector2(r.size.x, r.size.y * f))
+	draw_rect(fill, CYAN.lerp(Color(1.0, 0.85, 0.5), f))
+	draw_rect(r, DIM, false, 1.0)
+	draw_string(font, Vector2(r.position.x - 6, r.position.y - 10), "SPEED", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	draw_string(font, Vector2(r.position.x - 6, r.end.y + 16), "%d%%" % int(f * 100.0), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, CYAN)
+
+
+## Status bars stacked above the help line, centred.
+func _bars(font: Font) -> void:
+	var w := 220.0
+	var y := size.y - 44.0
+	for i in range(bars.size() - 1, -1, -1):
+		var b: Dictionary = bars[i]
+		var r := Rect2(Vector2(size.x * 0.5 - w * 0.5, y), Vector2(w, 8.0))
+		draw_rect(r, Color(0, 0, 0, 0.5))
+		draw_rect(Rect2(r.position, Vector2(w * clampf(b.frac, 0.0, 1.0), r.size.y)), b.color)
+		draw_rect(r, Color(b.color, 0.5), false, 1.0)
+		draw_string(font, Vector2(r.position.x - 110, y + 8), b.label, HORIZONTAL_ALIGNMENT_RIGHT, 100, 12, b.color)
+		draw_string(font, Vector2(r.end.x + 10, y + 8), b.get("text", ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, b.color)
+		y -= 20.0

@@ -356,6 +356,6 @@ func _spawn(road: int, dir: int, u: float) -> void:
 	var col: Color = NPC_COLORS[rng.randi() % NPC_COLORS.size()]
 	# Only freighters can use the highway.
 	var node := ShipMesh.build_freighter(col, Color(1.0, 0.6, 0.35) if rng.randf() < 0.5 else Color(0.6, 0.8, 1.0))
-	ShipMesh.set_throttle(node, 0.5)
+	ShipMesh.set_engine_glow(node, 0.5)
 	add_child(node)
 	npcs.append({"node": node, "dir": dir, "u": u, "speed": _docked_speed(), "lane": rng.randi_range(0, 1) if rng.randf() < 0.8 else 2, "bob": rng.randf() * 10.0})

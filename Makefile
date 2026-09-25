@@ -1,6 +1,6 @@
 GODOT ?= godot
 
-.PHONY: run tour tour-hop check editor
+.PHONY: run tour tour-hop tour-combat check editor
 
 run:
 	$(GODOT) --path .
@@ -9,6 +9,10 @@ run:
 # Screenshots land in ~/.local/share/godot/app_userdata/Lattice/tour/.
 tour:
 	$(GODOT) --path . -- --tour
+
+# Combat: drone, turret, blocker, missile, a hostile freighter and fighter.
+tour-combat:
+	$(GODOT) --path . -- --tour --combat
 
 # Just the hop-lane part of the tour.
 tour-hop:
