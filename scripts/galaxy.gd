@@ -17,26 +17,29 @@ const ROW_NAMES := ["A", "B", "C", "D"]
 # (open to the east, ending in exits); HWY 2 is the vertical stroke, ending in T-junctions on
 # HWY 1 at both ends.
 const HW_SCALE := 1.0 / 20.0
-const LANE_W := 10.0
+# The road's cross-section and the gate frames are sized for the freighter, and grow with it.
+# Lengths along the road grow less, so HWY 2's junctions and interchange still fit on it.
+const ROAD_SCALE := ShipMesh.FREIGHTER_SCALE
+const LANE_W := 10.0 * ROAD_SCALE
 const LANES := 3
-const MEDIAN := 4.0
-const SHOULDER := 3.0
+const MEDIAN := 4.0 * ROAD_SCALE
+const SHOULDER := 3.0 * ROAD_SCALE
 const CARR_W := LANE_W * LANES
 const CARR_CENTER := MEDIAN + CARR_W * 0.5
 const RIGHT_LANE_LAT := CARR_W * 0.5 - LANE_W * 0.5
 const ROAD_HALF_W := MEDIAN + CARR_W + SHOULDER
-const RAMP_LEN := 170.0
-const RAMP_SHIFT := 24.0
-const RAMP_HALF_W := LANE_W * 0.5 + 2.0
-const GATE_W := 30.0
-const GATE_H := 20.0
+const RAMP_LEN := 260.0
+const RAMP_SHIFT := 24.0 * ROAD_SCALE
+const RAMP_HALF_W := LANE_W * 0.5 + 2.0 * ROAD_SCALE
+const GATE_W := 30.0 * ROAD_SCALE
+const GATE_H := 20.0 * ROAD_SCALE
 const GATE_Y := GATE_H * 0.5
-const HOP_GATE_W := 60.0
-const HOP_GATE_H := 40.0
-const INTERCHANGE_GAP := 30.0  # exit and entrance gates sit this far either side of an interchange
-const TERMINAL_GATE_U := 20.0  # dead-end gates sit this far in from the road end
-const JUNCTION_GAP := 70.0     # HWY 2 stops this far short of HWY 1's centreline
-const JUNCTION_SPAN := 120.0   # turn links fork / merge this far from the junction
+const HOP_GATE_W := 60.0 * ROAD_SCALE
+const HOP_GATE_H := 40.0 * ROAD_SCALE
+const INTERCHANGE_GAP := 60.0  # exit and entrance gates sit this far either side of an interchange
+const TERMINAL_GATE_U := 20.0 * ROAD_SCALE  # dead-end gates sit this far in from the road end
+const JUNCTION_GAP := 150.0    # HWY 2 stops this far short of HWY 1's centreline
+const JUNCTION_SPAN := 170.0   # turn links fork / merge this far from the junction
 
 const C_CENTER := Vector2(30000.0, 22500.0)
 const C_RX := 21000.0
@@ -213,7 +216,12 @@ func world_of_hw(p: Vector3) -> Vector3:
 ## Where carriageway (road, d) leads: the sector at its far end.
 func carr_destination(road: int, d: int) -> String:
 	var t := road_track(road)
-	return sector_name(hex_of(world_of_hw(t.pos(t.length if d == 1 else 0.0))))
+	var u := t.length if d == 1 else 0.0
+	var end := t.pos(u)
+	if road == 1:
+		# HWY 2 stops short of HWY 1; name the sector of the junction it leads to.
+		end += t.tangent(u) * d * JUNCTION_GAP
+	return sector_name(hex_of(world_of_hw(end)))
 
 
 func _build_boundaries() -> void:
@@ -469,9 +477,11 @@ func _new_system(center: Vector3) -> Dictionary:
 func _build_system_bodies(sys: Dictionary, rng: RandomNumberGenerator) -> void:
 	var n_planets: int = [1, 2, 2, 3, 3, 4][rng.randi() % 6]
 	for k in n_planets:
-		for attempt in 150:
+		# Every system gets its first planet: if the gates crowd it out, move further out.
+		for attempt in 150 if k > 0 else 300:
 			var radius := rng.randf_range(450.0, 1400.0)
-			var dist := rng.randf_range(0.0, 900.0) if k == 0 else rng.randf_range(1500.0, 4500.0)
+			var reach := 900.0 if attempt < 150 else 3000.0
+			var dist := rng.randf_range(0.0, reach) if k == 0 else rng.randf_range(1500.0, 4500.0)
 			var ang := rng.randf() * TAU
 			var p: Vector3 = sys.center + Vector3(cos(ang) * dist, rng.randf_range(-700.0, 700.0), sin(ang) * dist)
 			if not _body_ok(p, radius, sys.sector, 1500.0, 2500.0):

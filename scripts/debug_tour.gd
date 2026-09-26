@@ -105,7 +105,13 @@ func _hop_part() -> void:
 	# Take a hop lane (jump to one if this sector has none).
 	var hop_gate := {}
 	for g in Galaxy.gates:
-		if g.kind == "hop_in" and (hop_gate.is_empty() or g.sector == main.space_world.current):
+		if g.kind != "hop_in":
+			continue
+		# The approach starts 1300 m back; skip lanes where a planet is in the way.
+		var gw: Transform3D = g.world
+		if not Galaxy._segment_clear(gw.origin + gw.basis.z * 1300.0, gw.origin):
+			continue
+		if hop_gate.is_empty() or g.sector == main.space_world.current:
 			hop_gate = g
 	main.space_world.set_current_sector(hop_gate.sector)
 	var xf: Transform3D = main.space_world.gate_local(hop_gate)

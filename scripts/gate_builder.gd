@@ -37,13 +37,14 @@ static func build(g: Dictionary, space_side: bool) -> Node3D:
 	steel.albedo_color = Color(0.2, 0.21, 0.22)
 	steel.metallic = 0.7
 	steel.roughness = 0.5
-	var t := 1.8
-	var depth := 3.0
+	var k := Galaxy.ROAD_SCALE   # frames grow with the road and the freighter
+	var t := 1.8 * k
+	var depth := 3.0 * k
 	for sy in [-1.0, 1.0]:
 		MeshUtil.part(root, MeshUtil.box(sz.x + 2.0 * t, t, depth), Vector3(0, sy * (sz.y + t) * 0.5, 0), steel)
 	for sx in [-1.0, 1.0]:
 		MeshUtil.part(root, MeshUtil.box(t, sz.y, depth), Vector3(sx * (sz.x + t) * 0.5, 0, 0), steel)
-	_outline(root, sz, 0.0, tint, 2.5, 0.35)
+	_outline(root, sz, 0.0, tint, 2.5, 0.35 * k)
 
 	var q := QuadMesh.new()
 	q.size = sz
@@ -55,23 +56,23 @@ static func build(g: Dictionary, space_side: bool) -> Node3D:
 	var label := Label3D.new()
 	label.text = g.get("label", "")
 	label.font_size = 96
-	label.pixel_size = 0.05 if not g.kind.begins_with("hop") else 0.09
+	label.pixel_size = (0.05 if not g.kind.begins_with("hop") else 0.09) * k
 	label.outline_size = 18
 	label.outline_modulate = Color(0, 0, 0, 0.85)
 	label.modulate = tint.lightened(0.3)
-	label.position = Vector3(0, sz.y * 0.5 + t + 4.0, 0)
+	label.position = Vector3(0, sz.y * 0.5 + t + 4.0 * k, 0)
 	if space_side:
 		label.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	root.add_child(label)
 
 	if space_side:
 		if is_entry(g):
-			var spacing := 160.0 if g.kind == "on" else 220.0
+			var spacing := (160.0 if g.kind == "on" else 220.0) * k
 			for i in range(1, 6):
-				_outline(root, sz * (1.0 + 0.12 * i), spacing * i, tint, 1.4 - 0.2 * i, 0.8)
+				_outline(root, sz * (1.0 + 0.12 * i), spacing * i, tint, 1.4 - 0.2 * i, 0.8 * k)
 		else:
 			for i in range(1, 4):
-				_outline(root, sz * (1.0 + 0.1 * i), -150.0 * i, tint, 1.0 - 0.25 * i, 0.8)
+				_outline(root, sz * (1.0 + 0.1 * i), -150.0 * k * i, tint, 1.0 - 0.25 * i, 0.8 * k)
 	return root
 
 
