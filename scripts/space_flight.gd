@@ -13,7 +13,7 @@ const FIGHTER := {
 const FREIGHTER := {
 	"name": "FREIGHTER", "highway": true,
 	"max_speed": 40.0, "accel": 4.0, "brake": 8.0, "reverse": -8.0,
-	"turn_yaw": 22.0, "turn_pitch": 16.0, "damp": 0.8, "cam": Vector3(0.0, 9.0, 34.0), "radius": 9.0,
+	"turn_yaw": 22.0, "turn_pitch": 16.0, "damp": 0.8, "cam": Vector3(0.0, 20.0, 80.0), "radius": 22.0,
 	"hull": 400.0, "turret": true,
 }
 

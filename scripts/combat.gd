@@ -78,13 +78,13 @@ func spawn_dummy(p: Vector3, freighter_speed: float) -> void:
 	var ang := rng.randf() * TAU
 	var dir := Vector3(cos(ang), 0.0, sin(ang))
 	var s := _add_ship("dummy", "Target drone", ShipMesh.build_freighter(Color(0.5, 0.5, 0.52), Color(1.0, 0.8, 0.4), true),
-		p, dir, freighter_speed * 0.75, T.hp_dummy, 9.0)
+		p, dir, freighter_speed * 0.75, T.hp_dummy, SpaceFlight.FREIGHTER.radius)
 	s.speed = s.max_speed
 
 
 func spawn_freighter(p: Vector3, player_pos: Vector3, speed: float) -> void:
 	var s := _add_ship("freighter", "Hostile freighter", ShipMesh.build_freighter(Color(0.45, 0.28, 0.25), Color(1.0, 0.4, 0.3), true),
-		p, (player_pos - p).normalized(), speed, T.hp_freighter, 9.0)
+		p, (player_pos - p).normalized(), speed, T.hp_freighter, SpaceFlight.FREIGHTER.radius)
 	s.ai = {"missile_at": rng.randf_range(10.0, 20.0), "age": 0.0, "fired_missile": false, "blocked": false, "react": -1.0}
 
 

@@ -22,8 +22,8 @@ const DOCK_TIME := 1.5
 const DOCK_MAX_ALT := 40.0
 const HOP_SPEED := 600.0
 const HOP_ACCEL := 80.0
-const TURRET_MOUNT := Vector3(0.0, 4.1, 2.5)      # freighter turret, first-person eye point
-const FREIGHTER_LAUNCHER := Vector3(0.0, 2.2, -9.5)
+const TURRET_MOUNT := Vector3(0.0, 4.1, 2.5) * ShipMesh.FREIGHTER_SCALE      # freighter turret, first-person eye point
+const FREIGHTER_LAUNCHER := Vector3(0.0, 2.2, -9.5) * ShipMesh.FREIGHTER_SCALE
 const FIGHTER_NOSE := Vector3(0.0, 0.0, -6.0)
 const MISSILE_RETURN_DELAY := 0.9                  # s to watch the missile end before returning
 
