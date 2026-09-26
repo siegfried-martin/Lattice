@@ -8,12 +8,14 @@ const FIGHTER := {
 	"name": "FIGHTER", "highway": false,  # "highway": has a threader, so can enter the Lattice
 	"max_speed": 100.0, "accel": 12.0, "brake": 20.0, "reverse": -15.0,
 	"turn_yaw": 50.0, "turn_pitch": 40.0, "damp": 1.2, "cam": Vector3(0.0, 4.2, 16.0), "radius": 5.0,
+	"hull_r": 4.0, "hull_half": 1.5,  # collision capsule: radius, half-length of its core along the nose
 	"hull": 150.0, "turret": false,
 }
 const FREIGHTER := {
 	"name": "FREIGHTER", "highway": true,
 	"max_speed": 40.0, "accel": 4.0, "brake": 8.0, "reverse": -8.0,
 	"turn_yaw": 22.0, "turn_pitch": 16.0, "damp": 0.8, "cam": Vector3(0.0, 20.0, 80.0), "radius": 22.0,
+	"hull_r": 11.0, "hull_half": 15.0,
 	"hull": 400.0, "turret": true,
 }
 
@@ -33,6 +35,26 @@ var aim_pitch := 0.0
 var cam_yaw := 0.0
 var cam_pitch := 0.0
 var throttle_vis := 0.0
+
+
+## How far to move capsule A so it no longer overlaps capsule B (zero if they don't touch).
+## A capsule is {pos, axis (unit), r, half}.
+static func capsule_push(a: Dictionary, b: Dictionary) -> Vector3:
+	var pa: Vector3 = a.pos
+	var pb: Vector3 = b.pos
+	var ea: Vector3 = (a.axis as Vector3) * (a.half as float)
+	var eb: Vector3 = (b.axis as Vector3) * (b.half as float)
+	var c := Geometry3D.get_closest_points_between_segments(pa - ea, pa + ea, pb - eb, pb + eb)
+	var n := c[0] - c[1]
+	var dist := n.length()
+	var depth: float = (a.r as float) + (b.r as float) - dist
+	if depth <= 0.0:
+		return Vector3.ZERO
+	return (n / dist if dist > 0.001 else Vector3.UP) * depth
+
+
+static func capsule(cls: Dictionary, p: Vector3, fwd: Vector3) -> Dictionary:
+	return {"pos": p, "axis": fwd, "r": cls.hull_r, "half": cls.hull_half}
 
 
 func place(p: Vector3, fwd: Vector3, speed: float) -> void:

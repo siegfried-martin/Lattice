@@ -9,6 +9,8 @@ const ON_TINT := Color(0.55, 0.9, 0.6)
 const OFF_TINT := Color(1.0, 0.62, 0.28)
 const HOP_TINT := Color(0.72, 0.55, 1.0)
 const JCT_TINT := Color(0.45, 0.75, 1.0)
+const LEAD_SPACING := {"on": 200.0, "hop_in": 260.0}   # metres between an entrance's lead-up frames
+const TRAIL_SPACING := 150.0                            # and between an exit's trailing frames
 
 
 static func tint_for(g: Dictionary) -> Color:
@@ -72,13 +74,14 @@ static func build(g: Dictionary, space_side: bool) -> Node3D:
 	root.add_child(label)
 
 	if space_side:
+		# The runs of frames stay short of the next gate along: an exit and the entrance
+		# after it sit on one line, 2.4 km apart in open space.
 		if is_entry(g):
-			var spacing := (160.0 if g.kind == "on" else 220.0) * k
 			for i in range(1, 6):
-				_outline(root, sz * (1.0 + 0.12 * i), spacing * i, tint, 1.4 - 0.2 * i, 0.8 * k)
+				_outline(root, sz * (1.0 + 0.12 * i), LEAD_SPACING[g.kind] * i, tint, 1.4 - 0.2 * i, 0.8 * k)
 		else:
 			for i in range(1, 4):
-				_outline(root, sz * (1.0 + 0.1 * i), -150.0 * k * i, tint, 1.0 - 0.25 * i, 0.8 * k)
+				_outline(root, sz * (1.0 + 0.1 * i), -TRAIL_SPACING * i, tint, 1.0 - 0.25 * i, 0.8 * k)
 	return root
 
 

@@ -52,6 +52,11 @@ func _run() -> void:
 		await _combat_part()
 		get_tree().quit()
 		return
+	if "--collide" in OS.get_cmdline_user_args():
+		await _wait(1.0)
+		await _collide_part()
+		get_tree().quit()
+		return
 	if "--jct" in OS.get_cmdline_user_args():
 		await _wait(1.0)
 		await _jct_free_part()
@@ -301,3 +306,72 @@ func _jct_free_part() -> void:
 		print("tour: jct free step %d -> road %d  msg=%s" % [step, main.hw_road, main.msg])
 		await _wait(1.2)
 		await _shot("j%d_after" % (step * 2 + 2))
+
+
+## Deepest overlap between any two ships in open space, player included.
+func _space_overlap() -> float:
+	var caps: Array = [SpaceFlight.capsule(main.flight.cls, main._to_world(main.flight.pos), main.flight.forward())]
+	for s in main.space_world.combat.ships:
+		caps.append(SpaceFlight.capsule(SpaceFlight.FIGHTER if s.kind == "fighter" else SpaceFlight.FREIGHTER, s.pos, s.dir))
+	for n in main.space_world.npcs:
+		caps.append(SpaceFlight.capsule(SpaceFlight.FIGHTER if n.get("fighter", false) else SpaceFlight.FREIGHTER, n.node.position, -n.node.basis.z))
+	var worst := 0.0
+	for i in caps.size():
+		for j in range(i + 1, caps.size()):
+			worst = maxf(worst, SpaceFlight.capsule_push(caps[i], caps[j]).length())
+	return worst
+
+
+## Deepest overlap on the Lattice between the docked player and traffic, or traffic itself.
+func _lattice_overlap() -> float:
+	var caps: Array = [SpaceFlight.capsule(SpaceFlight.FREIGHTER, main.ship.position, -main.ship.basis.z)]
+	for n in main.highway.npcs:
+		caps.append(SpaceFlight.capsule(SpaceFlight.FREIGHTER, n.node.position, -n.node.basis.z))
+	var worst := 0.0
+	for i in caps.size():
+		for j in range(i + 1, caps.size()):
+			worst = maxf(worst, SpaceFlight.capsule_push(caps[i], caps[j]).length())
+	return worst
+
+
+## Ships forced into each other in open space, then docked Lattice traffic at 4x speed.
+func _collide_part() -> void:
+	var combat: Combat = main.space_world.combat
+	main.flight.place(main.flight.pos, -main.flight.forward(), 10.0)
+	main.input_override = {"thrust": 0.0}
+	var here: Vector3 = main._to_world(main.flight.pos)
+	for i in 6:
+		combat.spawn_dummy(here + main.flight.forward() * (60.0 + 30.0 * i), SpaceFlight.FREIGHTER.max_speed)
+	await get_tree().process_frame
+	print("tour: collide spawn overlap %.1f m" % _space_overlap())
+	var worst := 0.0
+	var t0: float = main.elapsed
+	while main.elapsed - t0 < 6.0:
+		await get_tree().process_frame
+		worst = maxf(worst, _space_overlap())
+	print("tour: collide open space worst overlap after the first frame %.1f m" % worst)
+	await _shot("k1_open_space")
+
+	main.input_override = {"thrust": 1.0}
+	main.flight.place(main.flight.pos, main.flight.forward() * -1.0, 30.0)
+	await _wait_until(func(): return main.mode == 1, 60.0)
+	main.input_override = {"thrust": 0.0}
+	main.toggle_dock()
+	Engine.time_scale = 4.0
+	main.highway.same_timer = 0.0
+	worst = 0.0
+	var samples := 0
+	var bad := 0
+	t0 = main.elapsed
+	while main.elapsed - t0 < 90.0 and main.mode == 1:
+		await get_tree().process_frame
+		if main.docked and main.drive.on_road:
+			var o := _lattice_overlap()
+			worst = maxf(worst, o)
+			samples += 1
+			bad += int(o > 2.0)
+			if int(main.elapsed - t0) % 20 == 0 and samples % 30 == 0:
+				main.drive.change_lane(1 if randf() < 0.5 else -1)
+	Engine.time_scale = 1.0
+	print("tour: collide lattice %d samples, %d with overlap > 2 m, worst %.1f m, traffic now %d" % [samples, bad, worst, main.highway.npcs.size()])
+	await _shot("k2_lattice")

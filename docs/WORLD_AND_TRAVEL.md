@@ -120,8 +120,11 @@ continuous.
   reach it.
 - **No overhead signs.** They blocked the view, so navigation lives on the HUD
   instead. There's no radar on the Lattice, so its corner holds a **navigation panel**:
-  the current sector, a north-up map of the whole network with your position, and the
-  exits and junctions coming up, with distances. Within 1.5 km of a fork, **lane
+  the current sector and the road you're on drawn like a **subway line**. It shows
+  the next few stops (exits, junctions, the end), each with its distance, and the ship
+  between the last stop passed and the next. Further stops fold into "+N more". It
+  shows only the current route, so it stays the same size however big the network
+  grows. A full network map would be a separate screen. Within 1.5 km of a fork, **lane
   guidance** at the top of the screen shows which lanes lead where and which one
   you're in. Crossing into a new sector gets a short message.
 
@@ -199,6 +202,13 @@ from exits, and fly into entrances. On the Lattice, docked freighters run in bot
 directions. Under the vision (`VISION.md`) traffic becomes simulation fleets,
 rendered when they're near the player. That is the next big design piece.
 
+**Ships don't pass through each other.** Each ship has a collision capsule that
+fits its hull. In open space, overlapping ships are pushed apart, and the player
+bounces off as they do off asteroids. On the Lattice, docked traffic keeps to its lane
+and slows behind whatever is ahead, the player included. A slower ship ahead of a
+docked player in their lane moves over to a free lane, or speeds up if there isn't
+one. A free-flying player is pushed out of traffic.
+
 Open-space traffic already follows that shape at a small scale. It spawns around
 the player out to beyond sensor range (4 km, see `COMBAT.md`), is drawn only inside
 it, and is handed back once it's well outside. Each traffic ship has a name and
@@ -219,6 +229,8 @@ Snapshot at the rebuild. All of this is expected to move.
 | Lattice tunnel | 360 m wide, 80 m tall; free-flight ceiling 60 m |
 | Gate frame | Lattice 75 × 50 m, hop lane 150 × 100 m |
 | HWY 2's ends | 260 m short of HWY 1's median; the tunnel closes 150 m past them |
+| Gate frame runs (open space) | entrance lead-up 5 frames × 200 m (hop 260 m), exit trail 3 × 150 m. An exit and the next entrance share a line 2.4 km apart, so the runs must stay short of that. |
+| Lattice traffic spacing | follows from 130 m, never closer than 70 m (centre to centre) |
 | Hop lane | up to 600 m/s |
 | Neighbour planet push-out | 1 + 2.4 × ln(1 + distance past border / 1.5 km) |
 | Asteroid drift | about 1–16 m/s |

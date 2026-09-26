@@ -1,6 +1,6 @@
 GODOT ?= godot
 
-.PHONY: run tour tour-hop tour-combat tour-jct check editor
+.PHONY: run tour tour-hop tour-combat tour-jct tour-collide check editor
 
 run:
 	$(GODOT) --path .
@@ -17,6 +17,10 @@ tour-combat:
 # Free flight through junction gates: HWY 1 onto HWY 2, then HWY 2's end onto HWY 1.
 tour-jct:
 	$(GODOT) --path . -- --tour --jct
+
+# Ships forced into each other in open space, then docked Lattice traffic at 4x; prints overlaps.
+tour-collide:
+	$(GODOT) --path . -- --tour --collide
 
 # Just the hop-lane part of the tour.
 tour-hop:

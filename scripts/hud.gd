@@ -23,12 +23,12 @@ var radar: Dictionary = {}   # {range: text, blips: [{p: Vector2 in -1..1 (up = 
 var target: Dictionary = {}  # {name, cls, stance, color, dist, speed, closing, hp}
 var target_box: Dictionary = {}  # {pos, half, color}: box round the target in the view
 
-var nav_map: Dictionary = {}  # {roads: [PackedVector2Array], marks: [{p, text, kind}]}, Lattice coordinates
-var nav: Dictionary = {}      # {sector, pos, heading, road, upcoming, on_link, lanes}
+var nav: Dictionary = {}      # {sector, route: {ahead, more, passed, frac}, on_link, lanes}
 
 const RADAR_R := 100.0
 const NAV_W := 330.0
-const NAV_MAP_H := 200.0
+const ROUTE_ROW := 30.0
+const ROUTE_STOPS := 5        # stops ahead shown on the route line
 const TARGET_W := 250.0
 
 
@@ -227,72 +227,81 @@ static func _event_color(kind: String) -> Color:
 	return Color(0.85, 0.85, 0.8)
 
 
-## Lattice navigation, top right: a north-up map of the network and what's coming up.
+## Lattice navigation, top right: the road you're on as a subway line, the next stops at the
+## top and the ship between the last stop passed and the next one.
 func _nav(font: Font) -> void:
+	var route: Dictionary = nav.route
+	var ahead: Array = route.ahead
+	var rows := ahead.size() + 1 + (1 if route.more > 0 else 0)
 	var x := size.x - 16.0 - NAV_W
 	var y := 16.0
-	var lines: Array = nav.upcoming
-	var h := 44.0 + NAV_MAP_H + 30.0 + maxf(1, lines.size()) * 19.0 + (20.0 if nav.on_link != "" else 0.0)
+	var h := 44.0 + rows * ROUTE_ROW + 26.0 + (20.0 if nav.on_link != "" else 0.0)
 	draw_rect(Rect2(x, y, NAV_W, h), PANEL)
 	draw_rect(Rect2(x, y, NAV_W, h), Color(CYAN, 0.35), false, 1.0)
 	draw_string(font, Vector2(x + 12, y + 20), "NAVIGATION", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.9, 1.0))
 	draw_string(font, Vector2(x + 12, y + 20), "SECTOR  %s" % nav.sector, HORIZONTAL_ALIGNMENT_RIGHT, NAV_W - 24, 15, Color.WHITE)
-	var map_r := Rect2(x + 12, y + 32, NAV_W - 24, NAV_MAP_H)
-	_nav_map(font, map_r)
-	var ly := map_r.end.y + 24.0
+	var lx := x + 26.0
+	var top := y + 48.0
+	# Rows from the top: "+N more", the stops ahead (farthest first), then the last stop passed.
+	var row_y := func(i: int) -> float:
+		return top + i * ROUTE_ROW + ROUTE_ROW * 0.5
+	var r0 := 1 if route.more > 0 else 0
+	var you_row := r0 + ahead.size()   # the passed stop's row
+	var line_top: float = row_y.call(0)
+	var line_bot: float = row_y.call(you_row) if not route.passed.is_empty() else row_y.call(you_row) - ROUTE_ROW * 0.5
+	draw_line(Vector2(lx, line_top), Vector2(lx, line_bot), Color(CYAN, 0.8), 3.0)
+	if route.more > 0:
+		for k in 3:
+			draw_circle(Vector2(lx, row_y.call(0) - 6.0 + k * 6.0), 1.5, CYAN)
+		draw_string(font, Vector2(lx + 18, row_y.call(0) + 5), "+%d more" % route.more, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, DIM)
+	for i in ahead.size():
+		var e: Dictionary = ahead[ahead.size() - 1 - i]
+		_stop(font, Vector2(lx, row_y.call(r0 + i)), e, false, x)
+	if not route.passed.is_empty():
+		_stop(font, Vector2(lx, row_y.call(you_row)), route.passed, true, x)
+	if ahead.is_empty():
+		draw_string(font, Vector2(lx + 18, row_y.call(r0) + 5), "end of the line", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, DIM)
+	# The ship, between the last stop passed and the next.
+	var from_y: float = row_y.call(you_row) if not route.passed.is_empty() else row_y.call(you_row) + ROUTE_ROW * 0.4
+	var to_y: float = row_y.call(you_row - 1) if not ahead.is_empty() else from_y - ROUTE_ROW
+	var sy := lerpf(from_y, to_y, clampf(route.frac, 0.1, 0.9))
+	draw_colored_polygon(PackedVector2Array([Vector2(lx, sy - 8), Vector2(lx + 6, sy + 5), Vector2(lx - 6, sy + 5)]), Color.WHITE)
+	var ly := top + rows * ROUTE_ROW + 18.0
 	if nav.on_link != "":
 		draw_string(font, Vector2(x + 12, ly), nav.on_link, HORIZONTAL_ALIGNMENT_LEFT, NAV_W - 24, 13, GateBuilder.ON_TINT)
-		ly += 20.0
-	draw_string(font, Vector2(x + 12, ly), "UPCOMING", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
-	ly += 19.0
-	if lines.is_empty():
-		draw_string(font, Vector2(x + 12, ly), "nothing ahead", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, DIM)
-	for e in lines:
-		var col := _event_color(e.kind)
-		var dist := "%.1f km" % (e.dist / 1000.0) if e.dist >= 1000.0 else "%d m" % int(e.dist)
-		draw_string(font, Vector2(x + 12, ly), e.text, HORIZONTAL_ALIGNMENT_LEFT, NAV_W - 94, 13, col)
-		draw_string(font, Vector2(x + 12, ly), dist, HORIZONTAL_ALIGNMENT_RIGHT, NAV_W - 24, 13, Color(0.85, 0.9, 1.0))
-		ly += 19.0
 
 
-func _nav_map(font: Font, r: Rect2) -> void:
-	if nav_map.is_empty():
-		return
-	var lo := Vector2(INF, INF)
-	var hi := Vector2(-INF, -INF)
-	for line in nav_map.roads:
-		for p in line:
-			lo = lo.min(p)
-			hi = hi.max(p)
-	var inner := r.grow(-14.0)
-	var k := minf(inner.size.x / (hi.x - lo.x), inner.size.y / (hi.y - lo.y))
-	var off := inner.position + (inner.size - (hi - lo) * k) * 0.5
-	var to_map := func(p: Vector2) -> Vector2:
-		return off + (p - lo) * k
-	draw_rect(r, Color(0, 0, 0, 0.35))
-	for i in (nav_map.roads as Array).size():
-		var pts := PackedVector2Array()
-		for p in nav_map.roads[i]:
-			pts.append(to_map.call(p))
-		var cur: bool = i == nav.road
-		draw_polyline(pts, Color(CYAN, 0.9) if cur else Color(DIM, 0.55), 3.0 if cur else 2.0)
-	for m in nav_map.marks:
-		var mp: Vector2 = to_map.call(m.p)
-		if m.kind == "jct":
-			var c := GateBuilder.JCT_TINT
-			draw_colored_polygon(PackedVector2Array([mp + Vector2(0, -5), mp + Vector2(5, 0), mp + Vector2(0, 5), mp + Vector2(-5, 0)]), c)
-		else:
-			draw_rect(Rect2(mp - Vector2(3, 3), Vector2(6, 6)), GateBuilder.OFF_TINT)
-			# Labels sit on whichever side of the map centre the mark is, so they stay inside.
-			var left_side := mp.x > r.get_center().x
-			var tx := mp.x - 88.0 if left_side else mp.x + 7.0
-			draw_string(font, Vector2(tx, mp.y + 4), m.text, HORIZONTAL_ALIGNMENT_RIGHT if left_side else HORIZONTAL_ALIGNMENT_LEFT, 80, 11, Color(1.0, 0.85, 0.65, 0.9))
-	var sp: Vector2 = to_map.call(nav.pos)
-	var hd: Vector2 = (nav.heading as Vector2).normalized()
-	if hd == Vector2.ZERO:
-		hd = Vector2.UP
-	var side := hd.orthogonal()
-	draw_colored_polygon(PackedVector2Array([sp + hd * 9.0, sp - hd * 5.0 + side * 5.0, sp - hd * 5.0 - side * 5.0]), Color.WHITE)
+## One stop on the route line: a glyph for its kind, its name, and the distance to it.
+func _stop(font: Font, p: Vector2, e: Dictionary, passed: bool, panel_x: float) -> void:
+	var col := _event_color(e.kind)
+	if passed:
+		col = Color(col, 0.45)
+	match e.kind:
+		"end":
+			draw_line(p + Vector2(-8, 0), p + Vector2(8, 0), col, 4.0)
+		"jct_end":
+			draw_line(p, p + Vector2(-9, -8), col, 3.0)
+			draw_line(p, p + Vector2(9, -8), col, 3.0)
+			draw_circle(p, 5.0, col)
+		_:
+			# A branch off to the right, the side you leave from.
+			draw_line(p, p + Vector2(10, -7), col, 3.0)
+			draw_circle(p, 5.0, col)
+	var name: String = e.text
+	match e.kind:
+		"off":
+			name = name.trim_prefix("EXIT ")
+		"jct":
+			name = name.trim_prefix("JCT ")
+		"jct_end":
+			name = "< %s  |  %s >" % [e.left.get_slice(" >", 0), e.right.get_slice(" >", 0)]
+		"end":
+			name = name.replace("END  -  EXIT", "END  -")
+	var dist := absf(e.dist)
+	var dtxt := ("%.1f km" % (dist / 1000.0) if dist >= 1000.0 else "%d m" % int(dist)) + (" back" if passed else "")
+	draw_string(font, Vector2(p.x + 18, p.y + 5), name, HORIZONTAL_ALIGNMENT_LEFT, NAV_W - 130, 13, col)
+	draw_string(font, Vector2(panel_x + 12, p.y + 5), dtxt, HORIZONTAL_ALIGNMENT_RIGHT, NAV_W - 24, 13,
+		Color(0.85, 0.9, 1.0, 0.45 if passed else 1.0))
 
 
 ## Lane guidance for the next fork, top centre: one box per lane, the ship's lane outlined.

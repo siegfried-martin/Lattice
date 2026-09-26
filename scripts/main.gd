@@ -126,8 +126,6 @@ func _ready() -> void:
 	flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(flash_rect)
 
-	hud.nav_map = _build_nav_map()
-
 	var start_pos: Vector3 = Galaxy.start.pos
 	var gate_xf: Transform3D = Galaxy.start.gate.world
 	space_world.set_current_sector(Galaxy.hex_of(start_pos))
@@ -339,6 +337,10 @@ func _space_limits(prev: Vector3) -> void:
 	if push != Vector3.ZERO:
 		flight.pos += push
 		_bounce(push.normalized())
+	var ship_push: Vector3 = space_world.separate_ships(SpaceFlight.capsule(flight.cls, _to_world(flight.pos), flight.forward()))
+	if ship_push != Vector3.ZERO:
+		flight.pos += ship_push
+		_bounce(ship_push.normalized())
 
 
 ## Move the floating origin when the ship crosses into another sector; returns prev shifted
@@ -697,6 +699,11 @@ func _process_hw_free(delta: float, rel: Vector2, thrust: float) -> void:
 			flight.pos -= out * past
 			_bounce(-out)
 
+	var traffic_push: Vector3 = highway.push_out(SpaceFlight.capsule(flight.cls, flight.pos, flight.forward()))
+	if traffic_push != Vector3.ZERO:
+		flight.pos += traffic_push
+		_bounce(traffic_push.normalized())
+
 	var along := flight.forward().dot(tr.tangent(hw_u))
 	if absf(along) > 0.3:
 		hw_dv = 1 if along > 0.0 else -1
@@ -860,6 +867,7 @@ func _process_docked(delta: float) -> void:
 		"speed": drive.speed, "ship": ship.position, "show_limits": false}
 	if drive.on_road:
 		view.merge(_dead_ends(drive.road, drive.d, drive.u))
+		view.docked_on_road = {"d": drive.d, "u": drive.u, "lat": drive.lat, "speed": drive.speed}
 	highway.update(delta, view)
 	_hud_highway()
 
@@ -1091,9 +1099,7 @@ func _hud_highway() -> void:
 	if docked and not drive.on_road:
 		var lk: Dictionary = drive.link
 		on_link = ("MERGING ONTO  " if lk.kind.ends_with("on") else "TAKING  ") + (lk.label as String)
-	var h := -ship.global_basis.z
-	hud.nav = {"sector": Galaxy.sector_name(sec), "pos": Vector2(ship.position.x, ship.position.z), "heading": Vector2(h.x, h.z),
-		"road": hw_road, "upcoming": ev, "on_link": on_link, "lanes": _lane_guide(ev)}
+	hud.nav = {"sector": Galaxy.sector_name(sec), "route": _route(), "on_link": on_link, "lanes": _lane_guide(ev)}
 	var hint := ""
 	if not ev.is_empty() and ev[0].dist < 600.0:
 		var e: Dictionary = ev[0]
@@ -1119,6 +1125,24 @@ func _hud_highway() -> void:
 	hud.queue_redraw()
 
 
+## The current carriageway as a subway line: the last stop passed, and the next few ahead.
+func _route() -> Dictionary:
+	var ahead: Array = []
+	var passed: Dictionary = {}
+	for e in Galaxy.events.get(Vector2i(hw_road, hw_d), []):
+		var ev: Dictionary = e.duplicate()
+		ev.dist = (e.u - hw_u) * hw_d
+		if ev.dist >= 0.0:
+			ahead.append(ev)
+		else:
+			passed = ev
+	var shown := ahead.slice(0, HudScript.ROUTE_STOPS)
+	var frac := 0.5
+	if not passed.is_empty() and not shown.is_empty():
+		frac = -passed.dist / (shown[0].dist - passed.dist)
+	return {"ahead": shown, "more": ahead.size() - shown.size(), "passed": passed, "frac": frac}
+
+
 ## Lanes for the next fork: which lanes lead where, and the one the ship is in.
 func _lane_guide(ev: Array) -> Dictionary:
 	if not docked or not drive.on_road or ev.is_empty() or ev[0].dist > 1500.0:
@@ -1137,36 +1161,3 @@ func _lane_guide(ev: Array) -> Dictionary:
 	var cur := clampi(roundi((drive.lat_target + Galaxy.RIGHT_LANE_LAT) / Galaxy.LANE_W), 0, Galaxy.LANES - 1)
 	return {"lanes": lanes, "current": cur, "kind": e.kind, "dist": _fmt_dist(e.dist), "text": e.text,
 		"left": e.get("left", ""), "right": e.get("right", "")}
-
-
-## The Lattice drawn flat for the HUD map: roads as polylines, interchanges and junctions.
-func _build_nav_map() -> Dictionary:
-	var roads: Array = []
-	for r in Galaxy.roads:
-		var t: Track = r.track
-		var line := PackedVector2Array()
-		var u := 0.0
-		while u < t.length:
-			var p := t.pos(u)
-			line.append(Vector2(p.x, p.z))
-			u += 40.0
-		var e := t.pos(t.length)
-		line.append(Vector2(e.x, e.z))
-		roads.append(line)
-	var marks: Array = []
-	var by_system := {}
-	for g in Galaxy.gates:
-		if g.kind == "on" or g.kind == "off":
-			var sys: String = g.get("system", "")
-			if not by_system.has(sys):
-				by_system[sys] = []
-			by_system[sys].append(Vector2(g.hw.origin.x, g.hw.origin.z))
-	for sys in by_system:
-		var c := Vector2.ZERO
-		for p in by_system[sys]:
-			c += p
-		marks.append({"p": c / (by_system[sys] as Array).size(), "text": sys, "kind": "exit"})
-	for j in Galaxy.junctions:
-		var p := Galaxy.road_track(0).pos(j.u)
-		marks.append({"p": Vector2(p.x, p.z), "text": "JCT", "kind": "jct"})
-	return {"roads": roads, "marks": marks}

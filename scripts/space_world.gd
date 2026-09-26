@@ -515,6 +515,48 @@ func flash(p: Vector3, tint: Color, size: float) -> void:
 	tw.tween_callback(q.queue_free)
 
 
+# --- Collisions ---------------------------------------------------------------------------
+
+## Keeps ships from passing through each other. Other ships that overlap are pushed apart;
+## the player, a capsule in world coordinates, is pushed out by the returned amount (they
+## take half when it's another ship's fault as much as theirs; main bounces them).
+func separate_ships(player: Dictionary) -> Vector3:
+	var bodies: Array = []
+	for s in combat.ships:
+		var cls: Dictionary = SpaceFlight.FIGHTER if s.kind == "fighter" else SpaceFlight.FREIGHTER
+		bodies.append({"ship": s, "cap": SpaceFlight.capsule(cls, s.pos, s.dir)})
+	for n in npcs:
+		var cls: Dictionary = SpaceFlight.FIGHTER if n.get("fighter", false) else SpaceFlight.FREIGHTER
+		var node: Node3D = n.node
+		bodies.append({"npc": n, "cap": SpaceFlight.capsule(cls, node.position, -node.basis.z)})
+	var player_push := Vector3.ZERO
+	var me := player.duplicate()
+	# A few passes, so a pile of ships sorts itself out rather than shuffling the overlap on.
+	for pass_i in 4:
+		for i in bodies.size():
+			var a: Dictionary = bodies[i]
+			var pp := SpaceFlight.capsule_push(me, a.cap)
+			if pp != Vector3.ZERO:
+				player_push += pp * 0.5
+				me.pos = (me.pos as Vector3) + pp * 0.5
+				_move_body(a, -pp * 0.5)
+			for j in range(i + 1, bodies.size()):
+				var b: Dictionary = bodies[j]
+				var push := SpaceFlight.capsule_push(a.cap, b.cap)
+				if push != Vector3.ZERO:
+					_move_body(a, push * 0.5)
+					_move_body(b, -push * 0.5)
+	return player_push
+
+
+func _move_body(b: Dictionary, by: Vector3) -> void:
+	b.cap.pos = (b.cap.pos as Vector3) + by
+	if b.has("ship"):
+		b.ship.pos = (b.ship.pos as Vector3) + by
+	else:
+		(b.npc.node as Node3D).position += by
+
+
 # --- Sensors ------------------------------------------------------------------------------
 
 ## Every ship within sensor range of p (world coordinates), nearest first:

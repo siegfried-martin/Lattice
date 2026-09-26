@@ -272,6 +272,15 @@ func _update_lamps(view: Dictionary, front: float, back: float) -> void:
 
 
 # --- Traffic ------------------------------------------------------------------------------
+# Docked freighters on the player's road. Each keeps to its lane and follows whatever is
+# ahead in it, the player included; one ahead of a docked player in their lane moves over
+# (or speeds up) rather than being driven through.
+
+const FOLLOW_GAP := 130.0    # start matching the speed of a ship ahead this close (centres)
+const MIN_GAP := 70.0        # and never closer than this; freighters are about 50 m long
+const YIELD_RANGE := 400.0   # a slower ship this far ahead of the player in their lane makes way
+const NPC_ACCEL := 5.0
+
 
 func _update_npcs(delta: float, view: Dictionary) -> void:
 	var road: int = view.road
@@ -301,18 +310,85 @@ func _update_npcs(delta: float, view: Dictionary) -> void:
 		_spawn(road, d, up + dv * (TUN_FRONT + 10.0 * S if ahead else TUN_BACK - 10.0 * S))
 		same_timer = rng.randf_range(2.0, 5.0)
 
+	# The docked player, as one more vehicle in their carriageway.
+	var me: Dictionary = view.get("docked_on_road", {})
 	for n in npcs.duplicate():
-		n.u += n.dir * n.speed * delta
+		var want: float = n.speed
+		var lead := _leader(n, me)
+		if not lead.is_empty():
+			var gap: float = lead.gap
+			if gap < FOLLOW_GAP:
+				want = minf(want, lead.speed)
+			if gap < MIN_GAP:
+				want = minf(want, lead.speed * 0.8)
+		if not me.is_empty() and n.dir == me.d:
+			var ahead_of_me: float = (n.u - me.u) * n.dir
+			if ahead_of_me > -MIN_GAP and ahead_of_me < YIELD_RANGE and absf(n.lat - me.lat) < Galaxy.LANE_W * 0.8 \
+					and n.cur <= me.speed + 0.5:
+				var free := _free_lane(n, me)
+				if free >= 0:
+					n.lane = free
+				else:
+					want = maxf(want, me.speed * 1.1)
+		n.cur = move_toward(n.cur, want, NPC_ACCEL * delta)
+		n.u += n.dir * n.cur * delta
+		if not lead.is_empty() and lead.gap - n.cur * delta < MIN_GAP * 0.6:
+			n.u = lead.u - n.dir * MIN_GAP * 0.6
+		n.lat = move_toward(n.lat, _npc_lane_lat(n.lane), HighwayDrive.LAT_SPEED * 0.6 * delta)
 		n.bob += delta
 		var rel: float = (n.u - up) * dv
 		if rel < TUN_BACK - 40.0 * S or rel > TUN_FRONT + 60.0 * S or n.u < 0.0 or n.u > t.length:
 			n.node.queue_free()
 			npcs.erase(n)
 			continue
-		var lat: float = -Galaxy.RIGHT_LANE_LAT + Galaxy.LANE_W * n.lane
 		var node: Node3D = n.node
-		node.position = Galaxy.carr_point(road, n.dir, n.u, lat, HighwayDrive.HOVER + sin(n.bob * 1.7) * 0.2 * S)
+		node.position = Galaxy.carr_point(road, n.dir, n.u, n.lat, HighwayDrive.HOVER + sin(n.bob * 1.7) * 0.2 * S)
 		node.basis = Basis.looking_at(Galaxy.carr_fwd(road, n.dir, n.u), Vector3.UP)
+
+
+static func _npc_lane_lat(lane: int) -> float:
+	return -Galaxy.RIGHT_LANE_LAT + Galaxy.LANE_W * lane
+
+
+## Nearest vehicle ahead of n in its lane: {u, speed, gap} or {}.
+func _leader(n: Dictionary, me: Dictionary) -> Dictionary:
+	var best := {}
+	var others: Array = npcs.duplicate()
+	if not me.is_empty():
+		others.append({"dir": me.d, "u": me.u, "lat": me.lat, "cur": me.speed})
+	for o in others:
+		if is_same(o, n) or o.dir != n.dir or absf((o.lat as float) - (n.lat as float)) >= Galaxy.LANE_W * 0.8:
+			continue
+		var gap: float = (o.u - n.u) * n.dir
+		if gap > 0.0 and (best.is_empty() or gap < best.gap):
+			best = {"u": o.u, "speed": o.cur, "gap": gap}
+	return best
+
+
+## A lane next to n's with nothing within MIN_GAP * 2 of it, preferring the right; -1 if none.
+func _free_lane(n: Dictionary, me: Dictionary) -> int:
+	for lane in [n.lane + 1, n.lane - 1]:
+		if lane < 0 or lane >= Galaxy.LANES or _lane_busy(n.dir, lane, n.u, MIN_GAP * 2.0, n, me):
+			continue
+		return lane
+	return -1
+
+
+func _lane_busy(dir: int, lane: int, u: float, span: float, skip: Dictionary, me: Dictionary) -> bool:
+	var lat := _npc_lane_lat(lane)
+	for o in npcs:
+		if not is_same(o, skip) and o.dir == dir and absf(o.lat - lat) < Galaxy.LANE_W * 0.8 and absf(o.u - u) < span:
+			return true
+	return not me.is_empty() and me.d == dir and absf((me.lat as float) - lat) < Galaxy.LANE_W * 0.8 and absf((me.u as float) - u) < span
+
+
+## Pushes a free-flying player (a capsule in Lattice coordinates) out of any traffic.
+func push_out(player: Dictionary) -> Vector3:
+	var push := Vector3.ZERO
+	for n in npcs:
+		var node: Node3D = n.node
+		push += SpaceFlight.capsule_push(player, SpaceFlight.capsule(SpaceFlight.FREIGHTER, node.position, -node.basis.z))
+	return push
 
 
 ## Docked freighters run at 80% of top speed; loads vary a little.
@@ -323,9 +399,14 @@ func _docked_speed() -> float:
 func _spawn(road: int, dir: int, u: float) -> void:
 	if u < 0.0 or u > Galaxy.road_track(road).length:
 		return
+	var lane := rng.randi_range(0, 1) if rng.randf() < 0.8 else 2
+	if _lane_busy(dir, lane, u, MIN_GAP * 2.5, {}, {}):
+		return
 	var col: Color = NPC_COLORS[rng.randi() % NPC_COLORS.size()]
 	# Only freighters can use the highway.
 	var node := ShipMesh.build_freighter(col, Color(1.0, 0.6, 0.35) if rng.randf() < 0.5 else Color(0.6, 0.8, 1.0))
 	ShipMesh.set_engine_glow(node, 0.5)
 	add_child(node)
-	npcs.append({"node": node, "dir": dir, "u": u, "speed": _docked_speed(), "lane": rng.randi_range(0, 1) if rng.randf() < 0.8 else 2, "bob": rng.randf() * 10.0})
+	var speed := _docked_speed()
+	npcs.append({"node": node, "dir": dir, "u": u, "speed": speed, "cur": speed, "lane": lane, "lat": _npc_lane_lat(lane),
+		"bob": rng.randf() * 10.0})
