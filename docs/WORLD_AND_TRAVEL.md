@@ -165,6 +165,11 @@ from exits, and fly into entrances. On the Lattice, docked freighters run in bot
 directions. Under the vision (`VISION.md`) traffic becomes simulation fleets,
 rendered when they're near the player. That is the next big design piece.
 
+Open-space traffic already follows that shape at a small scale. It spawns around
+the player out to beyond sensor range (4 km, see `COMBAT.md`), is drawn only inside
+it, and is handed back once it's well outside. Each traffic ship has a name and
+class so it can be targeted.
+
 ## Current tuning
 
 Snapshot at the rebuild. All of this is expected to move.

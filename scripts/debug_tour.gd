@@ -129,11 +129,23 @@ func _angles_to(a: Vector3, b: Vector3) -> Vector2:
 
 func _combat_part() -> void:
 	var combat: Combat = main.space_world.combat
+	# The start is at a Lattice gate; face away from it so drifting doesn't carry us in.
+	main.flight.place(main.flight.pos, -main.flight.forward(), 25.0)
 	main.input_override = {"thrust": 0.0}
 	await _shot("c01_start_speed_meter")
 	main.spawn_test_ship(KEY_P)
 	await _wait(1.5)
 	await _shot("c02_drone_pilot_view")
+	main.target_nearest()
+	print("tour: R -> %s  (contacts %d, in combat %s)" % [main.target().get("name", "-"), main.contacts.size(), main.in_combat()])
+	main.target_nearest()
+	print("tour: R again -> %s" % main.target().get("name", "-"))
+	main.cycle_target()
+	print("tour: Tab -> %s" % main.target().get("name", "-"))
+	while not main.target().get("id", "").begins_with("c"):
+		main.cycle_target()
+	await _wait(0.2)
+	await _shot("c02b_target_drone")
 
 	# Turret on the drone.
 	main.to_turret()
@@ -175,6 +187,29 @@ func _combat_part() -> void:
 			await _shot("c07_missile_boost")
 	await _shot("c08_missile_result")
 
+	# Detonate beside a fresh drone rather than hitting it.
+	await _wait_until(func(): return main.missile_cd <= 0.0 and main.station == 0, 10.0)
+	main.spawn_test_ship(KEY_P)
+	await _wait(0.3)
+	var drone: Dictionary = combat.ships[-1]
+	main.fire_missile()
+	t0 = main.elapsed
+	while main.station == 2 and main.elapsed - t0 < 10.0 and not combat.player_missile.is_empty():
+		var m: Dictionary = combat.player_missile
+		var aim: Vector3 = (drone.pos as Vector3) + Vector3.UP * 40.0
+		var ang := _angles_to(m.pos, aim)
+		m.aim_yaw = ang.x
+		m.aim_pitch = ang.y
+		main.input_override = {"thrust": 0.0}
+		if (m.pos as Vector3).distance_to(drone.pos) < 58.0:
+			await _shot("c08b_before_detonate")
+			combat.detonate_player_missile()
+			print("tour: detonated, drone hp %.0f / %.0f  msg=%s" % [drone.hp, drone.max_hp, main.msg])
+			await _wait(0.15)
+			await _shot("c08c_detonation")
+			break
+		await _wait(0.02)
+
 	# A hostile freighter that fires its missile soon.
 	main.input_override = {"thrust": 0.0}
 	main.spawn_test_ship(KEY_O)
@@ -182,6 +217,9 @@ func _combat_part() -> void:
 	fr.ai.missile_at = 2.0
 	await _wait_until(func(): return not combat.incoming_missiles().is_empty(), 20.0)
 	await _wait(1.0)
+	main.target_nearest()
+	print("tour: in combat %s, R -> %s" % [main.in_combat(), main.target().get("name", "-")])
+	await _wait(0.1)
 	await _shot("c09_missile_warning")
 	main.to_turret()
 	t0 = main.elapsed
@@ -203,7 +241,7 @@ func _combat_part() -> void:
 	# Fighter against fighter.
 	main.input_override = {"thrust": 1.0}
 	main.to_pilot()
-	main.swap_ship()
+	main.switch_ship(SpaceFlight.FIGHTER)
 	main.spawn_test_ship(KEY_I)
 	await _wait(6.0)
 	await _shot("c12_fighter_incoming")

@@ -19,6 +19,12 @@ var pitch_frac := 0.0        # ship pitch / max pitch
 var speed_frac := -1.0       # speed / top speed; hidden when negative
 var bars: Array = []         # {label, frac, color, text}
 var warning := ""            # blinking alert, e.g. an incoming missile
+var radar: Dictionary = {}   # {range: text, blips: [{p: Vector2 in -1..1 (up = heading), color, target, missile}]}
+var target: Dictionary = {}  # {name, cls, stance, color, dist, speed, closing, hp}
+var target_box: Dictionary = {}  # {pos, half, color}: box round the target in the view
+
+const RADAR_R := 100.0
+const TARGET_W := 250.0
 
 
 func _draw() -> void:
@@ -29,6 +35,12 @@ func _draw() -> void:
 
 	for m in markers:
 		_marker(font, m)
+	if not target_box.is_empty():
+		_box(target_box.pos, target_box.half, target_box.color)
+	if not radar.is_empty():
+		_radar(font)
+	if not target.is_empty():
+		_target_panel(font)
 	if heading.x >= 0.0:
 		draw_circle(heading, 3.0, Color(1, 1, 1, 0.6))
 	if reticle.x >= 0.0:
@@ -132,3 +144,66 @@ func _bars(font: Font) -> void:
 		draw_string(font, Vector2(r.position.x - 110, y + 8), b.label, HORIZONTAL_ALIGNMENT_RIGHT, 100, 12, b.color)
 		draw_string(font, Vector2(r.end.x + 10, y + 8), b.get("text", ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, b.color)
 		y -= 20.0
+
+
+## Corner brackets round a point.
+func _box(c: Vector2, h: float, col: Color) -> void:
+	var k := minf(h * 0.45, 12.0)
+	for sx in [-1.0, 1.0]:
+		for sy in [-1.0, 1.0]:
+			var corner := c + Vector2(sx, sy) * h
+			draw_line(corner, corner - Vector2(sx * k, 0), col, 2.0)
+			draw_line(corner, corner - Vector2(0, sy * k), col, 2.0)
+
+
+func _radar_center() -> Vector2:
+	return Vector2(size.x - 24.0 - RADAR_R, 24.0 + RADAR_R)
+
+
+## Top-down view of sensor range; the ship sits in the middle, heading up.
+func _radar(font: Font) -> void:
+	var c := _radar_center()
+	draw_circle(c, RADAR_R + 6.0, PANEL)
+	draw_arc(c, RADAR_R + 6.0, 0.0, TAU, 64, Color(CYAN, 0.35), 1.0)
+	draw_arc(c, RADAR_R * 0.5, 0.0, TAU, 48, Color(DIM, 0.3), 1.0)
+	draw_line(c + Vector2(0, -RADAR_R), c + Vector2(0, RADAR_R), Color(DIM, 0.2), 1.0)
+	draw_line(c + Vector2(-RADAR_R, 0), c + Vector2(RADAR_R, 0), Color(DIM, 0.2), 1.0)
+	for b in radar.blips:
+		var p: Vector2 = b.p
+		if p.length() > 1.0:
+			p = p.normalized()
+		var bp := c + p * RADAR_R
+		var col: Color = b.color
+		if b.missile:
+			draw_circle(bp, 2.0, col)
+		else:
+			draw_rect(Rect2(bp - Vector2(2.5, 2.5), Vector2(5, 5)), col)
+		if b.target:
+			_box(bp, 6.0, col)
+	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -7), c + Vector2(5, 5), c + Vector2(-5, 5)]), CYAN)
+	draw_string(font, c + Vector2(-RADAR_R, RADAR_R + 22.0), "RADAR", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	draw_string(font, c + Vector2(-RADAR_R, RADAR_R + 22.0), radar.range, HORIZONTAL_ALIGNMENT_RIGHT, RADAR_R * 2.0, 11, DIM)
+
+
+## Target info, beside the radar.
+func _target_panel(font: Font) -> void:
+	var col: Color = target.color
+	var x := _radar_center().x - RADAR_R - 18.0 - TARGET_W
+	var r := Rect2(Vector2(x, 18.0), Vector2(TARGET_W, 150.0))
+	draw_rect(r, PANEL)
+	draw_rect(r, Color(col, 0.45), false, 1.0)
+	var lx := x + 12.0
+	draw_string(font, Vector2(lx, 36), "TARGET", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	draw_string(font, Vector2(lx, 36), target.stance, HORIZONTAL_ALIGNMENT_RIGHT, TARGET_W - 24.0, 11, col)
+	draw_string(font, Vector2(lx, 60), target.name, HORIZONTAL_ALIGNMENT_LEFT, TARGET_W - 24.0, 17, Color.WHITE)
+	draw_string(font, Vector2(lx, 80), target.cls, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
+	var rows := [["RANGE", target.dist], ["SPEED", target.speed], ["CLOSING", target.closing]]
+	var y := 102.0
+	for row in rows:
+		draw_string(font, Vector2(lx, y), row[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, DIM)
+		draw_string(font, Vector2(lx, y), row[1], HORIZONTAL_ALIGNMENT_RIGHT, TARGET_W - 24.0, 13, Color(0.85, 0.9, 1.0))
+		y += 17.0
+	var bar := Rect2(Vector2(lx + 50.0, y - 3.0), Vector2(TARGET_W - 74.0, 6.0))
+	draw_string(font, Vector2(lx, y + 3.0), "HULL", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, DIM)
+	draw_rect(bar, Color(0, 0, 0, 0.6))
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(target.hp, 0.0, 1.0), bar.size.y)), col)

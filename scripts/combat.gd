@@ -33,6 +33,9 @@ const T := {
 	"missile_damage": 150.0,
 	"missile_radius": 3.0,
 	"missile_cooldown": 5.0,
+	"blast_radius": 45.0,          # detonating early (left click) damages ships this far from the blast
+	"blast_damage": 55.0,          # at the hull; falls to blast_edge_frac of this at the edge
+	"blast_edge_frac": 0.3,
 	"dodge_distance": 22.0,
 	"dodge_time": 0.25,
 	"dodge_cooldown": 1.2,
@@ -48,6 +51,10 @@ const T := {
 	"hp_freighter": 300.0,
 	"hp_fighter": 150.0,
 }
+
+## Ships farther than this from the player aren't rendered or targetable. Combat ships stay
+## in play beyond it (they're in a fight); traffic is handed back.
+const SENSOR_RANGE := 4000.0
 
 const ROUND_PLAYER := Color(1.0, 0.75, 0.35)
 const ROUND_ENEMY := Color(1.0, 0.35, 0.3)
@@ -109,6 +116,8 @@ func _place_ship(s: Dictionary) -> void:
 	node.position = s.pos
 	node.basis = Basis.looking_at(s.dir, Vector3.UP)
 	ShipMesh.set_engine_glow(node, (s.speed as float) / (s.max_speed as float))
+	if _player.has("pos"):
+		node.visible = (s.pos as Vector3).distance_to(_player.pos) <= SENSOR_RANGE
 
 
 # --- Player weapons -----------------------------------------------------------------------
@@ -230,6 +239,25 @@ func dodge_player_missile(dir: int) -> void:
 	m.dodge_cd = T.dodge_cooldown
 
 
+## Left click while flying: blow the missile up where it is. Ships whose hull is inside the
+## blast radius take a share of blast_damage, less the further out they are.
+func detonate_player_missile() -> void:
+	var m := player_missile
+	if m.is_empty():
+		return
+	var at: Vector3 = m.pos
+	var hits: Array = []
+	for s in ships.duplicate():
+		var gap := maxf(0.0, at.distance_to(s.pos) - (s.radius as float))
+		if gap > T.blast_radius:
+			continue
+		var dmg := T.blast_damage * lerpf(1.0, T.blast_edge_frac, gap / T.blast_radius)
+		hits.append("%s  %d" % [s.name, int(dmg)])
+		_damage_ship(s, dmg)
+	_flash(at, Color(1.0, 0.75, 0.45), T.blast_radius * 2.2)
+	_end_missile(m, "Detonated  -  " + (", ".join(hits) if not hits.is_empty() else "nothing in the blast"))
+
+
 func player_missile_aim_dir() -> Vector3:
 	if player_missile.is_empty():
 		return Vector3.FORWARD
@@ -275,7 +303,6 @@ func player_laser(origin: Vector3, dir: Vector3, held: bool, delta: float) -> bo
 ## player: {pos, vel, radius, alive}. Returns events:
 ## {type: "player_hit", dmg} / {type: "message", text} / {type: "missile_ended"}.
 func update(delta: float, player: Dictionary) -> Array:
-	_events = []
 	_player = player
 	for s in ships.duplicate():
 		_update_ship(s, delta)
@@ -285,7 +312,10 @@ func update(delta: float, player: Dictionary) -> Array:
 		_update_round(r, delta)
 	for b in blockers.duplicate():
 		_update_blocker(b, delta)
-	return _events
+	# Includes events raised between frames, e.g. by detonate_player_missile().
+	var out := _events
+	_events = []
+	return out
 
 
 func incoming_missiles() -> Array:

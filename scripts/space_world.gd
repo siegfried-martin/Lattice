@@ -8,7 +8,7 @@ extends Node3D
 const STRETCH_K := 2.4
 const STRETCH_LEN := 1500.0
 const WANDERERS := 6
-const NPC_RANGE := 14000.0
+const NPC_DESPAWN := Combat.SENSOR_RANGE * 1.5  # traffic this far away is handed back (removed)
 const LANE_MARK_SPACING := 700.0
 const GATE_NEAR := 5000.0
 
@@ -18,6 +18,8 @@ const PLANET_SHADER := preload("res://shaders/planet.gdshader")
 const PLANET_RING_SHADER := preload("res://shaders/planet_ring.gdshader")
 const BEACON_SHADER := preload("res://shaders/beacon.gdshader")
 const ASTEROID_SHADER := preload("res://shaders/asteroid.gdshader")
+const NPC_FREIGHTER_NAMES := ["Bulk hauler", "Container ship", "Ore freighter", "Tanker"]
+const NPC_FIGHTER_NAMES := ["Courier", "Patrol fighter", "Private fighter", "Scout"]
 const NPC_HULLS := [Color(0.7, 0.3, 0.25), Color(0.55, 0.6, 0.65), Color(0.25, 0.35, 0.6), Color(0.8, 0.7, 0.3), Color(0.35, 0.5, 0.4)]
 
 var current := Vector2i(-99, -99)
@@ -30,10 +32,12 @@ var wall_mat: ShaderMaterial
 var flash_mat: ShaderMaterial
 var rock_mat: ShaderMaterial
 var ast_time := 0.0
-var npcs: Array = []
+var npcs: Array = []      # {id, name, fighter, node, vel, age, life, kind, ...}
+var _next_npc_id := 1
 var gate_timer := 2.0
 var rng := RandomNumberGenerator.new()
 var combat: Combat
+var _player_world := Vector3.ZERO
 
 
 func build() -> void:
@@ -418,6 +422,7 @@ func update(delta: float, player_local: Vector3, cam_local: Vector3) -> void:
 # --- NPC traffic --------------------------------------------------------------------------
 
 func _update_npcs(delta: float, player_world: Vector3) -> void:
+	_player_world = player_world
 	var wanderers := 0
 	for n in npcs.duplicate():
 		var node: Node3D = n.node
@@ -430,16 +435,19 @@ func _update_npcs(delta: float, player_world: Vector3) -> void:
 				flash(node.position, GateBuilder.tint_for(n.gate), 40.0)
 				_remove_npc(n)
 				continue
-		elif n.age > n.life or node.position.distance_to(player_world) > NPC_RANGE:
-			flash(node.position, Color(0.6, 0.8, 1.0), 30.0)
+		elif n.age > n.life or node.position.distance_to(player_world) > NPC_DESPAWN:
+			if node.visible:
+				flash(node.position, Color(0.6, 0.8, 1.0), 30.0)
 			_remove_npc(n)
 			continue
+		# Traffic outside sensor range exists but isn't rendered.
+		node.visible = node.position.distance_to(player_world) <= Combat.SENSOR_RANGE
 		if n.kind == "wander":
 			wanderers += 1
 
 	if wanderers < WANDERERS:
 		var ang := rng.randf() * TAU
-		var p := player_world + Vector3(cos(ang), 0.0, sin(ang)) * rng.randf_range(700.0, 3000.0) + Vector3.UP * rng.randf_range(-300.0, 300.0)
+		var p := player_world + Vector3(cos(ang), 0.0, sin(ang)) * rng.randf_range(700.0, NPC_DESPAWN * 0.9) + Vector3.UP * rng.randf_range(-300.0, 300.0)
 		var hd := rng.randf() * TAU
 		var dir := Vector3(cos(hd), rng.randf_range(-0.15, 0.15), sin(hd)).normalized()
 		var fighter := rng.randf() < 0.5
@@ -473,10 +481,18 @@ func _spawn_npc(p: Vector3, vel: Vector3, kind: String, extra: Dictionary) -> vo
 	node.basis = Basis.looking_at(vel.normalized(), Vector3.UP)
 	node.scale = Vector3.ONE * 0.01
 	add_child(node)
-	flash(p, glow, 30.0)
-	var n := {"node": node, "vel": vel, "age": 0.0, "life": rng.randf_range(40.0, 90.0), "kind": kind}
+	var fighter: bool = extra.get("fighter", false)
+	var names: Array = NPC_FIGHTER_NAMES if fighter else NPC_FREIGHTER_NAMES
+	var reg := "%s%s-%03d" % [char(65 + rng.randi() % 26), char(65 + rng.randi() % 26), rng.randi() % 1000]
+	var n := {"id": "t%d" % _next_npc_id, "name": "%s %s" % [names[rng.randi() % names.size()], reg], "node": node, "vel": vel,
+		"age": 0.0, "life": rng.randf_range(40.0, 90.0), "kind": kind}
+	_next_npc_id += 1
 	n.merge(extra)
 	npcs.append(n)
+	if _player_world.distance_to(p) <= Combat.SENSOR_RANGE:
+		flash(p, glow, 30.0)
+	else:
+		node.visible = false
 
 
 func _remove_npc(n: Dictionary) -> void:
@@ -496,3 +512,27 @@ func flash(p: Vector3, tint: Color, size: float) -> void:
 	tw.tween_method(func(v: float): q.set_instance_shader_parameter("intensity", v), 4.0, 0.0, 0.8)
 	tw.parallel().tween_method(func(v: float): q.set_instance_shader_parameter("base_size", v), size * 0.2, size, 0.8)
 	tw.tween_callback(q.queue_free)
+
+
+# --- Sensors ------------------------------------------------------------------------------
+
+## Every ship within sensor range of p (world coordinates), nearest first:
+## {id, name, cls, pos, vel, hp_frac, hostile, radius, dist}.
+func contacts(p: Vector3) -> Array:
+	var out: Array = []
+	for s in combat.ships:
+		out.append({"id": "c%d" % s.id, "name": s.name, "cls": "Fighter" if s.kind == "fighter" else "Freighter",
+			"pos": s.pos, "vel": s.vel, "hp_frac": (s.hp as float) / (s.max_hp as float), "hostile": s.kind != "dummy",
+			"radius": s.radius})
+	for n in npcs:
+		var fighter: bool = n.get("fighter", false)
+		out.append({"id": n.id, "name": n.name, "cls": "Fighter" if fighter else "Freighter", "pos": n.node.position,
+			"vel": n.vel, "hp_frac": 1.0, "hostile": false,
+			"radius": SpaceFlight.FIGHTER.radius if fighter else SpaceFlight.FREIGHTER.radius})
+	var near: Array = []
+	for c in out:
+		c.dist = p.distance_to(c.pos)
+		if c.dist <= Combat.SENSOR_RANGE:
+			near.append(c)
+	near.sort_custom(func(a, b): return a.dist < b.dist)
+	return near

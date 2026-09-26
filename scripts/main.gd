@@ -70,6 +70,10 @@ var missile_end_t := -1.0
 var _last_missile_cam := Transform3D()
 var _laser_on := false
 
+# Sensors and targeting (open space)
+var contacts: Array = []   # space_world.contacts(), refreshed each frame
+var target_id := ""
+
 # Hop state
 var hop: Dictionary = {}
 var hop_s := 0.0
@@ -151,7 +155,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_C:
 				toggle_dock()
 			KEY_TAB:
-				swap_ship()
+				cycle_target()
+			KEY_R:
+				target_nearest()
+			KEY_KP_1:
+				switch_ship(SpaceFlight.FREIGHTER)
+			KEY_KP_2:
+				switch_ship(SpaceFlight.FIGHTER)
 			KEY_A:
 				if docked:
 					drive.change_lane(-1)
@@ -170,6 +180,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				fire_missile()
 			KEY_P, KEY_O, KEY_I:
 				spawn_test_ship(event.physical_keycode)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
+			and station == Station.MISSILE and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		space_world.combat.detonate_player_missile()
 	elif event is InputEventMouseButton and event.pressed and not docked and input_override.is_empty() \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -216,12 +229,13 @@ func _set_ship_class(cls: Dictionary) -> void:
 	station = Station.PILOT
 
 
-## POC shortcut for trying both classes: swap ships in open space.
-func swap_ship() -> void:
-	if mode != Mode.SPACE:
+## POC shortcut for trying both classes (numpad 1 / 2): switch ships in open space.
+func switch_ship(cls: Dictionary) -> void:
+	if mode != Mode.SPACE or flight.cls == cls:
 		return
+	_leave_combat()
 	var speed := flight.forward_speed()
-	_set_ship_class(SpaceFlight.FIGHTER if flight.cls == SpaceFlight.FREIGHTER else SpaceFlight.FREIGHTER)
+	_set_ship_class(cls)
 	flight.velocity = flight.forward() * minf(speed, flight.cls.max_speed)
 	flash_rect.color.a = 0.5
 	_say("Now flying the %s" % flight.cls.name.to_lower(), 2.0)
@@ -286,7 +300,7 @@ func _process_space(delta: float, rel: Vector2, thrust: float) -> void:
 		if flight.cls.highway:
 			_enter_highway(g)
 			return
-		_say("No threader fitted  -  fighters can't enter the Lattice  (Tab swaps to the freighter)")
+		_say("No threader fitted  -  fighters can't enter the Lattice  (Numpad 1 for the freighter)")
 
 	ship.transform = Transform3D(flight.ship_basis(), flight.pos)
 	ShipMesh.set_engine_glow(ship, _speed_frac())
@@ -298,6 +312,9 @@ func _process_space(delta: float, rel: Vector2, thrust: float) -> void:
 	_update_combat(delta)
 	camera.transform = _space_camera(delta)
 	space_world.update(delta, flight.pos, camera.global_position)
+	contacts = space_world.contacts(_to_world(flight.pos))
+	if target_id != "" and target().is_empty():
+		target_id = ""
 	_hud_space()
 
 
@@ -533,6 +550,52 @@ func _leave_combat() -> void:
 	space_world.combat.cancel_player_missile()
 	space_world.combat.player_laser(Vector3.ZERO, Vector3.FORWARD, false, 0.0)
 	station = Station.PILOT
+	target_id = ""
+	contacts = []
+
+
+# --- Targeting ----------------------------------------------------------------------------
+
+func target() -> Dictionary:
+	for c in contacts:
+		if c.id == target_id:
+			return c
+	return {}
+
+
+## Combat means a hostile ship on sensors or an enemy missile in flight.
+func in_combat() -> bool:
+	for c in contacts:
+		if c.hostile:
+			return true
+	return not space_world.combat.incoming_missiles().is_empty()
+
+
+## Tab: next ship in sensor range, nearest first, wrapping round.
+func cycle_target() -> void:
+	if mode != Mode.SPACE:
+		return
+	if contacts.is_empty():
+		_say("No ships in sensor range", 1.5)
+		return
+	var i := -1
+	for k in contacts.size():
+		if contacts[k].id == target_id:
+			i = k
+	target_id = contacts[(i + 1) % contacts.size()].id
+
+
+## R: nearest enemy in combat, otherwise nearest ship. Pressing it again takes the second
+## nearest, so repeated presses flip between the two closest.
+func target_nearest() -> void:
+	if mode != Mode.SPACE:
+		return
+	var hostile_only := in_combat()
+	var pool: Array = contacts.filter(func(c): return c.hostile or not hostile_only)
+	if pool.is_empty():
+		_say("No ships in sensor range", 1.5)
+		return
+	target_id = pool[1].id if pool[0].id == target_id and pool.size() > 1 else pool[0].id
 
 
 # --- Hop lanes ----------------------------------------------------------------------------
@@ -786,9 +849,9 @@ func _hud_space() -> void:
 
 	match station:
 		Station.TURRET:
-			hud.help = "Mouse: aim turret   Left: auto-cannon   Right: blocker   X: missile   T: back to the helm"
+			hud.help = "Mouse: aim turret   Left: auto-cannon   Right: blocker   X: missile   T: back to the helm   Tab / R: target"
 		Station.MISSILE:
-			hud.help = "Mouse: steer   W: boost   S: slow and turn tighter   A / D: dodge"
+			hud.help = "Mouse: steer   W: boost   S: slow and turn tighter   A / D: dodge   Left: detonate"
 			var m: Dictionary = combat.player_missile
 			if not m.is_empty():
 				var mp: Vector3 = (m.pos as Vector3) - space_world.center
@@ -798,16 +861,20 @@ func _hud_space() -> void:
 				hud.heading = camera.unproject_position(fwd_pt) if not camera.is_position_behind(fwd_pt) else Vector2(-1, -1)
 		_:
 			var weapons := "Left: cannon   Right: laser   " if not flight.cls.turret else "G: turret   "
-			hud.help = "Mouse: aim   W / S: thrust / brake   " + weapons + "X: missile   P / O / I: drone / freighter / fighter   Tab: swap ship"
+			hud.help = "Mouse: aim   W / S: thrust / brake   " + weapons + "X: missile   Tab / R: target   P / O / I: drone / freighter / fighter   Numpad 1 / 2: freighter / fighter"
 
+	# Combat ships on sensors get a marker; the target gets a box instead.
 	var markers: Array = hud.markers
-	for s in combat.ships:
-		var p: Vector3 = (s.pos as Vector3) - space_world.center
-		var col := Color(1.0, 0.45, 0.35) if s.kind != "dummy" else Color(1.0, 0.85, 0.5)
+	for c in contacts:
+		if not (c.id as String).begins_with("c") or c.id == target_id:
+			continue
+		var p: Vector3 = (c.pos as Vector3) - space_world.center
 		var mk_count := markers.size()
-		_marker(markers, p, "%s  %s" % [s.name, _fmt_dist(p.distance_to(flight.pos))], col, true)
+		_marker(markers, p, "%s  %s" % [c.name, _fmt_dist(c.dist)], _contact_color(c), true)
 		if markers.size() > mk_count and not markers[-1].arrow:
-			markers[-1].bar = (s.hp as float) / (s.max_hp as float)
+			markers[-1].bar = c.hp_frac
+	_hud_target()
+	_hud_radar(combat)
 	for m in incoming:
 		_marker(markers, (m.pos as Vector3) - space_world.center, "MISSILE", GateBuilder.OFF_TINT.lerp(Color.RED, 0.6), true)
 	for g in space_world.current_gates():
@@ -826,6 +893,58 @@ func _hud_space() -> void:
 			col = Color(0.85, 0.8, 0.7, 0.7)
 		_marker(markers, b.pos, txt, col, cur and b.kind == "planet")
 	hud.queue_redraw()
+
+
+static func _contact_color(c: Dictionary) -> Color:
+	if c.hostile:
+		return Color(1.0, 0.42, 0.35)
+	if (c.id as String).begins_with("c"):
+		return Color(1.0, 0.85, 0.5)    # test drone
+	return Color(0.75, 0.85, 0.8)
+
+
+## The target's info panel, and a box round it in the view (an edge arrow when off screen).
+func _hud_target() -> void:
+	hud.target = {}
+	hud.target_box = {}
+	var t := target()
+	if t.is_empty():
+		return
+	var col := _contact_color(t)
+	var to_t: Vector3 = (t.pos as Vector3) - _to_world(flight.pos)
+	var closing := -((t.vel as Vector3) - flight.velocity).dot(to_t.normalized())
+	hud.target = {"name": t.name, "cls": t.cls, "stance": "HOSTILE" if t.hostile else "NEUTRAL", "color": col,
+		"dist": _fmt_dist(t.dist), "speed": "%d m/s" % int((t.vel as Vector3).length()),
+		"closing": "%+d m/s" % int(closing), "hp": t.hp_frac}
+	var p: Vector3 = (t.pos as Vector3) - space_world.center
+	var vp := get_viewport().get_visible_rect().size
+	var sp := camera.unproject_position(p)
+	if camera.is_position_behind(p) or sp.x < 0.0 or sp.y < 0.0 or sp.x > vp.x or sp.y > vp.y:
+		_marker(hud.markers, p, t.name, col, true)
+		return
+	var edge := camera.unproject_position(p + camera.global_basis.x * (t.radius as float))
+	hud.target_box = {"pos": sp, "half": maxf(sp.distance_to(edge) * 1.25, 14.0), "color": col}
+
+
+## Top-down radar of sensor range, with the ship's heading always up.
+func _hud_radar(combat: Combat) -> void:
+	var me := _to_world(flight.pos)
+	var fwd := flight.forward()
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.001 else Vector3.FORWARD
+	var right := fwd.cross(Vector3.UP)
+	var to_radar := func(p: Vector3) -> Vector2:
+		var d := p - me
+		return Vector2(d.dot(right), -d.dot(fwd)) / Combat.SENSOR_RANGE
+	var blips: Array = []
+	for c in contacts:
+		blips.append({"p": to_radar.call(c.pos), "color": _contact_color(c), "target": c.id == target_id, "missile": false})
+	for m in combat.missiles:
+		var mp: Vector3 = m.pos
+		if mp.distance_to(me) <= Combat.SENSOR_RANGE:
+			blips.append({"p": to_radar.call(mp), "color": Color(0.6, 0.85, 1.0) if m.player else Color(1.0, 0.3, 0.25),
+				"target": false, "missile": true})
+	hud.radar = {"range": _fmt_dist(Combat.SENSOR_RANGE), "blips": blips}
 
 
 func _combat_bars(combat: Combat) -> Array:
@@ -864,6 +983,9 @@ func _hud_hop(length: float) -> void:
 ## Reticle, heading pip and pitch gauge, shown whenever the ship is flying freely.
 func _hud_flight(show: bool) -> void:
 	hud.markers = []
+	hud.radar = {}
+	hud.target = {}
+	hud.target_box = {}
 	hud.show_flight = show
 	hud.crosshair = false
 	hud.bars = []
