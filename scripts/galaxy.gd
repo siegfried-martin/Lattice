@@ -14,29 +14,34 @@ const ROWS := 4
 const ROW_NAMES := ["A", "B", "C", "D"]
 
 # Highway network: a scaled-down replica of the map, shaped like a cent sign. HWY 1 is the C
-# (open to the east, ending in exits); HWY 2 is the vertical stroke, ending in T-junctions on
-# HWY 1 at both ends.
+# (open to the east, ending in exits); HWY 2 is the vertical stroke, ending short of HWY 1 at
+# both ends. Junctions between them are made of junction gates: an off-ramp (or HWY 2's end)
+# leads into one, and you come out of its pair onto the other road, merging from the right.
 const HW_SCALE := 1.0 / 20.0
-const LANE_W := 10.0
+# The road's cross-section and the gate frames are sized for the freighter, and grow with it.
+# Lengths along the road grow less, so HWY 2's junctions and interchange still fit on it.
+const ROAD_SCALE := ShipMesh.FREIGHTER_SCALE
+const LANE_W := 10.0 * ROAD_SCALE
 const LANES := 3
-const MEDIAN := 4.0
-const SHOULDER := 3.0
+const MEDIAN := 4.0 * ROAD_SCALE
+const SHOULDER := 3.0 * ROAD_SCALE
 const CARR_W := LANE_W * LANES
 const CARR_CENTER := MEDIAN + CARR_W * 0.5
 const RIGHT_LANE_LAT := CARR_W * 0.5 - LANE_W * 0.5
 const ROAD_HALF_W := MEDIAN + CARR_W + SHOULDER
-const RAMP_LEN := 170.0
-const RAMP_SHIFT := 24.0
-const RAMP_HALF_W := LANE_W * 0.5 + 2.0
-const GATE_W := 30.0
-const GATE_H := 20.0
+const RAMP_LEN := 260.0
+const RAMP_SHIFT := 24.0 * ROAD_SCALE
+const RAMP_HALF_W := LANE_W * 0.5 + 2.0 * ROAD_SCALE
+const GATE_W := 30.0 * ROAD_SCALE
+const GATE_H := 20.0 * ROAD_SCALE
 const GATE_Y := GATE_H * 0.5
-const HOP_GATE_W := 60.0
-const HOP_GATE_H := 40.0
-const INTERCHANGE_GAP := 30.0  # exit and entrance gates sit this far either side of an interchange
-const TERMINAL_GATE_U := 20.0  # dead-end gates sit this far in from the road end
-const JUNCTION_GAP := 70.0     # HWY 2 stops this far short of HWY 1's centreline
-const JUNCTION_SPAN := 120.0   # turn links fork / merge this far from the junction
+const HOP_GATE_W := 60.0 * ROAD_SCALE
+const HOP_GATE_H := 40.0 * ROAD_SCALE
+const INTERCHANGE_GAP := 60.0  # exit and entrance gates sit this far either side of an interchange
+const TERMINAL_GATE_U := 20.0 * ROAD_SCALE  # dead-end gates sit this far in from the road end
+const JUNCTION_GAP := 260.0    # HWY 2 stops this far short of HWY 1's centreline, outside its tunnel
+# HWY 2's ends are split between two junction gates: the left lane takes the left one.
+const JCT_SPLIT_LAT := -RIGHT_LANE_LAT + LANE_W * 0.5   # lat of the post between them
 
 const C_CENTER := Vector2(30000.0, 22500.0)
 const C_RX := 21000.0
@@ -58,8 +63,9 @@ const PALETTES := [
 var sectors := {}          # Vector2i -> {coord, name, center, bodies, gates}
 var roads: Array = []      # {id, name, track}
 var junctions: Array = []  # {u (on HWY 1), v_s (HWY 2 end), v_in (dir arriving), v_out (dir leaving)}
-var links: Array = []      # ramps and junction turns
-var gates: Array = []      # highway entrances / exits and hop gates
+var links: Array = []      # ramps, to and from gates
+var gates: Array = []      # highway entrances / exits and hop gates (these exist in open space)
+var jct_gates: Array = []  # junction gates, only on the Lattice: {kind "jct", hw, depart, pair, link | terminal, size, label}
 var events := {}           # Vector2i(road, d) -> [{u, text, kind}] in travel order
 var boundaries: Array = [] # {road, u, a, b}: road crosses from sector a to b going +u
 var systems: Array = []
@@ -213,7 +219,12 @@ func world_of_hw(p: Vector3) -> Vector3:
 ## Where carriageway (road, d) leads: the sector at its far end.
 func carr_destination(road: int, d: int) -> String:
 	var t := road_track(road)
-	return sector_name(hex_of(world_of_hw(t.pos(t.length if d == 1 else 0.0))))
+	var u := t.length if d == 1 else 0.0
+	var end := t.pos(u)
+	if road == 1:
+		# HWY 2 stops short of HWY 1; name the sector of the junction it leads to.
+		end += t.tangent(u) * d * JUNCTION_GAP
+	return sector_name(hex_of(world_of_hw(end)))
 
 
 func _build_boundaries() -> void:
@@ -288,37 +299,75 @@ func _gate_xform(p: Vector3, fwd: Vector3) -> Transform3D:
 
 
 func _build_junctions() -> void:
+	var t := road_track(0)
+	var n := 28
 	for j in junctions:
-		# From HWY 2 (its carriageway ends here) onto HWY 1 either way: keep left / right.
+		var v_gate: float = j.v_s - j.v_in * TERMINAL_GATE_U
 		for dc in [1, -1]:
-			var vin: int = j.v_in
-			var right_v := carr_right(1, vin, j.v_s)
-			var side := signf(carr_fwd(0, dc, j.u).dot(right_v))
-			var from_lat := side * RIGHT_LANE_LAT
-			var p0 := carr_point(1, vin, j.v_s, from_lat)
-			var u_m: float = j.u + dc * JUNCTION_SPAN
-			var to_lat := signf((p0 - carr_point(0, dc, u_m, 0.0)).dot(carr_right(0, dc, u_m))) * RIGHT_LANE_LAT
-			var p1 := carr_point(0, dc, u_m, to_lat)
-			var pts := _hermite(p0, carr_fwd(1, vin, j.v_s), p1, carr_fwd(0, dc, u_m))
-			var offs := _lerp_offs(pts.size(), -(CARR_CENTER + from_lat), -(CARR_CENTER + to_lat))
-			var label := "%s %s > %s" % [ROAD_NAMES[0], compass(carr_fwd(0, dc, u_m)), carr_destination(0, dc)]
-			var l := _add_link("turn", pts, {"road": 1, "d": vin, "u": j.v_s, "lat": from_lat, "at_end": true, "side": side},
-				{"road": 0, "d": dc, "u": u_m, "lat": to_lat}, offs, label)
-		# From HWY 1 onto HWY 2 (its carriageway starts here).
-		for dc in [1, -1]:
-			var vout: int = j.v_out
-			var u_f: float = j.u - dc * JUNCTION_SPAN
-			var p1c := carr_point(1, vout, j.v_s, 0.0)
-			var side := signf((p1c - carr_point(0, dc, u_f, 0.0)).dot(carr_right(0, dc, u_f)))
-			var from_lat := side * RIGHT_LANE_LAT
-			var p0 := carr_point(0, dc, u_f, from_lat)
-			var to_lat := signf((p0 - p1c).dot(carr_right(1, vout, j.v_s))) * RIGHT_LANE_LAT
-			var p1 := carr_point(1, vout, j.v_s, to_lat)
-			var pts := _hermite(p0, carr_fwd(0, dc, u_f), p1, carr_fwd(1, vout, j.v_s))
-			var offs := _lerp_offs(pts.size(), -(CARR_CENTER + from_lat), -(CARR_CENTER + to_lat))
-			var label := "%s %s > %s" % [ROAD_NAMES[1], compass(carr_fwd(1, vout, j.v_s)), carr_destination(1, vout)]
-			_add_link("turn", pts, {"road": 0, "d": dc, "u": u_f, "lat": from_lat, "side": side},
-				{"road": 1, "d": vout, "u": j.v_s, "lat": to_lat}, offs, label)
+			# HWY 1 (dc) keeps right onto an off-ramp to a junction gate, and comes out at the
+			# start of HWY 2's departing carriageway, on the side HWY 1 (dc) approaches from.
+			var fork: float = j.u - dc * (INTERCHANGE_GAP + RAMP_LEN)
+			var pts := PackedVector3Array()
+			var offs := PackedFloat32Array()
+			for i in n + 1:
+				var k := float(i) / n
+				var lat_m := CARR_CENTER + RIGHT_LANE_LAT + RAMP_SHIFT * _smooth(k)
+				pts.append(t.point(fork + dc * k * RAMP_LEN, dc * lat_m))
+				offs.append(-lat_m)
+			var to_hwy2 := "%s %s > %s" % [ROAD_NAMES[1], compass(carr_fwd(1, j.v_out, j.v_s)), carr_destination(1, j.v_out)]
+			var off := _add_link("jct_off", pts, {"road": 0, "d": dc, "u": fork, "lat": RIGHT_LANE_LAT, "side": 1.0}, {}, offs,
+				"JCT " + to_hwy2)
+			var tr: Track = off.track
+			var into := _add_jct_gate(_gate_xform(tr.pos(tr.length), tr.tangent(tr.length)), true, to_hwy2, {"link": off})
+			off.gate = into
+			var approach := carr_point(0, dc, j.u - dc * 300.0, 0.0)
+			var left := (approach - carr_point(1, j.v_out, j.v_s, 0.0)).dot(carr_right(1, j.v_out, j.v_s)) < 0.0
+			into.pair = _add_split_gate(1, j.v_out, v_gate, left, false, "")
+
+			# HWY 2's arriving carriageway ends in two gates: each comes out on an on-ramp onto
+			# HWY 1 (dc), merging from the right.
+			var gate_u: float = j.u + dc * INTERCHANGE_GAP
+			pts = PackedVector3Array()
+			offs = PackedFloat32Array()
+			for i in n + 1:
+				var k := float(i) / n
+				var lat_m := CARR_CENTER + RIGHT_LANE_LAT + RAMP_SHIFT * _smooth(1.0 - k)
+				pts.append(t.point(gate_u + dc * k * RAMP_LEN, dc * lat_m))
+				offs.append(-lat_m)
+			var to_hwy1 := "%s %s > %s" % [ROAD_NAMES[0], compass(carr_fwd(0, dc, gate_u)), carr_destination(0, dc)]
+			var on := _add_link("jct_on", pts, {}, {"road": 0, "d": dc, "u": gate_u + dc * RAMP_LEN, "lat": RIGHT_LANE_LAT}, offs, to_hwy1)
+			var out := _add_jct_gate(_gate_xform(pts[0], on.track.tangent(0.0)), false, "", {"link": on})
+			on.gate = out
+			left = carr_fwd(0, dc, j.u).dot(carr_right(1, j.v_in, j.v_s)) < 0.0
+			var end_gate := _add_split_gate(1, j.v_in, v_gate, left, true, to_hwy1)
+			end_gate.pair = out
+
+
+func _add_jct_gate(hw: Transform3D, depart: bool, label: String, extra: Dictionary) -> Dictionary:
+	var g := {"kind": "jct", "hw": hw, "depart": depart, "label": label, "pair": {}, "size": Vector2(GATE_W, GATE_H)}
+	g.merge(extra)
+	jct_gates.append(g)
+	return g
+
+
+## One of the two gates across the end (or start) of HWY 2's carriageway (road, d) at u: the
+## left one covers the left lane, the right one the other two.
+func _add_split_gate(road: int, d: int, u: float, left: bool, depart: bool, label: String) -> Dictionary:
+	var a := -CARR_W * 0.5 if left else JCT_SPLIT_LAT
+	var b := JCT_SPLIT_LAT if left else CARR_W * 0.5
+	var lat := (a + b) * 0.5
+	var g := _add_jct_gate(_gate_xform(carr_point(road, d, u, lat), carr_fwd(road, d, u)), depart, label,
+		{"terminal": {"road": road, "d": d, "u": u, "lat": lat, "left": left}})
+	g.size = Vector2(b - a, GATE_H)
+	return g
+
+
+## The junction gate across the end of carriageway (road, d) for lateral position lat, or {}.
+func jct_end_gate(road: int, d: int, lat: float) -> Dictionary:
+	for g in jct_gates:
+		if g.depart and g.has("terminal") and g.terminal.road == road and g.terminal.d == d and g.terminal.left == (lat < JCT_SPLIT_LAT):
+			return g
+	return {}
 
 
 static func _lerp_offs(n: int, a: float, b: float) -> PackedFloat32Array:
@@ -391,25 +440,20 @@ func _build_events() -> void:
 			for l in links:
 				if l.from.is_empty() or l.from.road != road.id or l.from.d != d:
 					continue
-				if l.from.get("at_end", false):
-					continue
-				list.append({"u": l.from.u, "text": l.label, "kind": l.kind, "side": l.from.side})
-			for j in junctions:
-				if road.id == 1 and d == j.v_in:
-					list.append({"u": j.v_s, "text": "JCT %s:  < %s  |  %s >" % [ROAD_NAMES[0], _turn_label(j, -1), _turn_label(j, 1)], "kind": "jct_end", "side": 0.0})
+				list.append({"u": l.from.u, "text": l.label, "kind": "jct" if l.kind == "jct_off" else l.kind})
+			var split := {}
+			for g in jct_gates:
+				if g.depart and g.has("terminal") and g.terminal.road == road.id and g.terminal.d == d:
+					split["left" if g.terminal.left else "right"] = g.label.get_slice(" >", 0)
+					split.u = g.terminal.u
+			if not split.is_empty():
+				list.append({"u": split.u, "text": "JCT  < %s  |  %s >" % [split.left, split.right], "kind": "jct_end",
+					"left": split.left, "right": split.right})
 			var te := terminal_exit(road.id, d)
 			if not te.is_empty():
-				list.append({"u": te.terminal.u, "text": te.label, "kind": "end", "side": 0.0})
+				list.append({"u": te.terminal.u, "text": te.label, "kind": "end"})
 			list.sort_custom(func(a, b): return a.u * d < b.u * d)
 			events[Vector2i(road.id, d)] = list
-
-
-## Label of the junction turn taken from HWY 2 by keeping to side (-1 left, +1 right).
-func _turn_label(j: Dictionary, side: int) -> String:
-	for l in links:
-		if l.kind == "turn" and l.from.road == 1 and l.from.d == j.v_in and int(l.from.side) == side:
-			return l.label.get_slice(" >", 0)
-	return "?"
 
 
 func upcoming(road: int, d: int, u: float, count: int) -> Array:
@@ -417,7 +461,9 @@ func upcoming(road: int, d: int, u: float, count: int) -> Array:
 	for e in events.get(Vector2i(road, d), []):
 		var dist: float = (e.u - u) * d
 		if dist >= 0.0:
-			out.append({"dist": dist, "text": e.text, "kind": e.kind})
+			var ev: Dictionary = e.duplicate()
+			ev.dist = dist
+			out.append(ev)
 			if out.size() >= count:
 				break
 	return out
@@ -469,9 +515,11 @@ func _new_system(center: Vector3) -> Dictionary:
 func _build_system_bodies(sys: Dictionary, rng: RandomNumberGenerator) -> void:
 	var n_planets: int = [1, 2, 2, 3, 3, 4][rng.randi() % 6]
 	for k in n_planets:
-		for attempt in 150:
+		# Every system gets its first planet: if the gates crowd it out, move further out.
+		for attempt in 150 if k > 0 else 300:
 			var radius := rng.randf_range(450.0, 1400.0)
-			var dist := rng.randf_range(0.0, 900.0) if k == 0 else rng.randf_range(1500.0, 4500.0)
+			var reach := 900.0 if attempt < 150 else 3000.0
+			var dist := rng.randf_range(0.0, reach) if k == 0 else rng.randf_range(1500.0, 4500.0)
 			var ang := rng.randf() * TAU
 			var p: Vector3 = sys.center + Vector3(cos(ang) * dist, rng.randf_range(-700.0, 700.0), sin(ang) * dist)
 			if not _body_ok(p, radius, sys.sector, 1500.0, 2500.0):

@@ -53,8 +53,12 @@ The prototype has two, to establish the relationship:
 
 - **Fighter:** fast and agile, about 2.5 times the freighter's speed. It can't
   enter the Lattice.
-- **Freighter:** slow and heavy. It has a **threader**, the equipment that lets a
-  ship enter the Lattice.
+- **Freighter:** slow, heavy and big, about 50 m long against the fighter's 8 m. It
+  has a **threader**, the equipment that lets a ship enter the Lattice.
+
+The Lattice is sized around the freighter: its lanes, tunnel and gate frames scale with
+the freighter's model (`Galaxy.ROAD_SCALE`, tied to `ShipMesh.FREIGHTER_SCALE`), so a
+freighter fills one lane and fits a gate frame whatever size it is.
 
 The intended feel: crossing between sectors in a fighter is inconvenient, and in a
 freighter it is painful. But a freighter in the Lattice covers the map far faster
@@ -114,8 +118,15 @@ continuous.
 - **Two carriageways side by side**, traffic on the right, three lanes each, and a
   median barrier. You can see the opposing traffic across the median but can't
   reach it.
-- **Signs and HUD:** current sector, road and heading, upcoming exits and junctions
-  with distances.
+- **No overhead signs.** They blocked the view, so navigation lives on the HUD
+  instead. There's no radar on the Lattice, so its corner holds a **navigation panel**:
+  the current sector and the road you're on drawn like a **subway line**. It shows
+  the next few stops (exits, junctions, the end), each with its distance, and the ship
+  between the last stop passed and the next. Further stops fold into "+N more". It
+  shows only the current route, so it stays the same size however big the network
+  grows. A full network map would be a separate screen. Within 1.5 km of a fork, **lane
+  guidance** at the top of the screen shows which lanes lead where and which one
+  you're in. Crossing into a new sector gets a short message.
 
 ### Two ways to travel
 
@@ -132,9 +143,35 @@ A cent sign (¢):
 
 - **HWY 1** is the C, open to the east. Both open ends finish in an **exit gate**,
   with an entrance beside it for the other direction.
-- **HWY 2** is the vertical stroke, ending in a T-junction on HWY 1 at the top and
-  bottom. There you keep left or right to turn east or west. From HWY 1 you keep
-  toward HWY 2's side to turn onto it.
+- **HWY 2** is the vertical stroke. It stops short of HWY 1 at the top and bottom,
+  far enough that the two roads never show inside each other's tunnel. The tunnel
+  closes just past each of HWY 2's ends.
+
+### Junctions
+
+Traffic keeps right, so nothing turns across the oncoming carriageway. Junctions are
+made of **junction gates** (blue), which exist only on the Lattice. Go through one
+and you come out of its pair on the other highway.
+
+- **From HWY 1:** keep right onto the junction off-ramp, the same way you take an
+  exit. It ends in a junction gate, and you come out at the start of HWY 2.
+- **From HWY 2:** the carriageway ends in two junction gates side by side. The
+  left lane goes through the left gate and the other two lanes through the right
+  one. Each gate takes you to HWY 1 in that direction, where you come out on an
+  on-ramp and merge from the right.
+- You come out a little past the arrival gate, with a flash as the tunnel opens up
+  again, so the camera isn't left behind the gate.
+
+An at-grade junction cut across the oncoming carriageway and the median, and showed
+each road through the other's walls. A continuous interchange (a trumpet with a
+flyover) would work, but in a world drawn as one tunnel around your path, ramps would
+visibly branch off through the walls. The gates are the simpler version, being tried
+first.
+
+The continuous interchange isn't ruled out. Different factions may build their
+highways with different technology: one faction's network might use junction gates
+and another's real interchanges. That would make the networks feel different from
+each other.
 
 ### Getting on and off
 
@@ -143,7 +180,7 @@ A cent sign (¢):
   nearby.
 - **Docked:** keep to the right lane past an exit fork to take it. After merging, the
   ship eases toward the middle lane so the next exit isn't taken by accident.
-- **Free flight:** fly through an exit gate.
+- **Free flight:** fly through an exit gate, or a junction gate to change highway.
 - **Entering from open space:** fly through an entrance gate. It has lead-up frames
   on the approach side to line you up.
 
@@ -165,6 +202,18 @@ from exits, and fly into entrances. On the Lattice, docked freighters run in bot
 directions. Under the vision (`VISION.md`) traffic becomes simulation fleets,
 rendered when they're near the player. That is the next big design piece.
 
+**Ships don't pass through each other.** Each ship has a collision capsule that
+fits its hull. In open space, overlapping ships are pushed apart, and the player
+bounces off as they do off asteroids. On the Lattice, docked traffic keeps to its lane
+and slows behind whatever is ahead, the player included. A slower ship ahead of a
+docked player in their lane moves over to a free lane, or speeds up if there isn't
+one. A free-flying player is pushed out of traffic.
+
+Open-space traffic already follows that shape at a small scale. It spawns around
+the player out to beyond sensor range (4 km, see `COMBAT.md`), is drawn only inside
+it, and is handed back once it's well outside. Each traffic ship has a name and
+class so it can be targeted.
+
 ## Current tuning
 
 Snapshot at the rebuild. All of this is expected to move.
@@ -175,16 +224,19 @@ Snapshot at the rebuild. All of this is expected to move.
 | Fighter / freighter top speed | 100 / 40 m/s |
 | Docked speed | 80% of the ship's top speed |
 | Lattice scale | 1/20 of the map |
-| Lattice tunnel | 144 m wide, 32 m tall; free-flight ceiling 24 m |
+| Freighter / fighter length | about 50 / 8 m |
+| Lattice lane | 25 m (3 per carriageway, 10 m median) |
+| Lattice tunnel | 360 m wide, 80 m tall; free-flight ceiling 60 m |
+| Gate frame | Lattice 75 × 50 m, hop lane 150 × 100 m |
+| HWY 2's ends | 260 m short of HWY 1's median; the tunnel closes 150 m past them |
+| Gate frame runs (open space) | entrance lead-up 5 frames × 200 m (hop 260 m), exit trail 3 × 150 m. An exit and the next entrance share a line 2.4 km apart, so the runs must stay short of that. |
+| Lattice traffic spacing | follows from 130 m, never closer than 70 m (centre to centre) |
 | Hop lane | up to 600 m/s |
 | Neighbour planet push-out | 1 + 2.4 × ln(1 + distance past border / 1.5 km) |
 | Asteroid drift | about 1–16 m/s |
 
 ## Known rough edges
 
-- The tunnel bends sharply through junction turns.
-- The backs of road signs are plain dark panels.
-- Free flight through a junction follows whichever road is nearer, which can put you
-  on the other road's far side.
+- A junction jump is a cut: the tunnel restarts from its throat on the other road.
 - Traffic and system placement are generated once from fixed seeds. There are no
   authored places yet.

@@ -4,6 +4,7 @@
 shader_type spatial;
 render_mode cull_disabled;
 
+uniform float scale = 1.0;   // plating is laid out in design metres times this
 varying float face;
 
 float hash(vec2 p) {
@@ -17,7 +18,8 @@ void vertex() {
 void fragment() {
 	float fid = floor(face + 0.5);
 	vec2 cell = fid == 0.0 ? vec2(6.0, 6.0) : vec2(12.0, 8.0);
-	vec2 g = UV / cell;
+	vec2 uv = UV / scale;
+	vec2 g = uv / cell;
 	vec2 id = floor(g);
 	vec2 f = fract(g);
 	// Seams 0.12 m wide, faded out where they'd be thinner than a pixel.
@@ -36,13 +38,13 @@ void fragment() {
 	METALLIC = 0.55;
 	ROUGHNESS = 0.45 + 0.3 * h;
 	// A faint cold light seeping through the plating seams.
-	float flow = 0.5 + 0.5 * sin(UV.y * 0.04 - TIME * 0.5 + h * 6.0);
+	float flow = 0.5 + 0.5 * sin(uv.y * 0.04 - TIME * 0.5 + h * 6.0);
 	vec3 emit = vec3(0.12, 0.2, 0.3) * seam * (0.05 + 0.15 * flow) + vec3(0.008, 0.01, 0.014);
 	float throat = smoothstep(0.72, 1.0, fr);
 	emit += vec3(0.35, 0.45, 0.6) * throat * throat * 1.4;
 	EMISSION = emit * smoothstep(0.0, 0.15, fr);
 	// Dither the plating away right next to the camera so it can't block the view.
-	if (smoothstep(4.0, 14.0, length(VERTEX)) < hash(FRAGCOORD.xy)) {
+	if (smoothstep(4.0 * scale, 14.0 * scale, length(VERTEX)) < hash(FRAGCOORD.xy)) {
 		discard;
 	}
 }

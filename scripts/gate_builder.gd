@@ -8,6 +8,9 @@ const PORTAL_SHADER := preload("res://shaders/portal.gdshader")
 const ON_TINT := Color(0.55, 0.9, 0.6)
 const OFF_TINT := Color(1.0, 0.62, 0.28)
 const HOP_TINT := Color(0.72, 0.55, 1.0)
+const JCT_TINT := Color(0.45, 0.75, 1.0)
+const LEAD_SPACING := {"on": 200.0, "hop_in": 260.0}   # metres between an entrance's lead-up frames
+const TRAIL_SPACING := 150.0                            # and between an exit's trailing frames
 
 
 static func tint_for(g: Dictionary) -> Color:
@@ -16,10 +19,14 @@ static func tint_for(g: Dictionary) -> Color:
 			return ON_TINT
 		"off":
 			return OFF_TINT
+		"jct":
+			return JCT_TINT
 	return HOP_TINT
 
 
 static func size_for(g: Dictionary) -> Vector2:
+	if g.has("size"):
+		return g.size
 	if g.kind.begins_with("hop"):
 		return Vector2(Galaxy.HOP_GATE_W, Galaxy.HOP_GATE_H)
 	return Vector2(Galaxy.GATE_W, Galaxy.GATE_H)
@@ -37,13 +44,14 @@ static func build(g: Dictionary, space_side: bool) -> Node3D:
 	steel.albedo_color = Color(0.2, 0.21, 0.22)
 	steel.metallic = 0.7
 	steel.roughness = 0.5
-	var t := 1.8
-	var depth := 3.0
+	var k := Galaxy.ROAD_SCALE   # frames grow with the road and the freighter
+	var t := 1.8 * k
+	var depth := 3.0 * k
 	for sy in [-1.0, 1.0]:
 		MeshUtil.part(root, MeshUtil.box(sz.x + 2.0 * t, t, depth), Vector3(0, sy * (sz.y + t) * 0.5, 0), steel)
 	for sx in [-1.0, 1.0]:
 		MeshUtil.part(root, MeshUtil.box(t, sz.y, depth), Vector3(sx * (sz.x + t) * 0.5, 0, 0), steel)
-	_outline(root, sz, 0.0, tint, 2.5, 0.35)
+	_outline(root, sz, 0.0, tint, 2.5, 0.35 * k)
 
 	var q := QuadMesh.new()
 	q.size = sz
@@ -53,25 +61,27 @@ static func build(g: Dictionary, space_side: bool) -> Node3D:
 	MeshUtil.part(root, q, Vector3.ZERO, pm)
 
 	var label := Label3D.new()
-	label.text = g.get("label", "")
+	# Junction gates are signed on the HUD instead.
+	label.text = g.get("label", "") if g.kind != "jct" else ""
 	label.font_size = 96
-	label.pixel_size = 0.05 if not g.kind.begins_with("hop") else 0.09
+	label.pixel_size = (0.05 if not g.kind.begins_with("hop") else 0.09) * k
 	label.outline_size = 18
 	label.outline_modulate = Color(0, 0, 0, 0.85)
 	label.modulate = tint.lightened(0.3)
-	label.position = Vector3(0, sz.y * 0.5 + t + 4.0, 0)
+	label.position = Vector3(0, sz.y * 0.5 + t + 4.0 * k, 0)
 	if space_side:
 		label.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	root.add_child(label)
 
 	if space_side:
+		# The runs of frames stay short of the next gate along: an exit and the entrance
+		# after it sit on one line, 2.4 km apart in open space.
 		if is_entry(g):
-			var spacing := 160.0 if g.kind == "on" else 220.0
 			for i in range(1, 6):
-				_outline(root, sz * (1.0 + 0.12 * i), spacing * i, tint, 1.4 - 0.2 * i, 0.8)
+				_outline(root, sz * (1.0 + 0.12 * i), LEAD_SPACING[g.kind] * i, tint, 1.4 - 0.2 * i, 0.8 * k)
 		else:
 			for i in range(1, 4):
-				_outline(root, sz * (1.0 + 0.1 * i), -150.0 * i, tint, 1.0 - 0.25 * i, 0.8)
+				_outline(root, sz * (1.0 + 0.1 * i), -TRAIL_SPACING * i, tint, 1.0 - 0.25 * i, 0.8 * k)
 	return root
 
 
