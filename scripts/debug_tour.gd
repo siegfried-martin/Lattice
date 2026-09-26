@@ -52,6 +52,11 @@ func _run() -> void:
 		await _combat_part()
 		get_tree().quit()
 		return
+	if "--jct" in OS.get_cmdline_user_args():
+		await _wait(1.0)
+		await _jct_free_part()
+		get_tree().quit()
+		return
 	if "--hop-only" in OS.get_cmdline_user_args():
 		await _wait(1.0)
 		await _hop_part()
@@ -85,9 +90,12 @@ func _run() -> void:
 	# Ride to the end of HWY 2 and keep left at the junction.
 	main.drive.change_lane(-1)
 	main.drive.change_lane(-1)
-	if await _wait_until(func(): return not main.drive.on_road and main.drive.link.get("kind", "") == "turn", 120.0):
-		await _wait(1.5)
-		await _shot("06_junction_turn")
+	if await _wait_until(func(): return main.drive.on_road and main.drive.road == 1 and not main.hud.nav.get("lanes", {}).is_empty() \
+			and main.hud.nav.lanes.kind == "jct_end" and Galaxy.upcoming(1, main.drive.d, main.drive.u, 1)[0].dist < 500.0, 120.0):
+		await _shot("06a_junction_approach")
+	if await _wait_until(func(): return not main.drive.on_road and main.drive.link.get("kind", "") == "jct_on", 60.0):
+		await _wait(1.0)
+		await _shot("06b_junction_out")
 	# Then keep right for the first exit on HWY 1.
 	await _wait_until(func(): return main.drive.on_road, 30.0)
 	await _wait(9.0)
@@ -268,3 +276,28 @@ func _combat_part() -> void:
 		if main.elapsed - t0 > 2.0 and main.elapsed - t0 < 2.06:
 			await _shot("c13_fighter_guns_laser")
 	await _shot("c14_end")
+
+
+## Free flight through junction gates: HWY 1's off-ramp gate onto HWY 2, then HWY 2's end.
+func _jct_free_part() -> void:
+	main.input_override = {"thrust": 1.0}
+	await _wait_until(func(): return main.mode == 1, 60.0)
+	for step in 2:
+		var g: Dictionary = {}
+		for jg in Galaxy.jct_gates:
+			if jg.depart and ((step == 0 and jg.has("link")) or (step == 1 and jg.has("terminal") and jg.terminal.left)):
+				g = jg
+				break
+		var xf: Transform3D = g.hw
+		main.flight.place(xf.origin + xf.basis.z * 150.0 - Vector3.UP * (xf.origin.y - 20.0), -xf.basis.z, 35.0)
+		var road := 1 if step == 0 else 0
+		main.hw_road = 1 - road
+		main.hw_d = g.link.from.d if g.has("link") else g.terminal.d
+		main.hw_u = Galaxy.road_track(main.hw_road).project_global(main.flight.pos)
+		main.input_override = {"thrust": 1.0}
+		await _wait(1.0)
+		await _shot("j%d_before" % (step * 2 + 1))
+		await _wait_until(func(): return main.hw_road == road, 20.0)
+		print("tour: jct free step %d -> road %d  msg=%s" % [step, main.hw_road, main.msg])
+		await _wait(1.2)
+		await _shot("j%d_after" % (step * 2 + 2))

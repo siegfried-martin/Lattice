@@ -29,7 +29,7 @@ Read `docs/VISION.md` first. It is the intent everything else serves.
 ## Checking your work
 
 - `make check` must pass before anything is called done.
-- For anything visual, run `make tour` (or `make tour-hop`, `make tour-combat`) and look at the
+- For anything visual, run `make tour` (or `make tour-hop`, `make tour-combat`, `make tour-jct`) and look at the
   screenshots before asking the human to. They land in
   `~/.local/share/godot/app_userdata/Lattice/tour/`. The tour turns vsync off, so it
   keeps running while its window is hidden.

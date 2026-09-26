@@ -1,6 +1,6 @@
 GODOT ?= godot
 
-.PHONY: run tour tour-hop tour-combat check editor
+.PHONY: run tour tour-hop tour-combat tour-jct check editor
 
 run:
 	$(GODOT) --path .
@@ -13,6 +13,10 @@ tour:
 # Combat: drone, turret, blocker, missile, a hostile freighter and fighter.
 tour-combat:
 	$(GODOT) --path . -- --tour --combat
+
+# Free flight through junction gates: HWY 1 onto HWY 2, then HWY 2's end onto HWY 1.
+tour-jct:
+	$(GODOT) --path . -- --tour --jct
 
 # Just the hop-lane part of the tour.
 tour-hop:

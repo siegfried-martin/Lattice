@@ -56,6 +56,7 @@ var _other_timer := 0.0
 var blend_t := 1.0   # 0..1 ease from blend_ship / blend_cam to the live transforms
 var blend_ship := Transform3D()
 var blend_cam := Transform3D()
+var _hw_sector := Vector2i(-99, -99)
 
 # Combat state
 var station: int = Station.PILOT
@@ -124,6 +125,8 @@ func _ready() -> void:
 	flash_rect.color = Color(0.7, 0.9, 1.0, 0.0)
 	flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(flash_rect)
+
+	hud.nav_map = _build_nav_map()
 
 	var start_pos: Vector3 = Galaxy.start.pos
 	var gate_xf: Transform3D = Galaxy.start.gate.world
@@ -687,13 +690,12 @@ func _process_hw_free(delta: float, rel: Vector2, thrust: float) -> void:
 		_bounce(Vector3.DOWN if flight.pos.y > HighwayWorld.FLY_CEILING else Vector3.UP)
 		flight.pos.y = clampf(flight.pos.y, 2.0, HighwayWorld.FLY_CEILING)
 		edge_warn = 1.0
-	if hw_road == 0:
-		for end_u in [0.0, tr.length]:
-			var out := tr.tangent(end_u) * (-1.0 if end_u == 0.0 else 1.0)
-			var past := (flight.pos - tr.pos(end_u)).dot(out)
-			if past > 0.0:
-				flight.pos -= out * past
-				_bounce(-out)
+	for end_u in [0.0, tr.length]:
+		var out := tr.tangent(end_u) * (-1.0 if end_u == 0.0 else 1.0)
+		var past := (flight.pos - tr.pos(end_u)).dot(out)
+		if past > 0.0:
+			flight.pos -= out * past
+			_bounce(-out)
 
 	var along := flight.forward().dot(tr.tangent(hw_u))
 	if absf(along) > 0.3:
@@ -702,6 +704,10 @@ func _process_hw_free(delta: float, rel: Vector2, thrust: float) -> void:
 	for g in Galaxy.gates:
 		if g.kind == "off" and (g.hw.origin as Vector3).distance_to(flight.pos) < 500.0 and GateBuilder.crossed(g, g.hw, prev, flight.pos):
 			_exit_to_space(g)
+			return
+	for g in Galaxy.jct_gates:
+		if g.depart and (g.hw.origin as Vector3).distance_to(flight.pos) < 500.0 and GateBuilder.crossed(g, g.hw, prev, flight.pos):
+			_jump_free(g)
 			return
 
 	var cam := flight.camera_transform()
@@ -717,9 +723,46 @@ func _process_hw_free(delta: float, rel: Vector2, thrust: float) -> void:
 		var uu := u0 + dv * t
 		var fwd := t2.tangent(uu) * dv
 		return {"center": t2.pos(uu), "carr": t2.point(uu, d * Galaxy.CARR_CENTER), "fwd": fwd, "right": fwd.cross(Vector3.UP)}
-	highway.update(delta, {"frame": frame, "phase": hw_u * hw_dv, "road": hw_road, "d": hw_d, "u": hw_u, "dv": hw_dv,
-		"speed": flight.forward_speed(), "ship": flight.pos, "show_limits": true})
+	var view := {"frame": frame, "phase": hw_u * hw_dv, "road": hw_road, "d": hw_d, "u": hw_u, "dv": hw_dv,
+		"speed": flight.forward_speed(), "ship": flight.pos, "show_limits": true}
+	view.merge(_dead_ends(hw_road, hw_dv, hw_u))
+	highway.update(delta, view)
 	_hud_highway()
+
+
+## HWY 2 stops short of HWY 1 at both ends. The tunnel closes past them, so HWY 1 never shows
+## through its walls.
+func _dead_ends(road: int, dir: int, u: float) -> Dictionary:
+	if road != 1:
+		return {}
+	var L := Galaxy.road_track(road).length
+	return {"ahead": L - u if dir == 1 else u, "behind": u if dir == 1 else L - u}
+
+
+## Free flight through a junction gate: out of its pair, keeping position and heading relative
+## to the gate.
+func _jump_free(g: Dictionary) -> void:
+	var out: Dictionary = g.pair
+	var xf: Transform3D = (out.hw as Transform3D) * ((g.hw as Transform3D).affine_inverse() * ship.transform)
+	xf.origin += -(out.hw as Transform3D).basis.z * HighwayDrive.JUMP_AHEAD
+	flight.place(xf.origin, -xf.basis.z, flight.forward_speed())
+	var entry: Dictionary = out.terminal if out.has("terminal") else out.link.to
+	hw_road = entry.road
+	hw_d = entry.d
+	hw_dv = hw_d
+	hw_u = Galaxy.road_track(hw_road).project_global(xf.origin)
+	_other_timer = 0.0
+	blend_t = 1.0
+	_junction_flash(out)
+	_process_hw_free(0.0, Vector2.ZERO, 0.0)
+
+
+func _junction_flash(out: Dictionary) -> void:
+	highway.reset_on_enter()
+	flash_rect.color = Color(0.5, 0.75, 1.0, 0.8)
+	var entry: Dictionary = out.terminal if out.has("terminal") else out.link.to
+	_say("Junction  -  %s %s > %s" % [Galaxy.ROAD_NAMES[entry.road], Galaxy.compass(Galaxy.carr_fwd(entry.road, entry.d, entry.u)),
+		Galaxy.carr_destination(entry.road, entry.d)], 3.0)
 
 
 func toggle_dock() -> void:
@@ -802,6 +845,10 @@ func _process_docked(delta: float) -> void:
 		ship.transform = drive.ship_xform
 		_exit_to_space(drive.exit_gate)
 		return
+	if not drive.jumped.is_empty():
+		_junction_flash(drive.jumped)
+		drive.jumped = {}
+		blend_t = 1.0
 	_apply_blend(delta, drive.ship_xform, drive.cam_xform)
 	ShipMesh.set_engine_glow(ship, drive.speed / (flight.cls.max_speed as float))
 	var cw := drive.ref_carriageway()
@@ -809,8 +856,11 @@ func _process_docked(delta: float) -> void:
 	hw_d = cw.y
 	hw_u = drive.ref_u()
 	var phase := drive.u * drive.d if drive.on_road else drive.odo
-	highway.update(delta, {"frame": drive.frame_at, "phase": phase, "road": cw.x, "d": cw.y, "u": hw_u, "dv": cw.y,
-		"speed": drive.speed, "ship": ship.position, "show_limits": false})
+	var view := {"frame": drive.frame_at, "phase": phase, "road": cw.x, "d": cw.y, "u": hw_u, "dv": cw.y,
+		"speed": drive.speed, "ship": ship.position, "show_limits": false}
+	if drive.on_road:
+		view.merge(_dead_ends(drive.road, drive.d, drive.u))
+	highway.update(delta, view)
 	_hud_highway()
 
 
@@ -983,6 +1033,7 @@ func _hud_hop(length: float) -> void:
 ## Reticle, heading pip and pitch gauge, shown whenever the ship is flying freely.
 func _hud_flight(show: bool) -> void:
 	hud.markers = []
+	hud.nav = {}
 	hud.radar = {}
 	hud.target = {}
 	hud.target_box = {}
@@ -1023,6 +1074,10 @@ func _hud_highway() -> void:
 	_hud_flight(not docked)
 	var fwd := Galaxy.carr_fwd(hw_road, hw_d, hw_u)
 	var sec := Galaxy.hex_of(Galaxy.world_of_hw(ship.position))
+	if sec != _hw_sector:
+		if _hw_sector.x > -99 and msg_t <= 0.0:
+			_say("Sector %s" % Galaxy.sector_name(sec), 2.0)
+		_hw_sector = sec
 	var speed := drive.speed if docked else flight.velocity.length()
 	var status := "DOCKED" if docked else "FREE FLIGHT"
 	hud.left_lines = [
@@ -1030,33 +1085,88 @@ func _hud_highway() -> void:
 		["%s %s  >  %s" % [Galaxy.ROAD_NAMES[hw_road], Galaxy.compass(fwd), Galaxy.carr_destination(hw_road, hw_d)], Color.WHITE, 22],
 		["%d m/s   (~%d m/s in open space)" % [int(speed), int(speed / Galaxy.HW_SCALE)], Color(0.8, 0.9, 1.0), 16],
 	]
-	var lines: Array = [["CURRENT SECTOR", Color(0.6, 0.9, 1.0), 13], [Galaxy.sector_name(sec), Color.WHITE, 22]]
+	hud.right_lines = []
+	var ev := Galaxy.upcoming(hw_road, hw_d, hw_u, 4)
+	var on_link := ""
 	if docked and not drive.on_road:
 		var lk: Dictionary = drive.link
-		var col := GateBuilder.OFF_TINT if lk.kind == "off" else GateBuilder.ON_TINT
-		lines.append([("TAKING  " if lk.kind != "on" else "MERGING ONTO  ") + (lk.label as String), col, 15])
-	lines.append(["UPCOMING", Color(0.6, 0.9, 1.0), 13])
-	var ev := Galaxy.upcoming(hw_road, hw_d, hw_u, 4)
-	for e in ev:
-		var col := GateBuilder.OFF_TINT if e.kind == "off" or e.kind == "end" else Color(0.85, 0.85, 0.8)
-		lines.append(["%-36s %8s" % [e.text, _fmt_dist(e.dist)], col, 15])
+		on_link = ("MERGING ONTO  " if lk.kind.ends_with("on") else "TAKING  ") + (lk.label as String)
+	var h := -ship.global_basis.z
+	hud.nav = {"sector": Galaxy.sector_name(sec), "pos": Vector2(ship.position.x, ship.position.z), "heading": Vector2(h.x, h.z),
+		"road": hw_road, "upcoming": ev, "on_link": on_link, "lanes": _lane_guide(ev)}
 	var hint := ""
 	if not ev.is_empty() and ev[0].dist < 600.0:
 		var e: Dictionary = ev[0]
 		if docked:
 			match e.kind:
-				"off":
+				"off", "jct":
 					hint = "%s in %s  -  keep right to take it" % [e.text, _fmt_dist(e.dist)]
-				"turn":
-					hint = "%s in %s" % [e.text, _fmt_dist(e.dist)]
 				"jct_end":
-					hint = "Junction in %s  -  keep left or right" % _fmt_dist(e.dist)
-		elif e.kind == "off":
-			hint = "%s in %s  -  fly through the amber frame to take it" % [e.text, _fmt_dist(e.dist)]
-	hud.right_lines = lines
+					hint = "Junction in %s  -  left lane: %s,  other lanes: %s" % [_fmt_dist(e.dist), e.left, e.right]
+		else:
+			match e.kind:
+				"off":
+					hint = "%s in %s  -  fly through the amber frame to take it" % [e.text, _fmt_dist(e.dist)]
+				"jct":
+					hint = "%s in %s  -  fly through the blue frame to take it" % [e.text, _fmt_dist(e.dist)]
+				"jct_end":
+					hint = "Junction in %s  -  left frame: %s,  right frame: %s" % [_fmt_dist(e.dist), e.left, e.right]
 	hud.center_msg = _center_msg("Ceiling" if edge_warn > 0.0 and not docked else hint)
 	if docked:
-		hud.help = "C: undock   A / D: change lane   Right lane at an exit takes it   Left / right lane picks the turn at a junction"
+		hud.help = "C: undock   A / D: change lane   Right lane at a fork takes the ramp   At a junction the left lane goes left"
 	else:
-		hud.help = "C: dock to the road   Mouse: aim   W / S: thrust / brake   Fly through an amber frame to exit   Esc: release mouse"
+		hud.help = "C: dock to the road   Mouse: aim   W / S: thrust / brake   Fly through an amber frame to exit, a blue one to change highway   Esc: release mouse"
 	hud.queue_redraw()
+
+
+## Lanes for the next fork: which lanes lead where, and the one the ship is in.
+func _lane_guide(ev: Array) -> Dictionary:
+	if not docked or not drive.on_road or ev.is_empty() or ev[0].dist > 1500.0:
+		return {}
+	var e: Dictionary = ev[0]
+	var lanes: Array = []
+	match e.kind:
+		"off", "jct":
+			lanes = ["", "", "ramp"]
+		"jct_end":
+			lanes = ["left", "right", "right"]
+		"end":
+			lanes = ["end", "end", "end"]
+		_:
+			return {}
+	var cur := clampi(roundi((drive.lat_target + Galaxy.RIGHT_LANE_LAT) / Galaxy.LANE_W), 0, Galaxy.LANES - 1)
+	return {"lanes": lanes, "current": cur, "kind": e.kind, "dist": _fmt_dist(e.dist), "text": e.text,
+		"left": e.get("left", ""), "right": e.get("right", "")}
+
+
+## The Lattice drawn flat for the HUD map: roads as polylines, interchanges and junctions.
+func _build_nav_map() -> Dictionary:
+	var roads: Array = []
+	for r in Galaxy.roads:
+		var t: Track = r.track
+		var line := PackedVector2Array()
+		var u := 0.0
+		while u < t.length:
+			var p := t.pos(u)
+			line.append(Vector2(p.x, p.z))
+			u += 40.0
+		var e := t.pos(t.length)
+		line.append(Vector2(e.x, e.z))
+		roads.append(line)
+	var marks: Array = []
+	var by_system := {}
+	for g in Galaxy.gates:
+		if g.kind == "on" or g.kind == "off":
+			var sys: String = g.get("system", "")
+			if not by_system.has(sys):
+				by_system[sys] = []
+			by_system[sys].append(Vector2(g.hw.origin.x, g.hw.origin.z))
+	for sys in by_system:
+		var c := Vector2.ZERO
+		for p in by_system[sys]:
+			c += p
+		marks.append({"p": c / (by_system[sys] as Array).size(), "text": sys, "kind": "exit"})
+	for j in Galaxy.junctions:
+		var p := Galaxy.road_track(0).pos(j.u)
+		marks.append({"p": Vector2(p.x, p.z), "text": "JCT", "kind": "jct"})
+	return {"roads": roads, "marks": marks}

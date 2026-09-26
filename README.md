@@ -20,6 +20,7 @@ make run        # play
 make check      # parse every script and build both worlds headless
 make tour       # scripted fly-through with screenshots
 make tour-combat  # scripted combat run with screenshots
+make tour-jct   # free flight through junction gates both ways
 ```
 
 ## Controls
@@ -39,7 +40,9 @@ make tour-combat  # scripted combat run with screenshots
 | Esc | release the mouse |
 
 Fly through a **green** frame to enter the Lattice (freighter only), an **amber** one
-to leave it, and a **violet** one to ride a hop lane.
+to leave it, a **blue** one to change highway at a junction, and a **violet** one to
+ride a hop lane. Docked, keep right to take a ramp; at the end of HWY 2 the left lane
+goes left.
 
 ## Documents
 

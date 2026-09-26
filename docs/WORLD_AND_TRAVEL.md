@@ -118,8 +118,12 @@ continuous.
 - **Two carriageways side by side**, traffic on the right, three lanes each, and a
   median barrier. You can see the opposing traffic across the median but can't
   reach it.
-- **Signs and HUD:** current sector, road and heading, upcoming exits and junctions
-  with distances.
+- **No overhead signs.** They blocked the view, so navigation lives on the HUD
+  instead. There's no radar on the Lattice, so its corner holds a **navigation panel**:
+  the current sector, a north-up map of the whole network with your position, and the
+  exits and junctions coming up, with distances. Within 1.5 km of a fork, **lane
+  guidance** at the top of the screen shows which lanes lead where and which one
+  you're in. Crossing into a new sector gets a short message.
 
 ### Two ways to travel
 
@@ -136,9 +140,30 @@ A cent sign (¢):
 
 - **HWY 1** is the C, open to the east. Both open ends finish in an **exit gate**,
   with an entrance beside it for the other direction.
-- **HWY 2** is the vertical stroke, ending in a T-junction on HWY 1 at the top and
-  bottom. There you keep left or right to turn east or west. From HWY 1 you keep
-  toward HWY 2's side to turn onto it.
+- **HWY 2** is the vertical stroke. It stops short of HWY 1 at the top and bottom,
+  far enough that the two roads never show inside each other's tunnel. The tunnel
+  closes just past each of HWY 2's ends.
+
+### Junctions
+
+Traffic keeps right, so nothing turns across the oncoming carriageway. Junctions are
+made of **junction gates** (blue), which exist only on the Lattice. Go through one
+and you come out of its pair on the other highway.
+
+- **From HWY 1:** keep right onto the junction off-ramp, the same way you take an
+  exit. It ends in a junction gate, and you come out at the start of HWY 2.
+- **From HWY 2:** the carriageway ends in two junction gates side by side. The
+  left lane goes through the left gate and the other two lanes through the right
+  one. Each gate takes you to HWY 1 in that direction, where you come out on an
+  on-ramp and merge from the right.
+- You come out a little past the arrival gate, with a flash as the tunnel opens up
+  again, so the camera isn't left behind the gate.
+
+An at-grade junction cut across the oncoming carriageway and the median, and showed
+each road through the other's walls. A continuous interchange (a trumpet with a
+flyover) would work, but in a world drawn as one tunnel around your path, ramps would
+visibly branch off through the walls. The gates are the simpler version, being tried
+first.
 
 ### Getting on and off
 
@@ -147,7 +172,7 @@ A cent sign (¢):
   nearby.
 - **Docked:** keep to the right lane past an exit fork to take it. After merging, the
   ship eases toward the middle lane so the next exit isn't taken by accident.
-- **Free flight:** fly through an exit gate.
+- **Free flight:** fly through an exit gate, or a junction gate to change highway.
 - **Entering from open space:** fly through an entrance gate. It has lead-up frames
   on the approach side to line you up.
 
@@ -188,15 +213,13 @@ Snapshot at the rebuild. All of this is expected to move.
 | Lattice lane | 25 m (3 per carriageway, 10 m median) |
 | Lattice tunnel | 360 m wide, 80 m tall; free-flight ceiling 60 m |
 | Gate frame | Lattice 75 × 50 m, hop lane 150 × 100 m |
+| HWY 2's ends | 260 m short of HWY 1's median; the tunnel closes 150 m past them |
 | Hop lane | up to 600 m/s |
 | Neighbour planet push-out | 1 + 2.4 × ln(1 + distance past border / 1.5 km) |
 | Asteroid drift | about 1–16 m/s |
 
 ## Known rough edges
 
-- The tunnel bends sharply through junction turns.
-- The backs of road signs are plain dark panels.
-- Free flight through a junction follows whichever road is nearer, which can put you
-  on the other road's far side.
+- A junction jump is a cut: the tunnel restarts from its throat on the other road.
 - Traffic and system placement are generated once from fixed seeds. There are no
   authored places yet.

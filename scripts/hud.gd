@@ -23,7 +23,12 @@ var radar: Dictionary = {}   # {range: text, blips: [{p: Vector2 in -1..1 (up = 
 var target: Dictionary = {}  # {name, cls, stance, color, dist, speed, closing, hp}
 var target_box: Dictionary = {}  # {pos, half, color}: box round the target in the view
 
+var nav_map: Dictionary = {}  # {roads: [PackedVector2Array], marks: [{p, text, kind}]}, Lattice coordinates
+var nav: Dictionary = {}      # {sector, pos, heading, road, upcoming, on_link, lanes}
+
 const RADAR_R := 100.0
+const NAV_W := 330.0
+const NAV_MAP_H := 200.0
 const TARGET_W := 250.0
 
 
@@ -41,6 +46,10 @@ func _draw() -> void:
 		_radar(font)
 	if not target.is_empty():
 		_target_panel(font)
+	if not nav.is_empty():
+		_nav(font)
+		if not (nav.lanes as Dictionary).is_empty():
+			_lanes(font, nav.lanes)
 	if heading.x >= 0.0:
 		draw_circle(heading, 3.0, Color(1, 1, 1, 0.6))
 	if reticle.x >= 0.0:
@@ -106,7 +115,7 @@ func _panel(font: Font, anchor: Vector2, lines: Array, right_align: bool) -> voi
 ## Vertical gauge of ship pitch; the ends turn amber as the climb/dive limit gets close.
 func _pitch_gauge(font: Font) -> void:
 	var x := size.x - 40.0
-	var cy := size.y * 0.5
+	var cy := size.y * 0.5 + 80.0   # below the radar / navigation panel
 	var h := 110.0
 	draw_line(Vector2(x, cy - h), Vector2(x, cy + h), DIM, 2.0)
 	for k in [-1.0, -0.5, 0.0, 0.5, 1.0]:
@@ -207,3 +216,123 @@ func _target_panel(font: Font) -> void:
 	draw_string(font, Vector2(lx, y + 3.0), "HULL", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, DIM)
 	draw_rect(bar, Color(0, 0, 0, 0.6))
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(target.hp, 0.0, 1.0), bar.size.y)), col)
+
+
+static func _event_color(kind: String) -> Color:
+	match kind:
+		"off", "end":
+			return GateBuilder.OFF_TINT
+		"jct", "jct_end":
+			return GateBuilder.JCT_TINT
+	return Color(0.85, 0.85, 0.8)
+
+
+## Lattice navigation, top right: a north-up map of the network and what's coming up.
+func _nav(font: Font) -> void:
+	var x := size.x - 16.0 - NAV_W
+	var y := 16.0
+	var lines: Array = nav.upcoming
+	var h := 44.0 + NAV_MAP_H + 30.0 + maxf(1, lines.size()) * 19.0 + (20.0 if nav.on_link != "" else 0.0)
+	draw_rect(Rect2(x, y, NAV_W, h), PANEL)
+	draw_rect(Rect2(x, y, NAV_W, h), Color(CYAN, 0.35), false, 1.0)
+	draw_string(font, Vector2(x + 12, y + 20), "NAVIGATION", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.9, 1.0))
+	draw_string(font, Vector2(x + 12, y + 20), "SECTOR  %s" % nav.sector, HORIZONTAL_ALIGNMENT_RIGHT, NAV_W - 24, 15, Color.WHITE)
+	var map_r := Rect2(x + 12, y + 32, NAV_W - 24, NAV_MAP_H)
+	_nav_map(font, map_r)
+	var ly := map_r.end.y + 24.0
+	if nav.on_link != "":
+		draw_string(font, Vector2(x + 12, ly), nav.on_link, HORIZONTAL_ALIGNMENT_LEFT, NAV_W - 24, 13, GateBuilder.ON_TINT)
+		ly += 20.0
+	draw_string(font, Vector2(x + 12, ly), "UPCOMING", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	ly += 19.0
+	if lines.is_empty():
+		draw_string(font, Vector2(x + 12, ly), "nothing ahead", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, DIM)
+	for e in lines:
+		var col := _event_color(e.kind)
+		var dist := "%.1f km" % (e.dist / 1000.0) if e.dist >= 1000.0 else "%d m" % int(e.dist)
+		draw_string(font, Vector2(x + 12, ly), e.text, HORIZONTAL_ALIGNMENT_LEFT, NAV_W - 94, 13, col)
+		draw_string(font, Vector2(x + 12, ly), dist, HORIZONTAL_ALIGNMENT_RIGHT, NAV_W - 24, 13, Color(0.85, 0.9, 1.0))
+		ly += 19.0
+
+
+func _nav_map(font: Font, r: Rect2) -> void:
+	if nav_map.is_empty():
+		return
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for line in nav_map.roads:
+		for p in line:
+			lo = lo.min(p)
+			hi = hi.max(p)
+	var inner := r.grow(-14.0)
+	var k := minf(inner.size.x / (hi.x - lo.x), inner.size.y / (hi.y - lo.y))
+	var off := inner.position + (inner.size - (hi - lo) * k) * 0.5
+	var to_map := func(p: Vector2) -> Vector2:
+		return off + (p - lo) * k
+	draw_rect(r, Color(0, 0, 0, 0.35))
+	for i in (nav_map.roads as Array).size():
+		var pts := PackedVector2Array()
+		for p in nav_map.roads[i]:
+			pts.append(to_map.call(p))
+		var cur: bool = i == nav.road
+		draw_polyline(pts, Color(CYAN, 0.9) if cur else Color(DIM, 0.55), 3.0 if cur else 2.0)
+	for m in nav_map.marks:
+		var mp: Vector2 = to_map.call(m.p)
+		if m.kind == "jct":
+			var c := GateBuilder.JCT_TINT
+			draw_colored_polygon(PackedVector2Array([mp + Vector2(0, -5), mp + Vector2(5, 0), mp + Vector2(0, 5), mp + Vector2(-5, 0)]), c)
+		else:
+			draw_rect(Rect2(mp - Vector2(3, 3), Vector2(6, 6)), GateBuilder.OFF_TINT)
+			# Labels sit on whichever side of the map centre the mark is, so they stay inside.
+			var left_side := mp.x > r.get_center().x
+			var tx := mp.x - 88.0 if left_side else mp.x + 7.0
+			draw_string(font, Vector2(tx, mp.y + 4), m.text, HORIZONTAL_ALIGNMENT_RIGHT if left_side else HORIZONTAL_ALIGNMENT_LEFT, 80, 11, Color(1.0, 0.85, 0.65, 0.9))
+	var sp: Vector2 = to_map.call(nav.pos)
+	var hd: Vector2 = (nav.heading as Vector2).normalized()
+	if hd == Vector2.ZERO:
+		hd = Vector2.UP
+	var side := hd.orthogonal()
+	draw_colored_polygon(PackedVector2Array([sp + hd * 9.0, sp - hd * 5.0 + side * 5.0, sp - hd * 5.0 - side * 5.0]), Color.WHITE)
+
+
+## Lane guidance for the next fork, top centre: one box per lane, the ship's lane outlined.
+func _lanes(font: Font, g: Dictionary) -> void:
+	var col := _event_color(g.kind)
+	var bw := 46.0
+	var bh := 50.0
+	var lanes: Array = g.lanes
+	var total := bw * lanes.size() + 6.0 * (lanes.size() - 1)
+	var x0 := size.x * 0.5 - total * 0.5
+	var y0 := 18.0
+	var text: String = g.text
+	if g.kind == "jct_end":
+		text = "<  %s        %s  >" % [g.left, g.right]
+	var pw := maxf(total, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x) + 24.0
+	draw_rect(Rect2(size.x * 0.5 - pw * 0.5, y0 - 8, pw, bh + 50), PANEL)
+	for i in lanes.size():
+		var r := Rect2(x0 + i * (bw + 6.0), y0, bw, bh)
+		var what: String = lanes[i]
+		var lit := what != ""
+		var c := col if lit else Color(DIM, 0.8)
+		draw_rect(r, Color(c, 0.15))
+		var mid := r.get_center()
+		var base := Vector2(mid.x, r.end.y - 8)
+		var tip := Vector2(mid.x, r.position.y + 10)
+		match what:
+			"ramp", "right":
+				tip = Vector2(r.end.x - 10, r.position.y + 14)
+			"left":
+				tip = Vector2(r.position.x + 10, r.position.y + 14)
+		if what == "end":
+			draw_line(Vector2(r.position.x + 8, r.position.y + 12), Vector2(r.end.x - 8, r.position.y + 12), c, 3.0)
+			draw_line(base, Vector2(mid.x, r.position.y + 18), c, 3.0)
+		else:
+			var knee := Vector2(mid.x, mid.y + 2)
+			draw_polyline(PackedVector2Array([base, knee, tip]), c, 3.0)
+			var dir := (tip - knee).normalized()
+			draw_colored_polygon(PackedVector2Array([tip + dir * 4.0, tip - dir * 7.0 + dir.orthogonal() * 6.0, tip - dir * 7.0 - dir.orthogonal() * 6.0]), c)
+		if i == g.current:
+			draw_rect(r.grow(2.0), CYAN, false, 2.0)
+	var ty := y0 + bh + 20.0
+	draw_string(font, Vector2(0, ty), text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 14, col)
+	draw_string(font, Vector2(0, ty + 17), g.dist, HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color(0.85, 0.9, 1.0))

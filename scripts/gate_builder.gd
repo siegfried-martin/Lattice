@@ -8,6 +8,7 @@ const PORTAL_SHADER := preload("res://shaders/portal.gdshader")
 const ON_TINT := Color(0.55, 0.9, 0.6)
 const OFF_TINT := Color(1.0, 0.62, 0.28)
 const HOP_TINT := Color(0.72, 0.55, 1.0)
+const JCT_TINT := Color(0.45, 0.75, 1.0)
 
 
 static func tint_for(g: Dictionary) -> Color:
@@ -16,10 +17,14 @@ static func tint_for(g: Dictionary) -> Color:
 			return ON_TINT
 		"off":
 			return OFF_TINT
+		"jct":
+			return JCT_TINT
 	return HOP_TINT
 
 
 static func size_for(g: Dictionary) -> Vector2:
+	if g.has("size"):
+		return g.size
 	if g.kind.begins_with("hop"):
 		return Vector2(Galaxy.HOP_GATE_W, Galaxy.HOP_GATE_H)
 	return Vector2(Galaxy.GATE_W, Galaxy.GATE_H)
@@ -54,7 +59,8 @@ static func build(g: Dictionary, space_side: bool) -> Node3D:
 	MeshUtil.part(root, q, Vector3.ZERO, pm)
 
 	var label := Label3D.new()
-	label.text = g.get("label", "")
+	# Junction gates are signed on the HUD instead.
+	label.text = g.get("label", "") if g.kind != "jct" else ""
 	label.font_size = 96
 	label.pixel_size = (0.05 if not g.kind.begins_with("hop") else 0.09) * k
 	label.outline_size = 18

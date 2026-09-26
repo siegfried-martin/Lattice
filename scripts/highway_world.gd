@@ -24,8 +24,7 @@ const FLY_MAX_X := TUN_HALF_W - 5.0 * S
 const FLY_CEILING := 24.0 * S
 const CAM_CEILING := TUN_H - 3.0 * S
 const BARRIER_H := 1.6 * S
-const SIGN_FAR := 300.0 * S     # advance sign, then a second one just before the event
-const SIGN_NEAR := 40.0 * S
+const DEAD_END_MARGIN := 150.0   # the tunnel closes this far past a dead end (HWY 2's ends)
 
 const LAMP_SPACING := 36.0 * S  # matches the lamp housings in barrier.gdshader
 const LAMP_COUNT := 12
@@ -55,7 +54,6 @@ func build() -> void:
 	_build_env()
 	_build_roads()
 	_build_links()
-	_build_signs()
 	_build_tube()
 	for i in LAMP_COUNT:
 		var l := OmniLight3D.new()
@@ -125,6 +123,8 @@ func _build_links() -> void:
 			tint = GateBuilder.ON_TINT
 		elif l.kind == "off":
 			tint = GateBuilder.OFF_TINT
+		elif l.kind.begins_with("jct"):
+			tint = GateBuilder.JCT_TINT
 		var m := ShaderMaterial.new()
 		m.shader = ROAD_SHADER
 		m.set_shader_parameter("is_ramp", true)
@@ -135,53 +135,11 @@ func _build_links() -> void:
 		mi.mesh = MeshUtil.track_ribbon(tr, 0.0, tr.length, 4.0, -Galaxy.RAMP_HALF_W, Galaxy.RAMP_HALF_W, 0.06)
 		mi.material_override = m
 		add_child(mi)
-	for g in Galaxy.gates:
-		if g.kind == "on" or g.kind == "off":
+	for g in Galaxy.gates + Galaxy.jct_gates:
+		if g.kind == "on" or g.kind == "off" or g.kind == "jct":
 			var gate := GateBuilder.build(g, false)
 			gate.transform = g.hw
 			add_child(gate)
-
-
-func _build_signs() -> void:
-	for key in Galaxy.events:
-		var road: int = key.x
-		var d: int = key.y
-		for e in Galaxy.events[key]:
-			var text: String = e.text
-			var side: float = e.side
-			if side > 0.0:
-				text += "  >"
-			elif side < 0.0:
-				text = "<  " + text
-			var tint := GateBuilder.OFF_TINT.lerp(Color.WHITE, 0.3) if e.kind == "off" else Color(0.85, 0.83, 0.75)
-			_sign(road, d, e.u - d * SIGN_FAR, text + "\n%d m" % int(SIGN_FAR), tint, side * 5.0 * S)
-			_sign(road, d, e.u - d * SIGN_NEAR, text, tint, side * 10.0 * S)
-	for b in Galaxy.boundaries:
-		var tint := Color(0.65, 0.75, 0.85)
-		_sign(b.road, 1, b.u, "SECTOR %s" % Galaxy.sector_name(b.b), tint, -5.0 * S)
-		_sign(b.road, -1, b.u, "SECTOR %s" % Galaxy.sector_name(b.a), tint, -5.0 * S)
-
-
-func _sign(road: int, d: int, u: float, text: String, tint: Color, lat := 0.0) -> void:
-	var t := Galaxy.road_track(road)
-	if u < 0.0 or u > t.length:
-		return
-	var root := Node3D.new()
-	root.transform = Transform3D(Basis.looking_at(Galaxy.carr_fwd(road, d, u), Vector3.UP), Galaxy.carr_point(road, d, u, lat, 15.0 * S))
-	var pm := StandardMaterial3D.new()
-	pm.albedo_color = Color(0.1, 0.105, 0.11)
-	pm.metallic = 0.6
-	pm.roughness = 0.6
-	MeshUtil.part(root, MeshUtil.box(22.0 * S, 7.5 * S, 0.4 * S), Vector3.ZERO, pm)
-	var label := Label3D.new()
-	label.text = text
-	label.font_size = 72
-	label.pixel_size = 0.04 * S
-	label.modulate = tint
-	label.outline_size = 0
-	label.position = Vector3(0, 0, 0.25 * S)
-	root.add_child(label)
-	add_child(root)
 
 
 # --- Tunnel -------------------------------------------------------------------------------
@@ -225,17 +183,19 @@ func reset_on_enter() -> void:
 
 ## view: {frame: Callable(t) -> {center, carr, fwd, right}, phase: path distance at the ship,
 ##        road, d (side / carriageway), u, dv (direction the tunnel opens toward), speed,
-##        ship: position, show_limits}
+##        ship: position, show_limits, ahead / behind (optional): distance along the path to a
+##        dead end, where the tunnel closes so nothing beyond it shows}
 func update(delta: float, view: Dictionary) -> void:
 	tube_open = minf(1.0, tube_open + delta * 1.0)
 	curtain_mat.set_shader_parameter("player_pos", view.ship if view.show_limits else Vector3(0, 1e6, 0))
-	var front := lerpf(70.0 * S, TUN_FRONT, ease(tube_open, 0.4))
-	_update_tube(view, front)
-	_update_lamps(view, front)
+	var front := minf(lerpf(70.0 * S, TUN_FRONT, ease(tube_open, 0.4)), (view.get("ahead", INF) as float) + DEAD_END_MARGIN)
+	var back := maxf(TUN_BACK, -(view.get("behind", INF) as float) - DEAD_END_MARGIN)
+	_update_tube(view, front, back)
+	_update_lamps(view, front, back)
 	_update_npcs(delta, view)
 
 
-func _update_tube(view: Dictionary, front: float) -> void:
+func _update_tube(view: Dictionary, front: float, back: float) -> void:
 	var frame: Callable = view.frame
 	var phase: float = view.phase
 	var row := _ring_size()
@@ -251,11 +211,11 @@ func _update_tube(view: Dictionary, front: float) -> void:
 	uv2s.resize(count)
 	cols.resize(count)
 	for k in TUN_RINGS:
-		var t := lerpf(TUN_BACK, front, float(k) / (TUN_RINGS - 1))
+		var t := lerpf(back, front, float(k) / (TUN_RINGS - 1))
 		var f: Dictionary = frame.call(t)
 		var fwd: Vector3 = f.fwd
 		var right: Vector3 = fwd.cross(Vector3.UP).normalized()
-		var back_k := clampf((t - TUN_BACK) / (-50.0 * S - TUN_BACK), 0.0, 1.0)
+		var back_k := clampf((t - back) / (-50.0 * S - back), 0.0, 1.0)
 		var front_k := clampf((front - t) / (front - 40.0 * S), 0.0, 1.0)
 		var sc := sqrt(minf(back_k, front_k))
 		# The throat converges onto the ship's carriageway at road level.
@@ -263,7 +223,7 @@ func _update_tube(view: Dictionary, front: float) -> void:
 		var hw := TUN_HALF_W * sc
 		var y0 := lerpf(THROAT_Y, TUN_FLOOR, sc)
 		var y1 := lerpf(THROAT_Y, TUN_H, sc)
-		var frac := (t - TUN_BACK) / (front - TUN_BACK)
+		var frac := (t - back) / (front - back)
 		var i := k * row
 		var faces := [
 			[Vector2(-1, 0), Vector2(1, 0), Vector3.UP],     # floor
@@ -299,13 +259,13 @@ func _update_tube(view: Dictionary, front: float) -> void:
 
 ## Median lamps sit every LAMP_SPACING metres of path, matching the lamp housings on the
 ## barrier, and the pool is re-placed around the ship each frame.
-func _update_lamps(view: Dictionary, front: float) -> void:
+func _update_lamps(view: Dictionary, front: float, back: float) -> void:
 	var frame: Callable = view.frame
 	var offset := fposmod(view.phase as float, LAMP_SPACING)
 	for k in LAMP_COUNT:
 		var t := LAMP_SPACING * (k - 3) - offset
 		var l: OmniLight3D = lamps[k]
-		l.visible = t > TUN_BACK + 30.0 * S and t < front - 30.0 * S
+		l.visible = t > back + 30.0 * S and t < front - 30.0 * S
 		if l.visible:
 			var f: Dictionary = frame.call(t)
 			l.position = (f.center as Vector3) + Vector3.UP * 1.4 * S
