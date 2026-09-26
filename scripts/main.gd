@@ -19,7 +19,7 @@ enum Mode { SPACE, HIGHWAY, HOP }
 enum Station { PILOT, TURRET, MISSILE }
 
 const DOCK_TIME := 1.5
-const DOCK_MAX_ALT := 40.0
+const DOCK_MAX_ALT := 40.0 * Galaxy.ROAD_SCALE
 const HOP_SPEED := 600.0
 const HOP_ACCEL := 80.0
 const TURRET_MOUNT := Vector3(0.0, 4.1, 2.5) * ShipMesh.FREIGHTER_SCALE      # freighter turret, first-person eye point
@@ -99,9 +99,9 @@ func _ready() -> void:
 	_set_ship_class(SpaceFlight.FREIGHTER)
 
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 45.0
-	cyl.bottom_radius = 45.0
-	cyl.height = 600.0
+	cyl.top_radius = 45.0 * Galaxy.ROAD_SCALE
+	cyl.bottom_radius = 45.0 * Galaxy.ROAD_SCALE
+	cyl.height = 600.0 * Galaxy.ROAD_SCALE
 	cyl.cap_top = false
 	cyl.cap_bottom = false
 	cyl.radial_segments = 32
@@ -641,7 +641,7 @@ func _process_hop(delta: float) -> void:
 	ship.transform = Transform3D(flight.ship_basis(), flight.pos)
 	ShipMesh.set_engine_glow(ship, 1.0)
 	camera.transform = flight.camera_transform()
-	sleeve.transform = Transform3D(Basis.looking_at(dir, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5), flight.pos + dir * 150.0)
+	sleeve.transform = Transform3D(Basis.looking_at(dir, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5), flight.pos + dir * 150.0 * Galaxy.ROAD_SCALE)
 	sleeve_mat.set_shader_parameter("intensity", clampf(hop_speed / HOP_SPEED, 0.0, 1.0))
 	space_world.update(delta, flight.pos, camera.global_position)
 	_hud_hop(length)

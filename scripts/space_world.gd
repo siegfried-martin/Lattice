@@ -147,9 +147,10 @@ func _build_lane_markers() -> void:
 	m.emission_enabled = true
 	m.emission = GateBuilder.HOP_TINT
 	m.emission_energy_multiplier = 0.7
-	var w := 40.0
-	var h := 26.0
-	var t := 0.6
+	# Sized to the hop gates, which grow with Galaxy.ROAD_SCALE.
+	var w := 40.0 * Galaxy.ROAD_SCALE
+	var h := 26.0 * Galaxy.ROAD_SCALE
+	var t := 0.6 * Galaxy.ROAD_SCALE
 	var parts := [[MeshUtil.box(w, t, t), Vector3(0, h * 0.5, 0)], [MeshUtil.box(w, t, t), Vector3(0, -h * 0.5, 0)],
 		[MeshUtil.box(t, h, t), Vector3(w * 0.5, 0, 0)], [MeshUtil.box(t, h, t), Vector3(-w * 0.5, 0, 0)]]
 	for hop in Galaxy.hops:

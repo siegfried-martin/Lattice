@@ -53,8 +53,12 @@ The prototype has two, to establish the relationship:
 
 - **Fighter:** fast and agile, about 2.5 times the freighter's speed. It can't
   enter the Lattice.
-- **Freighter:** slow and heavy. It has a **threader**, the equipment that lets a
-  ship enter the Lattice.
+- **Freighter:** slow, heavy and big, about 50 m long against the fighter's 8 m. It
+  has a **threader**, the equipment that lets a ship enter the Lattice.
+
+The Lattice is sized around the freighter: its lanes, tunnel and gate frames scale with
+the freighter's model (`Galaxy.ROAD_SCALE`, tied to `ShipMesh.FREIGHTER_SCALE`), so a
+freighter fills one lane and fits a gate frame whatever size it is.
 
 The intended feel: crossing between sectors in a fighter is inconvenient, and in a
 freighter it is painful. But a freighter in the Lattice covers the map far faster
@@ -180,7 +184,10 @@ Snapshot at the rebuild. All of this is expected to move.
 | Fighter / freighter top speed | 100 / 40 m/s |
 | Docked speed | 80% of the ship's top speed |
 | Lattice scale | 1/20 of the map |
-| Lattice tunnel | 144 m wide, 32 m tall; free-flight ceiling 24 m |
+| Freighter / fighter length | about 50 / 8 m |
+| Lattice lane | 25 m (3 per carriageway, 10 m median) |
+| Lattice tunnel | 360 m wide, 80 m tall; free-flight ceiling 60 m |
+| Gate frame | Lattice 75 × 50 m, hop lane 150 × 100 m |
 | Hop lane | up to 600 m/s |
 | Neighbour planet push-out | 1 + 2.4 × ln(1 + distance past border / 1.5 km) |
 | Asteroid drift | about 1–16 m/s |
