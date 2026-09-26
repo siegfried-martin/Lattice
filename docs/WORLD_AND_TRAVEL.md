@@ -165,6 +165,11 @@ flyover) would work, but in a world drawn as one tunnel around your path, ramps 
 visibly branch off through the walls. The gates are the simpler version, being tried
 first.
 
+The continuous interchange isn't ruled out. Different factions may build their
+highways with different technology: one faction's network might use junction gates
+and another's real interchanges. That would make the networks feel different from
+each other.
+
 ### Getting on and off
 
 - **Interchanges sit beside systems.** At each one, the exit and the entrance for
