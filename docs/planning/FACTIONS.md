@@ -117,6 +117,29 @@ much money they can make. A commander's power is their standing fleet plus their
 ability to get more ships. That ability comes from recruitment and relationships,
 which are separate documents.
 
+### Stewards: governors who take the field
+
+A governor is the most powerful character in the structure, but on their own they don't
+*do* anything. They decide and others act. So a governor can **appoint a steward** to run
+the planet and **raise a fleet of their own**, leading it in person like a commander.
+
+- Not every governor does this. The more skilled tacticians do, which fits a commander
+  who rose to become a governor.
+- It's what makes governor a role worth playing: the player, once installed on a
+  planet, doesn't have to stop flying.
+- A governor in the field is still the planet's governor. Their fealty, their vassals
+  and their commanders are unchanged.
+
+Open questions:
+
+- What the steward controls while the governor is away (economy, defences, recruiting,
+  calling for help), and what still waits for the governor.
+- Whether stewards are drawn from the standing politicians, and whether a steward's
+  competence and loyalty matter. A disloyal steward with a planet and an absent governor
+  is an obvious opening for betrayal.
+- What happens to the planet if the governor is captured or killed in the field
+  (succession ties into the relationship and loyalty document).
+
 ### What governors want
 
 Governors want military power: to defend themselves, to gain standing with their
@@ -415,7 +438,8 @@ classes:
 - **Courier:** carrying dispatches on the Lattice.
 - **Mercenary:** contracts for the Authority or governors.
 - **Sworn commander:** fealty to a governor, fighting for a faction.
-- **Governor:** installed on a conquered planet by the governor they serve.
+- **Governor:** installed on a conquered planet by the governor they serve. They
+  can appoint a steward and keep flying with a fleet of their own.
 - **Pirate:** renouncing everyone.
 
 ## Simulation layers (proposed)
@@ -515,6 +539,8 @@ on 2026-09-27:
   governors; mercenaries are commanders without it. The Authority is a limited faction
   with a fixed ruleset. Invasions are commissioned by a governor, who installs the
   conquered planet's new governor, possibly a commander.
+- **Stewards (added).** A governor can appoint a steward and lead a fleet of their own,
+  so the most powerful role is also a playable one.
 - **Player start and access.** The player starts neutral with the Authority, with a
   ship without a Lattice Drive. Faction standing controls a faction's entrances and
   exits; Authority standing controls the network.
