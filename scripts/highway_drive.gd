@@ -1,17 +1,20 @@
 class_name HighwayDrive
 extends RefCounted
 ## Docked movement on the highway network. The ship cruises along either a road carriageway
-## (road, d, u) or a link track (ramp or junction turn), and can step between lanes.
-## Keeping to the right lane past an exit fork takes it; at HWY 2's ends the side you keep to
-## picks the turn onto HWY 1.
+## (road, d, u) or a link track (a ramp), and can step between lanes.
+## Keeping to the right lane past a fork takes the ramp. At HWY 2's ends the lane picks which of
+## two junction gates you go through. A junction gate carries the ship on to its pair.
 
 const CRUISE_FRACTION := 0.8   # docked ships run at this fraction of their top speed
 const ACCEL := 4.0
-const LAT_SPEED := 8.0
-const HOVER := 3.5
-const CAM_BACK := 30.0
-const CAM_UP := 10.0
+# Across-the-road sizes follow the road's scale (see Galaxy.ROAD_SCALE).
+const LAT_SPEED := 8.0 * Galaxy.ROAD_SCALE
+const HOVER := 3.5 * Galaxy.ROAD_SCALE
+const CAM_BACK := 30.0 * Galaxy.ROAD_SCALE
+const CAM_UP := 10.0 * Galaxy.ROAD_SCALE
+const CAM_LOOK_AHEAD := 45.0 * Galaxy.ROAD_SCALE
 const MERGE_GRACE := 250.0
+const JUMP_AHEAD := 100.0      # come out this far past the arrival gate, so the camera is past it too
 
 var on_road := true
 var road := 0
@@ -27,6 +30,7 @@ var speed := 0.0
 var cruise := 32.0
 var odo := 0.0          # distance travelled while docked
 var exit_gate: Dictionary = {}
+var jumped: Dictionary = {}   # set to the gate come out of after a junction jump; main clears it
 var ship_xform := Transform3D()
 var cam_xform := Transform3D()
 var throttle_vis := 0.0
@@ -64,7 +68,7 @@ func _start(lateral: float, entry_speed: float, max_speed: float) -> void:
 
 
 func lat_limit() -> float:
-	return Galaxy.CARR_W * 0.5 - 3.0 if on_road else Galaxy.LANE_W * 0.5 - 1.5
+	return Galaxy.CARR_W * 0.5 - 3.0 * Galaxy.ROAD_SCALE if on_road else Galaxy.LANE_W * 0.5 - 1.5 * Galaxy.ROAD_SCALE
 
 
 func _lane_of(x: float) -> int:
@@ -124,18 +128,9 @@ static func road_frame(r: int, dir: int, uu: float, ref_lat := 0.0) -> Dictionar
 	return {"ref": carr + right * ref_lat, "center": tr.pos(uu), "carr": carr, "fwd": tr.tangent(uu) * dir, "right": right}
 
 
-## Road frame, continuing into the turn at HWY 2's end that the current lane leads to.
+## Road frame; past the end of a carriageway the road simply carries on straight.
 func _road_frame_ahead(r: int, dir: int, from_u: float, t: float) -> Dictionary:
-	var uu := from_u + dir * t
-	var tr := Galaxy.road_track(r)
-	var over := (uu - tr.length) if dir == 1 else -uu
-	if over > 0.0 and t > 0.0:
-		var l := _end_link(r, dir, lat)
-		if not l.is_empty():
-			var lf := _link_frame(l, over)
-			lf.ref = (lf.ref as Vector3) - (lf.right as Vector3) * (l.from.lat as float)
-			return lf
-	return road_frame(r, dir, uu)
+	return road_frame(r, dir, from_u + dir * t)
 
 
 func _link_frame(l: Dictionary, ss: float) -> Dictionary:
@@ -150,15 +145,6 @@ func _link_frame(l: Dictionary, ss: float) -> Dictionary:
 	var right := tr.right(ss)
 	var center := p + right * Galaxy.link_mid_off(l, ss)
 	return {"ref": p, "center": center, "carr": center + right * Galaxy.CARR_CENTER, "fwd": tr.tangent(ss), "right": right}
-
-
-## The turn link taken at the end of carriageway (r, dir) from lateral position x.
-func _end_link(r: int, dir: int, x: float) -> Dictionary:
-	var side := -1 if x < -2.0 else 1
-	for l in Galaxy.links:
-		if l.kind == "turn" and l.from.road == r and l.from.d == dir and l.from.get("at_end", false) and int(l.from.side) == side:
-			return l
-	return {}
 
 
 func update(delta: float) -> void:
@@ -185,7 +171,9 @@ func update(delta: float) -> void:
 		var tr: Track = link.track
 		if s >= tr.length:
 			var to: Dictionary = link.to
-			if to.is_empty():
+			if to.is_empty() and link.gate.get("kind", "") == "jct":
+				_jump(link.gate, s - tr.length)
+			elif to.is_empty():
 				exit_gate = link.gate
 			else:
 				var over := s - tr.length
@@ -207,25 +195,46 @@ func _advance_road(u_prev: float) -> void:
 	if not te.is_empty() and (te.terminal.u - u_prev) * d > 0.0 and (te.terminal.u - u) * d <= 0.0:
 		exit_gate = te
 		return
-	var tr := Galaxy.road_track(road)
-	var over := (u - tr.length) if d == 1 else -u
-	if over > 0.0:
-		var l := _end_link(road, d, lat)
-		if not l.is_empty():
-			_enter_link(l, over)
-			return
+	var jg := Galaxy.jct_end_gate(road, d, lat)
+	if not jg.is_empty() and (jg.terminal.u - u_prev) * d > 0.0 and (jg.terminal.u - u) * d <= 0.0:
+		_jump(jg, (u - jg.terminal.u) * d)
+		return
 	if _grace > 0.0:
 		return
 	for l in Galaxy.links:
 		var from: Dictionary = l.from
-		if from.is_empty() or from.road != road or from.d != d or from.get("at_end", false):
+		if from.is_empty() or from.road != road or from.d != d:
 			continue
-		var side: float = from.side
-		if (side > 0.0 and lat < Galaxy.RIGHT_LANE_LAT - Galaxy.LANE_W * 0.5) or (side < 0.0 and lat > -Galaxy.RIGHT_LANE_LAT + Galaxy.LANE_W * 0.5):
+		if lat < Galaxy.RIGHT_LANE_LAT - Galaxy.LANE_W * 0.5:
 			continue
 		if (from.u - u_prev) * d > 0.0 and (from.u - u) * d <= 0.0:
 			_enter_link(l, (u - from.u) * d)
 			return
+
+
+## Through junction gate g and out of its pair, keeping the offset from the gate's centre.
+func _jump(g: Dictionary, over: float) -> void:
+	over += JUMP_AHEAD
+	var out: Dictionary = g.pair
+	var rel := lat - (g.terminal.lat as float if g.has("terminal") else 0.0)
+	jumped = out
+	if out.has("link"):
+		on_road = false
+		link = out.link
+		s = over
+		lat = rel
+		lat_target = 0.0
+	else:
+		var tm: Dictionary = out.terminal
+		on_road = true
+		road = tm.road
+		d = tm.d
+		u = tm.u + d * over
+		link = {}
+		lat = (tm.lat as float) + rel
+		lat_target = _lane_center(_lane_of(lat))
+		_grace = MERGE_GRACE
+	cam_lat = lat
 
 
 func _enter_link(l: Dictionary, at_s: float) -> void:
@@ -249,13 +258,13 @@ func _update_xforms(delta: float) -> void:
 	var fwd: Vector3 = f.fwd
 	var right: Vector3 = f.right
 	var ref: Vector3 = f.ref
-	var p: Vector3 = ref + right * lat + Vector3.UP * (HOVER + sin(_bob * 2.1) * 0.15)
+	var p: Vector3 = ref + right * lat + Vector3.UP * (HOVER + sin(_bob * 2.1) * 0.15 * Galaxy.ROAD_SCALE)
 	var yaw := -atan2(lat_vel, maxf(speed, 10.0)) * 0.9
 	ship_xform = Transform3D(Basis(Vector3.UP, yaw) * Basis.looking_at(fwd, Vector3.UP), p)
 
 	cam_lat = lerpf(cam_lat, lat, 1.0 - exp(-3.0 * delta)) if delta > 0.0 else lat
 	var fb := frame_at(-CAM_BACK)
 	var cam_p: Vector3 = (fb.ref as Vector3) + (fb.right as Vector3) * cam_lat + Vector3.UP * CAM_UP
-	var fa := frame_at(45.0)
-	var look: Vector3 = (fa.ref as Vector3) + (fa.right as Vector3) * (cam_lat * 0.6) + Vector3.UP * 2.5
+	var fa := frame_at(CAM_LOOK_AHEAD)
+	var look: Vector3 = (fa.ref as Vector3) + (fa.right as Vector3) * (cam_lat * 0.6) + Vector3.UP * 2.5 * Galaxy.ROAD_SCALE
 	cam_xform = Transform3D(Basis.looking_at(look - cam_p, Vector3.UP), cam_p)

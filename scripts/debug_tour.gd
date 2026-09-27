@@ -47,6 +47,21 @@ func _hold_pitch(target_deg: float, thrust := 1.0) -> void:
 
 
 func _run() -> void:
+	if "--combat" in OS.get_cmdline_user_args():
+		await _wait(1.0)
+		await _combat_part()
+		get_tree().quit()
+		return
+	if "--collide" in OS.get_cmdline_user_args():
+		await _wait(1.0)
+		await _collide_part()
+		get_tree().quit()
+		return
+	if "--jct" in OS.get_cmdline_user_args():
+		await _wait(1.0)
+		await _jct_free_part()
+		get_tree().quit()
+		return
 	if "--hop-only" in OS.get_cmdline_user_args():
 		await _wait(1.0)
 		await _hop_part()
@@ -80,9 +95,12 @@ func _run() -> void:
 	# Ride to the end of HWY 2 and keep left at the junction.
 	main.drive.change_lane(-1)
 	main.drive.change_lane(-1)
-	if await _wait_until(func(): return not main.drive.on_road and main.drive.link.get("kind", "") == "turn", 120.0):
-		await _wait(1.5)
-		await _shot("06_junction_turn")
+	if await _wait_until(func(): return main.drive.on_road and main.drive.road == 1 and not main.hud.nav.get("lanes", {}).is_empty() \
+			and main.hud.nav.lanes.kind == "jct_end" and Galaxy.upcoming(1, main.drive.d, main.drive.u, 1)[0].dist < 500.0, 120.0):
+		await _shot("06a_junction_approach")
+	if await _wait_until(func(): return not main.drive.on_road and main.drive.link.get("kind", "") == "jct_on", 60.0):
+		await _wait(1.0)
+		await _shot("06b_junction_out")
 	# Then keep right for the first exit on HWY 1.
 	await _wait_until(func(): return main.drive.on_road, 30.0)
 	await _wait(9.0)
@@ -100,7 +118,13 @@ func _hop_part() -> void:
 	# Take a hop lane (jump to one if this sector has none).
 	var hop_gate := {}
 	for g in Galaxy.gates:
-		if g.kind == "hop_in" and (hop_gate.is_empty() or g.sector == main.space_world.current):
+		if g.kind != "hop_in":
+			continue
+		# The approach starts 1300 m back; skip lanes where a planet is in the way.
+		var gw: Transform3D = g.world
+		if not Galaxy._segment_clear(gw.origin + gw.basis.z * 1300.0, gw.origin):
+			continue
+		if hop_gate.is_empty() or g.sector == main.space_world.current:
 			hop_gate = g
 	main.space_world.set_current_sector(hop_gate.sector)
 	var xf: Transform3D = main.space_world.gate_local(hop_gate)
@@ -114,3 +138,240 @@ func _hop_part() -> void:
 	await _wait_until(func(): return main.mode == 0, 120.0)
 	await _wait(1.0)
 	await _shot("10_hop_arrived")
+
+
+## Yaw and pitch that point from a to b.
+func _angles_to(a: Vector3, b: Vector3) -> Vector2:
+	var d := (b - a).normalized()
+	return Vector2(atan2(-d.x, -d.z), asin(clampf(d.y, -1.0, 1.0)))
+
+
+func _combat_part() -> void:
+	var combat: Combat = main.space_world.combat
+	# The start is at a Lattice gate; face away from it so drifting doesn't carry us in.
+	main.flight.place(main.flight.pos, -main.flight.forward(), 25.0)
+	main.input_override = {"thrust": 0.0}
+	await _shot("c01_start_speed_meter")
+	main.spawn_test_ship(KEY_P)
+	await _wait(1.5)
+	await _shot("c02_drone_pilot_view")
+	main.target_nearest()
+	print("tour: R -> %s  (contacts %d, in combat %s)" % [main.target().get("name", "-"), main.contacts.size(), main.in_combat()])
+	main.target_nearest()
+	print("tour: R again -> %s" % main.target().get("name", "-"))
+	main.cycle_target()
+	print("tour: Tab -> %s" % main.target().get("name", "-"))
+	while not main.target().get("id", "").begins_with("c"):
+		main.cycle_target()
+	await _wait(0.2)
+	await _shot("c02b_target_drone")
+
+	# Turret on the drone.
+	main.to_turret()
+	var t0: float = main.elapsed
+	while main.elapsed - t0 < 3.0 and not combat.ships.is_empty():
+		var tgt: Vector3 = combat.ships[0].pos
+		var ang := _angles_to(main._to_world(main.ship.transform * main.TURRET_MOUNT), tgt)
+		main.turret_yaw = ang.x
+		main.turret_pitch = ang.y
+		main.input_override = {"thrust": 0.0, "fire": true}
+		await _wait(0.05)
+	await _shot("c03_turret_cannon")
+	main.input_override = {"thrust": 0.0, "alt": true}
+	await _wait(0.1)
+	main.input_override = {"thrust": 0.0}
+	await _wait(0.8)
+	await _shot("c04_turret_blocker")
+
+	# Missile at the drone (spawn a fresh one if the cannon killed it).
+	if combat.ships.is_empty():
+		main.spawn_test_ship(KEY_P)
+		await _wait(0.5)
+	main.fire_missile()
+	await _wait(0.6)
+	await _shot("c05_missile_launch")
+	main.space_world.combat.dodge_player_missile(-1)
+	await _wait(0.3)
+	await _shot("c06_missile_dodge")
+	t0 = main.elapsed
+	while main.station == 2 and main.elapsed - t0 < 12.0:
+		var m: Dictionary = combat.player_missile
+		if not m.is_empty() and not combat.ships.is_empty():
+			var ang := _angles_to(m.pos, combat.ships[0].pos)
+			m.aim_yaw = ang.x
+			m.aim_pitch = ang.y
+		main.input_override = {"thrust": 0.0, "boost": main.elapsed - t0 > 1.0}
+		await _wait(0.05)
+		if main.elapsed - t0 > 1.4 and main.elapsed - t0 < 1.5:
+			await _shot("c07_missile_boost")
+	await _shot("c08_missile_result")
+
+	# Detonate beside a fresh drone rather than hitting it.
+	await _wait_until(func(): return main.missile_cd <= 0.0 and main.station == 0, 10.0)
+	main.spawn_test_ship(KEY_P)
+	await _wait(0.3)
+	var drone: Dictionary = combat.ships[-1]
+	main.fire_missile()
+	t0 = main.elapsed
+	while main.station == 2 and main.elapsed - t0 < 10.0 and not combat.player_missile.is_empty():
+		var m: Dictionary = combat.player_missile
+		var aim: Vector3 = (drone.pos as Vector3) + Vector3.UP * 40.0
+		var ang := _angles_to(m.pos, aim)
+		m.aim_yaw = ang.x
+		m.aim_pitch = ang.y
+		main.input_override = {"thrust": 0.0}
+		if (m.pos as Vector3).distance_to(drone.pos) < 58.0:
+			await _shot("c08b_before_detonate")
+			combat.detonate_player_missile()
+			print("tour: detonated, drone hp %.0f / %.0f  msg=%s" % [drone.hp, drone.max_hp, main.msg])
+			await _wait(0.15)
+			await _shot("c08c_detonation")
+			break
+		await _wait(0.02)
+
+	# A hostile freighter that fires its missile soon.
+	main.input_override = {"thrust": 0.0}
+	main.spawn_test_ship(KEY_O)
+	var fr: Dictionary = combat.ships[-1]
+	fr.ai.missile_at = 2.0
+	await _wait_until(func(): return not combat.incoming_missiles().is_empty(), 20.0)
+	await _wait(1.0)
+	main.target_nearest()
+	print("tour: in combat %s, R -> %s" % [main.in_combat(), main.target().get("name", "-")])
+	await _wait(0.1)
+	await _shot("c09_missile_warning")
+	main.to_turret()
+	t0 = main.elapsed
+	var blocked := false
+	while main.elapsed - t0 < 8.0 and not combat.incoming_missiles().is_empty():
+		var em: Dictionary = combat.incoming_missiles()[0]
+		var ang := _angles_to(main._to_world(main.ship.transform * main.TURRET_MOUNT), em.pos)
+		main.turret_yaw = ang.x
+		main.turret_pitch = ang.y
+		var near: bool = (em.pos as Vector3).distance_to(main._to_world(main.flight.pos)) < 700.0
+		main.input_override = {"thrust": 0.0, "fire": true, "alt": near and not blocked}
+		if near and not blocked:
+			blocked = true
+			await _wait(0.1)
+			await _shot("c10_turret_vs_missile")
+		await _wait(0.05)
+	await _shot("c11_after_defence")
+
+	# Fighter against fighter.
+	main.input_override = {"thrust": 1.0}
+	main.to_pilot()
+	main.switch_ship(SpaceFlight.FIGHTER)
+	main.spawn_test_ship(KEY_I)
+	await _wait(6.0)
+	await _shot("c12_fighter_incoming")
+	t0 = main.elapsed
+	while main.elapsed - t0 < 4.0:
+		var ships: Array = combat.ships
+		var tgt: Dictionary = {}
+		for sh in ships:
+			if sh.kind == "fighter":
+				tgt = sh
+		if tgt.is_empty():
+			break
+		var ang := _angles_to(main._to_world(main.flight.pos), tgt.pos)
+		main.flight.aim_yaw = ang.x
+		main.flight.aim_pitch = ang.y
+		main.input_override = {"thrust": 1.0, "fire": true, "alt": true}
+		await _wait(0.05)
+		if main.elapsed - t0 > 2.0 and main.elapsed - t0 < 2.06:
+			await _shot("c13_fighter_guns_laser")
+	await _shot("c14_end")
+
+
+## Free flight through junction gates: HWY 1's off-ramp gate onto HWY 2, then HWY 2's end.
+func _jct_free_part() -> void:
+	main.input_override = {"thrust": 1.0}
+	await _wait_until(func(): return main.mode == 1, 60.0)
+	for step in 2:
+		var g: Dictionary = {}
+		for jg in Galaxy.jct_gates:
+			if jg.depart and ((step == 0 and jg.has("link")) or (step == 1 and jg.has("terminal") and jg.terminal.left)):
+				g = jg
+				break
+		var xf: Transform3D = g.hw
+		main.flight.place(xf.origin + xf.basis.z * 150.0 - Vector3.UP * (xf.origin.y - 20.0), -xf.basis.z, 35.0)
+		var road := 1 if step == 0 else 0
+		main.hw_road = 1 - road
+		main.hw_d = g.link.from.d if g.has("link") else g.terminal.d
+		main.hw_u = Galaxy.road_track(main.hw_road).project_global(main.flight.pos)
+		main.input_override = {"thrust": 1.0}
+		await _wait(1.0)
+		await _shot("j%d_before" % (step * 2 + 1))
+		await _wait_until(func(): return main.hw_road == road, 20.0)
+		print("tour: jct free step %d -> road %d  msg=%s" % [step, main.hw_road, main.msg])
+		await _wait(1.2)
+		await _shot("j%d_after" % (step * 2 + 2))
+
+
+## Deepest overlap between any two ships in open space, player included.
+func _space_overlap() -> float:
+	var caps: Array = [SpaceFlight.capsule(main.flight.cls, main._to_world(main.flight.pos), main.flight.forward())]
+	for s in main.space_world.combat.ships:
+		caps.append(SpaceFlight.capsule(SpaceFlight.FIGHTER if s.kind == "fighter" else SpaceFlight.FREIGHTER, s.pos, s.dir))
+	for n in main.space_world.npcs:
+		caps.append(SpaceFlight.capsule(SpaceFlight.FIGHTER if n.get("fighter", false) else SpaceFlight.FREIGHTER, n.node.position, -n.node.basis.z))
+	var worst := 0.0
+	for i in caps.size():
+		for j in range(i + 1, caps.size()):
+			worst = maxf(worst, SpaceFlight.capsule_push(caps[i], caps[j]).length())
+	return worst
+
+
+## Deepest overlap on the Lattice between the docked player and traffic, or traffic itself.
+func _lattice_overlap() -> float:
+	var caps: Array = [SpaceFlight.capsule(SpaceFlight.FREIGHTER, main.ship.position, -main.ship.basis.z)]
+	for n in main.highway.npcs:
+		caps.append(SpaceFlight.capsule(SpaceFlight.FREIGHTER, n.node.position, -n.node.basis.z))
+	var worst := 0.0
+	for i in caps.size():
+		for j in range(i + 1, caps.size()):
+			worst = maxf(worst, SpaceFlight.capsule_push(caps[i], caps[j]).length())
+	return worst
+
+
+## Ships forced into each other in open space, then docked Lattice traffic at 4x speed.
+func _collide_part() -> void:
+	var combat: Combat = main.space_world.combat
+	main.flight.place(main.flight.pos, -main.flight.forward(), 10.0)
+	main.input_override = {"thrust": 0.0}
+	var here: Vector3 = main._to_world(main.flight.pos)
+	for i in 6:
+		combat.spawn_dummy(here + main.flight.forward() * (60.0 + 30.0 * i), SpaceFlight.FREIGHTER.max_speed)
+	await get_tree().process_frame
+	print("tour: collide spawn overlap %.1f m" % _space_overlap())
+	var worst := 0.0
+	var t0: float = main.elapsed
+	while main.elapsed - t0 < 6.0:
+		await get_tree().process_frame
+		worst = maxf(worst, _space_overlap())
+	print("tour: collide open space worst overlap after the first frame %.1f m" % worst)
+	await _shot("k1_open_space")
+
+	main.input_override = {"thrust": 1.0}
+	main.flight.place(main.flight.pos, main.flight.forward() * -1.0, 30.0)
+	await _wait_until(func(): return main.mode == 1, 60.0)
+	main.input_override = {"thrust": 0.0}
+	main.toggle_dock()
+	Engine.time_scale = 4.0
+	main.highway.same_timer = 0.0
+	worst = 0.0
+	var samples := 0
+	var bad := 0
+	t0 = main.elapsed
+	while main.elapsed - t0 < 90.0 and main.mode == 1:
+		await get_tree().process_frame
+		if main.docked and main.drive.on_road:
+			var o := _lattice_overlap()
+			worst = maxf(worst, o)
+			samples += 1
+			bad += int(o > 2.0)
+			if int(main.elapsed - t0) % 20 == 0 and samples % 30 == 0:
+				main.drive.change_lane(1 if randf() < 0.5 else -1)
+	Engine.time_scale = 1.0
+	print("tour: collide lattice %d samples, %d with overlap > 2 m, worst %.1f m, traffic now %d" % [samples, bad, worst, main.highway.npcs.size()])
+	await _shot("k2_lattice")

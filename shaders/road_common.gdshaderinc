@@ -1,4 +1,5 @@
-// Shared road surface. x = lateral metres (0 = median / link centre), z = metres along.
+// Shared road surface. x = lateral metres (0 = median / link centre), z = metres along,
+// both divided by the road scale, so these are the design metres before scaling.
 // Outputs albedo and a small emission (paint and reflector studs).
 const float MEDIAN = 4.0;
 const float LANE_W = 10.0;

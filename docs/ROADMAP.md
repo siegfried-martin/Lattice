@@ -6,6 +6,10 @@ played or run.*
 1. **Travel foundation.** Done, as the prototype this repo was rebuilt from. See
    `WORLD_AND_TRAVEL.md`.
 
+1b. **Combat check against the new world.** First prototype built (`COMBAT.md`):
+   stations, the missile you fly, turret with blockers, the fighter's guns and laser,
+   and three test enemies. Tuning by play next.
+
 2. **Simulation architecture (design).** How the world exists without being
    rendered: factions, named characters, fleets, stations, markets. How fleets move
    on the map's graph of Lattice roads, hop lanes and open-space sectors. How the

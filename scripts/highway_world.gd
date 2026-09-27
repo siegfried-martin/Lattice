@@ -6,22 +6,27 @@ extends Node3D
 ## ahead into a throat and closes behind, hiding everything outside it. Lighting is a pool
 ## of lamps along the median that follows the ship, plus a faint glow from the wall seams.
 
-const TUN_BACK := -130.0
-const TUN_FRONT := 270.0
+# Everything across the road is in metres of the original design times Galaxy.ROAD_SCALE,
+# so the tunnel keeps its proportions around the bigger freighter.
+const S := Galaxy.ROAD_SCALE
+const TUN_BACK := -130.0 * S
+const TUN_FRONT := 270.0 * S
 const TUN_RINGS := 56
-const TUN_HALF_W := 72.0
-const TUN_H := 32.0
-const TUN_FLOOR := -0.3
-const THROAT_Y := 4.0
+const TUN_HALF_W := 72.0 * S
+const TUN_H := 32.0 * S
+const TUN_FLOOR := -0.3 * S
+const THROAT_Y := 4.0 * S
 const FACE_SEGS := [10, 4, 10, 4]   # floor, right wall, ceiling, left wall
 
 # Open flying limits, metres from the median on the player's side / above the road.
-const FLY_MIN_X := 5.5
-const FLY_MAX_X := TUN_HALF_W - 5.0
-const FLY_CEILING := 24.0
-const CAM_CEILING := TUN_H - 3.0
+const FLY_MIN_X := 5.5 * S
+const FLY_MAX_X := TUN_HALF_W - 5.0 * S
+const FLY_CEILING := 24.0 * S
+const CAM_CEILING := TUN_H - 3.0 * S
+const BARRIER_H := 1.6 * S
+const DEAD_END_MARGIN := 150.0   # the tunnel closes this far past a dead end (HWY 2's ends)
 
-const LAMP_SPACING := 36.0
+const LAMP_SPACING := 36.0 * S  # matches the lamp housings in barrier.gdshader
 const LAMP_COUNT := 12
 const NPC_OPPOSING := 6
 const NPC_SAME := 4
@@ -49,13 +54,12 @@ func build() -> void:
 	_build_env()
 	_build_roads()
 	_build_links()
-	_build_signs()
 	_build_tube()
 	for i in LAMP_COUNT:
 		var l := OmniLight3D.new()
 		l.light_color = Color(1.0, 0.82, 0.58)
-		l.light_energy = 7.0
-		l.omni_range = 75.0
+		l.light_energy = 7.0 * S
+		l.omni_range = 75.0 * S
 		l.omni_attenuation = 1.2
 		l.shadow_enabled = false
 		add_child(l)
@@ -77,7 +81,7 @@ func _build_env() -> void:
 	env.glow_hdr_threshold = 1.0
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.04, 0.045, 0.055)
-	env.fog_density = 0.0025
+	env.fog_density = 0.0025 / S
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -86,12 +90,14 @@ func _build_env() -> void:
 func _build_roads() -> void:
 	var road_mat := ShaderMaterial.new()
 	road_mat.shader = ROAD_SHADER
+	road_mat.set_shader_parameter("scale", S)
 	var bar_mat := ShaderMaterial.new()
 	bar_mat.shader = BARRIER_SHADER
+	bar_mat.set_shader_parameter("scale", S)
 	curtain_mat = ShaderMaterial.new()
 	curtain_mat.shader = WALL_SHADER
-	curtain_mat.set_shader_parameter("grid", 8.0)
-	curtain_mat.set_shader_parameter("reach", 50.0)
+	curtain_mat.set_shader_parameter("grid", 8.0 * S)
+	curtain_mat.set_shader_parameter("reach", 50.0 * S)
 	for road in Galaxy.roads:
 		var t: Track = road.track
 		var mi := MeshInstance3D.new()
@@ -99,12 +105,12 @@ func _build_roads() -> void:
 		mi.material_override = road_mat
 		add_child(mi)
 		var bar := MeshInstance3D.new()
-		bar.mesh = MeshUtil.track_wall(t, 0.0, t.length, 4.0, 0.0, 0.0, 1.6)
+		bar.mesh = MeshUtil.track_wall(t, 0.0, t.length, 4.0, 0.0, 0.0, BARRIER_H)
 		bar.material_override = bar_mat
 		add_child(bar)
 		# Shows the median limit when flying close to it.
 		var curtain := MeshInstance3D.new()
-		curtain.mesh = MeshUtil.track_wall(t, 0.0, t.length, 8.0, 0.0, 1.6, TUN_H)
+		curtain.mesh = MeshUtil.track_wall(t, 0.0, t.length, 8.0, 0.0, BARRIER_H, TUN_H)
 		curtain.material_override = curtain_mat
 		curtain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(curtain)
@@ -117,62 +123,23 @@ func _build_links() -> void:
 			tint = GateBuilder.ON_TINT
 		elif l.kind == "off":
 			tint = GateBuilder.OFF_TINT
+		elif l.kind.begins_with("jct"):
+			tint = GateBuilder.JCT_TINT
 		var m := ShaderMaterial.new()
 		m.shader = ROAD_SHADER
 		m.set_shader_parameter("is_ramp", true)
+		m.set_shader_parameter("scale", S)
 		m.set_shader_parameter("tint", Vector3(tint.r, tint.g, tint.b))
 		var tr: Track = l.track
 		var mi := MeshInstance3D.new()
 		mi.mesh = MeshUtil.track_ribbon(tr, 0.0, tr.length, 4.0, -Galaxy.RAMP_HALF_W, Galaxy.RAMP_HALF_W, 0.06)
 		mi.material_override = m
 		add_child(mi)
-	for g in Galaxy.gates:
-		if g.kind == "on" or g.kind == "off":
+	for g in Galaxy.gates + Galaxy.jct_gates:
+		if g.kind == "on" or g.kind == "off" or g.kind == "jct":
 			var gate := GateBuilder.build(g, false)
 			gate.transform = g.hw
 			add_child(gate)
-
-
-func _build_signs() -> void:
-	for key in Galaxy.events:
-		var road: int = key.x
-		var d: int = key.y
-		for e in Galaxy.events[key]:
-			var text: String = e.text
-			var side: float = e.side
-			if side > 0.0:
-				text += "  >"
-			elif side < 0.0:
-				text = "<  " + text
-			var tint := GateBuilder.OFF_TINT.lerp(Color.WHITE, 0.3) if e.kind == "off" else Color(0.85, 0.83, 0.75)
-			_sign(road, d, e.u - d * 300.0, text + "\n300 m", tint, side * 5.0)
-			_sign(road, d, e.u - d * 40.0, text, tint, side * 10.0)
-	for b in Galaxy.boundaries:
-		var tint := Color(0.65, 0.75, 0.85)
-		_sign(b.road, 1, b.u, "SECTOR %s" % Galaxy.sector_name(b.b), tint, -5.0)
-		_sign(b.road, -1, b.u, "SECTOR %s" % Galaxy.sector_name(b.a), tint, -5.0)
-
-
-func _sign(road: int, d: int, u: float, text: String, tint: Color, lat := 0.0) -> void:
-	var t := Galaxy.road_track(road)
-	if u < 0.0 or u > t.length:
-		return
-	var root := Node3D.new()
-	root.transform = Transform3D(Basis.looking_at(Galaxy.carr_fwd(road, d, u), Vector3.UP), Galaxy.carr_point(road, d, u, lat, 15.0))
-	var pm := StandardMaterial3D.new()
-	pm.albedo_color = Color(0.1, 0.105, 0.11)
-	pm.metallic = 0.6
-	pm.roughness = 0.6
-	MeshUtil.part(root, MeshUtil.box(22.0, 7.5, 0.4), Vector3.ZERO, pm)
-	var label := Label3D.new()
-	label.text = text
-	label.font_size = 72
-	label.pixel_size = 0.04
-	label.modulate = tint
-	label.outline_size = 0
-	label.position = Vector3(0, 0, 0.25)
-	root.add_child(label)
-	add_child(root)
 
 
 # --- Tunnel -------------------------------------------------------------------------------
@@ -182,6 +149,7 @@ func _build_tube() -> void:
 	tube_mesh.custom_aabb = AABB(Vector3(-1e5, -1e5, -1e5), Vector3(2e5, 2e5, 2e5))
 	var mat := ShaderMaterial.new()
 	mat.shader = TUNNEL_SHADER
+	mat.set_shader_parameter("scale", S)
 	var mi := MeshInstance3D.new()
 	mi.mesh = tube_mesh
 	mi.material_override = mat
@@ -215,17 +183,19 @@ func reset_on_enter() -> void:
 
 ## view: {frame: Callable(t) -> {center, carr, fwd, right}, phase: path distance at the ship,
 ##        road, d (side / carriageway), u, dv (direction the tunnel opens toward), speed,
-##        ship: position, show_limits}
+##        ship: position, show_limits, ahead / behind (optional): distance along the path to a
+##        dead end, where the tunnel closes so nothing beyond it shows}
 func update(delta: float, view: Dictionary) -> void:
 	tube_open = minf(1.0, tube_open + delta * 1.0)
 	curtain_mat.set_shader_parameter("player_pos", view.ship if view.show_limits else Vector3(0, 1e6, 0))
-	var front := lerpf(70.0, TUN_FRONT, ease(tube_open, 0.4))
-	_update_tube(view, front)
-	_update_lamps(view, front)
+	var front := minf(lerpf(70.0 * S, TUN_FRONT, ease(tube_open, 0.4)), (view.get("ahead", INF) as float) + DEAD_END_MARGIN)
+	var back := maxf(TUN_BACK, -(view.get("behind", INF) as float) - DEAD_END_MARGIN)
+	_update_tube(view, front, back)
+	_update_lamps(view, front, back)
 	_update_npcs(delta, view)
 
 
-func _update_tube(view: Dictionary, front: float) -> void:
+func _update_tube(view: Dictionary, front: float, back: float) -> void:
 	var frame: Callable = view.frame
 	var phase: float = view.phase
 	var row := _ring_size()
@@ -241,19 +211,19 @@ func _update_tube(view: Dictionary, front: float) -> void:
 	uv2s.resize(count)
 	cols.resize(count)
 	for k in TUN_RINGS:
-		var t := lerpf(TUN_BACK, front, float(k) / (TUN_RINGS - 1))
+		var t := lerpf(back, front, float(k) / (TUN_RINGS - 1))
 		var f: Dictionary = frame.call(t)
 		var fwd: Vector3 = f.fwd
 		var right: Vector3 = fwd.cross(Vector3.UP).normalized()
-		var back_k := clampf((t - TUN_BACK) / (-50.0 - TUN_BACK), 0.0, 1.0)
-		var front_k := clampf((front - t) / (front - 40.0), 0.0, 1.0)
+		var back_k := clampf((t - back) / (-50.0 * S - back), 0.0, 1.0)
+		var front_k := clampf((front - t) / (front - 40.0 * S), 0.0, 1.0)
 		var sc := sqrt(minf(back_k, front_k))
 		# The throat converges onto the ship's carriageway at road level.
 		var c: Vector3 = (f.carr as Vector3).lerp(f.center, sc)
 		var hw := TUN_HALF_W * sc
 		var y0 := lerpf(THROAT_Y, TUN_FLOOR, sc)
 		var y1 := lerpf(THROAT_Y, TUN_H, sc)
-		var frac := (t - TUN_BACK) / (front - TUN_BACK)
+		var frac := (t - back) / (front - back)
 		var i := k * row
 		var faces := [
 			[Vector2(-1, 0), Vector2(1, 0), Vector3.UP],     # floor
@@ -289,19 +259,28 @@ func _update_tube(view: Dictionary, front: float) -> void:
 
 ## Median lamps sit every LAMP_SPACING metres of path, matching the lamp housings on the
 ## barrier, and the pool is re-placed around the ship each frame.
-func _update_lamps(view: Dictionary, front: float) -> void:
+func _update_lamps(view: Dictionary, front: float, back: float) -> void:
 	var frame: Callable = view.frame
 	var offset := fposmod(view.phase as float, LAMP_SPACING)
 	for k in LAMP_COUNT:
 		var t := LAMP_SPACING * (k - 3) - offset
 		var l: OmniLight3D = lamps[k]
-		l.visible = t > TUN_BACK + 30.0 and t < front - 30.0
+		l.visible = t > back + 30.0 * S and t < front - 30.0 * S
 		if l.visible:
 			var f: Dictionary = frame.call(t)
-			l.position = (f.center as Vector3) + Vector3.UP * 1.4
+			l.position = (f.center as Vector3) + Vector3.UP * 1.4 * S
 
 
 # --- Traffic ------------------------------------------------------------------------------
+# Docked freighters on the player's road. Each keeps to its lane and follows whatever is
+# ahead in it, the player included; one ahead of a docked player in their lane moves over
+# (or speeds up) rather than being driven through.
+
+const FOLLOW_GAP := 130.0    # start matching the speed of a ship ahead this close (centres)
+const MIN_GAP := 70.0        # and never closer than this; freighters are about 50 m long
+const YIELD_RANGE := 400.0   # a slower ship this far ahead of the player in their lane makes way
+const NPC_ACCEL := 5.0
+
 
 func _update_npcs(delta: float, view: Dictionary) -> void:
 	var road: int = view.road
@@ -324,25 +303,92 @@ func _update_npcs(delta: float, view: Dictionary) -> void:
 	opp_timer -= delta
 	same_timer -= delta
 	if opp < NPC_OPPOSING and opp_timer <= 0.0:
-		_spawn(road, -d, up + dv * (TUN_FRONT + rng.randf_range(10.0, 30.0)))
+		_spawn(road, -d, up + dv * (TUN_FRONT + rng.randf_range(10.0, 30.0) * S))
 		opp_timer = rng.randf_range(0.8, 2.5)
 	if same < NPC_SAME and same_timer <= 0.0:
 		var ahead := rng.randf() < 0.5
-		_spawn(road, d, up + dv * (TUN_FRONT + 10.0 if ahead else TUN_BACK - 10.0))
+		_spawn(road, d, up + dv * (TUN_FRONT + 10.0 * S if ahead else TUN_BACK - 10.0 * S))
 		same_timer = rng.randf_range(2.0, 5.0)
 
+	# The docked player, as one more vehicle in their carriageway.
+	var me: Dictionary = view.get("docked_on_road", {})
 	for n in npcs.duplicate():
-		n.u += n.dir * n.speed * delta
+		var want: float = n.speed
+		var lead := _leader(n, me)
+		if not lead.is_empty():
+			var gap: float = lead.gap
+			if gap < FOLLOW_GAP:
+				want = minf(want, lead.speed)
+			if gap < MIN_GAP:
+				want = minf(want, lead.speed * 0.8)
+		if not me.is_empty() and n.dir == me.d:
+			var ahead_of_me: float = (n.u - me.u) * n.dir
+			if ahead_of_me > -MIN_GAP and ahead_of_me < YIELD_RANGE and absf(n.lat - me.lat) < Galaxy.LANE_W * 0.8 \
+					and n.cur <= me.speed + 0.5:
+				var free := _free_lane(n, me)
+				if free >= 0:
+					n.lane = free
+				else:
+					want = maxf(want, me.speed * 1.1)
+		n.cur = move_toward(n.cur, want, NPC_ACCEL * delta)
+		n.u += n.dir * n.cur * delta
+		if not lead.is_empty() and lead.gap - n.cur * delta < MIN_GAP * 0.6:
+			n.u = lead.u - n.dir * MIN_GAP * 0.6
+		n.lat = move_toward(n.lat, _npc_lane_lat(n.lane), HighwayDrive.LAT_SPEED * 0.6 * delta)
 		n.bob += delta
 		var rel: float = (n.u - up) * dv
-		if rel < TUN_BACK - 40.0 or rel > TUN_FRONT + 60.0 or n.u < 0.0 or n.u > t.length:
+		if rel < TUN_BACK - 40.0 * S or rel > TUN_FRONT + 60.0 * S or n.u < 0.0 or n.u > t.length:
 			n.node.queue_free()
 			npcs.erase(n)
 			continue
-		var lat: float = -Galaxy.RIGHT_LANE_LAT + Galaxy.LANE_W * n.lane
 		var node: Node3D = n.node
-		node.position = Galaxy.carr_point(road, n.dir, n.u, lat, HighwayDrive.HOVER + sin(n.bob * 1.7) * 0.2)
+		node.position = Galaxy.carr_point(road, n.dir, n.u, n.lat, HighwayDrive.HOVER + sin(n.bob * 1.7) * 0.2 * S)
 		node.basis = Basis.looking_at(Galaxy.carr_fwd(road, n.dir, n.u), Vector3.UP)
+
+
+static func _npc_lane_lat(lane: int) -> float:
+	return -Galaxy.RIGHT_LANE_LAT + Galaxy.LANE_W * lane
+
+
+## Nearest vehicle ahead of n in its lane: {u, speed, gap} or {}.
+func _leader(n: Dictionary, me: Dictionary) -> Dictionary:
+	var best := {}
+	var others: Array = npcs.duplicate()
+	if not me.is_empty():
+		others.append({"dir": me.d, "u": me.u, "lat": me.lat, "cur": me.speed})
+	for o in others:
+		if is_same(o, n) or o.dir != n.dir or absf((o.lat as float) - (n.lat as float)) >= Galaxy.LANE_W * 0.8:
+			continue
+		var gap: float = (o.u - n.u) * n.dir
+		if gap > 0.0 and (best.is_empty() or gap < best.gap):
+			best = {"u": o.u, "speed": o.cur, "gap": gap}
+	return best
+
+
+## A lane next to n's with nothing within MIN_GAP * 2 of it, preferring the right; -1 if none.
+func _free_lane(n: Dictionary, me: Dictionary) -> int:
+	for lane in [n.lane + 1, n.lane - 1]:
+		if lane < 0 or lane >= Galaxy.LANES or _lane_busy(n.dir, lane, n.u, MIN_GAP * 2.0, n, me):
+			continue
+		return lane
+	return -1
+
+
+func _lane_busy(dir: int, lane: int, u: float, span: float, skip: Dictionary, me: Dictionary) -> bool:
+	var lat := _npc_lane_lat(lane)
+	for o in npcs:
+		if not is_same(o, skip) and o.dir == dir and absf(o.lat - lat) < Galaxy.LANE_W * 0.8 and absf(o.u - u) < span:
+			return true
+	return not me.is_empty() and me.d == dir and absf((me.lat as float) - lat) < Galaxy.LANE_W * 0.8 and absf((me.u as float) - u) < span
+
+
+## Pushes a free-flying player (a capsule in Lattice coordinates) out of any traffic.
+func push_out(player: Dictionary) -> Vector3:
+	var push := Vector3.ZERO
+	for n in npcs:
+		var node: Node3D = n.node
+		push += SpaceFlight.capsule_push(player, SpaceFlight.capsule(SpaceFlight.FREIGHTER, node.position, -node.basis.z))
+	return push
 
 
 ## Docked freighters run at 80% of top speed; loads vary a little.
@@ -353,9 +399,14 @@ func _docked_speed() -> float:
 func _spawn(road: int, dir: int, u: float) -> void:
 	if u < 0.0 or u > Galaxy.road_track(road).length:
 		return
+	var lane := rng.randi_range(0, 1) if rng.randf() < 0.8 else 2
+	if _lane_busy(dir, lane, u, MIN_GAP * 2.5, {}, {}):
+		return
 	var col: Color = NPC_COLORS[rng.randi() % NPC_COLORS.size()]
 	# Only freighters can use the highway.
 	var node := ShipMesh.build_freighter(col, Color(1.0, 0.6, 0.35) if rng.randf() < 0.5 else Color(0.6, 0.8, 1.0))
-	ShipMesh.set_throttle(node, 0.5)
+	ShipMesh.set_engine_glow(node, 0.5)
 	add_child(node)
-	npcs.append({"node": node, "dir": dir, "u": u, "speed": _docked_speed(), "lane": rng.randi_range(0, 1) if rng.randf() < 0.8 else 2, "bob": rng.randf() * 10.0})
+	var speed := _docked_speed()
+	npcs.append({"node": node, "dir": dir, "u": u, "speed": speed, "cur": speed, "lane": lane, "lat": _npc_lane_lat(lane),
+		"bob": rng.randf() * 10.0})
