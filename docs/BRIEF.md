@@ -197,7 +197,7 @@ requirement: a summoner may never ride a missile.
 - Authored places versus generated ones.
 - How big the real map gets.
 
-### Simulation (the next big piece)
+### Simulation (later, once more of the game exists)
 - How factions, characters, fleets, stations and markets exist unrendered.
 - How fleets move on the graph of Lattice roads, hop lanes and open space.
 - How the economy moves goods on actual ships.
@@ -210,16 +210,14 @@ requirement: a summoner may never ride a missile.
 - What missions look like.
 - How reputation opens access.
 
-## Roadmap (order, not detail)
+## Roadmap
 
-1. Travel foundation. **Done.**
-1b. Combat check against the new world. **First prototype built, being playtested.**
-2. Simulation architecture (design). **Next.**
-3. A headless simulation prototype, run fast with nothing rendered, to check that trade
-   flows, borders move and fleets persist.
-4. Traffic comes from the simulation instead of being cosmetic.
-5. Combat feel prototype, refined, with turrets and hired gunners.
-6. The playstyles, made playable one at a time.
+The earlier roadmap, which went straight to simulation architecture, has been withdrawn
+because the game needs many more of its elements before there is anything to simulate.
+
+- **Done:** the travel foundation and a first combat prototype.
+- **Now:** collecting design idea documents in `docs/planning/` and analysing them into
+  a concrete path.
 
 ## Glossary
 
