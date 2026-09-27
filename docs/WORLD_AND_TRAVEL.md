@@ -54,7 +54,7 @@ The prototype has two, to establish the relationship:
 - **Fighter:** fast and agile, about 2.5 times the freighter's speed. It can't
   enter the Lattice.
 - **Freighter:** slow, heavy and big, about 50 m long against the fighter's 8 m. It
-  has a **threader**, the equipment that lets a ship enter the Lattice.
+  has a **Lattice Drive**, the equipment that lets a ship enter the Lattice.
 
 The Lattice is sized around the freighter: its lanes, tunnel and gate frames scale with
 the freighter's model (`Galaxy.ROAD_SCALE`, tied to `ShipMesh.FREIGHTER_SCALE`), so a
@@ -63,7 +63,7 @@ freighter fills one lane and fits a gate frame whatever size it is.
 The intended feel: crossing between sectors in a fighter is inconvenient, and in a
 freighter it is painful. But a freighter in the Lattice covers the map far faster
 than a fighter can in open space. There is time on the Lattice, docked, to talk to
-other ships or look at the map. Getting a threader is the moment the universe
+other ships or look at the map. Getting a Lattice Drive is the moment the universe
 opens up.
 
 ### Systems
@@ -188,7 +188,7 @@ each other.
 
 All gates are rectangular frames with a surface that swirls faintly:
 
-- **Green:** Lattice entrance (needs a threader)
+- **Green:** Lattice entrance (needs a Lattice Drive)
 - **Amber:** Lattice exit (you come out of these)
 - **Violet:** hop lane
 

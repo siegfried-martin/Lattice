@@ -5,7 +5,7 @@ extends RefCounted
 ## limit the camera only partly follows. Handling comes from the ship class.
 
 const FIGHTER := {
-	"name": "FIGHTER", "highway": false,  # "highway": has a threader, so can enter the Lattice
+	"name": "FIGHTER", "highway": false,  # "highway": has a Lattice Drive, so can enter the Lattice
 	"max_speed": 100.0, "accel": 12.0, "brake": 20.0, "reverse": -15.0,
 	"turn_yaw": 50.0, "turn_pitch": 40.0, "damp": 1.2, "cam": Vector3(0.0, 4.2, 16.0), "radius": 5.0,
 	"hull_r": 4.0, "hull_half": 1.5,  # collision capsule: radius, half-length of its core along the nose
