@@ -52,4 +52,5 @@ goes left.
 | `docs/WORLD_AND_TRAVEL.md` | the world's layout and how travel works and feels (design of record) |
 | `docs/COMBAT.md` | the combat prototype: stations, weapons, enemies |
 | `docs/ROADMAP.md` | what comes next, in order |
+| `docs/BRIEF.md` | code-free summary of all of the above, for brainstorming outside the repo |
 | `CLAUDE.md` | working notes for AI-assisted sessions |

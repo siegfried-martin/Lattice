@@ -40,3 +40,4 @@ Read `docs/VISION.md` first. It is the intent everything else serves.
 
 - Work on a branch, `feat/…`, `fix/…` or `docs/…`, and merge through a PR.
 - Update `docs/` in the same change when a design decision changes.
+  `docs/BRIEF.md` is the code-free summary the human uses for brainstorming; keep it current too.
