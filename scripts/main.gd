@@ -301,7 +301,7 @@ func _process_space(delta: float, rel: Vector2, thrust: float) -> void:
 		if flight.cls.highway:
 			_enter_highway(g)
 			return
-		_say("No threader fitted  -  fighters can't enter the Lattice  (Numpad 1 for the freighter)")
+		_say("No Lattice Drive fitted  -  fighters can't enter the Lattice  (Numpad 1 for the freighter)")
 
 	ship.transform = Transform3D(flight.ship_basis(), flight.pos)
 	ShipMesh.set_engine_glow(ship, _speed_frac())

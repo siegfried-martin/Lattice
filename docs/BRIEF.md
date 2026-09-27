@@ -83,7 +83,7 @@ requirement: a summoner may never ride a missile.
 - **Fighter:** about 8 m long and about 2.5× the freighter's speed. It can't enter the
   Lattice.
 - **Freighter:** about 50 m long, deliberately big, slow and heavy. It carries a
-  **threader**, the equipment that opens the Lattice. Getting one is meant to be the
+  **Lattice Drive**, the equipment that opens the Lattice. Getting one is meant to be the
   moment the universe opens up.
 - The intended feel:
   - Crossing sectors by engine is inconvenient in a fighter and painful in a
@@ -224,7 +224,7 @@ because the game needs many more of its elements before there is anything to sim
 | Term | Meaning |
 |---|---|
 | **Lattice** | The wormhole highway network, and the game's name |
-| **Threader** | Ship equipment needed to enter the Lattice |
+| **Lattice Drive** | Ship equipment needed to enter the Lattice |
 | **Sector** | A hexagonal cell of the open-space map |
 | **System** | A group of planets within a sector |
 | **Hop lane** | One-way fast lane between planets, usable by any ship |
