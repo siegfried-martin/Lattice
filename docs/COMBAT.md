@@ -34,6 +34,10 @@ worth aiming for.
 ahead. It builds heat while firing. At full heat it locks out until it has cooled most
 of the way.
 
+**Asteroids and other solid things block fire.** Rounds, missiles and laser beams
+stop at the first asteroid, planet, moon or station in their path, so a rock field
+is cover. A missile you're flying that clips a rock is lost.
+
 **Missile.** X from any station, one in flight at a time, then a reload.
 
 - The mouse steers: the missile turns toward the reticle at its turn rate.

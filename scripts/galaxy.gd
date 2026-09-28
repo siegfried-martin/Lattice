@@ -1,7 +1,7 @@
 extends Node
 ## Shared world layout used by both the open-space scene and the highway scene: hex sectors,
-## star systems (planets, moons, hop lanes, asteroid clusters) and the highway network with
-## its links and gates. Generated deterministically at startup.
+## star systems (planets, moons, hop lanes, asteroid clusters, service stations) and the
+## highway network with its links and gates. Generated deterministically at startup.
 
 const SQRT3 := 1.7320508075688772
 
@@ -48,6 +48,9 @@ const C_RX := 21000.0
 const C_RZ := 17000.0
 const C_END_X := 57000.0
 
+const STATION_R := 130.0       # service station collision radius
+const STATION_SYSTEMS := [0, 2, 4]   # systems (by index) with a service station by their interchange
+
 const ROAD_NAMES := ["HWY 1", "HWY 2"]
 const SYSTEM_NAMES := ["Vesper", "Kharon", "Ossia", "Tethra", "Maru", "Calyx", "Ione"]
 const ROMAN := ["I", "II", "III", "IV", "V"]
@@ -72,6 +75,7 @@ var systems: Array = []
 var bodies: Array = []     # planets and moons
 var hops: Array = []
 var clusters: Array = []   # asteroid clusters
+var stations: Array = []   # service stations in open space: {name, world, radius, sector, system}
 var start := {}            # {gate, pos}
 
 
@@ -79,7 +83,7 @@ func _init() -> void:
 	for row in ROWS:
 		for col in COLS:
 			var c := Vector2i(col, row)
-			sectors[c] = {"coord": c, "name": sector_name(c), "center": sector_center(c), "bodies": [], "gates": []}
+			sectors[c] = {"coord": c, "name": sector_name(c), "center": sector_center(c), "bodies": [], "gates": [], "stations": []}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260923
 	_build_roads()
@@ -89,8 +93,11 @@ func _init() -> void:
 	_build_events()
 	_build_hops()
 	_build_clusters(rng)
-	print("Galaxy: HWY 1 %.0f m, HWY 2 %.0f m, %d links, %d gates, %d systems, %d bodies, %d hops, %d clusters" % [
-		roads[0].track.length, roads[1].track.length, links.size(), gates.size(), systems.size(), bodies.size(), hops.size(), clusters.size()])
+	_build_stations()
+	var moons := bodies.filter(func(b): return b.kind == "moon").size()
+	print("Galaxy: HWY 1 %.0f m, HWY 2 %.0f m, %d links, %d gates, %d systems, %d bodies (%d moons), %d hops, %d clusters, %d stations" % [
+		roads[0].track.length, roads[1].track.length, links.size(), gates.size(), systems.size(), bodies.size(), moons, hops.size(),
+		clusters.size(), stations.size()])
 
 
 # --- Hex math -----------------------------------------------------------------------------
@@ -497,8 +504,11 @@ func _build_systems(rng: RandomNumberGenerator) -> void:
 			_add_interchange(site.road, site.u, sys)
 	# One system away from the highway, reached by hop lane.
 	_new_system(sector_center(Vector2i(0, 0)) + Vector3(1500, 0, -1000))
+	# Moons draw from their own stream, so changing how many there are doesn't move the planets.
+	var moon_rng := RandomNumberGenerator.new()
+	moon_rng.seed = 20260928
 	for sys in systems:
-		_build_system_bodies(sys, rng)
+		_build_system_bodies(sys, rng, moon_rng)
 	# Start in front of an entrance near the system in the middle of the map.
 	for g in gates:
 		if g.kind == "on" and g.get("system", "") == systems[2].name:
@@ -512,7 +522,7 @@ func _new_system(center: Vector3) -> Dictionary:
 	return sys
 
 
-func _build_system_bodies(sys: Dictionary, rng: RandomNumberGenerator) -> void:
+func _build_system_bodies(sys: Dictionary, rng: RandomNumberGenerator, moon_rng: RandomNumberGenerator) -> void:
 	var n_planets: int = [1, 2, 2, 3, 3, 4][rng.randi() % 6]
 	for k in n_planets:
 		# Every system gets its first planet: if the gates crowd it out, move further out.
@@ -527,18 +537,19 @@ func _build_system_bodies(sys: Dictionary, rng: RandomNumberGenerator) -> void:
 			var pl := _add_body("planet", "%s %s" % [sys.name, ROMAN[k]], p, radius, sys, rng)
 			sys.planets.append(pl)
 			break
+	# About a quarter of planets have one to three moons.
 	for pl in sys.planets:
-		if rng.randf() > 0.45:
+		if moon_rng.randf() > 0.25:
 			continue
-		var n_moons := 2 if rng.randf() < 0.3 else 1
+		var n_moons := moon_rng.randi_range(1, 3)
 		for m in n_moons:
 			for attempt in 60:
-				var mr := rng.randf_range(120.0, 340.0)
-				var ang := rng.randf() * TAU
-				var dist: float = pl.radius * rng.randf_range(2.0, 3.0) + 400.0
-				var p: Vector3 = pl.world + Vector3(cos(ang) * dist, rng.randf_range(-0.3, 0.3) * pl.radius, sin(ang) * dist)
+				var mr := moon_rng.randf_range(120.0, 340.0)
+				var ang := moon_rng.randf() * TAU
+				var dist: float = pl.radius * moon_rng.randf_range(2.0, 3.0) + 400.0
+				var p: Vector3 = pl.world + Vector3(cos(ang) * dist, moon_rng.randf_range(-0.3, 0.3) * pl.radius, sin(ang) * dist)
 				if _body_ok(p, mr, sys.sector, 400.0, 1200.0):
-					_add_body("moon", "%s-%s" % [pl.name, ["a", "b"][m]], p, mr, sys, rng)
+					_add_body("moon", "%s-%s" % [pl.name, ["a", "b", "c"][m]], p, mr, sys, moon_rng)
 					break
 
 
@@ -663,3 +674,63 @@ func _build_clusters(rng: RandomNumberGenerator) -> void:
 func _add_clump(p: Vector3, sigma: float, count: int, rng: RandomNumberGenerator) -> void:
 	clusters.append({"kind": "clump", "center": p, "radius": 0.0, "sigma": sigma, "count": count,
 		"seed": rng.randi(), "sector": hex_of(p), "extent": sigma * 3.0})
+
+
+# --- Service stations ---------------------------------------------------------------------
+
+## A few stations beside Lattice interchanges, off to the side of the gates' frame runs, where
+## ships can put in to refuel. Placed last, clear of everything else.
+func _build_stations() -> void:
+	for i in STATION_SYSTEMS:
+		var sys: Dictionary = systems[i]
+		var gs: Array = gates.filter(func(g): return (g.kind == "on" or g.kind == "off") and g.get("system", "") == sys.name)
+		if gs.is_empty():
+			continue
+		var c := Vector3.ZERO
+		for g in gs:
+			c += (g.world as Transform3D).origin
+		c /= gs.size()
+		var side: Vector3 = (-(gs[0].world as Transform3D).basis.z).cross(Vector3.UP).normalized()
+		var placed := false
+		for dist in [900.0, 1200.0, 1600.0, 2000.0, 2500.0, 3000.0]:
+			for sgn in [-1.0, 1.0]:
+				var p: Vector3 = c + side * sgn * dist
+				if not placed and _station_ok(p):
+					var st := {"name": "%s Station" % sys.name, "world": p, "radius": STATION_R, "sector": hex_of(p), "system": sys.name}
+					stations.append(st)
+					sectors[st.sector].stations.append(st)
+					placed = true
+
+
+func _station_ok(p: Vector3) -> bool:
+	var sec := hex_of(p)
+	if not is_valid(sec) or hex_sdf(p, sec) > -(STATION_R + 800.0):
+		return false
+	for b in bodies:
+		if p.distance_to(b.world) < b.radius + STATION_R + 700.0:
+			return false
+	for g in gates:
+		# Keep clear of each gate's run of frames, which extends along its axis.
+		var xf: Transform3D = g.world
+		var ax := -xf.basis.z * 1400.0
+		if _seg_dist(p, xf.origin - ax, xf.origin + ax) < STATION_R + 300.0:
+			return false
+	for h in hops:
+		if _seg_dist(p, h.entry, h.exit) < STATION_R + 400.0:
+			return false
+	for cl in clusters:
+		var reach: float = cl.extent
+		if cl.kind == "belt":
+			# A belt is a ring; its middle is clear.
+			var flat := Vector2(p.x - cl.center.x, p.z - cl.center.z).length()
+			if absf(flat - (cl.radius as float)) < (cl.sigma as float) * 3.0 + STATION_R + 200.0 and absf(p.y - cl.center.y) < 1200.0:
+				return false
+		elif p.distance_to(cl.center) < reach + STATION_R + 200.0:
+			return false
+	return true
+
+
+static func _seg_dist(p: Vector3, a: Vector3, b: Vector3) -> float:
+	var ab := b - a
+	var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+	return p.distance_to(a + ab * t)

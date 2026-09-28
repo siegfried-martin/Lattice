@@ -50,18 +50,22 @@ const T := {
 	"hp_dummy": 100.0,
 	"hp_freighter": 300.0,
 	"hp_fighter": 150.0,
+	"impact_damage": 1.0,          # hull damage per m/s of speed into an asteroid
+	"impact_min_speed": 3.0,       # slower bumps do no damage
 }
 
 ## Ships farther than this from the player aren't rendered or targetable. Combat ships stay
 ## in play beyond it (they're in a fight); traffic is handed back.
 const SENSOR_RANGE := 4000.0
+## A ship knocked off course by a collision recovers at this rate (per second).
+const KNOCK_DECAY := 1.5
 
 const ROUND_PLAYER := Color(1.0, 0.75, 0.35)
 const ROUND_ENEMY := Color(1.0, 0.35, 0.3)
 const BLOCKER_PLAYER := Color(0.6, 0.85, 1.0)
 const BLOCKER_ENEMY := Color(1.0, 0.5, 0.35)
 
-var ships: Array = []      # {id, kind, name, node, pos, vel, dir, speed, max_speed, hp, max_hp, radius, ai}
+var ships: Array = []      # {id, kind, name, node, pos, vel, knock, dir, speed, max_speed, hp, max_hp, radius, ai}
 var rounds: Array = []     # {pos, vel, life, dmg, player, node}
 var blockers: Array = []   # {center, vel, age, dirs, nodes, player}
 var missiles: Array = []   # see _new_missile
@@ -73,6 +77,7 @@ var _next_id := 1
 var _events: Array = []
 var _player: Dictionary = {}
 var rng := RandomNumberGenerator.new()
+var world: Node            # the space world: asteroids and other solid things (obstacle_hit, collide_asteroids)
 
 
 func _ready() -> void:
@@ -103,7 +108,7 @@ func spawn_fighter(p: Vector3, player_pos: Vector3, speed: float, turn_deg: floa
 
 func _add_ship(kind: String, name: String, node: Node3D, p: Vector3, dir: Vector3, max_speed: float, hp: float, radius: float) -> Dictionary:
 	add_child(node)
-	var s := {"id": _next_id, "kind": kind, "name": name, "node": node, "pos": p, "vel": Vector3.ZERO, "dir": dir,
+	var s := {"id": _next_id, "kind": kind, "name": name, "node": node, "pos": p, "vel": Vector3.ZERO, "knock": Vector3.ZERO, "dir": dir,
 		"speed": max_speed * 0.6, "max_speed": max_speed, "hp": hp, "max_hp": hp, "radius": radius, "ai": {}}
 	_next_id += 1
 	ships.append(s)
@@ -289,8 +294,9 @@ func player_laser(origin: Vector3, dir: Vector3, held: bool, delta: float) -> bo
 			laser_locked = false
 		_beam("player", Vector3.ZERO, Vector3.ZERO, false)
 		return false
-	var end := origin + dir * T.laser_range
-	var hit := _ray_ships(origin, dir, T.laser_range)
+	var reach := _clear_reach(origin, dir, T.laser_range)
+	var end := origin + dir * reach
+	var hit := _ray_ships(origin, dir, reach)
 	if not hit.is_empty():
 		end = hit.point
 		_damage_ship(hit.ship, T.laser_dps * delta)
@@ -344,8 +350,31 @@ func _update_ship(s: Dictionary, delta: float) -> void:
 		"fighter":
 			_ai_fighter(s, delta)
 	s.vel = (s.dir as Vector3) * (s.speed as float)
-	s.pos = (s.pos as Vector3) + (s.vel as Vector3) * delta
+	s.knock = (s.knock as Vector3) * exp(-KNOCK_DECAY * delta)
+	s.pos = (s.pos as Vector3) + ((s.vel as Vector3) + (s.knock as Vector3)) * delta
+	_asteroid_bump(s)
 	_place_ship(s)
+
+
+## Asteroids are solid: a ship that hits one bounces off and takes damage for the speed it hit at.
+func _asteroid_bump(s: Dictionary) -> void:
+	var push: Vector3 = world.collide_asteroids((s.pos as Vector3) - world.center, s.radius)
+	if push == Vector3.ZERO:
+		return
+	s.pos = (s.pos as Vector3) + push
+	var n := push.normalized()
+	var v: Vector3 = (s.vel as Vector3) + (s.knock as Vector3)
+	var dmg := impact_damage(v, n)
+	s.knock = world.knock_off(v, n) - (s.vel as Vector3)
+	if dmg > 0.0:
+		_flash(s.pos, Color(0.9, 0.8, 0.6), 25.0)
+		_damage_ship(s, dmg)
+
+
+## Hull damage for hitting something solid at velocity vel, with n its surface normal.
+static func impact_damage(vel: Vector3, n: Vector3) -> float:
+	var into := -vel.dot(n)
+	return into * T.impact_damage if into > T.impact_min_speed else 0.0
 
 
 ## Turn dir toward want by at most turn_deg * delta, keeping a level horizon.
@@ -438,9 +467,10 @@ func _ai_fighter(s: Dictionary, delta: float) -> void:
 			ai.locked = false
 		_beam(str(s.id), Vector3.ZERO, Vector3.ZERO, false)
 		return
-	var end := nose + (s.dir as Vector3) * T.laser_range
+	var reach := _clear_reach(nose, s.dir, T.laser_range)
+	var end := nose + (s.dir as Vector3) * reach
 	var t := _ray_sphere(nose, s.dir, pp, _player.radius)
-	if t >= 0.0 and t <= T.laser_range:
+	if t >= 0.0 and t <= reach:
 		end = nose + (s.dir as Vector3) * t
 		_event("player_hit", T.laser_dps * delta)
 	_beam(str(s.id), nose, end, true)
@@ -512,6 +542,11 @@ func _update_missile(m: Dictionary, delta: float) -> void:
 		_event("player_hit", T.missile_damage)
 		_end_missile(m, "")
 		return
+	var block := _blocked(a, z)
+	if block >= 0.0:
+		m.pos = a.lerp(z, block)
+		_end_missile(m, "Hit an obstacle" if m.player else "")
+		return
 	if m.fuse <= 0.0:
 		_end_missile(m, "Fuse expired" if m.player else "")
 
@@ -557,6 +592,11 @@ func _update_round(r: Dictionary, delta: float) -> void:
 				return
 	elif _player.alive and _seg_hits(a, z, _player.pos, _player.radius):
 		_event("player_hit", r.dmg)
+		_remove_round(r)
+		return
+	var block := _blocked(a, z)
+	if block >= 0.0:
+		_flash(a.lerp(z, block), Color(1.0, 0.8, 0.5), 6.0)
 		_remove_round(r)
 		return
 	# Rounds knock down the other side's missiles.
@@ -605,6 +645,17 @@ func _update_blocker(b: Dictionary, delta: float) -> void:
 
 
 # --- Helpers ------------------------------------------------------------------------------
+
+## Fraction along a..b where weapon fire hits an asteroid, planet or station, or -1.
+func _blocked(a: Vector3, b: Vector3) -> float:
+	return world.obstacle_hit(a, b) if world != null else -1.0
+
+
+## How far a beam from o along d gets before something solid stops it, up to max_t.
+func _clear_reach(o: Vector3, d: Vector3, max_t: float) -> float:
+	var t := _blocked(o, o + d * max_t)
+	return max_t * t if t >= 0.0 else max_t
+
 
 static func _seg_hits(a: Vector3, b: Vector3, c: Vector3, r: float) -> bool:
 	var ab := b - a

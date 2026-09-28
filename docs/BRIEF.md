@@ -72,12 +72,18 @@ requirement: a summoner may never ride a missile.
   pushed back and hazed so they read as distant.
 - Flight uses momentum and a mouse reticle the ship turns toward. There's a
   climb/dive limit.
-- Hitting anything bounces you and cuts your speed.
+- Hitting anything bounces you and cuts your speed: planets, stations, asteroids,
+  other ships (which get knocked away).
 - **Systems** are groups of one to four planets in a sector, mostly near a Lattice
-  interchange. At least one sits off the network.
+  interchange. At least one sits off the network. About a quarter of planets have one
+  to three moons.
+- **Service stations** sit beside a few Lattice interchanges.
+- **Landing:** flying close to a planet or station pauses the game on a landing menu,
+  where you can refuel. It's the hook for markets, missions and repairs later.
 - **Hop lanes** are one-way high-speed lanes between planets, open to any ship. They
   loop around a system, so moving within one is cheap.
-- **Asteroids** come in drifting, tumbling clusters and belts.
+- **Asteroids** come in drifting, tumbling clusters and belts. Hitting one hard
+  damages the hull, and they block weapon fire, so a rock field is cover.
 
 ### Ships
 - **Fighter:** about 8 m long and about 2.5× the freighter's speed. It can't enter the
@@ -106,6 +112,9 @@ requirement: a summoner may never ride a missile.
   - **Free flight** uses the normal controls inside the tunnel.
   - **Docked** cruises on rails at 80% of top speed; you step between lanes one at a
     time.
+- **Lattice fuel:** the Lattice Drive burns fuel per kilometre on the Lattice (a
+  freighter tank goes about 7 km). Running dry drops you into open space where you
+  are; refuel at planets and stations.
 - **Getting on and off:** interchanges beside systems group the exit and the entrance
   together. When docked, keeping to the right lane past a fork takes the ramp.
 - **Network shape:** a cent sign (¢).

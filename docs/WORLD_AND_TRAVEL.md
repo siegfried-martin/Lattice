@@ -68,9 +68,30 @@ opens up.
 
 ### Systems
 
-A **system** is a group of planets in one sector: one to four planets, some with
-moons. Most systems sit a few kilometres from a Lattice interchange; at least one is
-off the network, reachable by hop lane or by a long flight.
+A **system** is a group of planets in one sector: one to four planets. About a
+quarter of planets have one to three moons. Most systems sit a few kilometres from a
+Lattice interchange; at least one is off the network, reachable by hop lane or by a
+long flight.
+
+### Service stations
+
+A few **service stations** sit in open space beside Lattice interchanges, off to the
+side of the gates' runs of frames, so a ship coming off the network can put in to
+refuel without a detour to a planet. They are solid, like planets. Each shows on the
+HUD with its name and distance.
+
+### Landing
+
+Coming close to a **planet** or a **service station** lands there. The game pauses on
+a landing menu:
+
+- **Refuel (F)** fills the Lattice fuel tank. It's free for now; prices come with the
+  economy.
+- **Take off (Enter)** puts the ship back in space just outside the landing range,
+  heading away. Landing works again once the ship has moved clear.
+
+The menu is the hook for everything a planet or station will offer later (market,
+missions, repairs). Moons can't be landed on yet.
 
 ### Hop lanes
 
@@ -91,7 +112,13 @@ near it at a normal flying speed.
 Asteroids come in **clusters**, not an even scatter: belts around some planets, and
 clumps elsewhere, dense in the middle and thinning out. Each rock slowly orbits the
 centre of its cluster and tumbles, on average slower than a freighter. They are
-solid; hitting one bounces you like any other obstacle.
+solid, and they're a hazard:
+
+- Hitting one bounces the ship like any other obstacle and **damages the hull** in
+  proportion to how fast it hit. Gentle bumps do nothing. NPC ships bounce off them
+  too, and combat ships take the same damage.
+- They **block weapon fire**: rounds, missiles and lasers stop at the first asteroid
+  in their way (and at planets, moons and stations).
 
 ## The Lattice
 
@@ -136,6 +163,21 @@ continuous.
 - **Docked:** press **C** to dock to the road. The ship eases onto it and cruises at a
   fixed fraction of top speed. A / D step one lane at a time, and the mouse becomes
   a free cursor (for future points of interest). C again undocks.
+
+### Lattice fuel
+
+A ship's **Lattice Drive** burns **Lattice fuel** for every kilometre travelled on the
+Lattice, docked or flying. Open space costs nothing.
+
+- The fuel bar shows the share left and roughly how far it will go. Below a fifth
+  of a tank the HUD warns you.
+- An entrance won't take a ship with an empty tank.
+- **Running dry drops the ship out of the Lattice** into open space at its mapped
+  position (the map is 20 times the Lattice's size), with its heading and speed.
+- Refuel by landing at a planet or a service station.
+
+`docs/planning/FACTIONS.md` has the wider design this belongs to (NPC fuel stops,
+pirates who don't use the Lattice, a proposed reserve for limping home).
 
 ### The network's shape
 
@@ -203,8 +245,9 @@ directions. Under the vision (`VISION.md`) traffic becomes simulation fleets,
 rendered when they're near the player. That is the next big design piece.
 
 **Ships don't pass through each other.** Each ship has a collision capsule that
-fits its hull. In open space, overlapping ships are pushed apart, and the player
-bounces off as they do off asteroids. On the Lattice, docked traffic keeps to its lane
+fits its hull. In open space, the player bounces off another ship exactly as off a
+planet, and the other ship is knocked away and recovers its course. Other ships that
+overlap each other are pushed apart. On the Lattice, docked traffic keeps to its lane
 and slows behind whatever is ahead, the player included. A slower ship ahead of a
 docked player in their lane moves over to a free lane, or speeds up if there isn't
 one. A free-flying player is pushed out of traffic.
@@ -234,9 +277,16 @@ Snapshot at the rebuild. All of this is expected to move.
 | Hop lane | up to 600 m/s |
 | Neighbour planet push-out | 1 + 2.4 × ln(1 + distance past border / 1.5 km) |
 | Asteroid drift | about 1–16 m/s |
+| Asteroid impact damage | 1 hull per m/s of speed into the rock, above 3 m/s (freighter hull 400, fighter 150) |
+| Lattice fuel | freighter tank 100, burning 14 per km on the Lattice: about 7 km a tank (HWY 1 is 5.7 km) |
+| Landing range | 350 m above a planet's surface; 150 m from a station's hull |
+| Moons | a quarter of planets, one to three each |
 
 ## Known rough edges
 
 - A junction jump is a cut: the tunnel restarts from its throat on the other road.
 - Traffic and system placement are generated once from fixed seeds. There are no
   authored places yet.
+- Wandering NPC traffic still passes through planets and stations (asteroids it
+  bounces off).
+- While landed the whole game pauses, so landing is also a way out of a fight.
