@@ -21,6 +21,7 @@ make check      # parse every script and build both worlds headless
 make tour       # scripted fly-through with screenshots
 make tour-combat  # scripted combat run with screenshots
 make tour-jct   # free flight through junction gates both ways
+make tour-land  # landing, refuelling, moons, asteroid hits, running out of fuel
 ```
 
 ## Controls
@@ -37,12 +38,14 @@ make tour-jct   # free flight through junction gates both ways
 | R | nearest enemy in combat, otherwise nearest ship; again for the second nearest |
 | Numpad 1 / 2 | fly the freighter / fighter (prototype shortcut) |
 | C | dock to / undock from the road, on the Lattice |
+| F / Enter | refuel / take off, on the landing menu |
 | Esc | release the mouse |
 
 Fly through a **green** frame to enter the Lattice (freighter only), an **amber** one
 to leave it, a **blue** one to change highway at a junction, and a **violet** one to
 ride a hop lane. Docked, keep right to take a ramp; at the end of HWY 2 the left lane
-goes left.
+goes left. Fly close to a planet or a service station to land and refuel; the
+Lattice burns fuel, and running dry drops you back into open space.
 
 ## Documents
 

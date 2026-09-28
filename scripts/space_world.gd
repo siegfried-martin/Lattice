@@ -4,6 +4,8 @@ extends Node3D
 ## Rendering rules: the current sector renders normally; neighbouring sectors show only their
 ## planets and moons, pushed out by a log factor and hazed; sectors two or more away render
 ## nothing. Asteroid clusters also show when the player is inside or near one.
+## Also answers what's solid: planets, stations, asteroids and ships, for collisions, landing
+## and weapon fire.
 
 const STRETCH_K := 2.4
 const STRETCH_LEN := 1500.0
@@ -11,6 +13,8 @@ const WANDERERS := 6
 const NPC_DESPAWN := Combat.SENSOR_RANGE * 1.5  # traffic this far away is handed back (removed)
 const LANE_MARK_SPACING := 700.0
 const GATE_NEAR := 5000.0
+const LAND_PLANET := 350.0   # coming this close to a planet's surface brings up the landing menu
+const LAND_STATION := 150.0
 
 const WALL_SHADER := preload("res://shaders/sector_wall.gdshader")
 const SKY_SHADER := preload("res://shaders/space_sky.gdshader")
@@ -27,6 +31,7 @@ var center := Vector3.ZERO
 var sector_vis := {}      # Vector2i -> {walls, lines, items: Array[Node3D]}
 var gate_nodes: Array = []  # {gate, node}: shown in the current sector or when close by
 var body_vis: Array = []  # {data, node, mat, appear}
+var station_vis: Array = []  # {data, node, ring}
 var rocks: Array = []     # {data, nodes, offsets, omegas, radii}
 var wall_mat: ShaderMaterial
 var flash_mat: ShaderMaterial
@@ -76,8 +81,11 @@ func build() -> void:
 	_build_lane_markers()
 	for b in Galaxy.bodies:
 		body_vis.append(_build_body(b))
+	for st in Galaxy.stations:
+		station_vis.append(_build_station(st))
 	_build_asteroids()
 	combat = Combat.new()
+	combat.world = self
 	add_child(combat)
 
 
@@ -138,6 +146,40 @@ func _build_body(b: Dictionary) -> Dictionary:
 	node.scale = Vector3.ONE * b.radius
 	add_child(node)
 	return {"data": b, "node": node, "mat": m, "appear": 1.0}
+
+
+## Service station: a hub with a slowly turning ring, docking arms and lights.
+func _build_station(st: Dictionary) -> Dictionary:
+	var node := Node3D.new()
+	node.position = st.world
+	var hull := ShipMesh._mat(Color(0.55, 0.57, 0.6), 0.6, 0.45)
+	var dark := ShipMesh._mat(Color(0.22, 0.24, 0.27), 0.6, 0.5)
+	var amber := ShipMesh._glow_mat(Color(1.0, 0.7, 0.35))
+	var green := ShipMesh._glow_mat(GateBuilder.ON_TINT)
+	MeshUtil.part(node, MeshUtil.cylinder(28.0, 28.0, 120.0, 24), Vector3.ZERO, hull)
+	MeshUtil.part(node, MeshUtil.cylinder(12.0, 28.0, 30.0, 24), Vector3(0, 75, 0), dark)
+	MeshUtil.part(node, MeshUtil.cylinder(28.0, 14.0, 30.0, 24), Vector3(0, -75, 0), dark)
+	var ring := Node3D.new()
+	node.add_child(ring)
+	var torus := TorusMesh.new()
+	torus.inner_radius = 100.0
+	torus.outer_radius = 124.0
+	torus.rings = 48
+	torus.ring_segments = 12
+	MeshUtil.part(ring, torus, Vector3.ZERO, hull)
+	for k in 4:
+		var spoke := MeshUtil.part(ring, MeshUtil.box(80.0, 6.0, 8.0), Vector3(66, 0, 0).rotated(Vector3.UP, k * PI * 0.5), dark)
+		spoke.rotation.y = k * PI * 0.5
+	for k in 16:
+		var at := Vector3(112, 12.5, 0).rotated(Vector3.UP, k * TAU / 16.0)
+		MeshUtil.part(ring, MeshUtil.box(3.0, 1.0, 3.0), at, amber if k % 2 == 0 else green)
+	# Docking arms, lit green, either side of the hub.
+	for sgn in [-1.0, 1.0]:
+		MeshUtil.part(node, MeshUtil.box(8.0, 8.0, 70.0), Vector3(0, 40, sgn * 60.0), dark)
+		MeshUtil.part(node, MeshUtil.box(10.0, 2.0, 2.0), Vector3(0, 45, sgn * 95.0), green)
+	ShipMesh._beacon(node, Vector3(0, 95, 0), GateBuilder.ON_TINT, 40.0)
+	add_child(node)
+	return {"data": st, "node": node, "ring": ring}
 
 
 ## Faint frames along each hop lane so the lanes can be followed by eye.
@@ -365,12 +407,78 @@ func current_gates() -> Array:
 	return out
 
 
-## Bodies of the current sector, at their true sector-local position.
+## Bodies and stations of the current sector, at their true sector-local position. radius is
+## how close a ship's centre can get.
 func solid_bodies() -> Array:
 	var out: Array = []
 	for b in Galaxy.sectors[current].bodies:
-		out.append({"pos": b.world - center, "radius": b.radius})
+		out.append({"pos": b.world - center, "radius": b.radius * 1.02 + 30.0})
+	for st in Galaxy.sectors[current].stations:
+		out.append({"pos": st.world - center, "radius": st.radius})
 	return out
+
+
+## Places the ship can put in at, in the current sector: planets and service stations.
+## {name, kind ("planet" / "station"), pos (sector-local), surface, land}: the ship lands on
+## coming within land of pos; surface is the collision distance.
+func landing_sites() -> Array:
+	var out: Array = []
+	for b in Galaxy.sectors[current].bodies:
+		if b.kind == "planet":
+			var surf: float = b.radius * 1.02 + 30.0
+			out.append({"name": b.name, "kind": "planet", "pos": b.world - center, "surface": surf, "land": surf + LAND_PLANET})
+	for st in Galaxy.sectors[current].stations:
+		out.append({"name": st.name, "kind": "station", "pos": st.world - center, "surface": st.radius, "land": st.radius + LAND_STATION})
+	return out
+
+
+## Stations shown (current sector, or close by), sector-local.
+func visible_stations() -> Array:
+	var out: Array = []
+	for sv in station_vis:
+		if sv.node.visible:
+			out.append({"pos": (sv.data.world as Vector3) - center, "name": sv.data.name})
+	return out
+
+
+## First solid thing (asteroid, planet, moon, station) on the segment a..b in world
+## coordinates, as a fraction along it, or -1. Weapon fire stops there.
+func obstacle_hit(a: Vector3, b: Vector3) -> float:
+	var ab := b - a
+	var len2 := ab.length_squared()
+	if len2 < 1e-6:
+		return -1.0
+	var hits := PackedFloat32Array()
+	for rk in rocks:
+		var cc: Vector3 = rk.data.center
+		if _seg_sphere(a, ab, len2, cc, (rk.data.extent as float) + 100.0) < 0.0:
+			continue
+		var offsets: PackedVector3Array = rk.offsets
+		var omegas: PackedFloat32Array = rk.omegas
+		var radii: PackedFloat32Array = rk.radii
+		for i in offsets.size():
+			hits.append(_seg_sphere(a, ab, len2, cc + offsets[i].rotated(Vector3.UP, omegas[i] * ast_time), radii[i]))
+	for bd in Galaxy.bodies:
+		hits.append(_seg_sphere(a, ab, len2, bd.world, bd.radius))
+	for st in Galaxy.stations:
+		hits.append(_seg_sphere(a, ab, len2, st.world, st.radius * 0.95))
+	var best := -1.0
+	for t in hits:
+		if t >= 0.0 and (best < 0.0 or t < best):
+			best = t
+	return best
+
+
+## Fraction along a..a+ab where it first enters the sphere (0 if it starts inside), or -1.
+static func _seg_sphere(a: Vector3, ab: Vector3, len2: float, c: Vector3, r: float) -> float:
+	var ac := c - a
+	if ac.length_squared() < r * r:
+		return 0.0
+	var t := clampf(ac.dot(ab) / len2, 0.0, 1.0)
+	var q := (a + ab * t).distance_squared_to(c)
+	if q > r * r:
+		return -1.0
+	return maxf(0.0, t - sqrt((r * r - q) / len2))
 
 
 ## Visible bodies with their displayed (possibly pushed-out) global positions.
@@ -397,6 +505,10 @@ func update(delta: float, player_local: Vector3, cam_local: Vector3) -> void:
 		var show: bool = cl.sector == current or player_world.distance_to(cl.center) < (cl.extent as float) * 1.5
 		for n in rk.nodes:
 			n.visible = show
+	for sv in station_vis:
+		var st: Dictionary = sv.data
+		sv.node.visible = st.sector == current or (st.world as Vector3).distance_to(player_world) < GATE_NEAR
+		(sv.ring as Node3D).rotation.y = ast_time * 0.05
 	for b in body_vis:
 		var node: Node3D = b.node
 		if not node.visible:
@@ -428,7 +540,12 @@ func _update_npcs(delta: float, player_world: Vector3) -> void:
 	for n in npcs.duplicate():
 		var node: Node3D = n.node
 		n.age += delta
-		node.position += n.vel * delta
+		n.knock = (n.knock as Vector3) * exp(-Combat.KNOCK_DECAY * delta)
+		node.position += (n.vel + n.knock) * delta
+		var rock := collide_asteroids(node.position - center, SpaceFlight.FIGHTER.radius if n.get("fighter", false) else SpaceFlight.FREIGHTER.radius)
+		if rock != Vector3.ZERO:
+			node.position += rock
+			n.knock = knock_off(n.vel + n.knock, rock.normalized()) - n.vel
 		node.scale = Vector3.ONE * clampf(n.age / 0.8, 0.01, 1.0)
 		if n.kind == "into_gate":
 			var gw: Transform3D = n.gate.world
@@ -486,7 +603,7 @@ func _spawn_npc(p: Vector3, vel: Vector3, kind: String, extra: Dictionary) -> vo
 	var names: Array = NPC_FIGHTER_NAMES if fighter else NPC_FREIGHTER_NAMES
 	var reg := "%s%s-%03d" % [char(65 + rng.randi() % 26), char(65 + rng.randi() % 26), rng.randi() % 1000]
 	var n := {"id": "t%d" % _next_npc_id, "name": "%s %s" % [names[rng.randi() % names.size()], reg], "node": node, "vel": vel,
-		"age": 0.0, "life": rng.randf_range(40.0, 90.0), "kind": kind}
+		"age": 0.0, "life": rng.randf_range(40.0, 90.0), "kind": kind, "knock": Vector3.ZERO}
 	_next_npc_id += 1
 	n.merge(extra)
 	npcs.append(n)
@@ -517,9 +634,10 @@ func flash(p: Vector3, tint: Color, size: float) -> void:
 
 # --- Collisions ---------------------------------------------------------------------------
 
-## Keeps ships from passing through each other. Other ships that overlap are pushed apart;
-## the player, a capsule in world coordinates, is pushed out by the returned amount (they
-## take half when it's another ship's fault as much as theirs; main bounces them).
+## Keeps ships from passing through each other. Other ships that overlap are pushed apart.
+## The player (player: a capsule in world coordinates, plus vel) bounces off another ship as
+## off a planet: they get the whole push-out, returned for main to apply and bounce on, and
+## the other ship is knocked away.
 func separate_ships(player: Dictionary) -> Vector3:
 	var bodies: Array = []
 	for s in combat.ships:
@@ -537,9 +655,9 @@ func separate_ships(player: Dictionary) -> Vector3:
 			var a: Dictionary = bodies[i]
 			var pp := SpaceFlight.capsule_push(me, a.cap)
 			if pp != Vector3.ZERO:
-				player_push += pp * 0.5
-				me.pos = (me.pos as Vector3) + pp * 0.5
-				_move_body(a, -pp * 0.5)
+				player_push += pp
+				me.pos = (me.pos as Vector3) + pp
+				_knock_body(a, -pp.normalized(), player.get("vel", Vector3.ZERO))
 			for j in range(i + 1, bodies.size()):
 				var b: Dictionary = bodies[j]
 				var push := SpaceFlight.capsule_push(a.cap, b.cap)
@@ -547,6 +665,25 @@ func separate_ships(player: Dictionary) -> Vector3:
 					_move_body(a, push * 0.5)
 					_move_body(b, -push * 0.5)
 	return player_push
+
+
+## Velocity after bouncing off a surface with normal n (pointing away from it): the part
+## into the surface is reflected, and the ship loses speed, as the player does off a planet.
+static func knock_off(vel: Vector3, n: Vector3) -> Vector3:
+	var vn := vel.dot(n)
+	if vn >= 0.0:
+		return vel
+	return (vel - n * vn * 1.3) * 0.6
+
+
+## Another ship hit by the player (moving at pvel) is knocked away along n, at half the speed
+## they met at; it recovers its course as the knock decays.
+func _knock_body(b: Dictionary, n: Vector3, pvel: Vector3) -> void:
+	var o: Dictionary = b.ship if b.has("ship") else b.npc
+	var v: Vector3 = (o.vel as Vector3) + (o.knock as Vector3)
+	var closing := -(v - pvel).dot(n)
+	if closing > 0.0:
+		o.knock = (o.knock as Vector3) + n * closing * 0.5
 
 
 func _move_body(b: Dictionary, by: Vector3) -> void:

@@ -57,6 +57,11 @@ func _run() -> void:
 		await _collide_part()
 		get_tree().quit()
 		return
+	if "--land" in OS.get_cmdline_user_args():
+		await _wait(1.0)
+		await _land_part()
+		get_tree().quit()
+		return
 	if "--jct" in OS.get_cmdline_user_args():
 		await _wait(1.0)
 		await _jct_free_part()
@@ -352,11 +357,37 @@ func _collide_part() -> void:
 	print("tour: collide open space worst overlap after the first frame %.1f m" % worst)
 	await _shot("k1_open_space")
 
+	# Ram a stationary ship: the player bounces off it as off a planet, and it's knocked away.
+	var start_world: Vector3 = main._to_world(main.flight.pos)
+	var start_fwd: Vector3 = main.flight.forward()
+	for sh in combat.ships.duplicate():
+		combat._damage_ship(sh, 99999.0)
+	here = main._to_world(main.flight.pos)
+	var ahead: Vector3 = main.flight.forward()
+	combat.spawn_dummy(here + ahead * 160.0, 0.0)
+	var drone: Dictionary = combat.ships[-1]
+	drone.speed = 0.0
+	drone.dir = ahead
+	main.flight.place(main.flight.pos, ahead, 35.0)
+	main.input_override = {"thrust": 1.0}
+	var fwd_min := 99.0
+	var knocked := 0.0
+	t0 = main.elapsed
+	while main.elapsed - t0 < 6.0:
+		await get_tree().process_frame
+		fwd_min = minf(fwd_min, main.flight.velocity.dot(ahead))
+		knocked = maxf(knocked, (drone.knock as Vector3).length())
+	print("tour: collide ram at 35 m/s -> lowest forward speed %.1f m/s (negative = bounced back), drone knocked up to %.1f m/s" % [fwd_min, knocked])
+	main.input_override = {"thrust": 0.0}
+	await _shot("k1b_rammed")
+	_teleport(start_world, start_fwd, 10.0)
+
 	main.input_override = {"thrust": 1.0}
 	main.flight.place(main.flight.pos, main.flight.forward() * -1.0, 30.0)
 	await _wait_until(func(): return main.mode == 1, 60.0)
 	main.input_override = {"thrust": 0.0}
 	main.toggle_dock()
+	main.fuel = 100000.0   # 90 s at 4x is further than a tank goes
 	Engine.time_scale = 4.0
 	main.highway.same_timer = 0.0
 	worst = 0.0
@@ -375,3 +406,123 @@ func _collide_part() -> void:
 	Engine.time_scale = 1.0
 	print("tour: collide lattice %d samples, %d with overlap > 2 m, worst %.1f m, traffic now %d" % [samples, bad, worst, main.highway.npcs.size()])
 	await _shot("k2_lattice")
+
+
+# --- Landing, fuel, asteroids ---------------------------------------------------------------
+
+func _teleport(world: Vector3, face: Vector3, speed: float) -> void:
+	main.space_world.set_current_sector(Galaxy.hex_of(world))
+	main.flight.place(world - main.space_world.center, face.normalized(), speed)
+
+
+func _land_part() -> void:
+	main.input_override = {"thrust": 0.0}
+	await _shot("l01_space_fuel_bar")
+
+	# A service station: fly at it until the landing menu comes up.
+	var st: Dictionary = Galaxy.stations[1]
+	var from: Vector3 = st.world + Vector3(700, 0, 250)
+	_teleport(from, st.world - from, 30.0)
+	main.fuel = 30.0
+	main.input_override = {"thrust": 1.0}
+	await _wait(1.5)
+	await _shot("l02_station_approach")
+	await _wait_until(func(): return not main.landed.is_empty(), 40.0)
+	await _wait(0.3)
+	print("tour: landed at %s, paused=%s" % [main.landed.get("name", "-"), get_tree().paused])
+	await _shot("l03_station_menu")
+	main.refuel()
+	await _wait(0.2)
+	print("tour: fuel after refuel %.0f" % main.fuel)
+	await _shot("l04_refuelled")
+	main.take_off()
+	main.input_override = {"thrust": 1.0}
+	await _wait(2.0)
+	print("tour: took off, paused=%s landed=%s" % [get_tree().paused, not main.landed.is_empty()])
+	await _shot("l05_took_off")
+
+	# A planet.
+	var pl: Dictionary = {}
+	for b in Galaxy.bodies:
+		if b.kind == "planet" and b.system == st.system:
+			pl = b
+			break
+	var dir := Vector3(1, 0, 0.3).normalized()
+	from = (pl.world as Vector3) + dir * ((pl.radius as float) + 1100.0)
+	_teleport(from, -dir, 30.0)
+	await _wait_until(func(): return not main.landed.is_empty(), 40.0)
+	await _wait(0.3)
+	await _shot("l06_planet_menu")
+	main.take_off()
+	await _wait(1.0)
+
+	# A planet with moons, from a distance.
+	var moons := {}
+	for b in Galaxy.bodies:
+		if b.kind == "moon":
+			var parent: String = b.name.get_slice("-", 0)
+			moons[parent] = moons.get(parent, 0) + 1
+	var best := ""
+	for k in moons:
+		if best == "" or moons[k] > moons[best]:
+			best = k
+	for b in Galaxy.bodies:
+		if b.name == best:
+			# From the sector's middle side, so the view point stays in the planet's own sector.
+			var toward: Vector3 = (Galaxy.sector_center(b.sector) - (b.world as Vector3)) * Vector3(1, 0, 1)
+			var view: Vector3 = (b.world as Vector3) + (toward.normalized() + Vector3.UP * 0.25).normalized() * ((b.radius as float) * 3.0 + 3500.0)
+			_teleport(view, (b.world as Vector3) - view, 0.0)
+	main.input_override = {"thrust": 0.0}
+	await _wait(1.5)
+	print("tour: %s has %d moons" % [best, moons.get(best, 0)])
+	await _shot("l07_moons")
+
+	# Asteroids: fire into one, then fly into one.
+	var rk: Dictionary = main.space_world.rocks[0]
+	var big := 0
+	for i in (rk.radii as PackedFloat32Array).size():
+		if rk.radii[i] > rk.radii[big]:
+			big = i
+	var rock_at := func() -> Vector3:
+		return (rk.data.center as Vector3) + (rk.offsets[big] as Vector3).rotated(Vector3.UP, rk.omegas[big] * main.space_world.ast_time)
+	var rp: Vector3 = rock_at.call()
+	from = rp + Vector3(0, 0, (rk.radii[big] as float) + 250.0)
+	_teleport(from, rp - from, 0.0)
+	main.switch_ship(SpaceFlight.FIGHTER)
+	await _wait(0.5)
+	var combat: Combat = main.space_world.combat
+	rp = rock_at.call()
+	var here: Vector3 = main._to_world(main.flight.pos)
+	combat.fire_cannon(here + (rp - here).normalized() * 10.0, (rp - here).normalized(), Vector3.ZERO, true)
+	var t0: float = main.elapsed
+	await _wait_until(func(): return combat.rounds.is_empty(), 3.0)
+	print("tour: round at a rock %.0f m away stopped after %.2f s (life %.1f s)" % [here.distance_to(rp), main.elapsed - t0, Combat.T.cannon_life])
+	main.switch_ship(SpaceFlight.FREIGHTER)
+	rp = rock_at.call()
+	from = rp + Vector3(0, 0, (rk.radii[big] as float) + 120.0)
+	_teleport(from, rp - from, 30.0)
+	var hull0: float = main.hull
+	main.input_override = {"thrust": 1.0}
+	await _wait_until(func(): return main.hull < hull0, 10.0)
+	await _wait(0.4)
+	print("tour: asteroid impact hull %.0f -> %.0f, speed now %.0f" % [hull0, main.hull, main.flight.velocity.length()])
+	await _shot("l08_asteroid_hit")
+
+	# Fuel: refused at an entrance when empty, dropped out of the Lattice when it runs dry.
+	var g: Dictionary = Galaxy.start.gate
+	var gw: Transform3D = g.world
+	main.fuel = 0.0
+	_teleport(gw.origin + gw.basis.z * 300.0, -gw.basis.z, 30.0)
+	await _wait(12.0)
+	print("tour: empty tank at the entrance -> mode %d (0 = open space), msg '%s'" % [main.mode, main.msg])
+	main.fuel = 3.0
+	_teleport(gw.origin + gw.basis.z * 300.0, -gw.basis.z, 30.0)
+	await _wait_until(func(): return main.mode == 1, 30.0)
+	main.input_override = {"thrust": 0.0}
+	main.toggle_dock()
+	await _wait(2.0)
+	await _shot("l09_low_fuel_lattice")
+	await _wait_until(func(): return main.mode == 0, 60.0)
+	await _wait(0.5)
+	print("tour: dropped out at %s in sector %s, fuel %.1f" % [main._to_world(main.flight.pos).snappedf(1.0), Galaxy.sector_name(main.space_world.current), main.fuel])
+	await _shot("l10_dropped_out")

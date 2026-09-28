@@ -6,11 +6,16 @@ extends Node3D
 ##
 ## On the highway the ship either flies freely (same flight model as open space, bounded by
 ## the tunnel) or is docked to the road (C toggles). Hop lanes are ridden in open space.
+##
+## Travel on the Lattice burns Lattice fuel; running dry drops the ship into open space.
+## Coming close to a planet or a service station lands there: the game pauses on the landing
+## menu, where the ship can refuel.
 
 const SpaceWorldScene := preload("res://scenes/space_world.tscn")
 const HighwayScene := preload("res://scenes/highway.tscn")
 const HudScript := preload("res://scripts/hud.gd")
 const HighwayWorld := preload("res://scripts/highway_world.gd")
+const LandingMenu := preload("res://scripts/landing_menu.gd")
 const SLEEVE_SHADER := preload("res://shaders/hop_sleeve.gdshader")
 
 enum Mode { SPACE, HIGHWAY, HOP }
@@ -26,6 +31,10 @@ const TURRET_MOUNT := Vector3(0.0, 4.1, 2.5) * ShipMesh.FREIGHTER_SCALE      # f
 const FREIGHTER_LAUNCHER := Vector3(0.0, 2.2, -9.5) * ShipMesh.FREIGHTER_SCALE
 const FIGHTER_NOSE := Vector3(0.0, 0.0, -6.0)
 const MISSILE_RETURN_DELAY := 0.9                  # s to watch the missile end before returning
+const FUEL_PER_KM := 14.0      # Lattice fuel burned per km travelled on the Lattice (a full freighter tank: ~7 km)
+const LOW_FUEL := 0.2          # warn below this share of the tank
+const LAND_REARM := 200.0      # after taking off, landing works again once this far past a site's landing range
+const TAKE_OFF_SPEED := 15.0
 
 var mode: int = Mode.SPACE
 var space_world: Node3D
@@ -44,6 +53,10 @@ var msg := ""
 var msg_t := 0.0
 var edge_warn := 0.0
 var _last_bounce := -10.0
+var fuel := 0.0      # Lattice fuel (the freighter's tank)
+var landed: Dictionary = {}   # the landing site while the landing menu is open
+var _land_armed := true
+var landing_menu: Control
 
 # Highway state
 var docked := false
@@ -125,6 +138,11 @@ func _ready() -> void:
 	flash_rect.color = Color(0.7, 0.9, 1.0, 0.0)
 	flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(flash_rect)
+	landing_menu = LandingMenu.new()
+	layer.add_child(landing_menu)
+	landing_menu.refuel.connect(refuel)
+	landing_menu.take_off.connect(take_off)
+	fuel = SpaceFlight.FREIGHTER.fuel
 
 	var start_pos: Vector3 = Galaxy.start.pos
 	var gate_xf: Transform3D = Galaxy.start.gate.world
@@ -134,6 +152,7 @@ func _ready() -> void:
 	if "--tour" in OS.get_cmdline_user_args():
 		var tour: Node = load("res://scripts/debug_tour.gd").new()
 		tour.main = self
+		tour.process_mode = Node.PROCESS_MODE_ALWAYS   # keeps going while the landing menu pauses the game
 		add_child(tour)
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -286,6 +305,8 @@ func _process_space(delta: float, rel: Vector2, thrust: float) -> void:
 	flight.update(delta, thrust if piloting else 0.0)
 	_space_limits(prev)
 	prev = _rebase(prev)
+	if station != Station.MISSILE and _check_landing():
+		return
 	if station == Station.TURRET:
 		turret_yaw -= rel.x * SpaceFlight.MOUSE_SENS
 		turret_pitch = clampf(turret_pitch - rel.y * SpaceFlight.MOUSE_SENS, deg_to_rad(-60.0), deg_to_rad(85.0))
@@ -298,10 +319,13 @@ func _process_space(delta: float, rel: Vector2, thrust: float) -> void:
 		if g.kind == "hop_in":
 			_enter_hop(g)
 			return
-		if flight.cls.highway:
+		if flight.cls.highway and fuel > 0.0:
 			_enter_highway(g)
 			return
-		_say("No Lattice Drive fitted  -  fighters can't enter the Lattice  (Numpad 1 for the freighter)")
+		if flight.cls.highway:
+			_say("No Lattice fuel  -  refuel at a planet or a service station")
+		else:
+			_say("No Lattice Drive fitted  -  fighters can't enter the Lattice  (Numpad 1 for the freighter)")
 
 	ship.transform = Transform3D(flight.ship_basis(), flight.pos)
 	ShipMesh.set_engine_glow(ship, _speed_frac())
@@ -328,19 +352,86 @@ func _space_limits(prev: Vector3) -> void:
 		edge_warn = 1.5
 	for b in space_world.solid_bodies():
 		var to_ship: Vector3 = flight.pos - b.pos
-		var min_d: float = b.radius * 1.02 + 30.0
+		var min_d: float = b.radius
 		if to_ship.length() < min_d:
 			var n := to_ship.normalized()
 			flight.pos = b.pos + n * min_d
 			_bounce(n)
+	# Asteroids bounce the ship like anything else, and hitting one hard damages the hull.
 	var push: Vector3 = space_world.collide_asteroids(flight.pos, flight.cls.radius)
 	if push != Vector3.ZERO:
 		flight.pos += push
+		var dmg := Combat.impact_damage(flight.velocity, push.normalized())
 		_bounce(push.normalized())
-	var ship_push: Vector3 = space_world.separate_ships(SpaceFlight.capsule(flight.cls, _to_world(flight.pos), flight.forward()))
+		if dmg > 0.0:
+			_damage_player(dmg)
+			space_world.flash(_to_world(flight.pos) - push.normalized() * flight.cls.radius, Color(0.9, 0.8, 0.6), 30.0)
+			_say("Asteroid impact  -  %d damage" % int(dmg), 2.0)
+	var me := SpaceFlight.capsule(flight.cls, _to_world(flight.pos), flight.forward())
+	me.vel = flight.velocity
+	var ship_push: Vector3 = space_world.separate_ships(me)
 	if ship_push != Vector3.ZERO:
 		flight.pos += ship_push
 		_bounce(ship_push.normalized())
+
+
+## Lands on the site the ship has come close to, if any. After taking off, landing works again
+## once the ship is clear of every site. Returns true if it landed.
+func _check_landing() -> bool:
+	var inside := {}
+	var clear := true
+	for site in space_world.landing_sites():
+		var d := flight.pos.distance_to(site.pos)
+		if d < site.land:
+			inside = site
+		if d < (site.land as float) + LAND_REARM:
+			clear = false
+	if clear:
+		_land_armed = true
+	if inside.is_empty() or not _land_armed:
+		return false
+	land(inside)
+	return true
+
+
+## Put in at a planet or station: the game pauses on the landing menu.
+func land(site: Dictionary) -> void:
+	landed = site
+	_land_armed = false
+	station = Station.PILOT
+	target_id = ""
+	get_tree().paused = true
+	if input_override.is_empty():
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	landing_menu.open(site, fuel, flight.cls.fuel)
+	hud.queue_redraw()
+
+
+func refuel() -> void:
+	if landed.is_empty() or not flight.cls.highway:
+		return
+	fuel = flight.cls.fuel
+	landing_menu.show_fuel(fuel, flight.cls.fuel)
+
+
+## Leave the site: back in space just outside its landing range, heading away from it.
+func take_off() -> void:
+	if landed.is_empty():
+		return
+	var site := landed
+	landed = {}
+	landing_menu.close()
+	get_tree().paused = false
+	var out: Vector3 = flight.pos - site.pos
+	out.y *= 0.3
+	out = out.normalized() if out.length() > 0.001 else Vector3.FORWARD
+	var flat := Vector3(out.x, 0.0, out.z)
+	var fwd := flat.normalized() if flat.length() > 0.1 else Vector3.FORWARD
+	flight.place((site.pos as Vector3) + out * ((site.land as float) + 40.0), fwd, TAKE_OFF_SPEED)
+	if input_override.is_empty():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	flash_rect.color = Color(0.7, 0.9, 1.0, 0.5)
+	_say("Took off from %s" % site.name, 2.5)
 
 
 ## Move the floating origin when the ship crosses into another sector; returns prev shifted
@@ -522,12 +613,7 @@ func _update_combat(delta: float) -> void:
 	for e in events:
 		match e.type:
 			"player_hit":
-				hull -= e.dmg
-				flash_rect.color = Color(1.0, 0.3, 0.2, maxf(flash_rect.color.a, minf(0.5, e.dmg / 60.0)))
-				if hull <= 0.0:
-					hull = flight.cls.hull
-					space_world.flash(_to_world(flight.pos), Color(1.0, 0.6, 0.3), 80.0)
-					_say("Hull destroyed  -  restored for testing", 3.0)
+				_damage_player(e.dmg)
 			"message":
 				_say(e.text, 2.5)
 			"missile_ended":
@@ -536,6 +622,15 @@ func _update_combat(delta: float) -> void:
 		missile_end_t -= delta
 		if missile_end_t < 0.0:
 			station = station_before_missile
+
+
+func _damage_player(dmg: float) -> void:
+	hull -= dmg
+	flash_rect.color = Color(1.0, 0.3, 0.2, maxf(flash_rect.color.a, minf(0.5, dmg / 60.0)))
+	if hull <= 0.0:
+		hull = flight.cls.hull
+		space_world.flash(_to_world(flight.pos), Color(1.0, 0.6, 0.3), 80.0)
+		_say("Hull destroyed  -  restored for testing", 3.0)
 
 
 func _space_camera(delta: float) -> Transform3D:
@@ -652,6 +747,50 @@ func _process_hop(delta: float) -> void:
 	_hud_hop(length)
 
 
+# --- Highway: fuel ------------------------------------------------------------------------
+
+## Burn Lattice fuel for dist metres travelled on the Lattice. Running dry drops the ship out
+## into open space; returns true if it did.
+func _burn(dist: float) -> bool:
+	var was := fuel
+	fuel = maxf(0.0, fuel - dist / 1000.0 * FUEL_PER_KM)
+	var cap: float = flight.cls.fuel
+	if was >= cap * LOW_FUEL and fuel < cap * LOW_FUEL and fuel > 0.0:
+		_say("Lattice fuel low  -  about %s left" % _fmt_dist(fuel_range()), 4.0)
+	if fuel > 0.0:
+		return false
+	_drop_out()
+	return true
+
+
+## Lattice distance the fuel left will cover.
+func fuel_range() -> float:
+	return fuel / FUEL_PER_KM * 1000.0
+
+
+## Out of fuel: the ship falls out of the Lattice into open space at its mapped position, with
+## its heading and speed.
+func _drop_out() -> void:
+	var xf := drive.ship_xform if docked else ship.transform
+	var speed := drive.speed if docked else flight.forward_speed()
+	var world := Galaxy.world_of_hw(xf.origin)
+	var fwd := -xf.basis.z
+	fwd.y = 0.0
+	remove_child(highway)
+	add_child(space_world)
+	move_child(space_world, 0)
+	var sec := Galaxy.hex_of(world)
+	space_world.set_current_sector(sec if Galaxy.is_valid(sec) else Galaxy.hex_of(Galaxy.start.pos))
+	flight.place(world - space_world.center, fwd.normalized(), clampf(speed, 0.0, flight.cls.max_speed))
+	docked = false
+	_set_mouse_for_mode()
+	blend_t = 1.0
+	mode = Mode.SPACE
+	flash_rect.color = Color(1.0, 0.6, 0.3, 0.9)
+	_say("Out of Lattice fuel  -  dropped into open space.  Refuel at a planet or a service station", 6.0)
+	_process_space(0.0, Vector2.ZERO, 0.0)
+
+
 # --- Highway: free flight -----------------------------------------------------------------
 
 func _road_dist(road: int, u: float, p: Vector3) -> float:
@@ -663,6 +802,8 @@ func _process_hw_free(delta: float, rel: Vector2, thrust: float) -> void:
 	flight.aim(rel)
 	var prev := flight.pos
 	flight.update(delta, thrust)
+	if _burn(flight.velocity.length() * delta):
+		return
 
 	# Follow whichever road the ship is over; switch when the other one is clearly nearer.
 	var tr := Galaxy.road_track(hw_road)
@@ -848,6 +989,8 @@ func _undock() -> void:
 
 func _process_docked(delta: float) -> void:
 	drive.update(delta)
+	if _burn(drive.speed * delta):
+		return
 	if not drive.exit_gate.is_empty():
 		ship.transform = drive.ship_xform
 		_exit_to_space(drive.exit_gate)
@@ -940,6 +1083,8 @@ func _hud_space() -> void:
 			continue
 		var p: Vector3 = space_world.gate_local(g).origin
 		_marker(markers, p, "%s  %s" % [g.label, _fmt_dist(p.distance_to(flight.pos))], GateBuilder.tint_for(g), true)
+	for st in space_world.visible_stations():
+		_marker(markers, st.pos, "%s  %s" % [st.name, _fmt_dist(flight.pos.distance_to(st.pos))], GateBuilder.ON_TINT.lerp(Color.WHITE, 0.3), true)
 	for b in space_world.visible_bodies():
 		var cur: bool = b.sector == space_world.current
 		var dist := flight.pos.distance_to(b.pos)
@@ -1005,8 +1150,16 @@ func _hud_radar(combat: Combat) -> void:
 	hud.radar = {"range": _fmt_dist(Combat.SENSOR_RANGE), "blips": blips}
 
 
+func _fuel_bar() -> Dictionary:
+	var frac := fuel / (flight.cls.fuel as float)
+	return {"label": "LATTICE FUEL", "frac": frac, "color": Color(1.0, 0.4, 0.3) if frac < LOW_FUEL else Color(0.95, 0.8, 0.45),
+		"text": "%d%%   ~%s" % [roundi(frac * 100.0), _fmt_dist(fuel_range())]}
+
+
 func _combat_bars(combat: Combat) -> Array:
 	var bars: Array = [{"label": "HULL", "frac": hull / (flight.cls.hull as float), "color": Color(0.55, 0.9, 0.6), "text": "%d" % int(hull)}]
+	if flight.cls.highway:
+		bars.append(_fuel_bar())
 	var m: Dictionary = combat.player_missile
 	if station == Station.MISSILE and not m.is_empty():
 		bars.append({"label": "BOOST  (W)", "frac": (m.boost_left as float) / Combat.T.missile_boost_time, "color": Color(1.0, 0.7, 0.3)})
@@ -1100,6 +1253,9 @@ func _hud_highway() -> void:
 		var lk: Dictionary = drive.link
 		on_link = ("MERGING ONTO  " if lk.kind.ends_with("on") else "TAKING  ") + (lk.label as String)
 	hud.nav = {"sector": Galaxy.sector_name(sec), "route": _route(), "on_link": on_link, "lanes": _lane_guide(ev)}
+	hud.bars = [_fuel_bar()]
+	if fuel < (flight.cls.fuel as float) * LOW_FUEL:
+		hud.warning = "LOW LATTICE FUEL  -  ~%s" % _fmt_dist(fuel_range())
 	var hint := ""
 	if not ev.is_empty() and ev[0].dist < 600.0:
 		var e: Dictionary = ev[0]

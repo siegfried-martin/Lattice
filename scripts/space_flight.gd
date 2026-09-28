@@ -10,6 +10,7 @@ const FIGHTER := {
 	"turn_yaw": 50.0, "turn_pitch": 40.0, "damp": 1.2, "cam": Vector3(0.0, 4.2, 16.0), "radius": 5.0,
 	"hull_r": 4.0, "hull_half": 1.5,  # collision capsule: radius, half-length of its core along the nose
 	"hull": 150.0, "turret": false,
+	"fuel": 0.0,     # Lattice fuel tank; no Lattice Drive, no tank
 }
 const FREIGHTER := {
 	"name": "FREIGHTER", "highway": true,
@@ -17,6 +18,7 @@ const FREIGHTER := {
 	"turn_yaw": 22.0, "turn_pitch": 16.0, "damp": 0.8, "cam": Vector3(0.0, 20.0, 80.0), "radius": 22.0,
 	"hull_r": 11.0, "hull_half": 15.0,
 	"hull": 400.0, "turret": true,
+	"fuel": 100.0,
 }
 
 const MAX_PITCH := deg_to_rad(60.0)

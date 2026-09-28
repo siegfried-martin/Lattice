@@ -1,6 +1,6 @@
 GODOT ?= godot
 
-.PHONY: run tour tour-hop tour-combat tour-jct tour-collide check editor
+.PHONY: run tour tour-hop tour-combat tour-jct tour-collide tour-land check editor
 
 run:
 	$(GODOT) --path .
@@ -21,6 +21,10 @@ tour-jct:
 # Ships forced into each other in open space, then docked Lattice traffic at 4x; prints overlaps.
 tour-collide:
 	$(GODOT) --path . -- --tour --collide
+
+# Landing menu and refuelling at a station and a planet, moons, asteroid hits, running out of Lattice fuel.
+tour-land:
+	$(GODOT) --path . -- --tour --land
 
 # Just the hop-lane part of the tour.
 tour-hop:
