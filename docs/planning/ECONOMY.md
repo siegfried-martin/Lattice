@@ -1,6 +1,7 @@
 # Economy: design
 
-*Written 2026-09-28 from a design session that followed `FACTIONS.md`. This covers where
+*Written 2026-09-28 from a design session that followed `FACTIONS.md`, and revised the
+same day with the human's answers to a review (see "Revised after review"). This covers where
 wealth comes from, how goods are produced and moved, how the supply chain heals itself,
 how fuel, munitions and ships fit in, and how contraband works. Recruitment and
 relationships are still separate documents to come.*
@@ -53,18 +54,28 @@ Rejected alternatives:
 - **Money from trade taxes alone.** Taxes only move money around; nothing would explain
   where it enters the world.
 
-### Where money leaves
+### Where money leaves: war
 
-The economy needs sinks, or money piles up over a long run. Sinks are anything that
-destroys goods or money:
+The economy needs sinks, or money piles up over a long run. Destroying goods isn't
+enough on its own: the money that paid for them has already gone to a seller and keeps
+circulating. So the economy has real money sinks, and they are based in **combat and
+conquest**.
 
-- ships and cargo destroyed in combat;
-- fuel burned and munitions fired;
-- Trade Authority dues;
-- commander pay spent on new hulls;
-- population consumption itself.
+This sets up a cycle between peace and war:
 
-War is a large sink by construction, which gives peace an economic meaning.
+- **In peace,** ships, weapons and munitions accumulate and get cheaper, which makes
+  going to war more attractive.
+- **War consumes** money, weapons and ships. Treasuries drain and military goods get
+  expensive, until peace looks better.
+
+How war removes money (rather than only goods) is still to be settled, for example the
+cost of building and rearming ships and munitions leaving the economy rather than
+passing to someone. The headless prototype checks the result: the money supply stays in
+a band over long runs.
+
+Rejected: **a closed money loop** (population purchasing power paid as wages from
+production, so money only circulates). It looks elegant, but money risks bunching up in
+one part of the economy, and most games avoid it, probably for that reason.
 
 ### Merchants
 
@@ -79,6 +90,11 @@ War is a large sink by construction, which gives peace an economic meaning.
   at the right scale.
 
 ### The merchant playstyle can grow
+
+Hiring other ships is expensive. It's open to successful, wealthy merchants, to
+commanders sworn to a governor, and occasionally to a very successful mercenary.
+Recruitment covers how.
+
 
 Bannerlord's caravan play caps early because a bigger caravan is a slower one, so the
 best caravan is the smallest one that bandits leave alone. Lattice shouldn't have that
@@ -171,8 +187,15 @@ chain and goes into building ships. See the two scales below.
 ### Fuel
 
 - **Lattice fuel** is sold by planets and made through its own supply chain of raw
-  materials and refining, with many refineries per region. The Trade Authority doesn't
-  sell it.
+  materials and refining. The Trade Authority doesn't sell it.
+- **Fuel producers come at every scale,** and there are a lot of them:
+  - some planets produce none and have to import;
+  - some produce a little and import to keep prices reasonable;
+  - some are modest exporters;
+  - a few are huge exporters, and high-value targets for capture.
+
+  With that many producers, fuel is almost always available somewhere nearby. What
+  varies is the price.
 - **Fuel cells** are a separate product used in production (see above). They were
   called "land fuel" in the session.
 
@@ -209,6 +232,8 @@ Munitions are limited and have their own supply chain.
   merchants run munitions toward the fighting. A front line can be visibly well supplied
   or starved, and supplying one is a merchant playstyle of its own.
 - **Player restock depends on stock.** A planet near the front may be out of missiles.
+- The player's missiles are finite, held in a magazine, as they always were meant to be.
+  The prototype's unlimited missiles are a testing convenience.
 
 ## Ships
 
@@ -263,6 +288,16 @@ Rules:
   - a conversion in progress counts against the signal other planets see.
 - **Speed:** start with a placeholder of a few in-game months and tune from the
   simulation.
+
+## Gates serve places
+
+The Lattice will be re-engineered a little so that **each exit and entrance is dedicated
+to one place**: a planet, a station, a moon or another point of interest. It sits either
+right beside that place or a short hop away using the local travel mechanic (hop lanes).
+The exit's speed boost (`FACTIONS.md`) is aimed at the place it serves.
+
+This answers who holds a gate: **the place it serves.** So it's clear which planet pays
+the gate-holding tier of dues below.
 
 ## Trade Authority dues
 
@@ -324,11 +359,22 @@ market exists.
 
 ### The downside for lawful planets
 
-Contraband raises a population's happiness but takes money from the governor, and most
-of this is emergent from the money model. Every credit a population spends on
-contraband isn't spent on legal goods, so it never passes through the taxed market, and
-it leaves lawful space for the pirates who made it. Contraband shrinks the tax base and
-funds the enemy.
+Contraband raises happiness but **lowers productivity by more than that happiness would
+have raised it.**
+
+- **The population wants it,** because it cares only about the most happiness for the
+  least money, and contraband is the cheapest happiness there is.
+- **The governor hates it,** because the reason to have a happy population is
+  productivity, and contraband buys happiness at the cost of productivity.
+- **An unhappy population pays more for contraband** (demand rises as happiness falls).
+
+So a governor has three choices: keep the population happy with legal luxury goods, run
+a police state to keep contraband out, or live with low productivity and the lower
+income that comes with it.
+
+On top of that, money spent on contraband isn't spent on legal goods, so it never passes
+through the taxed market, and it leaves lawful space for the pirates who made it.
+Contraband shrinks the tax base and funds the enemy.
 
 **(proposed)** Policing is a governor's choice. Enforcement spending buys inspection
 intensity (the same dial as the suspicion system's inspection intensity), which cuts
@@ -386,8 +432,14 @@ Recorded so they aren't reintroduced:
 
 - **Fuel and munitions competing with cargo space.** Rejected: it makes buying
   consumables feel bad. Capacity costs weight; contents don't.
-- **Dependence as the downside of luxury contraband.** Rejected as not sensible. The
-  downside is lost tax base and money flowing to pirates.
+- **Dependence as the downside of luxury contraband.** Rejected as not sensible.
+- **Lost tax base as contraband's only downside.** Too weak: the happiness contraband
+  brings would raise productivity and win back the tax. Contraband now lowers
+  productivity by more than its happiness raises it.
+- **A closed money loop.** Rejected: money risks bunching up in one part of the economy.
+  Sinks are based in combat and conquest instead.
+- **Goods destruction counted as a money sink.** Destroying goods doesn't remove the
+  money that paid for them.
 - **Dropping gate dues without going pirate.** Rejected: it creates a closed exit the
   player can't explain.
 - **Separate legality lists for the Authority and each faction.** Replaced by one list
@@ -412,7 +464,27 @@ Recorded so they aren't reintroduced:
   merchants.
 - Tier amounts for Authority dues, and how they compare with the trade advantage of
   holding a gate.
+- How exactly war removes money from the economy (see Where money leaves).
+- **World scale.** The target is hundreds of sectors and upwards of 100 habitable
+  planets, which the economic and political systems need. The prototype's 4×4 map is
+  far too small to hold one culture region's supply chain.
 - Alien economies, deferred with the rest of alien design.
+
+## Revised after review
+
+The human answered a review on 2026-09-28:
+
+- **Money sinks** are based in combat and conquest, giving a peace/war cycle. A closed
+  money loop was rejected.
+- **Contraband** lowers productivity by more than its happiness raises it, so it's
+  wanted by populations and hated by governors.
+- **Fuel** has many producers at every scale, from importers to huge exporters.
+- **Finite missiles** were always the plan; the prototype's are unlimited for testing.
+- **Hiring ships** is expensive and open to wealthy merchants, sworn commanders and
+  occasionally mercenaries.
+- **World scale** target: hundreds of sectors, over 100 habitable planets.
+- **Gates serve places:** each exit and entrance is dedicated to a planet, station, moon
+  or point of interest, which holds it.
 
 ## For the implementation agent
 

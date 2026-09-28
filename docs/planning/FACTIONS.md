@@ -515,11 +515,12 @@ Recorded so they aren't reintroduced:
   - How much ship and weapon variety is realistic to build, and what gives each
     culture an identity the player gets excited about (for example, a culture known
     for its armour). This is a creative question that needs its own discussion.
-  - The current prototype map (4×4 sectors, 6 systems) is far too small for any of
-    this: culture spread of 2–3 sectors would cover it all, and there is no fringe.
-    The fixed ¢-shaped network will also need to become a generated one.
-- Who holds an interchange when a system has several planets, and whether junction
-  gates (which no planet holds) have only the Authority's key.
+  - The target (decided 2026-09-28, see `ECONOMY.md`) is hundreds of sectors and
+    upwards of 100 habitable planets. The prototype's 4×4 map is far too small, and
+    its fixed ¢-shaped network will need to become a generated one.
+- Whether junction gates (which no planet holds) have only the Authority's key. Other
+  gates are held by the place they serve: each exit and entrance is dedicated to one
+  planet, station, moon or point of interest (decided 2026-09-28, see `ECONOMY.md`).
 - Recruitment: how planets acquire commanders and how commanders recruit ships.
   Separate document.
 
