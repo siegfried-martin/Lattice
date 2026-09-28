@@ -2,6 +2,18 @@
 
 Read `docs/VISION.md` first. It is the intent everything else serves.
 
+## The prototype and the plan
+
+- Everything directly in `docs/` describes the current prototype (POC) or the game's
+  general intent. The POC existed to prove out the feel of travel and combat. Its
+  conveniences (unlimited missiles, numpad ship switching, starting in a freighter, the
+  small fixed 4×4 map) are testing scaffolding, not design.
+- `docs/planning/` holds the design of the full game. Once its decisions are settled,
+  those documents become the source of truth and the roadmap is written from them. See
+  `docs/planning/README.md`.
+- Don't read a POC shortcut as a design decision, and don't propose prototyping systems
+  whose feel isn't in question (a market screen, say) ahead of the plan.
+
 ## Engine
 
 - Godot **4.7**, GDScript. Write Godot 4 APIs only: `Node3D` not `Spatial`, `await`
