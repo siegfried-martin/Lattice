@@ -11,6 +11,8 @@ switching, the small fixed map) are testing scaffolding, not design. Everything 
 `docs/planning/` describes the future build. Once its decisions are settled, these
 documents become the source of truth for the new documentation, and a roadmap for the
 initial version of the game and its simulation is written from them.
+Early prototypes are only for systems whose feel is in question, as travel and combat
+were; other systems wait for the roadmap.
 
 Documents are added as they arrive, then revised in place as the human corrects or
 settles them (each notes what changed). Analysis and the resulting plan go in separate
