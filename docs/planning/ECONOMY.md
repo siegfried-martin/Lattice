@@ -1,9 +1,12 @@
 # Economy: design
 
 *Written 2026-09-28 from a design session that followed `FACTIONS.md`, and revised the
-same day with the human's answers to a review (see "Revised after review"). This covers where
-wealth comes from, how goods are produced and moved, how the supply chain heals itself,
-how fuel, munitions and ships fit in, and how contraband works. Recruitment and
+same day with the human's answers to a review (see "Revised after review"). Revised again
+on 2026-10-16 with the decisions from a second review (see "Revised after second
+review"). This covers where wealth comes from, what planets have to spend, how spending
+decisions are made, how goods are produced and moved, how the supply chain heals itself,
+how fuel, munitions and ships fit in, and how contraband works. Who moves goods (planet
+merchant fleets, ambient trade, convoys) is in `TRADE.md`. Recruitment and
 relationships are still separate documents to come.*
 
 *Items marked **(proposed)** came up in the session as suggestions and weren't
@@ -54,12 +57,34 @@ Rejected alternatives:
 - **Money from trade taxes alone.** Taxes only move money around; nothing would explain
   where it enters the world.
 
-### Where money leaves: war
+### Planets have operating costs
+
+Planets pay to exist, and these costs are **larger than Trade Authority dues**:
+
+- base operating costs;
+- patrols;
+- running the planet's merchant fleet (see `TRADE.md`);
+- rebuilding merchant ships that are destroyed.
+
+The purpose is **pressure on governors**. A governor has to keep making money, or the
+planet drifts toward piracy. Piracy becomes an economic outcome, not only a failure to
+pay dues (see Piracy as an economic outcome).
+
+**(proposed)** Operating costs scale with population and infrastructure, so the
+pressure comes from margin (income minus costs), not from size. Flat costs would make
+small planets always go pirate and big ones never.
+
+### Where money leaves
 
 The economy needs sinks, or money piles up over a long run. Destroying goods isn't
 enough on its own: the money that paid for them has already gone to a seller and keeps
-circulating. So the economy has real money sinks, and they are based in **combat and
-conquest**.
+circulating.
+
+**Operating costs are the baseline sink,** running in peace and war alike. Merchant
+fleet operating costs are paid to nobody (`TRADE.md`). **War is the amplifier:** it
+raises patrol costs, destroys fleets that have to be rebuilt, and brings raids.
+**Raids are a small sink of their own:** a raider never recovers everything it destroys
+or seizes, so some money leaves the world with every raid.
 
 This sets up a cycle between peace and war:
 
@@ -68,20 +93,82 @@ This sets up a cycle between peace and war:
 - **War consumes** money, weapons and ships. Treasuries drain and military goods get
   expensive, until peace looks better.
 
-How war removes money (rather than only goods) is still to be settled, for example the
-cost of building and rearming ships and munitions leaving the economy rather than
-passing to someone. The headless prototype checks the result: the money supply stays in
-a band over long runs.
+**(proposed)** Which costs remove money, and which only move it, decides whether the
+money-supply check can be read:
+
+- *True sinks* (paid to nobody): base operating costs, patrol upkeep, merchant fleet
+  operating costs, raid losses, and Authority dues if the Authority spends them on
+  network maintenance rather than accumulating them.
+- *Pressure that circulates:* rebuilding a destroyed merchant fleet pays a shipyard,
+  and transfers within a faction (fleet service, subsidy, loans) move money without
+  removing it.
+
+The headless prototype checks the result: the money supply stays in a band over long
+runs, in peace and in war.
 
 Rejected: **a closed money loop** (population purchasing power paid as wages from
 production, so money only circulates). It looks elegant, but money risks bunching up in
 one part of the economy, and most games avoid it, probably for that reason.
 
+### Spending decisions are budget decisions
+
+Whether to retake a planet, subsidise one, defend one or launch a raid isn't a question
+of **how much is this worth?** alone. It's how much it's worth, **what it fully costs**,
+and **how much is available**.
+
+- A faction that has just sent a major fleet to defend two fronts is unlikely to pay for
+  retaking a lucrative pirate planet that will cost even more to stabilise.
+- Opportunities are ranked, but **the winner can't take all resources** and starve every
+  other opportunity. Cost is what enforces that.
+- **Speculative spending is allowed.** The same stretched faction might send a small
+  raiding force to refill its coffers, even though that puts it temporarily in the red.
+- **Value is subjective,** shaped by the decision-maker's **personality**, their
+  **relationships**, and **possibly outdated information** (the belief-state model in
+  `FACTIONS.md`).
+
+Agreed in principle in the second review, with the mechanisms still open:
+
+- **Full cost includes the aftermath.** Retaking a planet costs the campaign plus
+  stabilisation: dues relief, investment, recovering its economy.
+- **An explicit spread rule.** Pure ranking by value per cost pours everything into the
+  top item. Use diminishing returns per opportunity, or a cap on any one item's share
+  of the budget. Personality sets how concentrated spending is: a bold ruler goes
+  all-in, a cautious one spreads thin.
+- **Treasuries can go negative.** Speculative spending needs credit. The minimum version
+  is a treasury that can go into the red, with pressure that grows the longer it stays
+  there.
+- **One decision model for every spender.** Governors, lieges and faction leaders all
+  weigh believed value against full cost under a budget, filtered through personality
+  and relationships. One system to build and tune, and players learn to read rulers
+  once.
+
+### Money moves within a faction
+
+Beyond making good economic decisions, a struggling planet can get money from its
+faction:
+
+- **Fleet service for pay.** A governor offers their fleets to their liege in exchange
+  for money.
+- **Trading standing for money.** A governor spends relationship or standing to get
+  money. Whether standing is a separate currency is **undecided** and belongs in the
+  relationships document. **(proposed)** Defer it there; the loyalty and relationship
+  values in `FACTIONS.md` may be enough.
+- **Loans.** **(proposed)** Full loans with interest and default rules wait for a
+  second pass, unless the simulation shows fleet service, subsidy and a negative
+  treasury aren't enough.
+- **Patronage or subsidy.** A liege or faction leader funds a struggling planet because
+  it matters to the faction, possibly expecting more loyalty or some relationship value
+  in return.
+
+These tools make reabsorbing a struggling planet workable for well-run factions and
+leave it failing for badly run ones, which is intended.
+
 ### Merchants
 
 - **Most of a planet's wealth is generated through merchants.** Independent merchants
   balance goods across the map by following price. Planets operate at a much larger
-  scale than any single merchant.
+  scale than any single merchant. `TRADE.md` splits this into three layers: named
+  merchants, planet merchant fleets, and ambient trade.
 - **(proposed)** Planets may also make **trade deals** with each other for large
   standing flows. The supply chain already provides the incentive, so this is only
   worth adding if the simulation shows planets need it.
@@ -94,7 +181,6 @@ one part of the economy, and most games avoid it, probably for that reason.
 Hiring other ships is expensive. It's open to successful, wealthy merchants, to
 commanders sworn to a governor, and occasionally to a very successful mercenary.
 Recruitment covers how.
-
 
 Bannerlord's caravan play caps early because a bigger caravan is a slower one, so the
 best caravan is the smallest one that bandits leave alone. Lattice shouldn't have that
@@ -318,6 +404,38 @@ The Authority's income stays close to steady; it only drops when planets go pira
 natural resources in high demand, legal or black market, or by making them pirate
 systems.
 
+## Piracy as an economic outcome
+
+A planet whose income can't cover its operating costs drifts toward piracy.
+
+### Pirate planets have a low cost base
+
+- A planet that turns pirate has **much lower operating costs** and pays **no Authority
+  dues**. This replaces resetting or softening its productivity, which would be a
+  special-case rule; a low cost base is structural and explains itself.
+- Between low costs, no dues and black-market production and trade, a new pirate planet
+  has a decent chance to prosper, despite a weak economy and no Lattice access for its
+  merchants.
+- Most pirate planets in **strategic locations get retaken** by a stronger faction.
+  Lasting pirate planets therefore gather where nobody cares enough to take them back,
+  which matches the fringe in `FACTIONS.md`.
+
+### Repeated collapse is emergent and intended
+
+For example, a faction at war on two fronts has a high-output Lattice fuel planet on one
+front and prioritises it. A planet on the other border, drained by raids and front-line
+costs, turns pirate. The faction retakes it but doesn't invest in its recovery, having
+more important priorities, and it falls back into piracy. Places that collapsed recently
+are the most likely to collapse again. This is realistic and wanted.
+
+### Damping and recovery (proposed)
+
+- **Rebellion needs damping, like role switching.** A treasury buffer, plus a deficit
+  that must persist for a while before a governor turns, keeps rebellion an individual
+  or regional event rather than a map-wide wave when a war cuts a trade route.
+- **Recovery levers short of rebellion** exist at the planet level: buying legal
+  luxuries, spending on policing, cutting patrols, shrinking the merchant fleet.
+
 ## Contraband
 
 ### One list for lawful space
@@ -372,6 +490,12 @@ So a governor has three choices: keep the population happy with legal luxury goo
 a police state to keep contraband out, or live with low productivity and the lower
 income that comes with it.
 
+These rules make a spiral: unhappy → more contraband → lower productivity → lower
+income → fewer legal luxuries → more unhappy. **Its exit is piracy,** not a hard floor:
+falling income against fixed operating costs eventually pushes the planet pirate.
+**(proposed)** Saturating contraband demand, so a planet doesn't reach the bottom too
+fast.
+
 On top of that, money spent on contraband isn't spent on legal goods, so it never passes
 through the taxed market, and it leaves lawful space for the pirates who made it.
 Contraband shrinks the tax base and funds the enemy.
@@ -402,7 +526,14 @@ It's in the design to be tried; play will decide whether it stays.
   region with no fuel refinery). Role switching should converge to a healthy economy
   without oscillating.
 - **The money supply stays in a band.** No runaway inflation or deflation over long
-  runs.
+  runs, with operating costs as the baseline sink, in peace and in war.
+- **Rebellion pressure comes from margin, not planet size.**
+- **Rebellions stay individual or regional.** One disrupted route doesn't set off a
+  map-wide wave.
+- **Repeated collapse concentrates at overstretched factions.** If whole factions
+  spiral, rulers are valuing their planets too cheaply.
+- **Strategic planets come back.** Well-run factions retake and stabilise them; lasting
+  pirate planets end up on the fringe.
 - **Front lines are supplied.** Munitions flow toward fighting, and blockaded fronts run
   short.
 - **Contraband tension holds.** Some governors police hard and some don't, and
@@ -437,7 +568,12 @@ Recorded so they aren't reintroduced:
   brings would raise productivity and win back the tax. Contraband now lowers
   productivity by more than its happiness raises it.
 - **A closed money loop.** Rejected: money risks bunching up in one part of the economy.
-  Sinks are based in combat and conquest instead.
+- **Sinks based only in combat and conquest.** War mostly destroys goods, and rebuilding
+  pays shipyards and munitions worlds, so the money keeps circulating; and sinks that
+  run only in wartime let money pile up in peace. Replaced by operating costs as the
+  baseline sink, with war as the amplifier.
+- **Resetting a new pirate planet's productivity.** A special-case rule, replaced by
+  pirate planets' low cost base.
 - **Goods destruction counted as a money sink.** Destroying goods doesn't remove the
   money that paid for them.
 - **Dropping gate dues without going pirate.** Rejected: it creates a closed exit the
@@ -455,16 +591,19 @@ Recorded so they aren't reintroduced:
   each. A rough target is about 4 life support, 3 luxury, 8 raw, 6 refined, a handful
   of military commodities, and a few contraband goods, to be adjusted by the
   simulation.
-- Whether planets make trade deals, or independent merchants are enough.
+- Whether planets make trade deals, or independent merchants are enough. `TRADE.md`'s
+  proposed standing-route mission may be the same thing.
 - Whether lawful ships also have Mk tiers through legal quality upgrades, and if so how
   they stay visually distinct from pirate variants.
 - How weight affects a ship: speed, acceleration, turn rate, or a fitting budget.
 - Role-switching speed and which dampers are needed.
 - How much of a planet's trade runs on its own merchant fleet versus independent
-  merchants.
+  merchants. `TRADE.md` sets the shape (three layers); the balance is tuning.
 - Tier amounts for Authority dues, and how they compare with the trade advantage of
   holding a gate.
-- How exactly war removes money from the economy (see Where money leaves).
+- Which costs are true sinks and which circulate (see Where money leaves).
+- The spread rule's form (diminishing returns or a share cap), and how pressure grows
+  on a negative treasury.
 - **World scale.** The target is hundreds of sectors and upwards of 100 habitable
   planets, which the economic and political systems need. The prototype's 4×4 map is
   far too small to hold one culture region's supply chain.
@@ -475,7 +614,8 @@ Recorded so they aren't reintroduced:
 The human answered a review on 2026-09-28:
 
 - **Money sinks** are based in combat and conquest, giving a peace/war cycle. A closed
-  money loop was rejected.
+  money loop was rejected. (Revised in the second review: operating costs are the
+  baseline sink, and war amplifies it.)
 - **Contraband** lowers productivity by more than its happiness raises it, so it's
   wanted by populations and hated by governors.
 - **Fuel** has many producers at every scale, from importers to huge exporters.
@@ -485,6 +625,26 @@ The human answered a review on 2026-09-28:
 - **World scale** target: hundreds of sectors, over 100 habitable planets.
 - **Gates serve places:** each exit and entrance is dedicated to a planet, station, moon
   or point of interest, which holds it.
+
+## Revised after second review
+
+Decisions from a second review on 2026-09-28, folded in on 2026-10-16:
+
+- **Operating costs:** planets pay base costs, patrols, merchant fleet running costs
+  and rebuilding, larger than Authority dues. They're the baseline money sink; war
+  amplifies them.
+- **Raids** are a small money sink.
+- **Pirate planets** have a low cost base and pay no dues, instead of a productivity
+  reset. Strategic ones usually get retaken; lasting ones end up on the fringe.
+- **Repeated collapse** of neglected planets is emergent and intended.
+- **The contraband spiral's exit is piracy,** not a hard floor.
+- **Money moves within a faction:** fleet service for pay, standing for money, loans,
+  patronage and subsidy.
+- **Spending decisions are budget decisions:** believed value against full cost against
+  what's available. The winner can't take everything, speculative spending is allowed,
+  and value is subjective.
+- **Agreed in principle:** full cost includes the aftermath, an explicit spread rule,
+  treasuries that can go negative, and one decision model for every spender.
 
 ## For the implementation agent
 

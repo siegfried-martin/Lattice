@@ -1,8 +1,9 @@
 # Lattice: project brief
 
 *A code-free summary of the game and where it stands, for brainstorming outside the
-repo. Current as of 2026-09-27. The detailed design docs are `VISION.md`,
-`WORLD_AND_TRAVEL.md`, `COMBAT.md` and `ROADMAP.md`; this brief condenses them.*
+repo. Current as of 2026-10-16. The detailed design docs are `VISION.md`,
+`WORLD_AND_TRAVEL.md`, `COMBAT.md` and `ROADMAP.md`; this brief condenses them. The
+full game's design is being worked out separately in `docs/planning/`.*
 
 ## The pitch
 
@@ -184,9 +185,10 @@ requirement: a summoner may never ride a missile.
   gives the feel verdicts.
 - **Numbers are tuning, not design.** The design is the relationships between them.
 - **The Lattice is sized around the freighter.** Lanes and gates scale with its model.
-- **Faction highway technology as a differentiator.** One faction's Lattice might use
-  junction gates and another's continuous interchanges (trumpets, flyovers), so
-  networks feel different.
+- **Human highway technology is the same everywhere.** An earlier idea had each
+  faction building its Lattice differently (junction gates in one, continuous
+  interchanges in another). It's dropped; variety between regions comes from culture's
+  ships and weapons instead.
 - **Rendering follows sensors.** The simulation is authoritative, and the screen shows
   only what's near.
 
@@ -226,7 +228,7 @@ because the game needs many more of its elements before there is anything to sim
 
 - **Done:** the travel foundation and a first combat prototype.
 - **Now:** collecting design idea documents in `docs/planning/` and analysing them into
-  a concrete path.
+  a concrete path. So far: factions and allegiance, the economy, and trade.
 
 ## Glossary
 
