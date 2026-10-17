@@ -345,6 +345,12 @@ guns, power cores, shield generators) to build hulls, and commanders buy hulls w
 money their governors pay them. That closes the loop from `FACTIONS.md`: production →
 trade → tax → governor → commander pay → ships.
 
+**Planets get their ships through the economy too,** merchant hulls included: they buy
+them from shipyards like anyone else.
+
+The first testable version may leave ships, ship parts and equipment out of the supply
+chain (see First testable version). This section stays the design.
+
 ### Capacity costs weight; contents don't
 
 - **Fuel tank size and missile magazine size are fitting choices,** made when the ship
@@ -558,6 +564,20 @@ at a quality set by the academy. The player goes to an academy world to hire goo
 gunners. This replaces the idea of pilots as a supply chain with transported people.
 It's in the design to be tried; play will decide whether it stays.
 
+## First testable version (proposed)
+
+The full design has complex supply chains, with ships, ship parts and equipment produced
+through the general economy. The first testable version may be easier to build with
+less:
+
+- **Simpler supply chains** than the full design.
+- **Ships, ship parts and equipment outside the economy.** Shipyards and outfitters
+  sell them for money without consuming commodities.
+
+This is a starting point, not a change of design. Ships and equipment through the
+economy, and the deeper chains, are the target and come back once the simpler economy
+works.
+
 ## What a headless prototype should check
 
 - **The merchant-kill test.** Run a deep trade network with an indestructible pirate
@@ -707,6 +727,9 @@ And on 2026-10-17:
 - **Flips near the Lattice are short;** debt left by a planet turning pirate is ignored.
 - **World scale:** start with a 10×15 map and about 100 planets, judged by feel.
 - **Consumption** of luxuries, basic goods and contraband is the goods sink.
+- **Planets buy their ships through the economy,** merchant hulls included.
+- **(proposed)** The first testable version may use simpler supply chains and leave
+  ships, ship parts and equipment out of the economy. The full design stays the target.
 - **The gate holder is the prize** of its group: the most heavily guarded planet, and
   prosperous enough to afford it.
 
