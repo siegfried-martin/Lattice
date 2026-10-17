@@ -4,7 +4,8 @@
 goods around the world, how planet merchant fleets work, the ambient traffic that makes
 the world feel alive, and the trade-related missions that come out of it. It also
 records some decisions about how NPCs move at scale, which belong in a simulation
-document still to be written.*
+document still to be written. Revised on 2026-10-16 with the human's answers to a
+review (see "Revised after review").*
 
 *Items marked **(proposed)** came up in the session and weren't explicitly signed off.
 Items marked **(later)** are decided as worth doing, but not in the first version.
@@ -36,8 +37,11 @@ Everything else is decided. Numbers are tuning, not design.*
 Ambient trade is a **slow osmosis of goods** from producers to nearby planets and
 systems. It is not done by named NPCs.
 
-- It's a flow between nearby markets, **proportional to the price difference**, falling
-  off with travel time and faster along the Lattice.
+- It's a flow between nearby markets, **proportional to the difference in amounts**
+  (one market's surplus against another's shortage), not to price. It reacts
+  instantly. Like real osmosis, a difference in amounts is a reasonable proxy for price
+  without needing it. The flow falls off with travel time and is faster along the
+  Lattice.
 - **It closes only part of a gap.** Osmosis moderates extremes and quietly corrects
   small world-generation errors before role switching is needed, but it must leave a
   margin. Otherwise named merchants, planet fleets and the player have nothing to
@@ -52,6 +56,13 @@ systems. It is not done by named NPCs.
 Within the player's detection range, **non-persisted ships of all types are generated
 procedurally.** The traders among them are the visible face of osmosis.
 
+- **Spawned from the region and events, as in Escape Velocity.** Ambient ships aren't
+  backed by simulation state. What spawns follows the region and what's happening
+  there: pirates where piracy is common, patrols in policed space, warships near a war.
+  That keeps the world immersive, and it's good enough. Like most games of this kind,
+  Lattice mixes named, persistent NPCs with procedurally generated ones; making
+  everything persistent would be too hard at scale and wouldn't make the game more fun.
+
 - **Ambient traders match the flow.** Direction, density and cargo type reflect what's
   actually moving on that route. Busy routes are full of freighters heading from
   producer to consumer.
@@ -60,8 +71,20 @@ procedurally.** The traders among them are the visible face of osmosis.
   something lasting happens, such as being hired or escaping as someone with a grudge.
   Otherwise it despawns out of range, and a player who returns sees different ships.
 - **Killing one doesn't touch the global economy.** It's too small to be worth
-  calculating. Loot, suspicion and reputation apply as normal, and reputation is what
-  stops it being free money.
+  calculating. Loot, suspicion and reputation apply as normal: killing merchants still
+  makes local governments angry, and reputation is what stops it being free money.
+
+### Economic damage comes from merchant fleets
+
+Osmosis doesn't react to raids or blockades, by design. It would be hard to approximate
+well, and choking trade completely would crush a planet's economy and money supply,
+which is too drastic. Economic warfare hits **planet merchant fleets** instead: killing
+one does a lot of damage, because it removes the income the planet was going to make
+and destroys its merchant ships.
+
+The balance to find: rebuilding and resending merchant fleets stays cost-effective for
+planets despite the risk of piracy, but in rare cases a planet still loses money and
+has to turn to piracy.
 
 ### Danger throttling (later)
 
@@ -134,6 +157,14 @@ Convoys give the player three ways in:
 - **Trade around** a convoy, since its arrival is about to move prices at its
   destination.
 
+### Where convoys are attacked
+
+**In open space.** There's no combat on the Lattice, and an enemy generally isn't let
+onto the highway in the region where a convoy is travelling. The exception is a convoy
+trading in a third faction's territory that isn't at war with the raider, where both
+can use the highway. They'd have to be on the same stretch at the same time, which is
+rare enough to ignore for now.
+
 ### Intercept a convoy
 
 A mission to **intercept a particular convoy.** It's naturally time sensitive, and it
@@ -155,6 +186,8 @@ These notes move to a simulation document when one is written.
 - **NPC short-term decisions** are based on current location, what the NPC knows, and
   distances to points of interest.
 - **Highway travel** can use a map of roads and edges.
+- **Game time** runs at **one real minute per in-game day** to start. It's a value to
+  play with, not a design.
 - **Open space doesn't use edges.** There's no separate decision layer that has to know
   about edges and diversions. Open-space movement works from positions directly.
 
@@ -188,6 +221,8 @@ These notes move to a simulation document when one is written.
 - Planet fleet missions are worth sending in good times and get cut back when a planet
   is stretched.
 - Escort spending tracks planet wealth.
+- Rebuilding and resending merchant fleets stays worthwhile despite piracy; only rarely
+  does a planet lose enough to it to turn pirate.
 - The money supply stays in a band with mission costs and the osmosis margin included
   as sinks.
 - Auto-resolved combat matches manifested combat statistically.
@@ -200,6 +235,21 @@ These notes move to a simulation document when one is written.
 - How danger throttling and its floor should work, when it's added.
 - Decision tick rates for governors, fleets and merchants.
 - How large the manifested area around the player is.
+
+## Revised after review
+
+The human answered a review on 2026-10-16:
+
+- **Planets are state traders.** The governor decides what the planet produces and
+  sends out its merchant fleets (recorded in `ECONOMY.md`).
+- **Osmosis doesn't react to raids,** by design. Economic damage comes from killing
+  planet merchant fleets.
+- **Ambient ships are spawned from region and events,** as in Escape Velocity, not
+  backed by simulation state.
+- **Osmosis follows the difference in amounts,** instantly, rather than price.
+- **Convoys are attacked in open space;** meetings in a third faction's territory are
+  ignored for now.
+- **Game time** starts at one real minute per in-game day.
 
 ## For the implementation agent
 
