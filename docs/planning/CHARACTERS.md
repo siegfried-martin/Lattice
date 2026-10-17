@@ -11,6 +11,11 @@ changes elsewhere").*
 Items marked **(open)** are unresolved. Everything else is decided. Numbers are tuning,
 not design.*
 
+*Revised later on 2026-10-17 after review: characters are generated at random at the
+bottom rung, with no births or families; the bottom rungs are scouting (warrior path) and
+couriering (merchant path); fleets have little or no running cost; escorts are hired for
+one mission, and merchant missions come in two shapes.*
+
 ## Principles this serves
 
 From `VISION.md`, and the reason the model looks the way it does:
@@ -24,6 +29,9 @@ From `VISION.md`, and the reason the model looks the way it does:
   and personalise.
 - **Every character acts on its own incentive.** Nobody waits idle for the world to
   hand them a job.
+- **Idle costs nothing but time.** Fleets have little or no running cost. A recurring
+  burn rate would bankrupt any commander between missions and turn every lull into a
+  death spiral, so there isn't one.
 
 ## One character, many roles
 
@@ -50,6 +58,25 @@ What a character has, whatever the role:
 - **Goals and actions** as `FACTIONS.md` describes them: fixed long-term goals, short-term
   actions that follow what they currently know.
 
+## Where characters come from
+
+**Characters are generated at random. There are no births, families or heirs.** Games
+like Mount & Blade model family formation; it isn't interesting here and doesn't fit.
+
+- **A target population keeps the world stocked.** New characters are generated when
+  the number present falls below a target, so deaths are replaced without the count
+  drifting. The target and the refill rate are tuning.
+- **New characters enter at the bottom.** Low-level, independent, with no standing and no
+  relationships, owning a basic first-tier hull (see The ladder). Everything above is
+  earned by climbing, not generated.
+- **The starting world is seeded with characters already in the higher roles,** since
+  planets have governors from the first tick. **(proposed)** After that, only the bottom
+  rung is generated.
+- **A death is replaced by this flow, not by an heir.** The dead character is gone. The
+  escape pod makes that rare (see Losing).
+- **Ambient traders** are a separate thing, as above: unpersisted, and promoted only when
+  something lasting happens.
+
 ## Fealty and employment are contracts
 
 **There is no caste line between a sworn commander and a mercenary.** Both are a
@@ -67,6 +94,10 @@ and how long it has run.
 - **The player is in the same system.** Swearing fealty is signing a contract. Leaving
   is ending one.
 
+**How long a contract runs depends on the job.** Fealty is standing, as above. A
+mercenary task, an escort job and a courier or scout mission are each for one job: the
+contract starts with it and ends with it. Nobody is on retainer.
+
 Why: it's the only definition that works for the player and the simulation at once, and
 it makes promotion fall out of success. A commander who takes a planet for their liege
 is installed as its governor, which is their pay for the job. The liege gains a vassal,
@@ -81,10 +112,16 @@ which is theirs. Both are paid in what they wanted.
   simulation, but it breaks the player fantasy: building a ship, modding it, capturing
   another, mixing ships from different factions. It would also mean that being promoted
   to commander or governor confiscated the thing the player was proudest of.
-- **A stipend is compensation plus an operating allowance** (fuel, munitions, crew
-  wages), and the commander spends it to build and run a fleet they own. It isn't a budget
-  for governor-owned assets. This matches `ECONOMY.md`, where recruited ships are bought
-  with stipend money; what changes is that the commander keeps title.
+- **A stipend is compensation,** and the commander spends it to buy ships and grow a
+  fleet they own. It isn't a budget for governor-owned assets. This matches `ECONOMY.md`,
+  where recruited ships are bought with stipend money; what changes is that the commander
+  keeps title.
+- **Running a fleet has little or no ongoing cost** (assumed, and important). A
+  commander between missions pays nothing for waiting. Without that, a recurring burn rate
+  would bankrupt commanders who can't find work, and a quiet month would be the easiest
+  way to fall out of the game. What remains are one-off costs: buying ships and
+  equipment, and the set munitions refill after a battle (`ECONOMY.md`). The recurring
+  crew-wage and fuel bill an earlier draft attached to the stipend is dropped.
 - **War cost to the governor is still the stipends paid.** The budget model in
   `ECONOMY.md` is unchanged.
 
@@ -153,10 +190,40 @@ this for free. A character's history is visible in what they fly and who hires t
   paying, and the one personality trait, **risk tolerance** (conservative against
   aggressive spending). Risk tolerance governs only save-or-spend decisions, not mission
   choice. It is what explains why one commander is rehired quickly and another isn't.
-- **A start:** a new character either flies a default starter ship or waits for hire
-  until they can afford one. **(open)** Which; it isn't important yet.
 - **Reputation and fleet power unlock better missions,** which feeds income and skill,
   and the loop closes.
+
+### The ladder
+
+Two career paths, each starting with a job anyone can take on day one.
+
+- **Warrior path:** scout, then escort, then fleet commander, then governor.
+- **Merchant path:** courier, then merchant.
+
+Tier one:
+
+- **Scouting is the first warship job,** done in a basic armed hull. **Couriering is the
+  first merchant job,** done in a fast unarmed one. Both are open early, to the player
+  and to NPCs alike.
+- **Choosing between them is the ordinary fit-and-pay choice.** The hull decides what is
+  possible; pay and skill decide what is taken.
+- **Planet-level courier and scout missions are open to anyone,** so a new character
+  always has something to do. Faction-level ones need membership **(proposed)**, as
+  described under Information and missions.
+- **The work isn't make-work.** It is what carries information through the fealty tree
+  (see below).
+
+Above tier one:
+
+- **Escorting merchants is the second rung of the warrior path.** It needs more combat
+  power, and for a faction's convoys, good standing with that faction (see Merchants and
+  protection).
+- **Commander and governor follow,** as described under Fealty and employment.
+- **Merchant is the step after courier:** a character with a trade hull running trade
+  missions. **(open)** Where that path goes after merchant.
+
+The paths aren't walls. There are no classes, so a courier who buys a gunship starts
+taking scout missions. The ladder describes where the gates fall, not a track.
 
 ### Fleet power
 
@@ -196,8 +263,14 @@ already does.
 
 ### Merchants are independent characters
 
-A merchant's goal is a **trade mission: buy this good at A, sell it at B.** That fits the
-information economy better than drifting between markets.
+A merchant's goal is a **trade mission.** That fits the information economy better than
+drifting between markets. Missions come in two shapes:
+
+- **Faction missions are a triangle of three legs.** Deliver a good to a planet, go to a
+  second planet and pick something up, then bring it back to the first planet or to a
+  third. It keeps the merchant inside the faction's territory and moving goods both ways.
+- **Independent missions are single trips:** carry a good from A to B and sell it there.
+  They are open to everyone, or to a lower tier only. **(open)** Which.
 
 ### The faction pays merchants to stay home
 
@@ -216,10 +289,16 @@ merchants a stipend** to operate within its territory.
 ### Merchants hire their own protection
 
 - **Only successful merchants hire escorts.** Poorer merchants take the risk.
-- **The escort is a private contract** between two independent characters. No planet or
-  governor is involved.
-- **It is the first rung of the warrior path.** Escorting merchants gives a character
-  income, skill and reputation on the way to a fleet command.
+- **The escort is a private contract** between two characters. No planet or governor is
+  involved.
+- **An escort is hired for one mission, not on retainer.** The contract starts with the
+  mission and ends with it. Nobody pays an escort to sit idle, and nobody sits idle on a
+  retainer. This is what keeps the no-running-costs assumption honest (see Ownership).
+- **A faction's triangle is escorted as a whole.** The escort job covers all three legs
+  and is open to characters in good standing with that faction.
+- **An independent merchant's single-trip escort job has no standing gate.** **(proposed)**
+- **It is the second rung of the warrior path,** after scouting. Escorting merchants
+  gives a character income, skill and reputation on the way to a fleet command.
 
 ### How the decision is made
 
@@ -234,7 +313,8 @@ for a merchant who isn't wealthy; they only need enough cash to make the offer.
 - **The trigger is risk against cost, not a flat wealth threshold.** Wealth only decides
   whether the merchant can act. A merchant who grows wealthier carries more valuable
   loads, so their risk rises, and that's what pushes them to shop for a better escort.
-  **(proposed)** Hiring, firing and upgrading all follow from the same comparison.
+  **(proposed)** The comparison runs again for every mission, so hiring, hiring a
+  stronger escort and going without are one decision, made per mission.
 - **Per-sector risk is a belief, not a fact.** Each character holds its own copy, as
   deviations from the truth, and updates it by the same belief-state rules as everything
   else (`FACTIONS.md`): by visiting the sector in open space, by what a faction shares.
@@ -254,12 +334,14 @@ for a merchant who isn't wealthy; they only need enough cash to make the offer.
 - **The offer goes to NPCs in range as well,** who accept by the optimisation above.
 - **Warrior characters don't sit at planets waiting.** They travel with their bands and
   take what they come across, including an escort job if it fits.
-- **A merchant who loses an escort keeps trading** and posts a new offer. Stopping to wait
-  costs more than risk. It is the same mechanism as the first hire, triggered by loss.
-  A convoy alone in dangerous territory is more likely to be picked up by a passing
-  escort than one in a quiet core system, which is emergent, not authored.
-- **Escorts can leave** for a better job, a promotion, or because they died. That, and
-  battle loss, are the only reasons a merchant needs a new one.
+- **A merchant who loses an escort mid-mission keeps trading** and posts a new offer for
+  the legs that remain. Stopping to wait costs more than risk. It is the same mechanism
+  as the first hire, triggered by loss. A convoy alone in dangerous territory is more
+  likely to be picked up by a passing escort than one in a quiet core system, which is
+  emergent, not authored.
+- **A new escort is needed at the start of each mission,** since the contract ends with
+  the mission. Mid-mission, the reason is a destroyed escort. An escort who walks away
+  mid-mission breaks the contract and loses standing for it. **(proposed)**
 
 ## Information and missions travel through the fealty tree
 
@@ -286,6 +368,9 @@ These are two different jobs, with different ships and characters:
 | **Where** | Inside the faction, on the Lattice | Outside the faction, mostly open space |
 | **Ship** | Fast, no combat capability | Some combat capability |
 | **Risk and pay** | Low | Higher, longer range |
+
+They are also the bottom rung of the two career paths (see The ladder): scouting for the
+warrior path, couriering for the merchant path.
 
 A faction with more money runs more couriers more often, and its planets' information
 goes stale more slowly. A rich faction has better information, which lets it trade and
@@ -344,18 +429,26 @@ Recorded here and noted in the other documents so a reader of one isn't misled.
 - *Mercenaries:* the same character, no standing contract.
 - *Prisoners:* removed. Replaced by the escape pod.
 - *Scouts and couriers:* a planet's scouts stay. Faction-level scouting, contact
-  sharing, mission travel and the courier/scout split are added.
+  sharing, mission travel and the courier/scout split are added. Both are also the first
+  rung of the two career paths.
 - *The player's roles:* same system as everyone.
 
 **`ECONOMY.md`**
 - Stipends still pay for ships and munitions, which are still money sinks. The ships
   belong to the commander.
+- Fleets have little or no ongoing cost, so no recurring bill is charged to a character
+  between missions. The munitions refill stays as a set one-off after a battle. Planet
+  operating costs and patrol upkeep are unaffected. Merchant fleet operating costs go
+  with the open question on planet merchant fleets.
 - Hiring ships is open to any character who can afford to, not only to wealthy merchants,
   sworn commanders and "occasionally" mercenaries.
 
 **`TRADE.md`**
-- *Escorts:* hired by merchants as private contracts, from characters. The governor's
-  procedural escort budget line is superseded.
+- *Escorts:* hired by merchants as private contracts, from characters, for one mission
+  each. The governor's procedural escort budget line is superseded.
+- *Merchant missions:* a faction merchant runs a three-leg triangle, escorted as a whole
+  by a character in good standing with the faction; an independent merchant runs single
+  trips.
 - *Planet merchant fleets:* **(open)** see below.
 - *Missions for the player:* escort jobs arrive as comms offers from convoys in range,
   not as a planet's posted mission.
@@ -377,14 +470,27 @@ Recorded here and noted in the other documents so a reader of one isn't misled.
 - **Pod details:** upgrade tiers, how hard a winner can hunt one, and the dice-roll
   percentage out of range.
 - **The player's fleet power formula.**
-- **Starter ship or waiting to be hired** for a new character.
+- **Generation details.** The target population, how fast it refills, and where a new
+  character appears. Tuning, not design.
+- **Starter hull.** A new character owns a basic first-tier hull rather than waiting to be
+  hired **(proposed)**. Which hulls, and which path a spawn takes, are open.
+- **Where the merchant path goes** after merchant.
+- **Who can take independent merchants' missions:** everyone, or a lower tier only.
+- **Fuel as a running cost.** Fuel is sold by planets (`ECONOMY.md`). A per-trip charge
+  has to stay small enough not to act as a burn rate.
 - **Recruitment and relationships** remain separate documents. This one leaves hooks:
   contracts, relationships and standing are the inputs they will define.
 
 ## What a headless prototype should check (proposed)
 
-- Careers happen: a meaningful share of escort pilots become commanders over a run,
-  and a few become governors.
+- Careers happen: a meaningful share of scouts become escorts, some of those become
+  commanders, and a few become governors. A meaningful share of couriers become merchants.
+- The population holds near its target, and new characters find tier-one work straight
+  away.
+- No commander goes bankrupt waiting for missions: a character with no work loses time,
+  not money.
+- Escort contracts end with their missions, and a faction's triangle is escorted across
+  all three legs.
 - Commanders who lose a fleet are rehired in a plausible time; reckless ones recover
   slower than conservative ones.
 - Deaths per fight stay low while fights stay frequent.

@@ -313,6 +313,10 @@ On 2026-10-17 a later session unified the character model. What it changes here:
 - **Escort jobs reach the player as comms offers** from convoys within sensor range,
   which the player can accept or decline. The "Escort a convoy for pay" mission above
   works that way.
+- **Merchant missions have two shapes.** A faction merchant's mission is a triangle of
+  three legs (deliver, pick up elsewhere, return), escorted as a whole by a character in
+  good standing with the faction. An independent merchant's is a single trip. Escorts are
+  hired for one mission, never on retainer.
 - **A faction pays merchants a stipend** to operate in its territory (presence, no
   tasking), which keeps them targetable by enemies.
 - **Named merchants are characters** like any other, with personally owned ships.

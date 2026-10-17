@@ -142,8 +142,8 @@ Incentives stay simple:
   weighs. A commander who serves well keeps or grows their stipend.
 
 *Clarified 2026-10-17 (`CHARACTERS.md`):* the commander **owns** the ships the stipend
-buys. The stipend is compensation plus an operating allowance (fuel, munitions, wages,
-recruiting), not a budget for governor-owned fleets, which was considered and rejected
+buys. The stipend is compensation the commander spends on ships and munitions refills (fleets
+have no other running cost), not a budget for governor-owned fleets, which was considered and rejected
 because it would confiscate the player's ships on promotion. It is not the same as the
 stipend a faction pays merchants, which is for presence and carries no orders.
 

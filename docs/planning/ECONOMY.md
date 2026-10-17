@@ -585,7 +585,9 @@ ships. The first testable version starts simpler:
   planet to refill, paying a set amount. Any friendly or neutral planet has as many as
   the fleet needs. A sworn commander pays for munitions, and for recruited ships, out
   of the stipend their governor pays them (`FACTIONS.md`). The commander owns those
-  ships (`CHARACTERS.md`); the stipend is a sink either way.
+  ships (`CHARACTERS.md`); the stipend is a sink either way. *Added 2026-10-17
+  (`CHARACTERS.md`):* fleets have no other running cost, so this refill is a one-off per
+  battle, not a burn rate; a commander between missions pays nothing.
 - **Ships trickle in.** Ships are produced slowly, almost magically, at planets for
   recruitment, like Mount & Blade's units.
 - **Equipment and ship parts** stay outside the economy. Outfitters sell them for money
