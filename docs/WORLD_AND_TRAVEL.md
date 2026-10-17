@@ -288,5 +288,6 @@ Snapshot at the rebuild. All of this is expected to move.
   authored places yet.
 - Wandering NPC traffic still passes through planets and stations (asteroids it
   bounces off).
-- While landed the whole game pauses. That's intended (`docs/planning/TRADE.md`), but
-  whether a ship can land in the middle of a fight is still open.
+- While landed the whole game pauses. That's intended (`docs/planning/TRADE.md`), and
+  so is landing as a way out of a fight. The planned version adds landing permission
+  with a wait that depends on standing (`docs/planning/FACTIONS.md`).

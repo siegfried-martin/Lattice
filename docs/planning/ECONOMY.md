@@ -219,6 +219,10 @@ A planet's population has a **size** and a **happiness**.
 - **Life support** shortages cause decline, first unhappiness and then population loss.
   Never a sudden die-off. **(proposed)**
 - **Luxury goods** raise happiness. Populations always want them.
+- **Consumption is the goods sink.** Planets consume luxuries to stay happy and
+  productive, basic goods to hold their population and grow it, and contraband to get
+  happy and unproductive. What's consumed is gone, so demand never runs out. Together
+  with the money sinks it keeps the economy turning over.
 
 ## Production
 
@@ -402,6 +406,10 @@ aimed at the group it serves.
 This answers who holds a gate: **the most prosperous planet or moon of the group,**
 chosen when the world is built and never changing. That planet pays the gate-holding
 tier of dues below. Conquest changes who governs it, not which planet holds the gate.
+
+That makes the gate holder **the prize of its group.** Whoever holds it controls every
+other planet's way on and off the Lattice. It's also the most heavily guarded planet
+there, and prosperous enough to afford the defence.
 
 **Faction stations** may sit in large empty stretches inside a faction's region, owned
 by that faction. The first version can be built without them.
@@ -642,10 +650,6 @@ Recorded so they aren't reintroduced:
   playtesting can judge. A starting point for the first testable version is a 10×15
   map (150 sectors) with about 100 planets. The prototype's 4×4 map is far too small to
   hold one culture region's supply chain.
-- **Consumption as a money sink.** Consumption of basic and luxury goods has to be a
-  money sink (raised 2026-10-16). How it removes money is still to be worked out,
-  alongside the earlier finding that destroying goods doesn't remove the money that
-  paid for them.
 - Alien economies, deferred with the rest of alien design.
 
 ## Revised after review
@@ -702,7 +706,9 @@ And on 2026-10-17:
 - **Contraband** costs pirate planets productivity too, offset by selling it and piracy.
 - **Flips near the Lattice are short;** debt left by a planet turning pirate is ignored.
 - **World scale:** start with a 10×15 map and about 100 planets, judged by feel.
-- **Consumption** of basic and luxury goods has to be a money sink; how is open.
+- **Consumption** of luxuries, basic goods and contraband is the goods sink.
+- **The gate holder is the prize** of its group: the most heavily guarded planet, and
+  prosperous enough to afford it.
 
 ## For the implementation agent
 
