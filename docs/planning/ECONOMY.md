@@ -2,8 +2,8 @@
 
 *Written 2026-09-28 from a design session that followed `FACTIONS.md`, and revised the
 same day with the human's answers to a review (see "Revised after review"). Revised again
-on 2026-10-16 with the decisions from a second review (see "Revised after second
-review"). This covers where wealth comes from, what planets have to spend, how spending
+on 2026-10-16 and 2026-10-17 with the decisions from a second review and later answers
+(see "Revised after second review"). This covers where wealth comes from, what planets have to spend, how spending
 decisions are made, how goods are produced and moved, how the supply chain heals itself,
 how fuel, munitions and ships fit in, and how contraband works. Who moves goods (planet
 merchant fleets, ambient trade, convoys) is in `TRADE.md`. Recruitment and
@@ -44,7 +44,10 @@ From `VISION.md` and `FACTIONS.md`:
 - **Every planet is a state trader.** The governor decides what the planet produces,
   owns its output, and sends out its merchant fleets (`TRADE.md`). Sales of the
   planet's own production go to the treasury, and the treasury pays for the inputs its
-  industry buys. There are no private producers or shop owners.
+  industry buys. There are no private producers or shop owners. Every other trader,
+  named merchant or player, buys from and sells to the state. To the player this is the
+  planet's **trade goods** screen, one option alongside equipment, ships for sale and
+  missions.
 - **The governor taxes other traders' transactions at the planet's market,** sales and
   purchases alike: named merchants, ambient trade and the player. A planet's income is
   what it makes trading its own goods plus that tax.
@@ -70,7 +73,8 @@ Rejected alternatives:
 Planets pay to exist, and these costs are **larger than Trade Authority dues**:
 
 - base operating costs;
-- patrols;
+- patrols and policing: the planet's security force (`FACTIONS.md`), which costs
+  upkeep whether or not it's in use;
 - running the planet's merchant fleet (see `TRADE.md`);
 - rebuilding merchant ships that are destroyed.
 
@@ -389,13 +393,18 @@ Rules:
 
 ## Gates serve places
 
-The Lattice will be re-engineered a little so that **each exit and entrance is dedicated
-to one place**: a planet, a station, a moon or another point of interest. It sits either
-right beside that place or a short hop away using the local travel mechanic (hop lanes).
-The exit's speed boost (`FACTIONS.md`) is aimed at the place it serves.
+The Lattice will be re-engineered a little so that each exit and entrance serves **the
+planets near it**: a group of planets, or a planet with its moons, has **one entrance
+and one exit**, not one per body. It sits either right beside them or a short hop away
+using the local travel mechanic (hop lanes). The exit's speed boost (`FACTIONS.md`) is
+aimed at the group it serves.
 
-This answers who holds a gate: **the place it serves.** So it's clear which planet pays
-the gate-holding tier of dues below.
+This answers who holds a gate: **the most prosperous planet or moon of the group,**
+chosen when the world is built and never changing. That planet pays the gate-holding
+tier of dues below. Conquest changes who governs it, not which planet holds the gate.
+
+**Faction stations** may sit in large empty stretches inside a faction's region, owned
+by that faction. The first version can be built without them.
 
 ## Trade Authority dues
 
@@ -431,6 +440,15 @@ A planet whose income can't cover its operating costs drifts toward piracy.
 - Most pirate planets in **strategic locations get retaken** by a stronger faction.
   Lasting pirate planets therefore gather where nobody cares enough to take them back,
   which matches the fringe in `FACTIONS.md`.
+
+### Flips near the Lattice are short
+
+How often a planet near the Lattice turns pirate depends on conditions. However often it
+happens, it doesn't last: a pirate planet there is an attractive target for a nearby
+faction.
+
+**Debt a planet leaves behind when it turns pirate is ignored.** It's rare, and most of
+it is unpaid dues, which are a sink already.
 
 ### Repeated collapse is emergent and intended
 
@@ -512,14 +530,18 @@ On top of that, money spent on contraband isn't spent on legal goods, so it neve
 through the taxed market, and it leaves lawful space for the pirates who made it.
 Contraband shrinks the tax base and funds the enemy.
 
-**(proposed)** Policing is a governor's choice. Enforcement spending buys inspection
-intensity (the same dial as the suspicion system's inspection intensity), which cuts
-contraband inflow and costs the treasury. Governors weigh a happy population against a
+**Policing is a governor's choice and a planetary expense,** paid through the planet's
+security force. It cuts contraband inflow and costs the treasury. **(proposed)** What
+the spending buys is inspection intensity, the same dial as the suspicion system's in
+`FACTIONS.md`. Governors weigh a happy population against a
 healthy tax base and the cost of policing, and land in different places, so smuggling
 routes shift as governors change.
 
 **Tuning target:** contraband is net positive for a population and net negative for its
 governor. That tension keeps smugglers in business.
+
+**Pirate planets pay the same productivity cost** for the contraband their populations
+use, but they also profit from selling it and from piracy. This roughly mirrors reality.
 
 ## Crew: academy worlds (experimental)
 
@@ -616,9 +638,14 @@ Recorded so they aren't reintroduced:
 - Which costs are true sinks and which circulate (see Where money leaves).
 - The spread rule's form (diminishing returns or a share cap), and how pressure grows
   on a negative treasury.
-- **World scale.** The target is hundreds of sectors and upwards of 100 habitable
-  planets, which the economic and political systems need. The prototype's 4×4 map is
-  far too small to hold one culture region's supply chain.
+- **World scale.** The target is a world that feels vast and alive, which only
+  playtesting can judge. A starting point for the first testable version is a 10×15
+  map (150 sectors) with about 100 planets. The prototype's 4×4 map is far too small to
+  hold one culture region's supply chain.
+- **Consumption as a money sink.** Consumption of basic and luxury goods has to be a
+  money sink (raised 2026-10-16). How it removes money is still to be worked out,
+  alongside the earlier finding that destroying goods doesn't remove the money that
+  paid for them.
 - Alien economies, deferred with the rest of alien design.
 
 ## Revised after review
@@ -636,7 +663,8 @@ The human answered a review on 2026-09-28:
   occasionally mercenaries.
 - **World scale** target: hundreds of sectors, over 100 habitable planets.
 - **Gates serve places:** each exit and entrance is dedicated to a planet, station, moon
-  or point of interest, which holds it.
+  or point of interest, which holds it. (Revised 2026-10-16: one entrance and exit per
+  group of nearby planets, held by its most prosperous planet.)
 
 ## Revised after second review
 
@@ -658,11 +686,23 @@ Decisions from a second review on 2026-09-28, folded in on 2026-10-16:
 - **Agreed in principle:** full cost includes the aftermath, an explicit spread rule,
   treasuries that can go negative, and one decision model for every spender.
 
-Added on 2026-10-16 from the human's answers to a review of `TRADE.md`:
+Added from the human's answers to reviews of `TRADE.md`, on 2026-10-16:
 
 - **Every planet is a state trader.** The governor decides what it produces, owns the
   output and sends out its merchant fleets; the market tax falls on other traders.
   Private producers are rejected.
+
+And on 2026-10-17:
+
+- **Merchants and the player buy from and sell to the state.**
+- **Gates:** one entrance and exit per group of nearby planets, held by the group's most
+  prosperous planet or moon, fixed at world build.
+- **Faction stations** in empty stretches may come later.
+- **Policing** is a planetary expense, through the security force.
+- **Contraband** costs pirate planets productivity too, offset by selling it and piracy.
+- **Flips near the Lattice are short;** debt left by a planet turning pirate is ignored.
+- **World scale:** start with a 10×15 map and about 100 planets, judged by feel.
+- **Consumption** of basic and luxury goods has to be a money sink; how is open.
 
 ## For the implementation agent
 
