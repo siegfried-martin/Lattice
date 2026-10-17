@@ -582,6 +582,12 @@ ships. The first testable version starts simpler:
   recruitment, like Mount & Blade's units.
 - **Equipment and ship parts** stay outside the economy. Outfitters sell them for money
   without consuming anything.
+- **What the economy didn't produce is paid to nobody.** Munitions refills, recruited
+  ships and equipment are money sinks in the first version. If the planet were paid,
+  it would earn money for something that cost it nothing to make, and border planets,
+  which ought to be the poorest because they're fought over constantly, would grow rich
+  refilling the fleets fighting there. Once these come into the economy and cost
+  something to produce, the payment goes to the planet that made them.
 
 This is a starting point, not a change of design. The full supply chains for goods,
 luxuries, munitions and ships are the target and come back once the simpler economy
@@ -742,6 +748,8 @@ And on 2026-10-17:
   refill cost at any friendly or neutral planet, ships trickle-produced for
   recruitment, and equipment outside the economy. The full chains for goods, luxuries,
   munitions and ships stay the target.
+- **In the first version, munitions refills, recruited ships and equipment are money
+  sinks,** so border planets don't profit from free production.
 - **The gate holder is the prize** of its group: the most heavily guarded planet, and
   prosperous enough to afford it.
 
