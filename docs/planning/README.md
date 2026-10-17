@@ -23,7 +23,8 @@ files alongside them.
 | File | Received | Covers |
 |---|---|---|
 | `FACTIONS.md` | 2026-09-27 | Political power: planets and governors, commanders, fealty trees, cultures, the Trade Authority, mercenaries, pirates, gate permissions, physical information, armies, prisoners |
-| `ECONOMY.md` | 2026-09-28 | Money (population demand, market taxes, sinks), production and the supply chain, goods, fuel, munitions, ships, role switching, two-tier Authority dues, contraband, academy worlds |
+| `ECONOMY.md` | 2026-09-28 | Money (population demand, market taxes, operating costs and sinks, budget decisions, transfers within a faction), production and the supply chain, goods, fuel, munitions, ships, role switching, two-tier Authority dues, piracy as an economic outcome, contraband, academy worlds |
+| `TRADE.md` | 2026-10-12 | Who moves goods: named merchants, planet merchant fleets and convoys, ambient trade (osmosis), escorts, trade missions for the player, and how NPCs move at scale (a placeholder for a simulation document) |
 
 A document's own "for the implementation agent" notes are not acted on while it sits
 here. Promoting it into `docs/` happens once the planning pass has settled it.

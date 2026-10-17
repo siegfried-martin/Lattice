@@ -210,10 +210,9 @@ flyover) would work, but in a world drawn as one tunnel around your path, ramps 
 visibly branch off through the walls. The gates are the simpler version, being tried
 first.
 
-The continuous interchange isn't ruled out. Different factions may build their
-highways with different technology: one faction's network might use junction gates
-and another's real interchanges. That would make the networks feel different from
-each other.
+The continuous interchange isn't ruled out. An earlier idea had different factions
+building their highways with different technology; that's dropped, and human highway
+technology is the same everywhere (`docs/planning/ECONOMY.md`).
 
 ### Getting on and off
 

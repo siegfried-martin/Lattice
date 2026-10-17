@@ -4,9 +4,10 @@
 corrections to the first write-up (see "Revised after review" at the end). This covers
 how political power is organised in the simulation: who holds planets, who holds
 fleets, how factions form and split, how cultures give regions their own hardware, how
-the Lattice is governed, and how information and armies move. The economy (resources,
-supply chains, fuel pricing), recruitment and relationships are separate documents
-still to be written.*
+the Lattice is governed, and how information and armies move. The economy is in
+`ECONOMY.md` and trade in `TRADE.md`; recruitment and relationships are separate
+documents still to be written. Cross-references to decisions made in those documents
+were added on 2026-10-16.*
 
 *Items marked **(proposed)** came up in the session as suggestions and weren't
 explicitly signed off. Everything else is decided. Numbers are tuning, not design.*
@@ -146,6 +147,12 @@ Governors want military power: to defend themselves, to gain standing with their
 liege, and to be able to launch invasions. So they recruit the most powerful
 commanders they can.
 
+What they can afford is a budget decision. Governors, lieges and faction leaders weigh
+believed value against full cost and what's available, filtered through personality,
+relationships and possibly stale information (`ECONOMY.md`, Spending decisions).
+Money also moves between a governor and their liege: fleet service for pay, standing
+for money, loans, and patronage or subsidy for a planet that matters to the faction.
+
 ### Where military power comes from
 
 Force comes from commanders, and commanders go to whoever can pay. So **wealth is the
@@ -232,10 +239,9 @@ Consequences:
   easily from the cultures a faction holds, so a faction that conquers across a border
   gradually fields a mixed fleet.
 - **(proposed)** A commander's culture affects loyalty the same way a planet's does.
-- **(proposed)** Lattice infrastructure style (junction gates versus continuous
-  interchanges, ramp strength) belongs to culture rather than faction, since culture
-  is what stays tied to a region. This replaces the earlier idea of
-  faction-specific highway technology.
+- Lattice infrastructure style doesn't vary: human highway technology is the same
+  across all human factions and cultures (decided 2026-09-28, see `ECONOMY.md`). This
+  replaces both faction- and culture-specific highway technology.
 
 ## The Trade Authority
 
@@ -244,6 +250,7 @@ tree and it doesn't play politics.
 
 - It holds **no planets.**
 - It collects a **flat monthly due from every planet** for use of the network.
+  (Replaced by two tiers, network access and gate holding: see `ECONOMY.md`.)
 - It spends that income on **maintaining the network,** and uses the surplus to **hire
   mercenaries** to hunt specific pirates and keep stretches of the network clear of
   pirate influence. Those contracts are also a main source of **player missions**.
@@ -284,6 +291,11 @@ to both the Trade Authority and every faction.** Pirates are enemies of everyone
 - **On the fringe, far from the Lattice, the pirates' disadvantage fades or
   disappears**, and their black-market economy gives them the edge. The only
   self-sustaining piracy is there.
+- **Going pirate is an economic outcome.** A planet whose income can't cover its
+  operating costs drifts toward piracy. A pirate planet has a much lower cost base and
+  pays no dues, so a new one has a decent chance to prosper. Strategic ones usually
+  get retaken; places that collapsed recently are the likeliest to collapse again
+  (`ECONOMY.md`, Piracy as an economic outcome).
 
 This produces the danger gradient without authoring it. The "civilised" region near
 the Lattice rarely has pirates, who are dangerous to most playstyles. The fringe is
@@ -485,8 +497,9 @@ Recorded so they aren't reintroduced:
   with no planets whose enforcement is hired mercenaries.
 - **Three fixed factions.** Replaced by three initial seats of power in an emergent
   structure.
-- **Faction-specific ships, weapons and highway tech.** Flavour now comes from
-  cultures, which are static and regional.
+- **Faction-specific ships, weapons and highway tech.** Ship and weapon flavour now
+  comes from cultures, which are static and regional. Highway tech is the same for all
+  humans.
 - **"Threader."** A speech-to-text error. The equipment is the Lattice Drive.
 - **Pirate raiding range bounded by Lattice fuel.** Pirates don't use Lattice fuel at
   all (except in disguise). Their limit is that they travel slowly through open space.
