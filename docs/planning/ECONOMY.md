@@ -337,6 +337,8 @@ Munitions are limited and have their own supply chain.
 - **Player restock depends on stock.** A planet near the front may be out of missiles.
 - The player's missiles are finite, held in a magazine, as they always were meant to be.
   The prototype's unlimited missiles are a testing convenience.
+- The first testable version treats munitions as a cost instead (see First testable
+  version).
 
 ## Ships
 
@@ -564,18 +566,25 @@ at a quality set by the academy. The player goes to an academy world to hire goo
 gunners. This replaces the idea of pilots as a supply chain with transported people.
 It's in the design to be tried; play will decide whether it stays.
 
-## First testable version (proposed)
+## First testable version
 
-The full design has complex supply chains, with ships, ship parts and equipment produced
-through the general economy. The first testable version may be easier to build with
-less:
+The full design has complex supply chains for basic goods, luxuries, munitions and
+ships. The first testable version starts simpler:
 
-- **Simpler supply chains** than the full design.
-- **Ships, ship parts and equipment outside the economy.** Shipyards and outfitters
-  sell them for money without consuming commodities.
+- **Goods: end products only.** Planets produce finished goods directly: luxury good A,
+  luxury good B, contraband good A, contraband good B, and so on. There are no
+  intermediate products, so nothing feeds other production (fuel cells and catalysts
+  wait for the full chains). Role switching works the same way, between end products.
+- **Munitions are a cost for fleets.** After a battle a fleet goes back and lands at a
+  planet to refill, paying a set amount. Any friendly or neutral planet has as many as
+  the fleet needs.
+- **Ships trickle in.** Ships are produced slowly, almost magically, at planets for
+  recruitment, like Mount & Blade's units.
+- **Equipment and ship parts** stay outside the economy. Outfitters sell them for money
+  without consuming anything.
 
-This is a starting point, not a change of design. Ships and equipment through the
-economy, and the deeper chains, are the target and come back once the simpler economy
+This is a starting point, not a change of design. The full supply chains for goods,
+luxuries, munitions and ships are the target and come back once the simpler economy
 works.
 
 ## What a headless prototype should check
@@ -597,7 +606,8 @@ works.
 - **Strategic planets come back.** Well-run factions retake and stabilise them; lasting
   pirate planets end up on the fringe.
 - **Front lines are supplied.** Munitions flow toward fighting, and blockaded fronts run
-  short.
+  short. (Once munitions are in the economy; the first testable version doesn't check
+  this.)
 - **Contraband tension holds.** Some governors police hard and some don't, and
   smuggling stays profitable without taking over.
 - **Fringe worlds survive.** Off-network planets aren't simply poorer forever.
@@ -728,8 +738,10 @@ And on 2026-10-17:
 - **World scale:** start with a 10×15 map and about 100 planets, judged by feel.
 - **Consumption** of luxuries, basic goods and contraband is the goods sink.
 - **Planets buy their ships through the economy,** merchant hulls included.
-- **(proposed)** The first testable version may use simpler supply chains and leave
-  ships, ship parts and equipment out of the economy. The full design stays the target.
+- **The first testable version** has end-product producers only, munitions as a set
+  refill cost at any friendly or neutral planet, ships trickle-produced for
+  recruitment, and equipment outside the economy. The full chains for goods, luxuries,
+  munitions and ships stay the target.
 - **The gate holder is the prize** of its group: the most heavily guarded planet, and
   prosperous enough to afford it.
 
