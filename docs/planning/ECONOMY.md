@@ -41,8 +41,13 @@ From `VISION.md` and `FACTIONS.md`:
 - That purchasing power becomes real money only when goods are delivered and bought:
   food, oxygen, luxuries and the rest. A population with nothing to buy generates
   nothing.
-- **The governor taxes transactions at the planet's market,** sales and purchases alike.
-  A planet's income is its tax rate times the trade volume through its market.
+- **Every planet is a state trader.** The governor decides what the planet produces,
+  owns its output, and sends out its merchant fleets (`TRADE.md`). Sales of the
+  planet's own production go to the treasury, and the treasury pays for the inputs its
+  industry buys. There are no private producers or shop owners.
+- **The governor taxes other traders' transactions at the planet's market,** sales and
+  purchases alike: named merchants, ambient trade and the player. A planet's income is
+  what it makes trading its own goods plus that tax.
 
 This is what makes blockades work without special rules. A planet whose merchants are
 killed loses three ways at once: its exports pile up and their price collapses, the
@@ -56,6 +61,9 @@ Rejected alternatives:
   blockaded planet would keep printing income, so trade wouldn't matter.
 - **Money from trade taxes alone.** Taxes only move money around; nothing would explain
   where it enters the world.
+- **Private producers and shop owners** (Bannerlord's town funds alongside NPC
+  workshop owners). It adds accounts without adding decisions anyone sees. The planet
+  is a state trader instead.
 
 ### Planets have operating costs
 
@@ -215,8 +223,9 @@ A planet's population has a **size** and a **happiness**.
   hands, which is what makes conquest's economic incentive legible.
 - **Facilities are mutable.** Refineries, factories and shipyards are what a planet has
   built, and they can change (see Role switching).
-- **Output is labour times facilities times inputs.** It goes into the planet's market
-  and is sold to whoever comes to buy it.
+- **Output is labour times facilities times inputs.** The planet owns it. It goes into
+  the planet's market and is sold to whoever comes to buy it, or carried away by the
+  planet's own merchant fleets.
 
 ### The shape of the supply chain (proposed)
 
@@ -362,7 +371,9 @@ Rules:
 
 - **Both directions.** Planets leave overproduced roles as well as enter scarce ones,
   or gluts never clear.
-- **Driven by price, not scripted.** The same signal merchants follow.
+- **Driven by price, not scripted.** The same signal merchants follow. Since the
+  governor decides what the planet produces, switching is a governor's decision, made
+  through the budget model on the prices they believe.
 - **Native producers stay better.** A converted planet runs below one producing from
   its natural resource, so original producers stay valuable and the map doesn't
   homogenise.
@@ -372,8 +383,9 @@ Rules:
   - the price signal must hold for a while before a planet commits;
   - switching is slow and costs something;
   - a conversion in progress counts against the signal other planets see.
-- **Speed:** start with a placeholder of a few in-game months and tune from the
-  simulation.
+- **Speed:** start with a placeholder of a few in-game months (about an hour and a
+  half of play at the starting calendar of one minute per day, see `TRADE.md`) and tune
+  from the simulation.
 
 ## Gates serve places
 
@@ -645,6 +657,12 @@ Decisions from a second review on 2026-09-28, folded in on 2026-10-16:
   and value is subjective.
 - **Agreed in principle:** full cost includes the aftermath, an explicit spread rule,
   treasuries that can go negative, and one decision model for every spender.
+
+Added on 2026-10-16 from the human's answers to a review of `TRADE.md`:
+
+- **Every planet is a state trader.** The governor decides what it produces, owns the
+  output and sends out its merchant fleets; the market tax falls on other traders.
+  Private producers are rejected.
 
 ## For the implementation agent
 
