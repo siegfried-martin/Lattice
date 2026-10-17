@@ -102,8 +102,9 @@ This sets up a cycle between peace and war:
 
 - **In peace,** ships, weapons and munitions accumulate and get cheaper, which makes
   going to war more attractive.
-- **War consumes** money, weapons and ships. Treasuries drain and military goods get
-  expensive, until peace looks better.
+- **War consumes** money, weapons and ships. Governors pay for it through their
+  commanders' stipends, so treasuries drain and military goods get expensive, until
+  peace looks better.
 
 **(proposed)** Which costs remove money, and which only move it, decides whether the
 money-supply check can be read:
@@ -577,7 +578,8 @@ ships. The first testable version starts simpler:
   wait for the full chains). Role switching works the same way, between end products.
 - **Munitions are a cost for fleets.** After a battle a fleet goes back and lands at a
   planet to refill, paying a set amount. Any friendly or neutral planet has as many as
-  the fleet needs.
+  the fleet needs. A sworn commander pays for munitions, and for recruited ships, out
+  of the stipend their governor pays them (`FACTIONS.md`).
 - **Ships trickle in.** Ships are produced slowly, almost magically, at planets for
   recruitment, like Mount & Blade's units.
 - **Equipment and ship parts** stay outside the economy. Outfitters sell them for money
@@ -750,6 +752,8 @@ And on 2026-10-17:
   munitions and ships stay the target.
 - **In the first version, munitions refills, recruited ships and equipment are money
   sinks,** so border planets don't profit from free production.
+- **Governors pay commanders a stipend** that the commanders spend on ships and
+  munitions. Governors set fleets' objectives; commanders decide tactics.
 - **The gate holder is the prize** of its group: the most heavily guarded planet, and
   prosperous enough to afford it.
 

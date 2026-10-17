@@ -7,7 +7,8 @@ fleets, how factions form and split, how cultures give regions their own hardwar
 the Lattice is governed, and how information and armies move. The economy is in
 `ECONOMY.md` and trade in `TRADE.md`; recruitment and relationships are separate
 documents still to be written. Cross-references to decisions made in those documents
-were added on 2026-10-16, and landing permission on 2026-10-17.*
+were added on 2026-10-16, and landing permission, stipends, and characters' goals and actions on
+2026-10-17.*
 
 *Items marked **(proposed)** came up in the session as suggestions and weren't
 explicitly signed off. Everything else is decided. Numbers are tuning, not design.*
@@ -109,8 +110,8 @@ the faction can send forces along the Lattice.
 aren't nodes of the faction tree themselves; they attach to it by swearing fealty to a
 governor.
 
-- **Sworn:** in fealty to a governor. The governor pays them well, so every commander
-  has a large incentive to swear.
+- **Sworn:** in fealty to a governor. The governor pays them a **stipend**, so every
+  commander has a large incentive to swear.
 - **Mercenary:** a commander with no fealty to a governor. To pay for ships they take
   contracts, from the Trade Authority or from governors, or turn to piracy.
 - **Pirate:** renounced everyone (see Pirates).
@@ -119,6 +120,19 @@ Commanders want to grow in power and get more ships, and that growth is bounded 
 much money they can make. A commander's power is their standing fleet plus their
 ability to get more ships. That ability comes from recruitment and relationships,
 which are separate documents.
+
+### The stipend: governors set the objective and the purse
+
+Incentives stay simple:
+
+- **The stipend is a sworn commander's budget.** The commander spends it on more ships
+  and on munitions. The governor controls how much a commander can spend; the
+  commander decides how.
+- **Governors give fleets their overall objective,** and commanders make the smaller
+  tactical decisions in service of it (see Characters: goals and actions).
+- **The governor pays for war through stipends.** A war costs the treasury what it pays
+  out to the commanders fighting it, which is what the budget model in `ECONOMY.md`
+  weighs. A commander who serves well keeps or grows their stipend.
 
 ### Stewards: governors who take the field
 
@@ -408,6 +422,16 @@ The player's map uses the same model: it shows what they've seen or been told.
 A market for information (buying and selling intelligence) is **deferred.** For now,
 planets want information and hand out scouting missions to get it. Revisit if the
 world doesn't feel dynamic enough.
+
+## Characters: goals and actions
+
+Every character works the same way: **long-term goals that stay fixed,** and
+**short-term actions that change with what they currently know** (their belief state,
+see Information travels physically). A governor's goals come from their personality
+and position; a commander's from their governor's objective and their own ambition.
+Short-term decisions depend on where the character is, what they know, and how far
+away things are (`TRADE.md`, How NPCs move at scale). Armies are the same rule applied
+to a force.
 
 ## Armies: intent and action
 
