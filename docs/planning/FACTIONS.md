@@ -7,7 +7,7 @@ fleets, how factions form and split, how cultures give regions their own hardwar
 the Lattice is governed, and how information and armies move. The economy is in
 `ECONOMY.md` and trade in `TRADE.md`; recruitment and relationships are separate
 documents still to be written. Cross-references to decisions made in those documents
-were added on 2026-10-16.*
+were added on 2026-10-16, and landing permission on 2026-10-17.*
 
 *Items marked **(proposed)** came up in the session as suggestions and weren't
 explicitly signed off. Everything else is decided. Numbers are tuning, not design.*
@@ -334,6 +334,19 @@ Consequences:
   Authority doesn't.
 - A player refused at an exit can still bail out before it and fly in, without the
   boost.
+
+## Landing permission
+
+Landing takes the planet's permission, as in Escape Velocity, where asking was always a
+small moment of tension.
+
+- **Neutral standing or better** with the planet gets permission. Below that it's
+  refused.
+- **Permission takes time:** a real wait, shorter with better reputation and standing,
+  with a different message from the planet at each level.
+- **Landing is a safety net.** The clock stops while the player is landed (`TRADE.md`),
+  so a ship that gets permission can land its way out of trouble. The wait is where
+  the tension comes from.
 
 ## Information travels physically
 

@@ -258,6 +258,9 @@ These notes move to a simulation document when one is written.
 
 - Mission length and objective shapes.
 - Escort ratio and leash distance.
+- Whether a sworn commander can escort a convoy, alongside the planet's own ships,
+  mercenaries and the player.
+- How planets buy new merchant hulls, and whether they sell surplus ones.
 - How the player finds intercept targets, and how much information they start with.
 - How danger throttling and its floor should work, when it's added.
 - Decision tick rates for governors, fleets and merchants.
