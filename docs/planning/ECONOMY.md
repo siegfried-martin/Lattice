@@ -195,6 +195,11 @@ Hiring other ships is expensive. It's open to successful, wealthy merchants, to
 commanders sworn to a governor, and occasionally to a very successful mercenary.
 Recruitment covers how.
 
+*Revised 2026-10-17 (`CHARACTERS.md`):* these aren't separate kinds of character. Any
+character who can afford it can hire protection, and a merchant hires escorts as a
+private contract based on route risk against cargo value. Ships and wealth are always
+personally owned.
+
 Bannerlord's caravan play caps early because a bigger caravan is a slower one, so the
 best caravan is the smallest one that bandits leave alone. Lattice shouldn't have that
 cap. A player who commands one or more large freighters can start to move markets
@@ -579,7 +584,8 @@ ships. The first testable version starts simpler:
 - **Munitions are a cost for fleets.** After a battle a fleet goes back and lands at a
   planet to refill, paying a set amount. Any friendly or neutral planet has as many as
   the fleet needs. A sworn commander pays for munitions, and for recruited ships, out
-  of the stipend their governor pays them (`FACTIONS.md`).
+  of the stipend their governor pays them (`FACTIONS.md`). The commander owns those
+  ships (`CHARACTERS.md`); the stipend is a sink either way.
 - **Ships trickle in.** Ships are produced slowly, almost magically, at planets for
   recruitment, like Mount & Blade's units.
 - **Equipment and ship parts** stay outside the economy. Outfitters sell them for money
@@ -754,6 +760,8 @@ And on 2026-10-17:
   sinks,** so border planets don't profit from free production.
 - **Governors pay commanders a stipend** that the commanders spend on ships and
   munitions. Governors set fleets' objectives; commanders decide tactics.
+  (Clarified 2026-10-17 in `CHARACTERS.md`: the commander owns the ships, and a faction
+  also pays merchants a separate stipend for presence, with no tasking.)
 - **The gate holder is the prize** of its group: the most heavily guarded planet, and
   prosperous enough to afford it.
 
@@ -761,6 +769,8 @@ And on 2026-10-17:
 
 Not to be acted on while this document is in `docs/planning/`. When it's promoted:
 
+- Reconcile against `CHARACTERS.md` first (ownership, merchant stipend, who can hire
+  ships).
 - Add it as `docs/ECONOMY.md`, and add a row for it to `docs/planning/README.md` now.
 - Update `FACTIONS.md`: two-tier dues, the alien stance, uniform human highway tech,
   and a pointer here for fuel pricing and contraband.

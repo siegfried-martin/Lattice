@@ -5,7 +5,9 @@ goods around the world, how planet merchant fleets work, the ambient traffic tha
 the world feel alive, and the trade-related missions that come out of it. It also
 records some decisions about how NPCs move at scale, which belong in a simulation
 document still to be written. Revised on 2026-10-16 and 2026-10-17 with the human's
-answers to reviews (see "Revised after review").*
+answers to reviews (see "Revised after review"). `CHARACTERS.md` (2026-10-17) later
+changed who hires escorts and put the planet merchant fleet layer in question; see
+"Revised by `CHARACTERS.md`" at the end.*
 
 *Items marked **(proposed)** came up in the session and weren't explicitly signed off.
 Items marked **(later)** are decided as worth doing, but not in the first version.
@@ -300,10 +302,32 @@ And on 2026-10-17:
 - **Named merchants** are static characters who chose trade; replacing procedural
   characters with static ones is an idea to try.
 
+## Revised by `CHARACTERS.md`
+
+On 2026-10-17 a later session unified the character model. What it changes here:
+
+- **Escorts are hired by merchants,** as private contracts with characters, not by the
+  governor from a procedural budget line. The governor-hired procedural escorts above
+  are superseded. The planet-as-matchmaker idea (planet posts escort missions) was
+  considered and dropped.
+- **Escort jobs reach the player as comms offers** from convoys within sensor range,
+  which the player can accept or decline. The "Escort a convoy for pay" mission above
+  works that way.
+- **A faction pays merchants a stipend** to operate in its territory (presence, no
+  tasking), which keeps them targetable by enemies.
+- **Named merchants are characters** like any other, with personally owned ships.
+- **(open) Planet merchant fleets.** A government has no independent reason to run its
+  own trade operation when price already attracts merchants. The layer above is not
+  withdrawn, but it is in question and has to be settled (drop it, or keep it as the
+  faction-stipended merchants' form) before this document is promoted. Economic warfare
+  and the escort budget above depend on the answer.
+
 ## For the implementation agent
 
 Not to be acted on while this document is in `docs/planning/`. When it's promoted:
 
+- Reconcile against `CHARACTERS.md` first, in particular the planet merchant fleets and
+  escorts sections.
 - Add a row for it to `docs/planning/README.md` now.
 - Cross-reference `ECONOMY.md` (budget model, money sinks, merchants) and
   `FACTIONS.md` (governors, belief state, mercenaries).

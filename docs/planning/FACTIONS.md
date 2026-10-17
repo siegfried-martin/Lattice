@@ -8,7 +8,9 @@ the Lattice is governed, and how information and armies move. The economy is in
 `ECONOMY.md` and trade in `TRADE.md`; recruitment and relationships are separate
 documents still to be written. Cross-references to decisions made in those documents
 were added on 2026-10-16, and landing permission, stipends, and characters' goals and actions on
-2026-10-17.*
+2026-10-17. Later on 2026-10-17 `CHARACTERS.md` unified the character model and
+superseded parts of this document: commanders, stipends, mercenaries, scouts and
+couriers, prisoners and the player's roles. Each is marked where it appears.*
 
 *Items marked **(proposed)** came up in the session as suggestions and weren't
 explicitly signed off. Everything else is decided. Numbers are tuning, not design.*
@@ -116,6 +118,11 @@ governor.
   contracts, from the Trade Authority or from governors, or turn to piracy.
 - **Pirate:** renounced everyone (see Pirates).
 
+*Superseded 2026-10-17 (`CHARACTERS.md`):* these aren't three classes. A commander is a
+character, and "sworn" and "mercenary" are only whether they currently hold a fealty
+contract. Fealty ends when the commander quits, loses their fleet, takes a better offer
+or is no longer needed.
+
 Commanders want to grow in power and get more ships, and that growth is bounded by how
 much money they can make. A commander's power is their standing fleet plus their
 ability to get more ships. That ability comes from recruitment and relationships,
@@ -133,6 +140,12 @@ Incentives stay simple:
 - **The governor pays for war through stipends.** A war costs the treasury what it pays
   out to the commanders fighting it, which is what the budget model in `ECONOMY.md`
   weighs. A commander who serves well keeps or grows their stipend.
+
+*Clarified 2026-10-17 (`CHARACTERS.md`):* the commander **owns** the ships the stipend
+buys. The stipend is compensation plus an operating allowance (fuel, munitions, wages,
+recruiting), not a budget for governor-owned fleets, which was considered and rejected
+because it would confiscate the player's ships on promotion. It is not the same as the
+stipend a faction pays merchants, which is for presence and carries no orders.
 
 ### Stewards: governors who take the field
 
@@ -288,6 +301,10 @@ leading smaller fleets, less prestigious than sworn commanders, working for mone
 - A mercenary without contracts can't pay for ships. Swearing fealty or turning pirate
   are the ways out.
 
+*Superseded 2026-10-17 (`CHARACTERS.md`):* a mercenary is a character with no standing
+contract, and escort work for a merchant is one more contract they can take. Mercenaries
+are less prestigious than sworn commanders, but not a separate kind of character.
+
 ## Pirates
 
 A pirate is anyone (a character, a fleet or a planet) that has **renounced allegiance
@@ -373,6 +390,11 @@ A planet sends out **scouts** to find enemy fleets and bring the information hom
 scout is a vessel of its planet, and so of its faction, and is treated as an enemy by
 anyone at war with that faction. Scouting is open-space work.
 
+*Extended 2026-10-17 (`CHARACTERS.md`):* a faction also funds longer-range scouting
+into enemy and neutral territory, for strategy and trade rather than self-preservation.
+The planet's own scouts stay as written. Characters with a common interest share what
+they know on contact, at zero distance.
+
 ### Couriers
 
 When a planet learns of a threat, it sends **messengers** along the Lattice to other
@@ -389,6 +411,11 @@ return, courier run and reinforcement travel.
   the more time the defender has.
 - **Killing scouts buys surprise.** An invasion force that destroys the enemy's scouts
   can get closer before the alarm is raised.
+
+*Extended 2026-10-17 (`CHARACTERS.md`):* couriers are inside-the-faction, fast and
+unarmed; scouts go outside and carry some weapons. Couriers also carry **orders and
+missions**, down the fealty tree hop by hop, so a faction's reach is also its courier
+coverage. A faction that spends more on couriers has fresher information.
 
 ### Spies
 
@@ -468,6 +495,13 @@ Consequences:
 
 ## Prisoners
 
+*Removed 2026-10-17 (`CHARACTERS.md`).* Capture, ransom and exchange are gone: they made
+clunky situations and came from a historical setting Lattice isn't in. When a ship is
+destroyed its pilot launches an escape pod that flies like a missile, can be shot down
+in rendered range (that's the chance of death) and is a low-percentage roll out of
+range. A character who gets away is safe at the nearest friendly or neutral planet. The
+text below is kept as the superseded design.
+
 Any named character, including agents and the player, can be taken prisoner, with a
 small chance of death. Prisoners can be ransomed, exchanged or escape.
 
@@ -492,6 +526,9 @@ classes:
 - **Governor:** installed on a conquered planet by the governor they serve. They
   can appoint a steward and keep flying with a fleet of their own.
 - **Pirate:** renouncing everyone.
+
+Per `CHARACTERS.md` these are roles the player's one character holds, under the same
+contract rules as every NPC.
 
 ## Simulation layers (proposed)
 
@@ -610,4 +647,6 @@ Not to be acted on while this document is in `docs/planning/`. When it's promote
 - Fold a summary into `BRIEF.md`, and update its open questions.
 - Recruitment, relationships and the economy will be their own documents. Leave hooks,
   not designs.
+- `CHARACTERS.md` overrides this document on commanders, stipends, mercenaries, scouts,
+  couriers and prisoners. Reconcile before promoting.
 - This is design only. Don't build it yet.
