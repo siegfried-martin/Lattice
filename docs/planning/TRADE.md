@@ -4,8 +4,8 @@
 goods around the world, how planet merchant fleets work, the ambient traffic that makes
 the world feel alive, and the trade-related missions that come out of it. It also
 records some decisions about how NPCs move at scale, which belong in a simulation
-document still to be written. Revised on 2026-10-16 with the human's answers to a
-review (see "Revised after review").*
+document still to be written. Revised on 2026-10-16 and 2026-10-17 with the human's
+answers to reviews (see "Revised after review").*
 
 *Items marked **(proposed)** came up in the session and weren't explicitly signed off.
 Items marked **(later)** are decided as worth doing, but not in the first version.
@@ -30,12 +30,23 @@ Everything else is decided. Numbers are tuning, not design.*
 | **Planet merchant fleets** | A planet's bulk trade, sent out on missions | Persistent while on a mission |
 | **Ambient traders** | Independent background trade ("osmosis") | Never persisted; generated near the player |
 
+## Named merchants
+
+Static characters who chose to be merchants rather than politicians or commanders.
+They're the least critical of the three kinds of character, but they add flavour: the
+player meets the same merchant several times. **(proposed)** Replacing all procedurally
+generated characters with static ones is an idea to play with and iterate on, though it
+may be too hard to manage.
+
 ## Ambient trade (osmosis)
 
 ### The flow
 
 Ambient trade is a **slow osmosis of goods** from producers to nearby planets and
-systems. It is not done by named NPCs.
+systems. It is not done by named NPCs. It's a very slow trickle that keeps any market
+from becoming a complete desert. **Most goods are moved by merchants.** Osmosis has
+little influence on prices beyond taking the edge off extreme spikes in supply and
+demand.
 
 - It's a flow between nearby markets, **proportional to the difference in amounts**
   (one market's surplus against another's shortage), not to price. It reacts
@@ -48,6 +59,10 @@ systems. It is not done by named NPCs.
   profit from. Osmosis handles the background; real ships make the big moves.
 - **It runs as real market trades:** buying at the source, selling at the destination.
   Prices move and the transaction tax applies like any other trade.
+- **It stops between factions at war,** like merchant fleets (see Planet merchant
+  fleets).
+- **Contraband moves by osmosis too. (proposed)** Either at a smaller rate, or with a
+  higher rate of consumption.
 - **The independent traders' margin vanishes,** a small money sink that scales with
   trade volume.
 
@@ -62,7 +77,12 @@ procedurally.** The traders among them are the visible face of osmosis.
   That keeps the world immersive, and it's good enough. Like most games of this kind,
   Lattice mixes named, persistent NPCs with procedurally generated ones; making
   everything persistent would be too hard at scale and wouldn't make the game more fun.
-
+- **How spawning works.** Now and then a random chance triggers a spawn event near the
+  player, at the edge of their radar. The chance of anything spawning depends on the
+  area's population and activity. The number, size and faction of the ships come from
+  regional strength nearby.
+- **Regional piracy is a level that spawns read from.** Authority mercenary contracts
+  and the player clearing pirates lower it.
 - **Ambient traders match the flow.** Direction, density and cargo type reflect what's
   actually moving on that route. Busy routes are full of freighters heading from
   producer to consumer.
@@ -103,6 +123,11 @@ Part of a planet's wealth is its merchant fleet.
 - **On a mission,** a fleet entity is created, persists until the mission is complete,
   and then dissolves back into the count.
 - **Losses come off the count.** Replacing them is the rebuild cost.
+- **Idle hulls cost nothing.** An idle hull is a trade not being made, which is cost
+  enough. A standing cost makes sense for a defence force (`ECONOMY.md`), not for
+  merchants.
+- **No trade with a faction at war.** A planet doesn't send merchant fleets to a faction
+  it's at war with, and convoys in transit there turn for home when war breaks out.
 
 ### Missions are governor decisions
 
@@ -188,6 +213,8 @@ These notes move to a simulation document when one is written.
 - **Highway travel** can use a map of roads and edges.
 - **Game time** runs at **one real minute per in-game day** to start. It's a value to
   play with, not a design.
+- **The clock stops while the player is landed.** Anything else is too stressful; the
+  player gets as long as they want to plan their next move and shop around.
 - **Open space doesn't use edges.** There's no separate decision layer that has to know
   about edges and diversions. Open-space movement works from positions directly.
 
@@ -250,6 +277,21 @@ The human answered a review on 2026-10-16:
 - **Convoys are attacked in open space;** meetings in a third faction's territory are
   ignored for now.
 - **Game time** starts at one real minute per in-game day.
+
+And on 2026-10-17:
+
+- **Merchants buy from and sell to the state** (recorded in `ECONOMY.md`).
+- **Osmosis is a slow trickle** that prevents deserts and blunts extreme spikes; most
+  goods move by merchant.
+- **Spawning:** a random spawn event near the player at the edge of radar, with its
+  chance set by the area's population and activity and its ships by regional strength.
+  A regional piracy level feeds it, lowered by mercenary contracts and by the player.
+- **The clock stops while landed.**
+- **War stops trade:** no merchant fleets to a faction at war, convoys in transit turn
+  home, and osmosis stops. Contraband osmosis is proposed.
+- **Idle merchant hulls cost nothing.**
+- **Named merchants** are static characters who chose trade; replacing procedural
+  characters with static ones is an idea to try.
 
 ## For the implementation agent
 

@@ -77,8 +77,10 @@ Every planet is its own state with its own autonomy, run by a **governor** (a
 politician). A planet has an economy, its own defences, and the commanders who have
 sworn fealty to its governor.
 
-**Planetary defences** (missiles, torpedoes and the like) mean it takes a
-sufficiently large force to take a planet. A typical planet can defend itself but
+**Planetary defences** (guns and missiles on the planet that fire at any opposing ship
+in range, torpedoes and the like) mean it takes a sufficiently large force to take a
+planet. A planet also keeps a **security force** of its own ships for policing and
+defence, a standing cost (`ECONOMY.md`). A typical planet can defend itself but
 can't field enough force to take a defended neighbour alone.
 
 There is also a **standing set of politicians with no planet**. They are candidates
@@ -528,12 +530,14 @@ Recorded so they aren't reintroduced:
   - How much ship and weapon variety is realistic to build, and what gives each
     culture an identity the player gets excited about (for example, a culture known
     for its armour). This is a creative question that needs its own discussion.
-  - The target (decided 2026-09-28, see `ECONOMY.md`) is hundreds of sectors and
-    upwards of 100 habitable planets. The prototype's 4×4 map is far too small, and
+  - The target is a world that feels vast and alive, judged by playtesting. The first
+    testable version starts from a 10×15 map with about 100 planets (see
+    `ECONOMY.md`). The prototype's 4×4 map is far too small, and
     its fixed ¢-shaped network will need to become a generated one.
 - Whether junction gates (which no planet holds) have only the Authority's key. Other
-  gates are held by the place they serve: each exit and entrance is dedicated to one
-  planet, station, moon or point of interest (decided 2026-09-28, see `ECONOMY.md`).
+  gates are held by the planets they serve: one entrance and exit per group of nearby
+  planets, held by the group's most prosperous planet or moon, fixed at world build
+  (see `ECONOMY.md`).
 - Recruitment: how planets acquire commanders and how commanders recruit ships.
   Separate document.
 
