@@ -122,7 +122,8 @@ Part of a planet's wealth is its merchant fleet.
   entity exists.
 - **On a mission,** a fleet entity is created, persists until the mission is complete,
   and then dissolves back into the count.
-- **Losses come off the count.** Replacing them is the rebuild cost.
+- **Losses come off the count.** Replacing them is the rebuild cost. Planets buy hulls
+  through the economy, from shipyards (`ECONOMY.md`).
 - **Idle hulls cost nothing.** An idle hull is a trade not being made, which is cost
   enough. A standing cost makes sense for a defence force (`ECONOMY.md`), not for
   merchants.
@@ -154,9 +155,11 @@ repeats until cancelled.
 ### Escorts
 
 - **Missions need protection, and the planet pays for it.** Escort is a budget line.
-  The governor chooses the escort: the planet's own gunships, hired mercenaries, the
-  player, or none. A stretched planet sends thin escorts and a rich one sends a wall,
-  so the player can read a planet's health from its convoys.
+  The governor hires escorts: **procedurally generated NPC ships, not commanders,**
+  which travel with the convoy for its mission. The player can take the job too, or
+  the convoy goes without. A stretched planet sends thin escorts and a rich one sends a
+  wall, so the player can read a planet's health from its convoys.
+- **(later)** Sworn commanders escorting their planet's convoys.
 - **Escorts follow a doctrine:** defend the convoy and drive threats off, but don't
   pursue an enemy that runs. They stay on a leash. The leash distance is tuning.
 
@@ -258,9 +261,7 @@ These notes move to a simulation document when one is written.
 
 - Mission length and objective shapes.
 - Escort ratio and leash distance.
-- Whether a sworn commander can escort a convoy, alongside the planet's own ships,
-  mercenaries and the player.
-- How planets buy new merchant hulls, and whether they sell surplus ones.
+- Whether planets sell surplus merchant hulls.
 - How the player finds intercept targets, and how much information they start with.
 - How danger throttling and its floor should work, when it's added.
 - Decision tick rates for governors, fleets and merchants.
@@ -293,6 +294,9 @@ And on 2026-10-17:
 - **War stops trade:** no merchant fleets to a faction at war, convoys in transit turn
   home, and osmosis stops. Contraband osmosis is proposed.
 - **Idle merchant hulls cost nothing.**
+- **Escorts are hired procedurally generated ships,** not commanders. Sworn commanders
+  escorting is for later.
+- **Planets buy hulls through the economy.**
 - **Named merchants** are static characters who chose trade; replacing procedural
   characters with static ones is an idea to try.
 
