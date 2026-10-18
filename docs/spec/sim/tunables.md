@@ -66,8 +66,9 @@ are gone.
 | `happy.p_up`, `happy.p_down` | Productivity's ceiling and floor: 1 + up, 1 − down | 0.3, 0.2 |
 | `happy.g_up`, `happy.g_down` | Growth's boost when happy, and its cut when unhappy (1 stops it) | 0, 1 |
 | `happy.want` | An unhappy planet's luxury reserves grow by up to this share | 1 |
-| `prod.efficiency[tier]` | Output multiplier by tier | high 1.0, medium 0.6, low 0.3 |
-| `prod.labour_per_capita` | Output per thousand at share 1, efficiency 1, P 1 *(Phase A round 1; was 3.5)* | 8 |
+| `prod.efficiency[tier]` | Output multiplier by tier *(round 4 replaces it with `prod.cost`)* | high 1.0, medium 0.6, low 0.3 |
+| `prod.cost[tier]`, `prod.cost_contraband` | Round 4: the cost of making a unit, × the good's base price, by tier; contraband's (PRD-7, SYS-2) *(proposed, not built)* | high 0.3, medium 0.5, low 0.8; 0.1 |
+| `prod.labour_per_capita` | Output per thousand at share 1, efficiency 1, P 1 *(Phase A round 1; was 3.5. Round 4: 5, with every tier making the same)* | 8 |
 | `prod.labour_shift` | Share of labour moved per week | 0.05 |
 | `event.drought_p`, `event.drought_days` | Drought chance per producer per day, length | 0.0005, 30 |
 | `event.bumper_p`, `event.bumper_days`, `event.bumper_mult` | Bumper harvest | 0.0005, 15, 1.3 |

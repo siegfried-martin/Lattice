@@ -80,6 +80,36 @@ P          = F(H) × max(0, 1 − pop.contraband_penalty × C)
 
 *Implements:* PRD-7, PRD-9. *Cadence:* output daily, labour weekly.
 
+*(proposed, round 4; not built yet: the block after it is what's built)*
+
+```
+cost_g     = good.base_price[g] × prod.cost[tier_g + event_shift_g]     per unit made
+             contraband: good.base_price × prod.cost_contraband
+made_g     = N × prod.labour_per_capita × share_g × good.yield[g] × P
+             if bid_g ≥ cost_g at the planet's own market, else 0 (the slot idles)
+stock_g   += made_g
+treasury  −= made_g × cost_g                  a sink (ECO-5), paid daily, debt allowed
+
+weekly:    margin_g = (bid_g − cost_g) × good.yield[g]
+           move prod.labour_shift of total labour from the lowest-margin good to the
+           highest-margin good (shares stay ≥ 0 and sum to 1)
+```
+
+- **Efficiency is cost:** `prod.efficiency_*` go; every tier makes the same per worker.
+  An event's tier shift moves the cost a tier (a drought up, a bumper harvest down);
+  above high the cost is high's ÷ `event.bumper_mult`, below low it's 1 × base.
+- **Capacity:** at equal output per tier, the same labour makes about 1.6 times what it
+  did (the tiers averaged 0.63), so `prod.labour_per_capita` restarts at 5 (8 × 0.63).
+- **The floor:** a glut drives the bid down until the dear producers idle, so prices
+  should settle at the cost of the cheapest producers in reach, 0.3 to 0.8 × base,
+  rather than at `price.min`. `price.min` stays as a guard.
+- **Money:** goods made sink money, so `econ.op_per_capita` will want to come down;
+  `good.yield` (a stand-in for a labour cost) may move back toward 1/3; the poverty
+  floor (`happy.p_down`, SYS-1) is rechecked against life support's new prices.
+- **Pay:** the cost leaves the world (materials and equipment used up). Paying it to the
+  population as wages was considered and not taken: wages would be spent, which is new
+  money again (ECO-1), and wouldn't sink anything.
+
 ```
 eff_g      = prod.efficiency[tier_g + event_shift_g]       tiers: high, medium, low
 output_g   = N × prod.labour_per_capita × share_g × eff_g × good.yield[g] × P    added to stock_g

@@ -322,6 +322,22 @@ and tuning until the checks pass (`checks.md`).
     1.6, inflation in some worlds), smuggling runs (CHK-24, 0.4).
   - Budgets read gross income (market receipts), not net of imports, so a big
     importer's budget overstates what it can afford (OPN-39).
+- **Round 4 plan** (agreed with the human 2026-10-18; spec written, not built), on
+  branch `feat/sim-round-4`, in this order:
+  1. **The cost of making goods** (PRD-7, ECO-5, SYS-2): `prod.cost_high`, `_medium`,
+     `_low` and `prod.cost_contraband` replace `prod.efficiency_*`; every tier makes the
+     same per worker. A slot idles on a day its bid doesn't cover its cost; the treasury
+     pays the cost daily, debt allowed, as a sink (a ledger line and a `world.*` series).
+     `market::efficiency` and its callers follow.
+  2. **Labour by margin** (PRD-9, SYS-2): the weekly score is (bid − cost) × yield.
+  3. **Events act on cost** (SYS-4): a drought moves a slot's cost a tier up, a bumper
+     harvest down; above high is high ÷ `event.bumper_mult`, below low 1 × base.
+  4. **Retune to start:** `prod.labour_per_capita` 5. Then watch money (CHK-7), and
+     expect `econ.op_per_capita` to come down and `good.yield` to move back toward 1/3.
+     Recheck the poverty floor (`happy.p_down`) against life support's prices.
+  5. **Checks** (`checks.py`): CHK-14c, the share of planet-good samples at `price.min`,
+     at most 10%.
+  6. **Run round 4** (v1, 8 seeds, 5 years), compare with round 3, tune, report.
 
 ### MS-9 Phase B `v1`
 
