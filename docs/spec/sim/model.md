@@ -40,15 +40,15 @@ after loading.
 | population, happiness | PRD-2, PRD-4; *(round 3)* happiness is signed, 0 neutral (SYS-1) |
 | prosperity | derived index, stored for capture effects (FAC-10, SYS-13) |
 | stock per good | the market |
-| goods made | three goods, each with base efficiency tier (high, medium, low) |
+| goods made | three goods, each with base efficiency tier (high, medium, low); *(round 4)* the tier sets the cost of making it (SYS-2) |
 | efficiency modifiers | tier shift per good made, and festivals running, from active events (PRD-11) |
 | labour share per good made | PRD-9 |
 | productivity, contraband average | SYS-1 |
 | treasury | may be negative (ECO-8) |
-| income average, income today | for the credit limit (SYS-3) |
+| income average, income today | gross, for the credit limit (SYS-3); *(round 4)* and net of goods paid for, for the budget (SYS-5) |
 | tax rate | ECO-3 |
 | tribute rate | set by its liege (FAC-6) |
-| income this month, tribute received this month, last tribute paid | for tribute (FAC-6) and patronage (SYS-5) |
+| income this month, tribute received this month, last tribute paid | for tribute (FAC-6) and patronage (SYS-5); *(round 4)* the month's income is net |
 | low since | when its governor's opinion of the liege fell below the defection threshold (FAC-11) |
 | growth factor | from governor's risk tolerance (PRD-3) |
 | patrol upkeep, policing spend | ECO-4, PIR-15 |
@@ -207,7 +207,7 @@ Ordered by time, then phase, then sequence number (TIM-2).
 ### MOD-12 World ledger `v1`
 
 Cumulative world totals kept for the checks (CHK-7): money created (population spending,
-ECO-1), money sunk (operating costs, the osmosis margin and later every other sink),
+ECO-1), money sunk (operating costs, *(round 4)* the cost of making goods, the osmosis margin and every other sink),
 goods produced and consumed per good, osmosis volume and margin. The total of all money
 held always equals the starting total plus money created minus money sunk; a test holds
 the simulation to it.

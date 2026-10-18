@@ -5,7 +5,27 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
-### 2026-10-18 · Phase A round 4, design changes (not built yet)
+### 2026-10-18 · Phase A round 4, built and run
+
+The design below, built (MS-8, round 4), and what the runs needed. Proposed until the
+human signs off.
+
+- **Budgets and tribute read net income** (receipts less goods bought and the cost of
+  making them); war, capture value, credit and rebellion keep gross (SYS-5, SYS-11;
+  answers OPN-39). On gross, 55% to 80% of planets fell into debt. Net for everything
+  was tried and not taken: the war vote divides by a planet's own income, which can be
+  near zero net, and wars tripled.
+- **Rebellion counts debt in months of gross income** (`pirate.flip_debt` 1; was 3
+  months of operating costs) (SYS-16).
+- **Growth is full at half a reserve's surplus** (`pop.full_excess` 0.5): prices resting
+  on cost leave stocks only 15% to 40% over reserve (SYS-1).
+- **Osmosis carries most life support** (`osmosis.rate` 0.2, was 0.01): with no glut,
+  merchants carried 87% of it and war cut them off (SYS-6).
+- `econ.op_per_capita` 250 (was 300); `prod.labour_per_capita` 5.
+- **Found:** merchant profit per trip fell to a tenth; idle characters (23%) and pirates
+  (15% of characters) are over their bands. Next to design (MS-8).
+
+### 2026-10-18 · Phase A round 4, design changes
 
 Agreed with the human in conversation, written into the spec as `proposed`.
 

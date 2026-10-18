@@ -322,22 +322,66 @@ and tuning until the checks pass (`checks.md`).
     1.6, inflation in some worlds), smuggling runs (CHK-24, 0.4).
   - Budgets read gross income (market receipts), not net of imports, so a big
     importer's budget overstates what it can afford (OPN-39).
-- **Round 4 plan** (agreed with the human 2026-10-18; spec written, not built), on
-  branch `feat/sim-round-4`, in this order:
-  1. **The cost of making goods** (PRD-7, ECO-5, SYS-2): `prod.cost_high`, `_medium`,
-     `_low` and `prod.cost_contraband` replace `prod.efficiency_*`; every tier makes the
-     same per worker. A slot idles on a day its bid doesn't cover its cost; the treasury
-     pays the cost daily, debt allowed, as a sink (a ledger line and a `world.*` series).
-     `market::efficiency` and its callers follow.
-  2. **Labour by margin** (PRD-9, SYS-2): the weekly score is (bid − cost) × yield.
-  3. **Events act on cost** (SYS-4): a drought moves a slot's cost a tier up, a bumper
-     harvest down; above high is high ÷ `event.bumper_mult`, below low 1 × base.
-  4. **Retune to start:** `prod.labour_per_capita` 5. Then watch money (CHK-7), and
-     expect `econ.op_per_capita` to come down and `good.yield` to move back toward 1/3.
-     Recheck the poverty floor (`happy.p_down`) against life support's prices.
-  5. **Checks** (`checks.py`): CHK-14c, the share of planet-good samples at `price.min`,
-     at most 10%.
-  6. **Run round 4** (v1, 8 seeds, 5 years), compare with round 3, tune, report.
+- **Round 4** (agreed with the human 2026-10-18; built on branch `feat/sim-round-4`):
+  the cost of making goods (PRD-7, ECO-5, SYS-2) replaces efficiency as output; slots
+  idle when their bid doesn't cover their cost; labour moves by margin (PRD-9); events
+  move a slot's cost a tier (SYS-4); CHK-14c. What the runs found, and what changed
+  (DECISIONS):
+  - With only that and `prod.labour_per_capita` 5, the world fell apart in two years:
+    population to 0.54, flips 21% of planets a year. Three causes, fixed in turn:
+  - **Debt.** About 40% of gross receipts now go on making goods, but budgets were
+    sized on gross and tribute paid on it: 55% to 80% of planets ended in the red, and
+    debt drove rebellion. The budget and tribute now read net income (OPN-39, SYS-5);
+    war, capture value, credit and rebellion keep gross, because on net the war vote's
+    targets term blew up (factions declared 8 to 9 wars a year). Rebellion counts debt
+    in months of income (`pirate.flip_debt` 1). `econ.op_per_capita` 250.
+  - **Growth.** Stocks rest where the bid meets the cost, 15% to 40% over reserve, so
+    almost nothing grew against a whole reserve and nothing replaced war's losses.
+    `pop.full_excess` 0.5.
+  - **Distribution.** Merchants carried 87% of life support (round 3: 18%, with osmosis
+    carrying the glut). In war their trips fell 60% and importers went short.
+    `osmosis.rate` 0.2 (0.05 and 0.1 left populations falling over five years).
+
+  | Measure | Round 3 | Round 4 |
+  |---|---|---|
+  | Each faction's time at war | 64% | 46% |
+  | War declarations per faction a year | 3.7 | 3.0 |
+  | Median war | 66 days | 49 days |
+  | Planets changing hands a year | 42% | 33% |
+  | Most-traded planet's captures a year | 2.3 | 2.9 |
+  | Conquests held by their army | about 30% | about 40% |
+  | Blockades per faction a year | 1.9 | 4.7 |
+  | Pirate flips a year | 6.8% | 5.5% |
+  | Secessions a year | 2.0% | 0.6% |
+  | Pirate-planet time on the fringe | 68% | 96% |
+  | Money growth a year, second half | 1.05 | 1.26 |
+  | Price index, end over start | 1.6 | 1.23 |
+  | Population, end over start | 126% | 94% |
+  | Life-support prices, median over base | 0.24 (near the floor) | 0.55 to 0.65 |
+  | Luxury prices, median over base | 0.8 to 1.4 | 1.0 to 1.2 |
+  | Prices at `price.min` (CHK-14c) | 11% | under 0.01% |
+  | Price dispersion (CHK-14) | 1.16 | 0.95 |
+  | Merchant profit per trip | 1,510 | 116 |
+  | Characters idle | 5% | 23% |
+  | Pirates, share of characters | 1.6% | 15% |
+
+  22 of 32 checks pass on every seed (round 3: 16). Newly passing on every seed: CHK-4,
+  CHK-7b, CHK-8b, CHK-12, CHK-12b, CHK-14c, CHK-20b. Newly failing: CHK-17b and CHK-23.
+- **Still failing after round 4:**
+  - **Merchants are squeezed.** With prices resting on costs and osmosis carrying the
+    bulk, a trip earns a tenth of what it did; a quarter of characters sit idle
+    (CHK-17b) and the broke turn pirate, 15% of characters (CHK-23, band to 10%).
+    Lower osmosis didn't fix it (11% to 16% pirates at 0.05 to 0.2) and let
+    populations fall. This is the next thing to design: what merchants are for, once
+    a glut no longer hands them margins.
+  - **Money** grows 1.26 a year in the second half (CHK-7, 25% of seeds pass): debts
+    written off when planets flip count as money created (ECO-13), and a few worlds
+    create far more than they sink in their last years.
+  - **The fringe** still shrinks against the network (CHK-11, 0.29): in some worlds
+    its life support costs 2 to 5 × base and it loses most of its people.
+  - Price dispersion (CHK-14, 0.95, band to 0.6), war share (CHK-8, 0.46 against 0.5
+    to 0.8), flips (CHK-9, 5.5% against 5%), the most-traded planet (CHK-6c, 2.9),
+    smuggling runs (CHK-24, 75% of seeds).
 
 ### MS-9 Phase B `v1`
 

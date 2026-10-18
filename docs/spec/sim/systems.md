@@ -24,7 +24,8 @@ shortfall  = max over life support of (1 − buy_g / need_g)
 
 if shortfall > 0:   N −= N × pop.shrink_rate × shortfall
 else:               excess_g = (stock_g − reserve_g) / reserve_g    after buying
-                    N += N × growth_factor × G(H) × pop.growth_rate × max(0, min_g excess_g)
+                    N += N × growth_factor × G(H) × pop.growth_rate
+                         × clamp(min_g excess_g / pop.full_excess, 0, 1)
 
 lux_need   = happy.need × N                           per luxury
 fill_l     = stock_l / reserve_l
@@ -68,6 +69,11 @@ P          = F(H) × max(0, 1 − pop.contraband_penalty × C)
     way when the budget left can't cover them.
   - Growth uses the excess clamped to 1, so `pop.growth_rate` is the most a day can add
     ("daily growth at full excess").
+  - *(proposed, round 4)* **Full growth at half a reserve's surplus** (`pop.full_excess`
+    0.5; it was a whole reserve). Once making goods costs money (SYS-2), a stock settles
+    where its bid meets the cheapest producer's cost: life support rests at 0.6 to 0.8 ×
+    base, 15% to 40% over reserve. Measured against a whole reserve, almost no planet
+    grew, so nothing replaced what war took.
   - *Round 3, found in the runs:* the network's median settles at +0.5 to +0.7
     (F ≈ 1.23) and the fringe's anywhere from −0.7 to +0.4 depending on the world;
     about 5% of planet-samples sit near either end (round 2: 67%).
@@ -80,7 +86,7 @@ P          = F(H) × max(0, 1 − pop.contraband_penalty × C)
 
 *Implements:* PRD-7, PRD-9. *Cadence:* output daily, labour weekly.
 
-*(proposed, round 4; not built yet: the block after it is what's built)*
+*(proposed, round 4: built)*
 
 ```
 cost_g     = good.base_price[g] × prod.cost[tier_g + event_shift_g]     per unit made
@@ -98,25 +104,35 @@ weekly:    margin_g = (bid_g − cost_g) × good.yield[g]
 - **Efficiency is cost:** `prod.efficiency_*` go; every tier makes the same per worker.
   An event's tier shift moves the cost a tier (a drought up, a bumper harvest down);
   above high the cost is high's ÷ `event.bumper_mult`, below low it's 1 × base.
-- **Capacity:** at equal output per tier, the same labour makes about 1.6 times what it
-  did (the tiers averaged 0.63), so `prod.labour_per_capita` restarts at 5 (8 × 0.63).
+- **Capacity:** `prod.labour_per_capita` 5 (it was 8). Labour gathered on high-tier
+  slots before, so effective output per worker was nearer 8 than the 5 the tiers'
+  average suggested; but with idle slots, capacity isn't what binds (8 changed little in
+  the runs), and 5 keeps it from glutting.
 - **The floor:** a glut drives the bid down until the dear producers idle, so prices
-  should settle at the cost of the cheapest producers in reach, 0.3 to 0.8 × base,
-  rather than at `price.min`. `price.min` stays as a guard.
-- **Money:** goods made sink money, so `econ.op_per_capita` will want to come down;
-  `good.yield` (a stand-in for a labour cost) may move back toward 1/3; the poverty
-  floor (`happy.p_down`, SYS-1) is rechecked against life support's new prices.
+  settle at the cost of the cheapest producers in reach rather than at `price.min`,
+  which stays as a guard. *Found in round 4:* life support's median rests at 0.55 to
+  0.65 × base, luxuries at 1.0 to 1.2; 0.004% of planet-good samples are at
+  `price.min` (round 3: 11%).
+- **Money:** making goods sinks about 40% of the money the population creates. With
+  `econ.op_per_capita` at 300 too, 55% of planets ended in debt; it's 250 now. The
+  budget reads net income (SYS-5). `good.yield` and `happy.p_down` stay as they were:
+  the poverty floor still buys life support, which now costs less than base.
+- **Growth and distribution** needed changes elsewhere: growth is full at half a
+  reserve's surplus (SYS-1), and osmosis carries most life support (SYS-6).
 - **Pay:** the cost leaves the world (materials and equipment used up). Paying it to the
   population as wages was considered and not taken: wages would be spent, which is new
   money again (ECO-1), and wouldn't sink anything.
+- *As built:* the cost is a ledger line (`world.production_cost`, part of
+  `world.money_sunk`). A pirate planet's stims slot costs `prod.cost_contraband`
+  whatever its tier.
+
+*Before round 4:*
 
 ```
-eff_g      = prod.efficiency[tier_g + event_shift_g]       tiers: high, medium, low
+eff_g      = prod.efficiency[tier_g + event_shift_g]       high 1.0, medium 0.6, low 0.3
 output_g   = N × prod.labour_per_capita × share_g × eff_g × good.yield[g] × P    added to stock_g
 
 weekly:    score_g = bid_price_g × eff_g × good.yield[g]   at the planet's own market
-           move prod.labour_shift of total labour from the lowest-scoring good
-           to the highest-scoring good (shares stay ≥ 0 and sum to 1)
 ```
 
 Local price is the right signal: if merchants buy a good away, its stock falls and its
@@ -176,6 +192,10 @@ under a drought (its own or its region's) gets no second drought, a good under a
 harvest no second one, and a planet in a festival no second festival. Each event is a
 record (MOD-10) that schedules its own end, which undoes its effect.
 
+*(proposed, round 4: built)* A tier is a cost of making the good (SYS-2): a drought moves
+the food slot's cost a tier up, a bumper harvest a tier down. One up from high costs
+`prod.cost_high` ÷ `event.bumper_mult`; one down from low costs the whole base price.
+
 ### SYS-5 Treasury and the governor's budget `v1`
 
 *Implements:* ECO-3, ECO-4, ECO-8, MIL-5, PIR-15. *Cadence:* income daily, payments
@@ -186,8 +206,24 @@ income     = sales to population + sales and purchases taxed + tribute received
 costs      = econ.op_base + econ.op_per_capita × N + patrol_upkeep + policing
              + stipends + tribute paid + dues (+ merchant salaries, roots only)
              + patronage given + mission pay + automated courier runs
+             + goods bought from traders + the cost of making goods (SYS-2, round 4)
 treasury  += income − costs     (may go negative, ECO-8)
+
+net income = income − goods bought from traders − the cost of making goods   (round 4)
 ```
+
+*(proposed, round 4: built; answers OPN-39)* **Two incomes.** Gross income (receipts) is
+what a planet is worth to others: it sizes the war vote's targets, capture value, the
+credit limit and the debt that drives rebellion (SYS-12, SYS-13, SYS-16). Net income is
+what a governor can afford: the budget sizes its units and values from it, and tribute
+is paid on it (SYS-11). Both are running averages over `time.payment_days`.
+- *Why:* once making goods cost money (SYS-2), about 40% of gross receipts went straight
+  back out. A budget sized on gross bought security it couldn't pay for: 55% to 80% of
+  planets ended in the red, debt drove rebellion, and flips ran at 15% to 20% of planets
+  a year.
+- *Why not net for everything:* a planet's net income can be near zero, and the war
+  vote divides by its own income. On net, the vote's targets term averaged 390 against
+  0.3 on gross, and factions declared 8 to 9 wars a year.
 
 *In MS-2:* income is sales to the population and to osmosis, plus the tax on osmosis
 trades; costs are operating costs, paid monthly, staggered by planet. The rest arrive
@@ -267,6 +303,14 @@ flow       = osmosis.rate × gap × min(reserve_i, reserve_j) × exp(−travel_d
 The flow executes as a buy at the source and a sell at the destination at market
 prices with tax; the trader's margin is removed (a sink, ECO-5). Lattice travel time
 uses the Lattice graph, so connected markets exchange faster.
+
+*(proposed, round 4)* **`osmosis.rate` 0.2** (was 0.01). With round 3's glut, osmosis
+moved about 0.8 of the world's life-support need a year and merchants 0.18. Once stocks
+rest near reserve (SYS-2) the gaps are small: osmosis fell to 0.2 of the need, and
+merchants had to carry 0.87 of it. In a war world merchant trips fell by 60%, importers
+went short, the scarcest life-support price on network planets sat at about 2 × base,
+and populations shrank by about 15% a year. Osmosis stands for the trade too small to be
+characters, so it carries the bulk again.
 
 *As built:*
 - Travel days are the reference times of TIM-4, the slower direction of the pair.
@@ -466,7 +510,9 @@ tribute_paid = tribute_rate × (own income + tribute received if fealty.cascade)
 *As built (MS-4):*
 - **Tribute:**
   - It's paid at the vassal's monthly payment, on its own income since the last payment
-    (sales and tax) plus, with the cascade, the tribute it received.
+    (sales and tax) plus, with the cascade, the tribute it received. *(proposed, round
+    4)* Own income is net: less goods bought from traders and the cost of making goods
+    (SYS-5).
   - Received tribute counts as the liege's income for its credit limit.
   - Starting rates are `fealty.tribute_rate`; a planet that swears fealty later starts
     there too.
@@ -761,8 +807,11 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 *Implements:* PIR-1 to PIR-13, ECO-13. *Cadence:* events and daily.
 
 - *(proposed, round 3: built)* **A planet fails with a weekly chance,**
-  `p = rebel.scale × (u(H)^rebel.power for H < 0 + rebel.w_debt × clamp(debt ÷ (pirate.flip_debt × monthly costs), 0, 1))`,
-  drawn from the events stream, warm-up included. Hunger acts through H. *Before round
+  `p = rebel.scale × (u(H)^rebel.power for H < 0 + rebel.w_debt × clamp(debt ÷ (pirate.flip_debt × monthly income), 0, 1))`,
+  drawn from the events stream, warm-up included. Hunger acts through H. *(proposed,
+  round 4)* Debt counts in months of gross income (`pirate.flip_debt` 1), not of
+  operating costs (it was 3): with making goods costing money, operating costs no longer
+  measure what a planet turns over. *Before round
   3:* a planet failed after `pirate.flip_days` in deficit with a debt past
   `pirate.flip_debt` months, or after `rebel.days` unhappy and starving.
 - **A failing planet with no vassals turns pirate.** It leaves its faction, its labour

@@ -28,7 +28,7 @@ Per-good keys are written `good.<name>.<key>` in config, for example
 spice, silk, tea, perfume and glassware (regional luxuries) and crystal and amber
 (fringe luxuries), all placeholder names (OPN-35); and stims (contraband). Luxuries
 have no `consumption` key (they use `happy.need`). Keys with a tier in brackets are
-written as separate keys (`prod.efficiency_high`).
+written as separate keys (`prod.cost_high`).
 
 *Round 3 (SYS-1, SYS-3, PRD-4, PRD-5), proposed and built:* the `happy.*` keys replace
 `pop.happiness_drain`, `pop.starve_happiness`, `pop.p_base`, `pop.p_happy`,
@@ -51,6 +51,7 @@ are gone.
 | `econ.credit_limit` | Months of income a planet may owe before it stops buying | 2 |
 | `pop.growth_rate` | Daily growth at full excess | 0.0005 |
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |
+| `pop.full_excess` | The scarcest life-support good's stock over reserve, as a share of the reserve, at which growth is full (SYS-1) *(proposed, round 4; was 1)* | 0.5 |
 | `pop.growth_factor_min`, `_max` | Governor growth factor range (PRD-3) | 0.5, 1.5 |
 | `pop.contraband_penalty` | Productivity lost per unit of recent contraband per thousand | 4 |
 | `pop.contraband_window` | Days in the contraband average | 30 |
@@ -66,9 +67,8 @@ are gone.
 | `happy.p_up`, `happy.p_down` | Productivity's ceiling and floor: 1 + up, 1 − down | 0.3, 0.2 |
 | `happy.g_up`, `happy.g_down` | Growth's boost when happy, and its cut when unhappy (1 stops it) | 0, 1 |
 | `happy.want` | An unhappy planet's luxury reserves grow by up to this share | 1 |
-| `prod.efficiency[tier]` | Output multiplier by tier *(round 4 replaces it with `prod.cost`)* | high 1.0, medium 0.6, low 0.3 |
-| `prod.cost[tier]`, `prod.cost_contraband` | Round 4: the cost of making a unit, × the good's base price, by tier; contraband's (PRD-7, SYS-2) *(proposed, not built)* | high 0.3, medium 0.5, low 0.8; 0.1 |
-| `prod.labour_per_capita` | Output per thousand at share 1, efficiency 1, P 1 *(Phase A round 1; was 3.5. Round 4: 5, with every tier making the same)* | 8 |
+| `prod.cost[tier]`, `prod.cost_contraband` | The cost of making a unit, × the good's base price, by tier; contraband's (PRD-7, SYS-2) *(proposed, round 4; replaced `prod.efficiency`, high 1.0, medium 0.6, low 0.3)* | high 0.3, medium 0.5, low 0.8; 0.1 |
+| `prod.labour_per_capita` | Output per thousand at share 1, P 1, every tier alike *(Phase A round 1: 8, was 3.5; round 4: 5)* | 5 |
 | `prod.labour_shift` | Share of labour moved per week | 0.05 |
 | `event.drought_p`, `event.drought_days` | Drought chance per producer per day, length | 0.0005, 30 |
 | `event.bumper_p`, `event.bumper_days`, `event.bumper_mult` | Bumper harvest | 0.0005, 15, 1.3 |
@@ -79,7 +79,7 @@ are gone.
 
 | Key | Meaning | Start |
 |---|---|---|
-| `econ.op_base`, `econ.op_per_capita` | Planet operating cost per month | 2,000, 300 |
+| `econ.op_base`, `econ.op_per_capita` | Planet operating cost per month *(round 4: per capita was 300; making goods now sinks money too)* | 2,000, 250 |
 | `dues.access`, `dues.gate` | Authority dues per month (ECO-10) | 500, 1,500 |
 | `authority.maintenance` | Share of dues spent on the network (a sink) | 0.6 |
 | `authority.clear_days` | Length of a clearing contract | 30 |
@@ -109,7 +109,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | Key | Meaning | Start |
 |---|---|---|
 | `osmosis.range_days` | Markets this close exchange | 3 |
-| `osmosis.rate` | Daily share of the fill gap moved | 0.01 |
+| `osmosis.rate` | Daily share of the fill gap moved *(proposed, round 4; was 0.01, SYS-6)* | 0.2 |
 | `osmosis.falloff` | Travel-time falloff | 2 |
 | `osmosis.max_close` | Most of a gap osmosis may close | 0.5 |
 | `merchant.candidates` | Known planets considered per trip | 12 |
@@ -205,7 +205,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `raid.enabled`, `raid.share`, `raid.days`, `raid.standoff` | Raiding at war: on (EXP-1 switches it off), the weekly chance a spare commander is sent, days held, distance short of the enemy planet in sector widths *(proposed, MS-5)* | true, 0.3, 10, 0.15 |
 | `escort.rate` | What an escort asks per combat power per day of the trip *(proposed, MS-5)* | 20 |
 | `security.risk_post`, `security.days`, `security.pay` | A planet whose sector's believed risk passes this posts a patrol of this many days, at this pay a day *(proposed, MS-5)* | 0.5, 10, 200 |
-| `pirate.flip_debt` | Debt, in months of operating costs, at which debt's share of the rebellion chance is full (ECO-13) | 3 |
+| `pirate.flip_debt` | Debt, in months of gross income, at which debt's share of the rebellion chance is full (ECO-13) *(proposed, round 4; was 3 months of operating costs)* | 1 |
 | `rebel.scale`, `rebel.power`, `rebel.w_debt` | Weekly failure chance = scale × (u(H)^power below neutral + w_debt × debt share), replacing `pirate.flip_days`, `rebel.happiness`, `rebel.shortfall` and `rebel.days` (SYS-16) *(proposed, round 3: a scale of 0.01 flipped 9% of planets a year)* | 0.007, 2, 1 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
 | `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of with chance equal to its risk tolerance | false |
