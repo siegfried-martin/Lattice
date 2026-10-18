@@ -5,11 +5,13 @@
 // The pirate faction and pirate planets (PIR-1 to PIR-9, ECO-13, ECO-14, SYS-16).
 namespace lattice::pirates {
 
-// Weekly, per lawful planet (ECO-13): a planet fails when it has been in deficit for
-// pirate.flip_days with a debt beyond pirate.flip_debt months of costs, or unhappy and
-// starving for rebel.days. Then it rebels: with no vassals it turns pirate; with vassals
-// it secedes with them and its old faction declares war on it.
+// Weekly, per lawful planet (ECO-13, SYS-16): a planet fails with a chance that grows as
+// its happiness falls below neutral and its debt deepens. Then it rebels: with no
+// vassals it turns pirate; with vassals it secedes with them and its old faction
+// declares war on it.
 void check_rebellion(World& world, Id planet, Observer* observer);
+// That weekly chance.
+double rebellion_chance(const World& world, Id planet);
 // The second kind of rebellion: the planet becomes a root with its branch, at war with
 // its old root.
 void secede(World& world, Id planet, Observer* observer);

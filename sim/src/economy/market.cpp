@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "lattice/happiness.hpp"
+
 namespace lattice::market {
 
 double reserve(const Config& c, const Planet& p, Good g) {
@@ -11,7 +13,8 @@ double reserve(const Config& c, const Planet& p, Good g) {
         case GoodKind::LifeSupport:
             return gp.reserve_days * p.population * gp.consumption;
         case GoodKind::Luxury:
-            return gp.reserve_days * p.population * c.lux.consumption / static_cast<double>(kLuxuries.size());
+            // An unhappy planet stocks more, so it bids more at the same stock (PRD-10, SYS-3).
+            return gp.reserve_days * p.population * c.happy.need * (1 + c.happy.want * happiness::misery(c, p.happiness));
         case GoodKind::Contraband:
             return p.pirate ? gp.reserve_days * p.population * gp.consumption : 0;
     }

@@ -39,11 +39,12 @@ void fields(Ar& ar, S& s) {
 struct Region {
     Id seed_sector = kNone;
     std::array<double, kLawfulGoodCount> weights{};  // production weights (GEN-6)
+    std::array<bool, kLawfulGoodCount> home{};       // the regional luxuries it's home to
     double pop_scale = 1;
 };
 template <class Ar, record_of<Region> R>
 void fields(Ar& ar, R& r) {
-    ar(r.seed_sector, r.weights, r.pop_scale);
+    ar(r.seed_sector, r.weights, r.home, r.pop_scale);
 }
 
 // One to four planets in a sector, plus their moons (WLD-4, GEN-3).
@@ -172,7 +173,6 @@ struct Planet {
     double income_avg = 0;    // daily income, averaged over a payment period
     double income_today = 0;  // since the planet's last day
     std::int64_t deficit_days = 0;  // consecutive days with a negative treasury (ECO-13)
-    std::int64_t unrest_days = 0;   // consecutive days unhappy and starving (ECO-13)
 
     // Politics (FAC-1, FAC-2).
     Id governor = kNone;  // character
@@ -202,7 +202,7 @@ void fields(Ar& ar, P& p) {
     ar(p.sector, p.region, p.system, p.group, p.moon_of, p.x, p.y, p.fringe, p.makes, p.tiers, p.fuel_price);
     ar(p.population, p.happiness, p.productivity, p.growth_factor, p.contraband_avg);
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
-    ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days, p.unrest_days);
+    ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
     ar(p.security, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
@@ -580,6 +580,7 @@ struct Ledger {
     std::int64_t raids = 0, escorts = 0, sightings = 0, warnings = 0, garrisons = 0, patrols = 0;
     // Piracy (MS-6).
     std::int64_t flips = 0, recaptures = 0, turned_pirate = 0, pirate_raids = 0, authority_contracts = 0, secessions = 0;
+    std::int64_t holds = 0;  // conquests held by their army, rather than left (SYS-13)
     std::int64_t offers = 0, smuggled_runs = 0, legal_runs = 0, inspections = 0, caught = 0;
     double smuggled = 0, confiscated = 0, policing = 0, smuggler_profit = 0;
     // Spies (MS-7).
@@ -600,6 +601,7 @@ void fields(Ar& ar, L& l) {
        l.tribute_changes);
     ar(l.loot, l.escort_pay, l.raids, l.escorts, l.sightings, l.warnings, l.garrisons, l.patrols);
     ar(l.flips, l.recaptures, l.turned_pirate, l.pirate_raids, l.authority_contracts, l.secessions);
+    ar(l.holds);
     ar(l.offers, l.smuggled_runs, l.legal_runs, l.inspections, l.caught, l.smuggled, l.confiscated, l.policing, l.smuggler_profit);
     ar(l.spies_hired, l.spy_visits, l.musters_seen, l.spies_caught, l.spy_pay);
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,

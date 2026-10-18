@@ -54,24 +54,24 @@ TEST_CASE("per-good keys and lists (MS-2)") {
     Config c = parse_config(R"(
 [good.food]
 base_price = 12
-[good.stims]
-happiness = 0.1
-[lux]
-variety_bonus = [0, 0.001, 0.002, 4]
+[good.amber]
+base_price = 45
+[fleet]
+run_cost = [1, 2, 4]
 )");
     CHECK(c.goods[kFood].base_price == 12);
-    CHECK(c.goods[kStims].happiness == 0.1);
-    CHECK(c.lux.variety_bonus[3] == 4);
+    CHECK(c.goods[kAmber].base_price == 45);
+    CHECK(c.fleet.run_cost[2] == 4);
 
-    // Luxuries take their consumption from lux.consumption, so the key doesn't exist.
+    // Luxuries take their use from happy.need, so the key doesn't exist.
     CHECK_THROWS_WITH_AS(parse_config("[good.wine]\nconsumption = 1\n"), doctest::Contains("unknown key good.wine.consumption"),
                          ConfigError);
-    CHECK_THROWS_WITH_AS(parse_config("[lux]\nvariety_bonus = [0, 1]\n"), doctest::Contains("list of 4 numbers"), ConfigError);
-    CHECK_THROWS_WITH_AS(parse_config("[lux]\nvariety_bonus = [0, 1, \"x\", 2]\n"), doctest::Contains("list of numbers"),
+    CHECK_THROWS_WITH_AS(parse_config("[fleet]\nrun_cost = [0, 1]\n"), doctest::Contains("list of 3 numbers"), ConfigError);
+    CHECK_THROWS_WITH_AS(parse_config("[fleet]\nrun_cost = [0, \"x\", 2]\n"), doctest::Contains("list of numbers"),
                          ConfigError);
 
     Config d;
-    d.lux.variety_bonus = {0.5, 0.25, 0.125, 1};
+    d.fleet.run_cost = {0.5, 0.25, 0.125};
     d.goods[kSilk].k = 2.5;
     CHECK(parse_config(to_toml(d)) == d);
 }

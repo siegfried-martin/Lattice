@@ -7,7 +7,8 @@
 namespace lattice::market {
 
 // The reserve target: good.reserve_days of the planet's own consumption. Luxuries use
-// their share of lux.consumption at a fill of 1. Lawful markets hold no contraband
+// happy.need, raised by up to happy.want as happiness falls below neutral (SYS-3).
+// Lawful markets hold no contraband
 // (PIR-14), so its reserve there is 0; pirate markets do.
 double reserve(const Config& c, const Planet& p, Good g);
 

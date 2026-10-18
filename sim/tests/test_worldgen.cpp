@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <map>
 #include <set>
 
 #include "gen/worldgen.hpp"
@@ -25,10 +26,11 @@ Config v1_size() {
     return c;
 }
 
-int medium_or_better(const World& w, Id region, Good g) {
+// In the given regions, or across the fringe for none.
+int medium_or_better(const World& w, const std::vector<Id>& regions, Good g) {
     int n = 0;
     for (const Planet& p : w.planets) {
-        if (p.region != region) continue;
+        if (regions.empty() ? !p.fringe : std::find(regions.begin(), regions.end(), p.region) == regions.end()) continue;
         const auto& makes = p.pirate ? p.lawful_makes : p.makes;
         const auto& tiers = p.pirate ? p.lawful_tiers : p.tiers;
         for (int s = 0; s < 3; ++s) n += makes[at(s)] == g && tiers[at(s)] != kLow;
@@ -106,8 +108,9 @@ void check_world(const World& w) {
         }
     }
 
-    // GEN-6: three distinct lawful goods at high, medium and low; enough producers per
-    // region.
+    // GEN-6: three distinct lawful goods at high, medium and low; enough producers of
+    // life support per region, of each regional luxury across its home regions, and of
+    // the fringe luxuries across the fringe (PRD-8).
     for (const Planet& p : w.planets) {
         // A pirate planet makes contraband now; what it drew is kept for recapture (PIR-3).
         const auto& makes = p.pirate ? p.lawful_makes : p.makes;
@@ -118,8 +121,20 @@ void check_world(const World& w) {
         std::set<Tier> tiers(drawn.begin(), drawn.end());
         CHECK(tiers.size() == 3);
     }
+    std::map<Good, std::vector<Id>> homes;
     for (Id r = 0; r < static_cast<Id>(m.regions.size()); ++r) {
-        for (int g = 0; g < kLawfulGoodCount; ++g) CHECK(medium_or_better(w, r, static_cast<Good>(g)) >= c.gen.min_producers);
+        for (Good g : kLifeSupport) CHECK(medium_or_better(w, {r}, g) >= c.gen.min_producers);
+        for (Good g : kRegionalLuxuries) {
+            if (m.regions[at(r)].home[g]) homes[g].push_back(r);
+        }
+    }
+    for (Good g : kRegionalLuxuries) {
+        CHECK(static_cast<std::int64_t>(homes[g].size()) == std::min(c.gen.lux_home_regions, c.gen.regions));
+        CHECK(medium_or_better(w, homes[g], g) >= c.gen.min_producers);
+    }
+    const auto fringe = std::count_if(w.planets.begin(), w.planets.end(), [](const Planet& p) { return p.fringe; });
+    if (fringe >= c.gen.min_producers * static_cast<std::int64_t>(kFringeLuxuries.size())) {
+        for (Good g : kFringeLuxuries) CHECK(medium_or_better(w, {}, g) >= c.gen.min_producers);
     }
 
     // GEN-7: fuel costs at least the base, more off the network.

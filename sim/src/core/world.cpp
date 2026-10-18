@@ -217,6 +217,7 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.pirates", -1, static_cast<double>(pirates));
     o.sample(t, "world.flips", -1, static_cast<double>(w.ledger.flips));
     o.sample(t, "world.secessions", -1, static_cast<double>(w.ledger.secessions));
+    o.sample(t, "world.holds", -1, static_cast<double>(w.ledger.holds));
     o.sample(t, "world.recaptures", -1, static_cast<double>(w.ledger.recaptures));
     o.sample(t, "world.turned_pirate", -1, static_cast<double>(w.ledger.turned_pirate));
     o.sample(t, "world.pirate_raids", -1, static_cast<double>(w.ledger.pirate_raids));

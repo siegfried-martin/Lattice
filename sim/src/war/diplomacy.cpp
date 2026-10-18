@@ -116,8 +116,9 @@ double war_vote(const World& w, Id root, Id target) {
         }
         const double idle = sworn_power(w, planet.governor, true) / w.config.value.power_ref;
         // Money piled up past a reserve wants spending (DIP-4).
+        const auto& b = w.config.budget;
         const double months = planet.treasury / std::max(1.0, economy::monthly_costs(w.config, planet));
-        const double hoard = std::clamp(months / d.reserve_months - 1, 0.0, d.treasury_cap);
+        const double hoard = std::clamp(months / b.reserve_months - 1, 0.0, b.hoard_cap);
         const double vote = (d.w_idle * idle + d.w_targets * near / std::max(1.0, planet_income(w, p)) +
                              d.w_strength * (power_own / power_target - 1) + d.w_peace * peace +
                              d.w_treasury * hoard - d.w_wars * wars - d.w_losses * losses) *
