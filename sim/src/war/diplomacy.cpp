@@ -66,7 +66,8 @@ double sworn_power(const World& w, Id governor, bool serving_only) {
 std::vector<std::int64_t> branch_sizes(const World& w) {
     std::vector<std::int64_t> size(w.planets.size(), 0);
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
-        for (Id q = p; q != kNone; q = w.planets[at(q)].liege) ++size[at(q)];
+        std::size_t guard = 0;
+        for (Id q = p; q != kNone && guard++ <= w.planets.size(); q = w.planets[at(q)].liege) ++size[at(q)];
     }
     return size;
 }

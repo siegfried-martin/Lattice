@@ -30,7 +30,8 @@ void adjust_tribute(World& world, Id liege, Observer* observer);
 // fealty.defect_opinion for fealty.defect_weeks defects, to a neighbouring root that
 // thinks well of it (above fealty.rival_opinion) or to independence.
 void check_defection(World& world, Id planet, Observer* observer);
-// Swears the planet to a new liege, or none; its vassals go with it.
+// Swears the planet to a new liege, or none; its vassals go with it. Swearing into its own
+// branch would make a cycle, and does nothing.
 void swear(World& world, Id planet, Id liege);
 
 }  // namespace lattice::fealty

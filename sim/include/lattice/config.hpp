@@ -101,7 +101,7 @@ struct Config {
         double efficiency_high = 1.0;
         double efficiency_medium = 0.6;
         double efficiency_low = 0.3;
-        double labour_per_capita = 3.5;
+        double labour_per_capita = 8;  // 3.5 until Phase A round 1: the world couldn't feed itself
         double labour_shift = 0.05;
 
         friend bool operator==(const Prod&, const Prod&) = default;
@@ -318,8 +318,9 @@ struct Config {
     struct Dip {
         double neighbour_days = 3;  // factions this close border each other (DIP-1)
         double border_days = 5;     // a governor's war vote counts enemy planets this close
-        double w_idle = 0.2, w_targets = 0.3, w_strength = 1, w_peace = 0.5, w_wars = 1.5, w_losses = 0.5;
-        double declare_threshold = 1;
+        // Phase A round 1: 0.2, 0.3, 1 and a threshold of 1 had every faction at war all the time.
+        double w_idle = 0.1, w_targets = 0.05, w_strength = 0.1, w_peace = 0.5, w_wars = 1.5, w_losses = 0.5;
+        double declare_threshold = 1.5;
         double s_planets = 3, s_power = 2, s_treasury = 1, s_wars = 1;
         double sue_threshold = 1;
         double tribute_rate = 0.1;  // ceasefire tribute per month, x severity x the loser's income

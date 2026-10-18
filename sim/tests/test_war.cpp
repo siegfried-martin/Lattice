@@ -305,6 +305,13 @@ TEST_CASE("a world at war is still deterministic and saveable") {
     advance(b, 40 * kDay);
     CHECK(state_hash(a) == state_hash(b));
     CHECK(a.ledger.wars > 0);
+    // Through all of it, every planet still reaches a root (FAC-2).
+    for (Id p = 0; p < static_cast<Id>(a.planets.size()); ++p) {
+        Id q = p;
+        std::size_t steps = 0;
+        while (a.planets[at(q)].liege != kNone && steps++ <= a.planets.size()) q = a.planets[at(q)].liege;
+        CHECK(steps <= a.planets.size());
+    }
 }
 
 // ---- MS-5 part 2: risk, raids, escorts, scouting, warnings, patrols, news ----

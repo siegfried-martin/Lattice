@@ -151,6 +151,11 @@ void adjust_tribute(World& w, Id id, Observer* observer) {
 }
 
 void swear(World& w, Id id, Id liege) {
+    // Never into its own branch: that would make a cycle with no root.
+    std::size_t guard = 0;
+    for (Id q = liege; q != kNone && guard++ <= w.planets.size(); q = w.planets[at(q)].liege) {
+        if (q == id) return;
+    }
     Planet& p = w.planets[at(id)];
     p.liege = liege;
     p.low_since = kNever;
