@@ -5,6 +5,23 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-6 part 2, smuggling and suspicion
+
+- **Pirate runs:**
+  - posted weekly at havens from need and surplus;
+  - offered on contact to bold independents, which sets the relation to neutral;
+  - taken when free;
+  - no contract, so the runner isn't a full pirate (SYS-16, PIR-10, PIR-13).
+- **Smuggling** sells to the most populous known lawful market at a daily wish capped
+  by `pirate.demand_cap`, as untaxed population spending (PRD-6, PIR-6).
+- **Legal-goods runs** sell into the haven's market with a per-unit bonus (PIR-3).
+- **Suspicion:**
+  - held per root;
+  - raised by contraband aboard and a high pirate relation, lowered by genuine trade;
+  - inspections on landing at lawful planets, with intensity from policing and war;
+  - caught means confiscation, a new `caught` deed, and suspicion (INF-14, SYS-17).
+- **Policing** is a budget option valued by the productivity contraband costs (PIR-15).
+
 ### 2026-10-18 · MS-6 part 1, pirates
 
 - **The pirate faction:**

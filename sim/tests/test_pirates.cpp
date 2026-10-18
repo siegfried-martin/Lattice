@@ -12,6 +12,10 @@
 #include "info/facts.hpp"
 #include "lattice/market.hpp"
 #include "pirates/pirates.hpp"
+#include "pirates/smuggling.hpp"
+#include "pirates/suspicion.hpp"
+#include "politics/budget.hpp"
+#include "politics/opinion.hpp"
 #include "politics/authority.hpp"
 #include "politics/fealty.hpp"
 #include "politics/governor.hpp"
@@ -269,4 +273,153 @@ TEST_CASE("a pirate population buys its own contraband and pays for it in produc
     const double c0 = planet.contraband_avg;
     economy::planet_day(w, p);
     CHECK(planet.contraband_avg > c0);
+}
+
+// ---- MS-6 part 2: smuggling, suspicion, policing ----
+
+TEST_CASE("suspicion fades and genuine trade lowers it (INF-14)") {
+    World w = new_world(quiet(), 101);
+    const Id id = armed(w, 0, 1, 1);
+    Character& c = w.characters[at(id)];
+    suspicion::add(w, c, 3, 40);
+    CHECK(suspicion::get(w, c, 3) == 40);
+    advance(w, 7 * kDay);
+    CHECK(suspicion::get(w, w.characters[at(id)], 3) == doctest::Approx(40 * (1 - w.config.sus.fade)));
+    suspicion::add(w, w.characters[at(id)], 3, -1000);
+    CHECK(suspicion::get(w, w.characters[at(id)], 3) == 0);  // never below zero
+}
+
+TEST_CASE("policing and war make a planet look harder (PIR-15)") {
+    World w = new_world(quiet(), 102);
+    const double base = suspicion::intensity(w, 0);
+    CHECK(base == 1);
+    w.planets[0].policing = 2 * w.config.value.security_unit;
+    CHECK(suspicion::intensity(w, 0) == doctest::Approx(1 + 2 * w.config.sus.police_per_unit));
+}
+
+TEST_CASE("an inspection finds contraband and confiscates it (INF-14, PIR-14)") {
+    Config c = quiet();
+    c.sus.inspect_base = 1;
+    c.sus.find_base = 1;
+    World w = new_world(c, 103);
+    const Id id = armed(w, 0, 1, 1);
+    Character& ch = w.characters[at(id)];
+    ch.cargo_good = kStims;
+    ch.cargo_qty = 10;
+    CHECK(suspicion::on_landing(w, id, nullptr));
+    CHECK(w.characters[at(id)].cargo_qty == 0);
+    CHECK(w.ledger.confiscated == 10);
+    CHECK(suspicion::get(w, w.characters[at(id)], fealty::root_of(w, 0)) == doctest::Approx(c.sus.caught));
+    CHECK(opinion::get(w, w.planets[0].governor, id) < 0);
+}
+
+TEST_CASE("a smuggling run carries contraband from a haven to a lawful population (SYS-16, PIR-6)") {
+    Config c = quiet();
+    c.sus.inspect_base = 0;  // nobody looks
+    World w = new_world(c, 104);
+    Id haven = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (fealty::vassals(w, p).empty() && w.planets[at(p)].liege != kNone) haven = p;
+    }
+    pirates::flip(w, haven, nullptr);
+    Planet& h = w.planets[at(haven)];
+    h.stock[kStims] = 3 * market::reserve(c, h, kStims);
+    smuggling::post(w, haven, nullptr);
+    Id run = kNone;
+    for (Id m : h.missions) {
+        if (w.missions[at(m)].kind == MissionKind::Smuggle) run = m;
+    }
+    REQUIRE(run != kNone);
+    const Id id = chars::spawn(w, haven);
+    Character& s = w.characters[at(id)];
+    s.ships = {ships::variant(w.map, s.culture, ShipClass::Freighter, 1)};
+    s.risk = 0.9;
+    s.wealth = 1e5;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) info::observe_market(w, s.facts, p);
+    const double created = w.ledger.money_created;
+    smuggling::take(w, id, run, nullptr);
+    CHECK(w.characters[at(id)].cargo_good == kStims);
+    CHECK(w.characters[at(id)].cargo_qty > 0);
+    advance(w, 60 * kDay);
+    CHECK(w.missions[at(run)].state == MissionState::Done);
+    CHECK(w.ledger.smuggled > 0);
+    CHECK(w.ledger.smuggled_runs == 1);
+    CHECK(w.ledger.money_created > created);
+    CHECK(pirates::relation(w, w.characters[at(id)]) > w.config.pirel.accept);
+}
+
+TEST_CASE("a legal-goods run feeds a hungry haven (PIR-3)") {
+    Config c = quiet();
+    c.sus.inspect_base = 0;
+    World w = new_world(c, 105);
+    Id haven = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (fealty::vassals(w, p).empty() && w.planets[at(p)].liege != kNone) haven = p;
+    }
+    pirates::flip(w, haven, nullptr);
+    Planet& h = w.planets[at(haven)];
+    h.stock[kFood] = 0.1 * market::reserve(c, h, kFood);
+    smuggling::post(w, haven, nullptr);
+    Id run = kNone;
+    for (Id m : h.missions) {
+        if (w.missions[at(m)].kind == MissionKind::LegalGoods && w.missions[at(m)].good == kFood) run = m;
+    }
+    REQUIRE(run != kNone);
+    Id start = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].stock[kFood] > 1000) start = p;
+    }
+    const Id id = chars::spawn(w, start);
+    Character& s = w.characters[at(id)];
+    s.ships = {ships::variant(w.map, s.culture, ShipClass::Freighter, 1)};
+    s.risk = 0.9;
+    s.wealth = 1e5;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) info::observe_market(w, s.facts, p);
+    smuggling::take(w, id, run, nullptr);
+    advance(w, 90 * kDay);
+    CHECK(w.missions[at(run)].state == MissionState::Done);
+    CHECK(w.ledger.legal_runs == 1);
+    CHECK(pirates::relation(w, w.characters[at(id)]) > w.config.pirel.accept);  // the haven's food was delivered (and eaten)
+}
+
+TEST_CASE("a pirate offers a bold independent a run instead of attacking it (PIR-10, PIR-13)") {
+    Config c = quiet();
+    c.space.engage_p = 1;
+    c.space.evade = 0;
+    World w = new_world(c, 106);
+    Id haven = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (fealty::vassals(w, p).empty() && w.planets[at(p)].liege != kNone && w.planets[at(p)].system != w.planets[0].system) haven = p;
+    }
+    pirates::flip(w, haven, nullptr);
+    w.planets[at(haven)].stock[kStims] = 3 * market::reserve(c, w.planets[at(haven)], kStims);
+    smuggling::post(w, haven, nullptr);
+    const Id raider = armed(w, 0, 2, 2);
+    w.characters[at(raider)].pirate = true;
+    w.characters[at(raider)].last_planet = haven;
+    const Id bold = chars::spawn(w, 0);
+    w.characters[at(bold)].risk = 0.95;
+    w.characters[at(bold)].activity = Activity::Exploring;
+    REQUIRE(move::start_route(w, raider, move::sortie(w, kPirates, 0, haven, 0.15, kDay)));
+    w.characters[at(raider)].activity = Activity::Raiding;
+    REQUIRE(move::travel_to(w, bold, haven));
+    encounters::step(w, nullptr);
+    CHECK(w.ledger.offers == 1);
+    CHECK(w.characters[at(bold)].offer != kNone);
+    CHECK(pirates::relation(w, w.characters[at(bold)]) >= c.pirel.accept);
+    CHECK(w.characters[at(bold)].battle == kNone);  // spared
+}
+
+TEST_CASE("contraband bought from smugglers costs a lawful population productivity (PRD-6, SYS-1)") {
+    World w = new_world(quiet(), 107);
+    Planet& p = w.planets[0];
+    p.contraband_today = 0.2 * p.population;
+    const double before = p.productivity;
+    economy::planet_day(w, 0);
+    CHECK(p.contraband_avg > 0);
+    CHECK(p.productivity < before + 1e-9);
+    // And its governor answers with policing (PIR-15).
+    p.contraband_avg = 0.05;
+    budget::weekly(w, 0, nullptr);
+    CHECK(p.policing > 0);
 }

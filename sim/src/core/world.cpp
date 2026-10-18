@@ -205,6 +205,19 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.turned_pirate", -1, static_cast<double>(w.ledger.turned_pirate));
     o.sample(t, "world.pirate_raids", -1, static_cast<double>(w.ledger.pirate_raids));
     o.sample(t, "world.authority_contracts", -1, static_cast<double>(w.ledger.authority_contracts));
+    // Smuggling and policing (CHK-10, CHK-24).
+    double policing = 0, contraband = 0;
+    for (const Planet& pl : w.planets) policing += pl.policing, contraband += pl.pirate ? 0 : pl.contraband_avg * pl.population;
+    o.sample(t, "world.policing_spend", -1, policing);
+    o.sample(t, "world.lawful_contraband", -1, contraband);
+    o.sample(t, "world.offers", -1, static_cast<double>(w.ledger.offers));
+    o.sample(t, "world.smuggled_runs", -1, static_cast<double>(w.ledger.smuggled_runs));
+    o.sample(t, "world.legal_runs", -1, static_cast<double>(w.ledger.legal_runs));
+    o.sample(t, "world.smuggled", -1, w.ledger.smuggled);
+    o.sample(t, "world.smuggler_profit", -1, w.ledger.smuggler_profit);
+    o.sample(t, "world.inspections", -1, static_cast<double>(w.ledger.inspections));
+    o.sample(t, "world.caught", -1, static_cast<double>(w.ledger.caught));
+    o.sample(t, "world.confiscated", -1, w.ledger.confiscated);
     o.sample(t, "world.fires", -1, static_cast<double>(w.ledger.fires));
     o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
     o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);

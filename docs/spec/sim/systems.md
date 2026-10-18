@@ -677,8 +677,27 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
     population, which stands in for believed traffic.
   - They attack anyone below neutral with them (PIR-9) and sell loot only at home
     (PIR-5).
-- **Not yet:** pirate missions, smugglers and selling contraband in lawful space come in
-  part 2.
+*As built (MS-6, part 2):*
+- **Runs:**
+  - Weekly, a pirate planet posts a legal-goods run for each life-support good under
+    `pirate.need_fill`, sized back to its reserve, and a smuggling run for its contraband
+    surplus over `pirate.surplus_fill`.
+  - On contact, a pirate offers its home's best run to an independent with risk
+    tolerance above `pirate.smuggler_risk`. That sets the pirate relation to neutral at
+    least, so it isn't attacked, and the run is taken when the character is next free
+    with an empty hold.
+- **Smuggling:**
+  - At the haven, the smuggler buys contraband from its market (PIR-6). It takes it to
+    the most populous lawful market it knows, discounted by distance.
+  - It sells to the population at `pirate.contraband_price` × base, up to its daily wish
+    `N × consumption × (1 − H)`, capped at `pirate.demand_cap` per thousand.
+  - The money is population spending (ECO-1), untaxed. What doesn't sell goes on to the
+    next market, or overboard.
+- **Legal goods:** the runner buys at the cheapest lawful source it knows, sells into the
+  haven's market, and gets `pirate.legal_bonus` a unit from the haven.
+- **The relation:** success raises it by `pirel.success`; failure or being caught drops it
+  to `pirel.fail`. No contract: a run isn't a commander's contract, so it doesn't make
+  the runner a full pirate (PIR-11).
 
 ### SYS-17 Suspicion and spies `v1`
 
@@ -693,6 +712,19 @@ weekly fade toward 0 at sus.fade
 P(inspect)     = sus.inspect_base × intensity(policing spend, at war, paranoia)
 P(caught)      = P(inspect) × f(suspicion)      contraband found or cover blown
 ```
+
+*As built (MS-6):*
+- **Inspection** happens on every landing at a lawful planet, with suspicion held per
+  root.
+- **What an inspection can find in v1** is contraband aboard. A spy's cover joins in MS-7.
+- **Raised by:** a landing with contraband aboard and not caught, and a pirate relation
+  above neutral (`sus.pirate` per point, each landing).
+- **Lowered by:** each genuine purchase at a planet of the faction.
+- **Caught:** confiscated, the `caught` deed, and suspicion + `sus.caught`.
+- **Policing** is a budget option for planets whose population buys contraband. Its
+  units are worth the share of income contraband costs in productivity ×
+  `sus.police_effect`; spend is a monthly sink.
+- **Not yet:** the Authority's inspections on the Lattice.
 
 - **Spies** *(proposed)*: a spy holds a **secret** contract with its planet, so to others
   it reads as an independent and keeps neutral standing (and Lattice access). It travels

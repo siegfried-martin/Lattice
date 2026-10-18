@@ -39,6 +39,8 @@ add_library(lattice_core STATIC
     src/chars/ships.cpp
     src/info/facts.cpp
     src/pirates/pirates.cpp
+    src/pirates/smuggling.cpp
+    src/pirates/suspicion.cpp
     src/politics/authority.cpp
     src/politics/budget.cpp
     src/politics/fealty.cpp

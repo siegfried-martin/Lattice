@@ -10,6 +10,7 @@
 #include "info/facts.hpp"
 #include "lattice/market.hpp"
 #include "politics/fealty.hpp"
+#include "pirates/suspicion.hpp"
 #include "trade/escorts.hpp"
 #include "war/diplomacy.hpp"
 #include "war/risk.hpp"
@@ -268,6 +269,7 @@ void buy_for_leg(World& w, Id id, Good g, Id next, Observer*) {
     c.cargo_qty += fill.qty;
     c.cargo_cost += fill.money;
     w.ledger.traded[g] += fill.qty;
+    suspicion::add(w, c, fealty::root_of(w, c.planet), -w.config.sus.trade);  // genuine trade (INF-14)
 }
 
 void sell_cargo(World& w, Id id) {

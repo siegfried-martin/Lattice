@@ -74,7 +74,7 @@ after loading.
 | opinions | sparse map: other character ID → opinion value, plus recent deeds for the UI (REL-2) |
 | facts | the character's information (MOD-8) |
 | pirate status | none, full pirate (PIR-11); *as built*, also the pirate planet it's heading to when turning (PIR-4) and its last fight in open space |
-| suspicion | per faction root, plus Authority (INF-14) |
+| suspicion | per faction root, plus Authority (INF-14); *as built*, a sorted list of (faction, value, last updated), fading lazily; and a pirate run offered on contact (PIR-13) |
 | goal, action | current long-term goal and short-term action (CHR-2) |
 | broke since | for running out of money (PIR-4) |
 
@@ -170,7 +170,7 @@ little. Sharing is a merge of two sorted vectors keeping the newer of each key (
 
 | Field | Notes |
 |---|---|
-| kind | courier, scout, security, smuggling, legal goods, trade delivery |
+| kind | courier, scout, security, smuggling, legal goods, trade delivery; *as built*, a pirate run also names its good and quantity |
 | level | planet or faction (INF-10) |
 | poster | governor ID (or pirate planet) |
 | at | planet where it's posted |
