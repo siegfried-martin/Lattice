@@ -248,8 +248,19 @@ accept by SYS-8. Paid at trip end (REL-9).
 - No trip at `merchant.min_score` or better sends it to the nearest market it hasn't seen
   for `merchant.stale_days` (TRD-4), if it can afford the fuel and keep its reserve;
   otherwise it waits a day.
-- Escorts wait for risk (MS-5, part 2). Until something raids, every route's risk is 0,
-  so nobody would hire.
+- **Risk** *(MS-5)*: route risk is the believed risk of the open-space sectors on the
+  reference route (both ends of each open-space leg).
+  - Each slice of a leg costs its purchase price × (1 + route risk × `merchant.loss_rate`).
+  - Cargo carried to a sale is charged the same.
+- **Escorts** *(MS-5)*:
+  - At each stop, a merchant with cargo and no escort weighs the armed characters idle at
+    that planet by the escort formula, over the rest of its trip.
+  - The price asked is `escort.rate` × combat power × trip days. The chosen escort
+    accepts, which stands in for fit and pay (CHR-10).
+  - The escort travels with the merchant and fights beside it. It's paid at the trip's
+    end (REL-9), with a skill point and a `job_done` deed, or let go unpaid if the
+    merchant loses its fleet.
+  - The broadcast along the route (TRD-10) is the planet where the merchant stands.
 
 ### SYS-8 Missions and careers `v1`
 
@@ -425,6 +436,13 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
 
 *As built (MS-5):*
 - **When:** weekly per root, and no declarations during the warm-up (GEN-10).
+- **News travels (DIP-5):**
+  - War, ceasefire and peace are facts. Both roots know at once; everyone else hears by
+    courier and sharing.
+  - These act on what they've heard: governors' budgets (defence threat, invasions, raids,
+    war scouting), faction merchants' plans, and raiders and patrols choosing whom to
+    engage.
+  - These use the truth: osmosis, gates, and the vote itself.
 - **Neighbours:** two factions border when any planet of one is within
   `dip.neighbour_days` of a planet of the other.
 - **The vote's terms** *(proposed)*:
@@ -448,8 +466,7 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   - A new root (defection, or an heir) forgets anything left from an earlier time as a
     root.
   - The heir of a captured root inherits its wars (MOD-5).
-- **Not yet:** declarations take effect at once everywhere; travelling by courier
-  (DIP-5) comes with part 2.
+
 
 ## War
 
@@ -508,6 +525,13 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   - Relief fights the besiegers beside the planet's defence. A lifted siege is a
     `border_held` deed for the planet's governor.
   - A liege answers calls in the order they arrive, not by favour yet.
+- **Warnings ahead of the siege:**
+  - A governor that learns from a sighting that an army it believes hostile means to take
+    its planet warns its liege by courier.
+  - A liege that learns its vassal is threatened decides at once. Relief goes on the same
+    test as a siege's call, and garrisons the planet until the threat passes or
+    `army.muster_days` go by.
+  - A garrison there when the siege starts fights beside the defenders.
 - **Capture:**
   - The deposed governor stays as an ordinary character; contracts it paid end.
   - The planet's vassals stay with the old faction: under its liege, or, if it was the
@@ -569,6 +593,17 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
   `scout.threat_days` or is a border planet at war; a root posts faction scouting. The
   scout flies to the target, records sightings, and its facts merge with the poster's on
   return.
+
+*As built (MS-5):*
+- **Facts beyond prices:** risk per sector, seen at each leg's end in open space and at
+  each planet; war and peace states; sightings of armies with their power and intent.
+- **Sightings:** anyone who comes within range of an army records one (INF-9: sightings
+  aren't private). A scout on a mission also puts it in the packet it carries home.
+- **Threat scouting:** a border planet at war (a believed enemy planet within
+  `dip.border_days`) posts a scout mission toward the nearest enemy planet. It's flown as a
+  sortie (no landing), holding half a day off the target.
+- **After every merge** into a governor (courier, mission return, a member landing), its
+  sightings are checked for threats (SYS-13).
 
 *As built (MS-3):*
 - **Facts:** facts are prices only, one per market: every lawful good's price and stock
@@ -654,6 +689,23 @@ risk_s = EMA over risk.window days of (raids in s + risk.presence × pirate ship
 
 The truth is exposed to the rendered game for ambient spawns (TRD-15). Characters observe
 it on visit and share it as a fact.
+
+*As built (MS-5):*
+- **Inputs:** raids are engagements started by raiders. Hostile ship-days are raiders'
+  time in open space (pirates join in MS-6). Patrol days stand in for the Authority's
+  mercenaries (MS-6) with planets' security patrols.
+- **Raids** *(proposed)*:
+  - Each week at war, every commander at home but one is sent with chance `raid.share`
+    toward the nearest believed-enemy planet within `dip.border_days`.
+  - It holds `raid.standoff` short of the planet for `raid.days`, engaging members of
+    believed-enemy factions that come in range, then goes home.
+  - Loot: the winner takes cargo up to its capacity after `combat.cargo_destroyed`; the
+    rest is lost. A raider sells its loot at home.
+- **Security missions** (MIL-5) *(proposed)*:
+  - A planet whose believed sector risk passes `security.risk_post` posts one: a patrol
+    over its own space for `security.days`, at `security.pay` a day.
+  - The patroller engages raiders of factions it believes hostile, and counts as clearing
+    while out.
 
 ### SYS-20 The Trade Authority `v1`
 

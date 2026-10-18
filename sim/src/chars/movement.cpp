@@ -7,7 +7,9 @@
 #include "chars/ships.hpp"
 #include "core/travel.hpp"
 #include "politics/fealty.hpp"
+#include "info/facts.hpp"
 #include "war/diplomacy.hpp"
+#include "war/risk.hpp"
 
 namespace lattice::move {
 
@@ -99,7 +101,44 @@ std::vector<Leg> plan(const World& w, Id faction, Id a, Id b) {
 }
 
 Time leg_time(const World& w, const Leg& l, double speed) {
-    return to_time(leg_days(w, l, speed > 0 ? speed : w.config.travel.space_speed));
+    return to_time(leg_days(w, l, speed > 0 ? speed : w.config.travel.space_speed)) + l.wait;
+}
+
+std::vector<Leg> sortie(const World& w, Id faction, Id home, Id target, double standoff, Time hold) {
+    if (home == target) {
+        // Patrolling its own space: a short loop out and back.
+        const Planet& p = w.planets[at(home)];
+        const double x = p.x + standoff, y = p.y;
+        return {{.kind = LegKind::Space, .x0 = p.x, .y0 = p.y, .x1 = x, .y1 = y},
+                {.kind = LegKind::Space, .x0 = x, .y0 = y, .x1 = x, .y1 = y, .wait = hold},
+                {.kind = LegKind::Space, .x0 = x, .y0 = y, .x1 = p.x, .y1 = p.y, .to_planet = home}};
+    }
+    std::vector<Leg> out = plan(w, faction, home, target);
+    std::vector<Leg> back = plan(w, faction, target, home);
+    if (out.empty() || back.empty()) return {};
+    // Stop short on the last leg in: on its line, standoff before the planet.
+    Leg& last = out.back();
+    const double dx = last.x0 - last.x1, dy = last.y0 - last.y1, len = std::hypot(dx, dy);
+    const double k = len > 0 ? std::min(1.0, standoff / len) : 0;
+    const double wx = last.x1 + dx * k, wy = last.y1 + dy * k;
+    if (last.kind == LegKind::Space) {
+        last.x1 = wx, last.y1 = wy;
+        last.to_planet = kNone, last.to_node = kNone;
+    } else {
+        out.push_back({.kind = LegKind::Space, .x0 = last.x1, .y0 = last.y1, .x1 = wx, .y1 = wy});
+    }
+    out.push_back({.kind = LegKind::Space, .x0 = wx, .y0 = wy, .x1 = wx, .y1 = wy, .wait = hold});
+    // Home from where it waited, joining the way back after its first step.
+    Leg first = back.front();
+    if (first.kind == LegKind::Space) {
+        first.x0 = wx, first.y0 = wy;
+        out.push_back(first);
+    } else {
+        out.push_back({.kind = LegKind::Space, .x0 = wx, .y0 = wy, .x1 = first.x0, .y1 = first.y0});
+        out.push_back(first);
+    }
+    for (std::size_t i = 1; i < back.size(); ++i) out.push_back(back[i]);
+    return out;
 }
 
 namespace {
@@ -122,17 +161,41 @@ void start_leg(World& w, Id id) {
 
 }  // namespace
 
-bool travel_to(World& w, Id id, Id dest) {
+bool start_route(World& w, Id id, std::vector<Leg> route) {
     Character& c = w.characters[at(id)];
-    if (c.planet == kNone || c.planet == dest) return false;
-    std::vector<Leg> route = plan(w, chars::faction_of(w, c), c.planet, dest);
-    if (route.empty()) return false;
+    if (c.planet == kNone || route.empty()) return false;
     c.route = std::move(route);
     c.leg = 0;
     ++c.travel_seq;
     c.planet = kNone;
+    if (c.escort != kNone) w.characters[at(c.escort)].planet = kNone;  // carried along (TRD-8)
     start_leg(w, id);
     return true;
+}
+
+bool travel_to(World& w, Id id, Id dest) {
+    const Character& c = w.characters[at(id)];
+    if (c.planet == kNone || c.planet == dest) return false;
+    return start_route(w, id, plan(w, chars::faction_of(w, c), c.planet, dest));
+}
+
+void pause(World& w, Id id) {
+    Character& c = w.characters[at(id)];
+    if (c.planet != kNone || c.route.empty() || c.paused_at != kNever) return;
+    c.paused_at = w.now;
+    ++c.travel_seq;  // the leg's arrival no longer stands
+}
+
+void resume(World& w, Id id) {
+    Character& c = w.characters[at(id)];
+    if (c.paused_at == kNever) return;
+    const Time lost = w.now - c.paused_at;
+    c.paused_at = kNever;
+    if (!c.alive || c.route.empty() || c.planet != kNone) return;
+    Leg& l = c.route[at(c.leg)];
+    l.depart += lost;
+    l.arrive += lost;
+    w.events.push({.time = std::max(l.arrive, w.now), .kind = EventKind::CharArrive, .record = id, .a = c.travel_seq});
 }
 
 double trip_days(const World& w, const Character& c, Id from, Id to) {
@@ -157,6 +220,9 @@ double fuel_cost(const World& w, const Character& c, Id from, Id to) {
 void on_arrive(World& w, Id id, std::uint32_t seq, Observer* observer) {
     Character& c = w.characters[at(id)];
     if (!c.alive || seq != c.travel_seq || c.route.empty()) return;  // a stale arrival
+    // Passing through a sector shows its risk (INF-6).
+    const Leg& done = c.route[at(c.leg)];
+    info::observe_risk(w, c.facts, risk::sector_at(w.map, done.x1, done.y1));
     if (c.leg + 1 < static_cast<std::int32_t>(c.route.size())) {
         ++c.leg;
         start_leg(w, id);
@@ -167,6 +233,10 @@ void on_arrive(World& w, Id id, std::uint32_t seq, Observer* observer) {
     c.leg = 0;
     c.planet = dest;
     c.last_planet = dest;
+    if (c.escort != kNone) {
+        Character& e = w.characters[at(c.escort)];
+        e.planet = e.last_planet = dest;
+    }
     chars::landed(w, id, observer);
 }
 
@@ -177,47 +247,6 @@ std::pair<double, double> position(const World& w, const Character& c) {
     const double span = static_cast<double>(std::max<Time>(1, l.arrive - l.depart));
     const double t = std::clamp(static_cast<double>(w.now - l.depart) / span, 0.0, 1.0);
     return {l.x0 + (l.x1 - l.x0) * t, l.y0 + (l.y1 - l.y0) * t};
-}
-
-void kinematic_step(World& w, Observer*) {
-    // Only ships that something could happen to are hashed: in MS-3 that is members who
-    // may share facts (SYS-15). Hostile meetings (battles, raids) add their own interest.
-    const double r = w.config.space.detect_range;
-    const Time cooldown = static_cast<Time>(w.config.space.meet_cooldown_hours * kHour);
-    struct Entry {
-        std::int64_t cx, cy;
-        Id id;
-        Id faction;
-        double x, y;
-    };
-    std::vector<Entry> in_space;
-    for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
-        const Character& c = w.characters[at(id)];
-        if (!c.alive || c.planet != kNone || c.route.empty() || c.route[at(c.leg)].kind != LegKind::Space) continue;
-        if (w.now - c.last_meet < cooldown) continue;
-        const Id faction = chars::faction_of(w, c);
-        if (faction == kNone) continue;
-        const auto [x, y] = position(w, c);
-        in_space.push_back({static_cast<std::int64_t>(std::floor(x / r)), static_cast<std::int64_t>(std::floor(y / r)), id,
-                            faction, x, y});
-    }
-    auto key = [](const Entry& e) { return std::pair{e.cx, e.cy}; };
-    std::sort(in_space.begin(), in_space.end(), [&](const Entry& a, const Entry& b) {
-        return std::tie(a.cx, a.cy, a.id) < std::tie(b.cx, b.cy, b.id);
-    });
-    for (const Entry& a : in_space) {
-        for (std::int64_t dx = -1; dx <= 1; ++dx) {
-            for (std::int64_t dy = -1; dy <= 1; ++dy) {
-                const std::pair cell{a.cx + dx, a.cy + dy};
-                auto it = std::lower_bound(in_space.begin(), in_space.end(), cell,
-                                           [&](const Entry& e, const std::pair<std::int64_t, std::int64_t>& k) { return key(e) < k; });
-                for (; it != in_space.end() && key(*it) == cell; ++it) {
-                    if (it->id <= a.id || it->faction != a.faction) continue;  // each pair once
-                    if (std::hypot(it->x - a.x, it->y - a.y) <= r) chars::detected(w, a.id, it->id);
-                }
-            }
-        }
-    }
 }
 
 }  // namespace lattice::move

@@ -267,6 +267,11 @@ void check_references(const World& w) {
     const auto nc = w.characters.size();
     auto facts_ok = [&](const Facts& f) {
         for (const PriceFact& pf : f.prices) require(in(pf.planet, np), "fact");
+        for (const RiskFact& rf : f.risks) require(in(rf.sector, m.sectors.size()), "risk fact");
+        for (const DipFact& df : f.dips) require(in(df.a, np) && in(df.b, np) && df.state <= 2, "war fact");
+        for (const Sighting& s : f.sightings) {
+            require(in(s.army, w.armies.size()) && opt(s.target, np) && opt(s.faction, np), "sighting");
+        }
     };
     for (const ShipVariant& v : m.variants) require(in(v.culture, m.regions.size()), "ship variant");
     for (const Planet& p : w.planets) {
@@ -296,7 +301,12 @@ void check_references(const World& w) {
         facts_ok(mi.packet);
     }
     for (const Planet& p : w.planets) require(opt(p.siege, w.sieges.size()), "planet siege");
-    for (const Character& c : w.characters) require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()), "character war");
+    for (const Character& c : w.characters) {
+        require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()) && opt(c.escort, nc) && opt(c.escorting, nc),
+                "character war");
+    }
+    for (const Planet& p : w.planets) require(opt(p.warned_army, w.armies.size()), "planet warning");
+    require(w.risk.size() == m.sectors.size(), "sector risk");
     for (const Relation& r : w.relations) {
         require(in(r.a, np) && in(r.b, np) && opt(r.payer, np) && opt(r.payee, np) && static_cast<int>(r.state) <= 2, "relation");
     }
@@ -310,7 +320,8 @@ void check_references(const World& w) {
         require(a.route.empty() || in(a.leg, a.route.size()), "army leg");
     }
     for (const Battle& b : w.battles) {
-        require(opt(b.planet, np) && opt(b.armies[0], w.armies.size()) && opt(b.armies[1], w.armies.size()), "battle");
+        require(opt(b.planet, np) && opt(b.armies[0], w.armies.size()) && opt(b.armies[1], w.armies.size()) && b.loot_good <= kGoodCount,
+                "battle");
         for (const auto& side : b.sides) {
             for (Id c : side) require(in(c, nc), "battle side");
         }
@@ -340,6 +351,7 @@ void check_references(const World& w) {
             case EventKind::BattleRound: require(in(e.record, w.battles.size()), "battle event"); break;
             case EventKind::SiegeRound: require(in(e.record, w.sieges.size()), "siege event"); break;
             case EventKind::CallForHelp: require(in(e.record, w.sieges.size()) && in(e.a, np), "call event"); break;
+            case EventKind::ThreatWarning: require(in(e.record, w.armies.size()) && in(e.a, np) && in(e.b, np), "warning event"); break;
             default: require(false, "event kind");
         }
     }
@@ -349,7 +361,7 @@ void check_references(const World& w) {
 template <class Ar, class W>
 void world_fields(Ar& ar, W& w) {
     ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.characters, w.contracts,
-       w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.authority, w.ledger);
+       w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.risk, w.authority, w.ledger);
 }
 
 }  // namespace

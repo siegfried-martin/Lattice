@@ -1,21 +1,30 @@
 #include <doctest.h>
 
 #include <algorithm>
+#include <cmath>
 
 #include "chars/characters.hpp"
+#include "chars/missions.hpp"
 #include "chars/contracts.hpp"
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "helpers.hpp"
+#include "info/facts.hpp"
+#include "lattice/market.hpp"
 #include "lattice/save.hpp"
 #include "politics/budget.hpp"
 #include "politics/fealty.hpp"
 #include "politics/governor.hpp"
 #include "politics/opinion.hpp"
+#include "trade/escorts.hpp"
+#include "trade/merchants.hpp"
 #include "trade/osmosis.hpp"
 #include "war/armies.hpp"
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
+#include "war/encounters.hpp"
+#include "war/risk.hpp"
+#include "war/threats.hpp"
 
 using namespace lattice;
 
@@ -181,6 +190,9 @@ TEST_CASE("security spending buys static defence, more at war (MIL-5)") {
     CHECK(w.planets[at(f.a)].defence == doctest::Approx(w.config.defence.per_spend * w.planets[at(f.a)].security));
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
     budget::weekly(w, f.a, nullptr);
+    CHECK(w.planets[at(f.a)].security == peace);  // it hasn't heard yet (DIP-5)
+    info::learn_state(w.characters[at(w.planets[at(f.a)].governor)].facts, f.root_a, f.root_b, DipState::War, w.now);
+    budget::weekly(w, f.a, nullptr);
     CHECK(w.planets[at(f.a)].security > peace);
 }
 
@@ -292,4 +304,202 @@ TEST_CASE("a world at war is still deterministic and saveable") {
     advance(b, 40 * kDay);
     CHECK(state_hash(a) == state_hash(b));
     CHECK(a.ledger.wars > 0);
+}
+
+// ---- MS-5 part 2: risk, raids, escorts, scouting, warnings, patrols, news ----
+
+
+TEST_CASE("risk rises with raids, fades, and is cleared by patrols (SYS-19)") {
+    World w = new_world(quiet(), 81);
+    const Sector& s = w.map.sectors[5];
+    CHECK(risk::sector_at(w.map, s.x, s.y) == 5);
+    CHECK(risk::sector_at(w.map, s.x + 0.3, s.y) == 5);
+    risk::add_raid(w, s.x, s.y);
+    risk::daily(w);
+    CHECK(w.risk[5].risk == doctest::Approx(1 / w.config.risk.window));
+    const double after = w.risk[5].risk;
+    risk::daily(w);
+    CHECK(w.risk[5].risk < after);
+    risk::add_patrol(w, s.x, s.y, 10);
+    risk::daily(w);
+    CHECK(w.risk[5].risk == 0);  // floored
+}
+
+TEST_CASE("war and peace travel as facts (DIP-5)") {
+    World w = new_world(quiet(), 82);
+    const Front f = front(w);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    const Facts& root_knows = w.characters[at(w.planets[at(f.root_a)].governor)].facts;
+    CHECK(info::believes_war(root_knows, f.root_a, f.root_b));
+    // A vassal hasn't heard yet; a courier run brings the news.
+    Id vassal = kNone;
+    for (Id v : fealty::vassals(w, f.root_a)) vassal = v;
+    REQUIRE(vassal != kNone);
+    CHECK(!info::believes_war(w.characters[at(w.planets[at(vassal)].governor)].facts, f.root_a, f.root_b));
+    info::send_courier(w, vassal);
+    advance(w, static_cast<Time>(w.derived.travel(f.root_a, vassal) * kDay) + kDay);
+    CHECK(info::believes_war(w.characters[at(w.planets[at(vassal)].governor)].facts, f.root_a, f.root_b));
+}
+
+TEST_CASE("a sortie holds off the target and comes home without landing there") {
+    World w = new_world(quiet(), 83);
+    const Front f = front(w);
+    const std::vector<Leg> legs = move::sortie(w, kNone, f.a, f.b, 0.15, 2 * kDay);
+    REQUIRE(!legs.empty());
+    CHECK(legs.back().to_planet == f.a);
+    bool held = false;
+    for (const Leg& l : legs) {
+        CHECK(l.to_planet != f.b);
+        if (l.wait == 2 * kDay) {
+            held = true;
+            const Planet& t = w.planets[at(f.b)];
+            CHECK(std::hypot(l.x1 - t.x, l.y1 - t.y) <= 0.15 + 1e-9);
+        }
+    }
+    CHECK(held);
+}
+
+TEST_CASE("a raider engages an enemy merchant in open space; both pick up their journeys after (MIL-15, TIM-6)") {
+    Config c = quiet();
+    c.space.engage_p = 1;
+    c.space.evade = 0;
+    World w = new_world(c, 84);
+    const Front f = front(w);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    // A raider of a, and a salaried merchant of b, setting off together from the same place.
+    const Id raider = commander(w, f.a, 2, 2);
+    const Id merchant = chars::spawn(w, f.a);
+    contracts::sign(w, ContractKind::MerchantSalary, w.planets[at(f.root_b)].governor, merchant, 0, 30 * kDay);
+    info::learn_state(w.characters[at(raider)].facts, f.root_a, f.root_b, DipState::War, w.now);
+    Id far = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (w.planets[at(p)].system != w.planets[at(f.a)].system && (far == kNone || w.derived.travel(f.a, p) > w.derived.travel(f.a, far))) far = p;
+    }
+    REQUIRE(move::start_route(w, raider, move::sortie(w, f.root_a, f.a, far, 0.15, kDay)));
+    w.characters[at(raider)].activity = Activity::Raiding;
+    w.characters[at(merchant)].activity = Activity::Exploring;
+    REQUIRE(move::travel_to(w, merchant, far));
+    REQUIRE(w.characters[at(merchant)].route[0].kind == LegKind::Space);
+    encounters::step(w, nullptr);
+    CHECK(w.ledger.raids == 1);
+    REQUIRE(w.characters[at(merchant)].battle != kNone);
+    CHECK(w.characters[at(merchant)].paused_at == w.now);
+    advance(w, 3 * kDay);
+    CHECK(!w.battles.back().alive);
+    // The merchant, if it survived with its fleet, is on its way again or there.
+    const Character& m = w.characters[at(merchant)];
+    if (m.alive && !m.ships.empty()) CHECK((m.planet == far || (m.planet == kNone && m.paused_at == kNever)));
+}
+
+TEST_CASE("a merchant facing risk hires the escort that saves most and pays it at the end (TRD-8, TRD-9, REL-9)") {
+    World w = new_world(quiet(), 85);
+    const Front f = front(w);
+    const Id merchant = chars::spawn(w, f.a);
+    Character& m = w.characters[at(merchant)];
+    m.ships = {ships::variant(w.map, m.culture, ShipClass::Freighter, 1)};
+    m.wealth = 1e6;
+    m.cargo_good = kFood;
+    m.cargo_qty = 300;
+    m.cargo_cost = 30000;
+    m.trip = {{f.b, kGoodCount}};
+    // It believes the way is dangerous.
+    for (Id s : risk::route_sectors(w, f.a, f.b)) m.facts.risks.push_back({.sector = s, .time = w.now, .risk = 2});
+    std::sort(m.facts.risks.begin(), m.facts.risks.end(), [](const RiskFact& x, const RiskFact& y) { return x.sector < y.sector; });
+    REQUIRE(risk::believed_route_risk(w, m.facts, f.a, f.b) > 0);
+    const Id guard = chars::spawn(w, f.a);
+    w.characters[at(guard)].ships = {ships::variant(w.map, w.characters[at(guard)].culture, ShipClass::Gunship, 2)};
+    w.characters[at(guard)].activity = Activity::Idle;
+    escorts::consider(w, merchant, nullptr);
+    REQUIRE(w.characters[at(merchant)].escort == guard);
+    CHECK(w.characters[at(guard)].activity == Activity::Escorting);
+    const double before = w.characters[at(guard)].wealth;
+    escorts::finish(w, merchant, nullptr);
+    CHECK(w.characters[at(guard)].wealth > before);
+    CHECK(w.characters[at(guard)].escorting == kNone);
+    CHECK(contracts::held(w, guard, ContractKind::Escort) == kNone);
+    CHECK(w.characters[at(guard)].skills[skill_of(MissionKind::Escort)] == w.config.skill.gain);
+}
+
+TEST_CASE("a sighted army brings a warning, and the liege garrisons the planet (MIL-11, INF-12)") {
+    World w = new_world(quiet(), 86);
+    const Front f = front(w);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    Id target = kNone;
+    for (Id p : fealty::faction_planets(w, f.root_b)) {
+        if (w.planets[at(p)].liege != kNone) target = p;
+    }
+    REQUIRE(target != kNone);
+    const Id liege = w.planets[at(target)].liege;
+    for (int i = 0; i < 3; ++i) commander(w, liege, 3, 3);
+    // An army of a, raised against the target, seen by the target's governor.
+    commander(w, f.a, 1, 1);
+    const Id army = armies::commission(w, f.a, target, false, nullptr);
+    REQUIRE(army != kNone);
+    Facts& knows = w.characters[at(w.planets[at(target)].governor)].facts;
+    info::learn_state(knows, f.root_a, f.root_b, DipState::War, w.now);
+    info::add_sighting(knows, {.army = army, .time = w.now, .target = target, .faction = f.root_a, .power = 5});
+    threats::check(w, target, nullptr);
+    CHECK(w.ledger.warnings == 1);
+    CHECK(w.planets[at(target)].warned_army == army);
+    advance(w, 20 * kDay);
+    CHECK(w.ledger.garrisons == 1);
+}
+
+TEST_CASE("border planets at war post scouting sorties; risky planets post patrols (INF-9, MIL-5)") {
+    World w = new_world(quiet(), 87);
+    const Front f = front(w);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    info::learn_state(info::governor_facts(w, f.a), f.root_a, f.root_b, DipState::War, w.now);
+    w.risk[at(w.planets[at(f.a)].sector)].risk = 5;
+    const auto posted = w.ledger.missions_posted;
+    missions::planet_weekly(w, f.a, nullptr);
+    CHECK(w.ledger.missions_posted == posted + 2);
+    bool scout = false, patrol = false;
+    for (Id m : w.planets[at(f.a)].missions) {
+        scout = scout || (w.missions[at(m)].kind == MissionKind::Scout && w.missions[at(m)].sortie);
+        patrol = patrol || w.missions[at(m)].kind == MissionKind::Security;
+    }
+    CHECK(scout);
+    CHECK(patrol);
+    // A patrol clears risk where it flies, and is paid when it's back.
+    const Id guard = chars::spawn(w, f.a);
+    w.characters[at(guard)].ships = {ships::variant(w.map, w.characters[at(guard)].culture, ShipClass::Gunship, 1)};
+    Id security = kNone;
+    for (Id m : w.planets[at(f.a)].missions) {
+        if (w.missions[at(m)].kind == MissionKind::Security) security = m;
+    }
+    missions::take(w, guard, security, nullptr);
+    CHECK(w.characters[at(guard)].activity == Activity::Patrolling);
+    advance(w, (w.config.security.days + 3) * kDay);
+    CHECK(w.missions[at(security)].state == MissionState::Done);
+    CHECK(w.ledger.patrols >= 1);  // the weekly cadence may have posted and flown another
+    CHECK(w.risk[at(w.planets[at(f.a)].sector)].risk < 5);
+}
+
+TEST_CASE("a faction merchant avoids an enemy only once it has heard of the war (DIP-5, TRD-6)") {
+    World w = new_world(quiet(), 88);
+    const Front f = front(w);
+    const Id merchant = chars::spawn(w, f.root_a);
+    Character& m = w.characters[at(merchant)];
+    m.ships = {ships::variant(w.map, m.culture, ShipClass::Freighter, 1)};
+    m.wealth = 1e5;
+    contracts::sign(w, ContractKind::MerchantSalary, w.planets[at(f.root_a)].governor, merchant, 0, 30 * kDay);
+    // Only the enemy's markets pay.
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const bool enemy = fealty::root_of(w, p) == f.root_b;
+        w.planets[at(p)].stock[kWater] = (enemy ? 0.1 : 3) * market::reserve(w.config, w.planets[at(p)], kWater);
+        info::observe_market(w, m.facts, p);
+    }
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    auto touches_enemy = [&](const merchant::Plan& plan) {
+        for (const TripStop& s : plan.stops) {
+            if (fealty::root_of(w, s.planet) == f.root_b) return true;
+        }
+        return false;
+    };
+    const merchant::Plan unaware = merchant::best_trip(w, w.characters[at(merchant)], f.root_a);
+    CHECK(touches_enemy(unaware));
+    info::learn_state(w.characters[at(merchant)].facts, f.root_a, f.root_b, DipState::War, w.now);
+    const merchant::Plan aware = merchant::best_trip(w, w.characters[at(merchant)], f.root_a);
+    CHECK(!touches_enemy(aware));
 }

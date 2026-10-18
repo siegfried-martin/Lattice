@@ -146,7 +146,9 @@ for help has gone out and whether it was relieved.
 
 ### MOD-8 Fact `v1`
 
-A fact is `(subject, value, observed time)`. Subjects in v1:
+A fact is `(subject, value, observed time)`. *As built (MS-5):* prices per market, risk
+per sector, the state between two roots, and the latest sighting of each army (position,
+target, faction, power). Each is a sorted list merged newest-wins. Subjects in v1:
 
 | Subject | Value |
 |---|---|
@@ -218,3 +220,8 @@ ended keep their slot with `alive = false` (ARC-2).
 Not a fealty tree and holds no planets (FAC-13): a treasury fed by dues, less what it
 spends on the network. Its opinion of each character is a field on the character
 (MOD-3).
+
+### MOD-15 Sector risk `v1`
+
+Per sector (SYS-19): the risk now, and what feeds today's update: raids, hostile
+ship-days and patrol days. The truth that characters' risk facts approximate.

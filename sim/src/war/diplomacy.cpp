@@ -6,6 +6,7 @@
 
 #include "chars/contracts.hpp"
 #include "chars/ships.hpp"
+#include "info/facts.hpp"
 #include "politics/fealty.hpp"
 
 namespace lattice::diplomacy {
@@ -35,6 +36,14 @@ Relation& get(World& w, Id a, Id b) {
 }
 
 int side_of(const Relation& r, Id root) { return root == r.a ? 0 : 1; }
+
+// Both roots know at once; everyone else hears by courier and sharing (DIP-5).
+void announce(World& w, const Relation& r) {
+    for (Id root : {r.a, r.b}) {
+        const Id gov = w.planets[at(root)].governor;
+        if (gov != kNone) info::learn_state(w.characters[at(gov)].facts, r.a, r.b, r.state, w.now);
+    }
+}
 
 double planet_income(const World& w, Id p) {
     return std::max(0.0, w.planets[at(p)].income_avg) * static_cast<double>(w.config.time.payment_days);
@@ -152,6 +161,7 @@ void declare_war(World& w, Id a, Id b, Observer* observer) {
     r.planets_at_start = {static_cast<double>(fealty::faction_planets(w, r.a).size()),
                           static_cast<double>(fealty::faction_planets(w, r.b).size())};
     r.power_at_start = {faction_power(w, r.a), faction_power(w, r.b)};
+    announce(w, r);
     ++w.ledger.wars;
     if (observer) observer->log(w.now, "war.declared", a, "on " + std::to_string(b));
 }
@@ -163,6 +173,7 @@ void make_ceasefire(World& w, Id payer, Id payee, double per_month, Observer* ob
     r.payee = payee;
     r.amount = per_month;
     r.until = w.now + w.config.dip.ceasefire_days * kDay;
+    announce(w, r);
     ++w.ledger.ceasefires;
     // Armies sent against each other stand down (DIP-2).
     for (Army& army : w.armies) {
@@ -182,6 +193,7 @@ void root_weekly(World& w, Id root, Observer* observer) {
             r.state = DipState::Peace;
             r.peace_since = w.now;
             r.peace_income = {faction_income(w, r.a), faction_income(w, r.b)};
+            announce(w, r);
         }
     }
 

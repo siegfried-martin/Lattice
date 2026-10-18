@@ -252,6 +252,8 @@ struct Config {
     struct Space {
         double detect_range = 0.25;     // sector widths (the rendered 4 km)
         double meet_cooldown_hours = 6;  // a character merges facts in open space at most this often
+        double engage_p = 0.5;          // chance per step that a hostile in range is engaged
+        double evade = 0.5;             // a faster quarry's chance to slip away, x its speed edge
 
         friend bool operator==(const Space&, const Space&) = default;
     } space;
@@ -350,6 +352,37 @@ struct Config {
 
         friend bool operator==(const Defence&, const Defence&) = default;
     } defence;
+
+    struct Risk {
+        double window = 30;    // days in the average (SYS-19)
+        double presence = 0.2; // per hostile ship-day in the sector
+        double clear = 0.5;    // per patrol day in the sector
+
+        friend bool operator==(const Risk&, const Risk&) = default;
+    } risk;
+
+    struct Raid {
+        bool enabled = true;   // EXP-1 switches it off for a faction
+        double share = 0.3;    // chance a spare commander is sent each week at war
+        std::int64_t days = 10;
+        double standoff = 0.15;  // sector widths from the enemy planet
+
+        friend bool operator==(const Raid&, const Raid&) = default;
+    } raid;
+
+    struct EscortParams {
+        double rate = 20;  // what an escort asks per combat power per day
+
+        friend bool operator==(const EscortParams&, const EscortParams&) = default;
+    } escort;
+
+    struct Security {
+        double risk_post = 0.5;  // a planet whose sector's risk passes this posts a patrol
+        std::int64_t days = 10;
+        double pay = 200;        // per day
+
+        friend bool operator==(const Security&, const Security&) = default;
+    } security;
 
     struct Capture {
         double happiness_loss = 0.4;
@@ -545,6 +578,19 @@ void for_each_field(C& c, F&& f) {
 
     f("space.detect_range", c.space.detect_range);
     f("space.meet_cooldown_hours", c.space.meet_cooldown_hours);
+    f("space.engage_p", c.space.engage_p);
+    f("space.evade", c.space.evade);
+    f("risk.window", c.risk.window);
+    f("risk.presence", c.risk.presence);
+    f("risk.clear", c.risk.clear);
+    f("raid.enabled", c.raid.enabled);
+    f("raid.share", c.raid.share);
+    f("raid.days", c.raid.days);
+    f("raid.standoff", c.raid.standoff);
+    f("escort.rate", c.escort.rate);
+    f("security.risk_post", c.security.risk_post);
+    f("security.days", c.security.days);
+    f("security.pay", c.security.pay);
 
     f("rel.fade", c.rel.fade);
     f("rel.culture_rest", c.rel.culture_rest);

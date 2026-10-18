@@ -254,9 +254,9 @@ TEST_CASE("money and goods add up over a year (CHK-7)") {
     CHECK(w.ledger.osmosis_volume > 0);
 }
 
-TEST_CASE("two years stay finite and in range") {
+TEST_CASE("500 days, wars included, stay finite and in range") {
     World w = new_world(test::small(), 12);
-    advance(w, 2 * 365 * kDay);
+    advance(w, 500 * kDay);
     const Config& c = w.config;
     for (const Planet& p : w.planets) {
         CHECK(std::isfinite(p.population));

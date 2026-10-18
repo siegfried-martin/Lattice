@@ -42,10 +42,15 @@ add_library(lattice_core STATIC
     src/politics/fealty.cpp
     src/politics/governor.cpp
     src/politics/opinion.cpp
+    src/trade/escorts.cpp
     src/trade/merchants.cpp
     src/war/armies.cpp
     src/war/combat.cpp
     src/war/diplomacy.cpp
+    src/war/encounters.cpp
+    src/war/raids.cpp
+    src/war/risk.cpp
+    src/war/threats.cpp
     src/economy/economy.cpp
     src/economy/events.cpp
     src/economy/market.cpp

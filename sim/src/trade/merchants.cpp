@@ -10,7 +10,9 @@
 #include "info/facts.hpp"
 #include "lattice/market.hpp"
 #include "politics/fealty.hpp"
+#include "trade/escorts.hpp"
 #include "war/diplomacy.hpp"
+#include "war/risk.hpp"
 
 namespace lattice::merchant {
 
@@ -55,7 +57,7 @@ constexpr int kSteps = 8;
 
 // Buying at `from` and selling at `to`, in kSteps slices, while each slice still pays:
 // "the amount before slippage eats the margin" (SYS-7).
-double leg_profit(Curve from, Curve to, double capacity, double budget) {
+double leg_profit(Curve from, Curve to, double capacity, double budget, double risk_rate) {
     const double first = from.unit_buy();
     if (first <= 0 || budget <= 0) return 0;
     const double q_max = std::min(capacity, budget / first);
@@ -63,9 +65,10 @@ double leg_profit(Curve from, Curve to, double capacity, double budget) {
     const double step = q_max / kSteps;
     double profit = 0, spent = 0;
     for (int i = 0; i < kSteps; ++i) {
+        // risk_cost = cargo value x believed route risk x merchant.loss_rate (SYS-7).
         const double buy = from.unit_buy(), sell = to.unit_sell();
-        if (sell <= buy || step > from.stock || spent + step * buy > budget) break;
-        profit += step * (sell - buy);
+        if (sell <= buy * (1 + risk_rate) || step > from.stock || spent + step * buy > budget) break;
+        profit += step * (sell - buy * (1 + risk_rate));
         spent += step * buy;
         from.stock -= step;
         to.stock += step;
@@ -86,12 +89,17 @@ Curve curve_at(const Ctx& x, Id planet, Good g, bool actual) {
     return f ? believed(x.w.config, p, *f, g, x.capacity) : curve(x.w.config, p, g);
 }
 
+double risk_rate(const Ctx& x, Id a, Id b) {
+    return risk::believed_route_risk(x.w, x.c.facts, a, b) * x.w.config.merchant.loss_rate;
+}
+
 LegChoice best_leg(const Ctx& x, Id a, bool a_actual, Id b) {
     LegChoice best;
     if (!info::find(x.c.facts, b)) return best;
+    const double rr = risk_rate(x, a, b);
     for (int gi = 0; gi < kLawfulGoodCount; ++gi) {
         const auto g = static_cast<Good>(gi);
-        const double p = leg_profit(curve_at(x, a, g, a_actual), curve_at(x, b, g, false), x.capacity, x.budget);
+        const double p = leg_profit(curve_at(x, a, g, a_actual), curve_at(x, b, g, false), x.capacity, x.budget, rr);
         if (p > best.profit) best = {g, p};
     }
     return best;
@@ -107,7 +115,7 @@ double cargo_value(const Ctx& x, Id b) {
         value += step * to.unit_sell();
         to.stock += step;
     }
-    return value;
+    return value - x.c.cargo_cost * risk_rate(x, x.c.planet, b);
 }
 
 // Values a sequence of stops; legs[i] is what to buy at stops[i].
@@ -156,7 +164,7 @@ Plan best_trip(const World& w, const Character& c, Id root) {
     if (c.cargo_qty > 0) {
         for (Id b : near) {
             if (root != kNone && !fealty::same_faction(w, b, root) && !fealty::same_faction(w, here, root)) continue;
-            if (root != kNone && diplomacy::at_war(w, root, fealty::root_of(w, b))) continue;
+            if (root != kNone && info::believes_war(c.facts, root, fealty::root_of(w, b))) continue;
             Plan p{.stops = {{here, kGoodCount}, {b, kGoodCount}}};
             finish(x, p, cargo_value(x, b));
             consider(best, p);
@@ -179,7 +187,7 @@ Plan best_trip(const World& w, const Character& c, Id root) {
     // a faction at war with it (TRD-6).
     std::vector<Id> inside, outside;
     for (Id b : near) {
-        if (diplomacy::at_war(w, root, fealty::root_of(w, b))) continue;
+        if (info::believes_war(c.facts, root, fealty::root_of(w, b))) continue;  // as it has heard (DIP-5)
         (fealty::same_faction(w, b, root) ? inside : outside).push_back(b);
     }
     if (!fealty::same_faction(w, here, root)) {
@@ -275,6 +283,7 @@ void sell_cargo(World& w, Id id) {
 }
 
 void end_trip(World& w, Id id) {
+    escorts::finish(w, id, nullptr);
     Character& c = w.characters[at(id)];
     w.ledger.trade_profit += c.trip_profit;
     ++w.ledger.trips;
@@ -312,7 +321,7 @@ void at_stop(World& w, Id id, Observer* observer) {
     c.trip.erase(c.trip.begin());
     // A faction merchant bound for an enemy turns for home instead (TRD-6).
     const Id employer = employer_root(w, id);
-    if (!c.trip.empty() && employer != kNone && diplomacy::at_war(w, employer, fealty::root_of(w, c.trip.front().planet))) {
+    if (!c.trip.empty() && employer != kNone && info::believes_war(c.facts, employer, fealty::root_of(w, c.trip.front().planet))) {
         c.trip.clear();
     }
     if (c.trip.empty()) {
@@ -321,6 +330,7 @@ void at_stop(World& w, Id id, Observer* observer) {
         return;
     }
     buy_for_leg(w, id, g, c.trip.front().planet, observer);
+    escorts::consider(w, id, observer);
     if (!move::travel_to(w, id, c.trip.front().planet)) {
         end_trip(w, id);
         chars::wake(w, id, w.now + kDay);

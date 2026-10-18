@@ -295,6 +295,18 @@ void validate(const Config& c) {
     share(c.capture.happiness_loss, "capture.happiness_loss");
     share(c.capture.stock_loss, "capture.stock_loss");
     share(c.capture.pop_loss, "capture.pop_loss");
+    share(c.space.engage_p, "space.engage_p");
+    share(c.space.evade, "space.evade");
+    positive(c.risk.window, "risk.window");
+    non_negative(c.risk.presence, "risk.presence");
+    non_negative(c.risk.clear, "risk.clear");
+    share(c.raid.share, "raid.share");
+    positive(static_cast<double>(c.raid.days), "raid.days");
+    non_negative(c.raid.standoff, "raid.standoff");
+    non_negative(c.escort.rate, "escort.rate");
+    non_negative(c.security.risk_post, "security.risk_post");
+    positive(static_cast<double>(c.security.days), "security.days");
+    non_negative(c.security.pay, "security.pay");
 
     require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
     require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");

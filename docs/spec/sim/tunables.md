@@ -179,7 +179,11 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `space.detect_range` | Detection range in open space, sector widths (the rendered 4 km) *(proposed, MS-3)* | 0.25 |
 | `space.meet_cooldown_hours` | A character shares in open space at most this often *(proposed, MS-3)* | 6 |
 | `scout.threat_days` | Threat range that triggers scouting | 7 |
-| `risk.window`, `risk.presence`, `risk.clear` | Risk average and weights (SYS-19) | 30, 0.2, 0.5 |
+| `risk.window`, `risk.presence`, `risk.clear` | Risk average and weights (SYS-19); presence is per hostile ship-day, clear per patrol day | 30, 0.2, 0.5 |
+| `space.engage_p`, `space.evade` | Chance per step a hostile in range is engaged; a faster quarry's chance to slip away, × its speed edge *(proposed, MS-5)* | 0.5, 0.5 |
+| `raid.enabled`, `raid.share`, `raid.days`, `raid.standoff` | Raiding at war: on (EXP-1 switches it off), the weekly chance a spare commander is sent, days held, distance short of the enemy planet in sector widths *(proposed, MS-5)* | true, 0.3, 10, 0.15 |
+| `escort.rate` | What an escort asks per combat power per day of the trip *(proposed, MS-5)* | 20 |
+| `security.risk_post`, `security.days`, `security.pay` | A planet whose sector's believed risk passes this posts a patrol of this many days, at this pay a day *(proposed, MS-5)* | 0.5, 10, 200 |
 | `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet turns | 60, 3 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
 | `pirate.turn_p(risk)` | Chance a broke commander turns pirate | risk (EXP-9: 1) |

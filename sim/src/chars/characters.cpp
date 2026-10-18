@@ -13,6 +13,8 @@
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
 #include "war/armies.hpp"
+#include "war/raids.hpp"
+#include "war/threats.hpp"
 
 namespace lattice::chars {
 
@@ -220,7 +222,10 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
         merchant::at_stop(w, id, observer);
         return;
     }
-    if (c.activity == Activity::Mission) return;  // arrivals drive it
+    if (c.activity == Activity::Mission || c.activity == Activity::Escorting || c.activity == Activity::Patrolling ||
+        c.activity == Activity::Raiding) {
+        return;  // arrivals drive these
+    }
     if (c.army != kNone) {
         // Called to an army: go to the muster point and join (MIL-9).
         const Army& a = w.armies[at(c.army)];
@@ -277,10 +282,17 @@ void landed(World& w, Id id, Observer* observer) {
     info::observe_market(w, c.facts, c.planet);
     // INF-4: a member landing at a planet of its faction shares with the governor.
     const Id faction = faction_of(w, c);
-    if (faction != kNone && fealty::root_of(w, c.planet) == faction) info::share(c.facts, info::governor_facts(w, c.planet));
+    if (faction != kNone && fealty::root_of(w, c.planet) == faction) {
+        info::share(c.facts, info::governor_facts(w, c.planet));
+        threats::check(w, c.planet, observer);
+    }
     switch (c.activity) {
         case Activity::Mission:
+        case Activity::Patrolling:
             missions::arrived(w, id, observer);
+            return;
+        case Activity::Raiding:
+            raids::home(w, id, observer);
             return;
         case Activity::Trading:
             wake(w, id, w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour));  // TRD-12: loading takes time

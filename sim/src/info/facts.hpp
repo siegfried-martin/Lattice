@@ -10,6 +10,18 @@ void observe_market(const World& world, Facts& facts, Id planet);
 
 const PriceFact* find(const Facts& facts, Id planet);
 
+// Risk (INF-6): what a character believes about a sector, 0 if it has never looked.
+void observe_risk(const World& world, Facts& facts, Id sector);
+double believed_risk(const Facts& facts, Id sector);
+
+// War and peace as heard (DIP-5): the state between two roots, peace if unheard of.
+void learn_state(Facts& facts, Id root_a, Id root_b, DipState state, Time time);
+DipState believed_state(const Facts& facts, Id root_a, Id root_b);
+bool believes_war(const Facts& facts, Id root_a, Id root_b);
+
+// Sightings (INF-3): an army seen, kept newest per army.
+void add_sighting(Facts& facts, const Sighting& s);
+
 // dst keeps the newer of each subject from either side (INF-4).
 void merge_into(Facts& dst, const Facts& src);
 // Both keep the newer of each subject.

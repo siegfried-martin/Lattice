@@ -108,8 +108,18 @@ defence and security missions, risk (SYS-19).
   - A v1 world keeps five factions after three years, with reliefs breaking about one
     siege in seven.
   - CHK-1 and CHK-6 are for Phase A.
-- **Part 2:** raids, risk, escorts, threat scouting with sightings, security missions,
-  and declarations travelling by courier.
+*Part 2 built 2026-10-18.*
+- **What runs:**
+  - risk per sector, with beliefs;
+  - raids at war, engaging in open space, with loot;
+  - escorts hired by the expected-loss formula;
+  - threat scouting sorties; sightings, warnings and garrisons;
+  - security patrols;
+  - war and peace travelling as facts (DIP-5).
+- **Bug caught:** an optimised ASan run caught an army replanning from mid-flight when a
+  garrison's time ran out during a battle.
+- **Seen in five development years:** about 800 raids, 6,000 escorts hired, 300 warnings,
+  17 garrisons and 27 reliefs.
 
 ### MS-6 Piracy and suspicion `v1`
 
