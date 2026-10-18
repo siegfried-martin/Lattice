@@ -168,6 +168,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `combat.retreat_loss`, `combat.cargo_destroyed` | Retreat losses, cargo destroyed | 0.2, 0.3 |
 | `defence.per_spend` | Static defence per credit of security spend per month *(proposed, MS-5)* | 0.005 |
 | `defence.regen` | Share of the maximum static defence rebuilt a day, when not besieged *(proposed, MS-5)* | 0.05 |
+| `value.blockade_months`, `value.retake_months` | Blockading an enemy's gate, and retaking one's own, are worth this many months of the income of the planets it serves (MIL-17) *(proposed, round 2)* | 4, 8 |
+| `blockade.enabled`, `blockade.defence_share`, `blockade.hold_days` | Gate attacks on or off; a gate's static defence against its holder's; how long the captor's army garrisons it (MIL-17) *(proposed, round 2)* | true, 0.7, 30 |
 | `value.war_mult`, `value.border_mult` | Defence is worth `1 + war_mult` at war, `+ border_mult` with an enemy planet within `dip.border_days` *(proposed, MS-5)* | 2, 1 |
 | `value.security_unit` | Static defence is bought in units of this much a month *(proposed, MS-5)* | 1,000 |
 | `value.invade_months`, `value.gate_months`, `value.aftermath_months` | A planet taken is worth this many months of its income, more for a gate holder, less rebuilding *(proposed, MS-5)* | 12, 6, 2 |

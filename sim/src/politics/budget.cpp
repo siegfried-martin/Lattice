@@ -221,7 +221,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     if (spy_people.empty()) {
         for (Id id : spies_now) spies::release(w, id);  // at peace: no more need of them
     }
-    if (invasion.funded > 0) armies::commission(w, planet, plan.target, false, observer);
+    if (invasion.funded > 0) armies::commission(w, planet, plan.target, false, observer, plan.node);
 
     // Patronage: paid now, a good deed once per grant.
     for (std::size_t i = 0; i < vassals.size(); ++i) {

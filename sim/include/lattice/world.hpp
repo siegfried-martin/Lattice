@@ -85,6 +85,7 @@ struct World {
     std::vector<Army> armies;
     std::vector<Battle> battles;
     std::vector<Siege> sieges;
+    std::vector<Gate> gates;       // per Lattice node (MIL-17)
     std::vector<SectorRisk> risk;  // per sector
     Authority authority;
     Ledger ledger;

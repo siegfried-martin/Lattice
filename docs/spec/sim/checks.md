@@ -57,7 +57,8 @@ before capture, by courier coverage and scouting. *Tests:* MIL-11, INF-12.
 ### CHK-6 Defence numbers aren't frozen or a free-for-all `v1`
 
 Too low and everyone conquers everyone; too high and the map freezes. *Metric:* planets
-changing hands per year. *Tests:* MIL-5, MIL-10.
+changing hands per year. *(proposed, round 2)* Also blockades a year per faction, at
+least 0.5: blockading is a normal part of war (MIL-17). *Tests:* MIL-5, MIL-10, MIL-17.
 
 ## Economy
 

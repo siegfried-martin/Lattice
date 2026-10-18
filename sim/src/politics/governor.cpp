@@ -5,6 +5,7 @@
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
 #include "war/diplomacy.hpp"
+#include "war/gates.hpp"
 #include "pirates/pirates.hpp"
 #include "pirates/smuggling.hpp"
 #include "war/raids.hpp"
@@ -28,6 +29,7 @@ void schedule(World& w) {
 }
 
 void weekly(World& w, Id planet, Observer* observer) {
+    if (const Id node = w.gates.empty() ? kNone : gates::held_by(w, planet); node != kNone) gates::check(w, node, observer);
     if (w.planets[at(planet)].pirate) {
         // A pirate planet: defence and raids, no politics (PIR-1, PIR-3).
         budget::weekly(w, planet, observer);

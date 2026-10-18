@@ -18,9 +18,16 @@ std::vector<Leg> route_legs(const World& world, Id a, Id b);
 
 // The legs a traveller of a faction (or none) takes from a to b: the reference route,
 // unless it would enter or leave the Lattice at a gate held by a faction at war with
-// the traveller's, which both keys shut to it (WLD-12, DIP-6); then a route that
-// gets on and off elsewhere and crosses the rest in open space (WLD-13).
-std::vector<Leg> plan(const World& world, Id faction, Id a, Id b);
+// the traveller's, which both keys shut to it (WLD-12, DIP-6), or at a gate blockaded by
+// another faction (MIL-17); then a route that gets on and off elsewhere and crosses the
+// rest in open space (WLD-13). Blockades are as the facts given say, or the truth
+// without them; a gate the traveller's own faction blockades is open to it.
+std::vector<Leg> plan(const World& world, Id faction, Id a, Id b, const Facts* facts = nullptr);
+
+// The same between vertices: planets (0 to P-1), then Lattice nodes. A gate it's going to
+// is never shut to it. With board_at_start false it's in open space at a.
+std::vector<Leg> plan_between(const World& world, Id faction, std::int32_t a, std::int32_t b, const Facts* facts,
+                              bool board_at_start = true);
 
 // How long a leg takes a fleet with this open-space speed.
 Time leg_time(const World& world, const Leg& leg, double speed);

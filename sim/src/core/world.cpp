@@ -170,6 +170,14 @@ void sample_metrics(const World& w, Observer& o) {
         roots_at_war += pl.liege == kNone && !pl.pirate && !diplomacy::enemies(w, p).empty();
     }
     o.sample(t, "world.roots_at_war", -1, static_cast<double>(roots_at_war));
+    // Blockades (MIL-17).
+    std::int64_t blockaded = 0;
+    for (const Gate& g : w.gates) blockaded += g.captor != kNone;
+    o.sample(t, "world.blockaded", -1, static_cast<double>(blockaded));
+    o.sample(t, "world.gate_attacks", -1, static_cast<double>(w.ledger.gate_attacks));
+    o.sample(t, "world.blockades", -1, static_cast<double>(w.ledger.blockades));
+    o.sample(t, "world.retakes", -1, static_cast<double>(w.ledger.retakes));
+    o.sample(t, "world.lifts", -1, static_cast<double>(w.ledger.lifts));
     o.sample(t, "world.armies", -1, static_cast<double>(armies));
     o.sample(t, "world.besieged", -1, static_cast<double>(besieged));
     o.sample(t, "world.static_defence", -1, defence);
@@ -318,7 +326,7 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             governor::weekly(w, record, observer);
             break;
         case EventKind::ArmyMuster:
-            armies::muster_deadline(w, record, observer);
+            armies::muster_deadline(w, record, static_cast<std::uint32_t>(e.a), observer);
             break;
         case EventKind::ArmyArrive:
             armies::on_arrive(w, record, static_cast<std::uint32_t>(e.a), observer);
@@ -383,6 +391,7 @@ World new_world(const Config& config, std::uint64_t seed) {
 
     gen::generate(world);
     world.risk.assign(world.map.sectors.size(), {});
+    world.gates.assign(world.map.nodes.size(), {});
     economy::init_state(world);
     rebuild_derived(world);
     chars::populate(world);

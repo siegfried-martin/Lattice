@@ -549,6 +549,43 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
     the army and its own commanders.
   - Its security spending restarts at zero, so a fresh conquest is weakly held.
 
+*As built (round 2): gate attacks and blockades* (MIL-17) *(proposed)*:
+- **State:** every Lattice node has a gate record: static defence, the attack it's under,
+  its captor (the planet whose army took it; its faction holds the blockade), when, and
+  the army garrisoning it. The holder's day rebuilds the defence toward
+  `blockade.defence_share` × `defence.per_spend` × the holder's security spending, unless
+  attacked or blockaded.
+- **Commissioning:** the invasion option also scores gates within `dip.border_days`:
+  - an enemy's open gate: value = P(win) × the monthly income of the planets it serves ×
+    `value.blockade_months`, with D its static defence plus any of its faction's armies
+    garrisoning it;
+  - its own faction's gate blockaded by an enemy, as its governor has heard: value with
+    `value.retake_months`, D the captor's garrison.
+  The best of planets and gates is the one unit. The army's target is the gate's holder,
+  for sightings and warnings, and its objective the gate.
+- **Moving:** armies and characters plan around gates blockaded by another faction as
+  their facts say (an army by its commissioner's facts); a blockade by their own
+  faction opens the gate to them, even an enemy's. One that arrives on or off the
+  Lattice at a gate blockaded against it learns it and replans from there: along the
+  Lattice if it was riding it, through open space if it was about to board.
+- **The attack:** any of the holder's faction's armies garrisoning the gate fight first,
+  a battle at the gate. Then daily rounds against the gate's static defence, as for a
+  planet. The holder calls for help an hour in: it answers first, with its own
+  commanders, then the call goes up the tree. Relief that finds the gate under attack
+  fights the besiegers; one that finds it untouched garrisons it for `army.muster_days`.
+- **Capture:** static defence at zero is a blockade. The army garrisons the gate for
+  `blockade.hold_days`, then goes home. The captor's army and commissioner, and everyone
+  at the planets the gate serves, learn it at once; others by sharing and couriers.
+- **Retaking:** an army of the holder's faction arriving at a blockaded gate retakes it at
+  once if nobody holds it, or fights the garrison and retakes it by winning.
+- **Lifting:** the holder's weekly check lifts a blockade once the captor's faction and the
+  holder are no longer hostile (peace, a ceasefire, the holder now the captor's own), or
+  the captor turned pirate.
+- **Trade:** osmosis between a planet the blockaded gate serves and any partner its
+  reference route reaches along the Lattice stops.
+- **Not yet:** merchants don't weigh a blockade's detour when picking a destination,
+  only on the way.
+
 ### SYS-14 Combat resolution `v1`
 
 *Implements:* MIL-13, CHR-15. *Cadence:* battle rounds hourly.

@@ -19,6 +19,12 @@ Agreed with the human in conversation, written straight into the spec as `propos
   its old faction declares war (ECO-13, PIR-3, SYS-16). Rebellions continue through the
   warm-up (GEN-10). A failing root with vassals is open (OPN-37). World generation stays
   as it is: where piracy lives should come from the mechanics.
+- **Blockades:** an army at war can attack an enemy's gate, defended at a share of its
+  holder's static defence. Captured, it's a discrete blockade, shut to all but the
+  captor's faction, which can exit there. Unheld, it's retaken by any force of the
+  holder's faction; it lifts with peace. Blockades are facts; travellers route around
+  known ones and find out at the gate otherwise (MIL-17, WLD-12, WLD-13, INF-2, SYS-13,
+  CHK-6).
 
 ### 2026-10-18 · MS-8, the harness and Phase A round 1
 

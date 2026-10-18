@@ -311,6 +311,8 @@ struct Config {
         double invade_months = 12;    // a planet taken is worth this many months of its income
         double gate_months = 6;       // more for one that holds gates (WLD-5)
         double aftermath_months = 2;  // rebuilding after capture costs this many months of its income
+        double blockade_months = 4;   // blockading a gate is worth this many months of its group's income (MIL-17)
+        double retake_months = 8;     // and retaking one's own, this many
         double protect = 0.1;         // keep or grant: protection cost per day of travel from the keeper
 
         friend bool operator==(const Value&, const Value&) = default;
@@ -357,6 +359,15 @@ struct Config {
 
         friend bool operator==(const Combat&, const Combat&) = default;
     } combat;
+
+    // Gate attacks and blockades (MIL-17).
+    struct Blockade {
+        bool enabled = true;
+        double defence_share = 0.7;   // a gate's static defence against its holder's
+        std::int64_t hold_days = 30;  // how long a captor's army garrisons the gate
+
+        friend bool operator==(const Blockade&, const Blockade&) = default;
+    } blockade;
 
     struct Defence {
         double per_spend = 0.005;  // static defence power per credit of monthly security spend
@@ -754,6 +765,8 @@ void for_each_field(C& c, F&& f) {
     f("value.border_mult", c.value.border_mult);
     f("value.security_unit", c.value.security_unit);
     f("value.invade_months", c.value.invade_months);
+    f("value.blockade_months", c.value.blockade_months);
+    f("value.retake_months", c.value.retake_months);
     f("value.gate_months", c.value.gate_months);
     f("value.aftermath_months", c.value.aftermath_months);
     f("value.protect", c.value.protect);
@@ -794,6 +807,9 @@ void for_each_field(C& c, F&& f) {
 
     f("defence.per_spend", c.defence.per_spend);
     f("defence.regen", c.defence.regen);
+    f("blockade.enabled", c.blockade.enabled);
+    f("blockade.defence_share", c.blockade.defence_share);
+    f("blockade.hold_days", c.blockade.hold_days);
 
     f("capture.happiness_loss", c.capture.happiness_loss);
     f("capture.stock_loss", c.capture.stock_loss);

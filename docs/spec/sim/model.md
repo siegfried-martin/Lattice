@@ -127,7 +127,7 @@ suing).
 |---|---|
 | commissioner | governor ID (MIL-9) |
 | members | commander IDs |
-| intent | target planet (MIL-7) |
+| intent | target planet (MIL-7), or a gate (MIL-17) with its holder as the target |
 | action | muster, move, besiege, retreat, disband |
 | location | as a character's, moving at the slowest member's speed |
 | called | commanders on their way to the muster; also its home planet, whether it is a relief, its battle and siege (MS-5) |
@@ -138,6 +138,7 @@ suing).
 |---|---|
 | **Battle** | location, sides (character IDs per side), start time, rounds fought, losses so far (MIL-13) |
 | **Siege** | planet, attacking army, start time, remaining static defence, defenders present (MIL-10) |
+| **Gate** *(proposed, round 2)* | per Lattice node: static defence, the attack it's under, captor, since, garrison (MIL-17) |
 
 *As built (MS-5):* a battle keeps each side's characters, armies, damage carried over
 and power lost, and whether side 1 has the planet's static defence. The static defence is
@@ -146,7 +147,8 @@ for help has gone out and whether it was relieved.
 
 ### MOD-8 Fact `v1`
 
-A fact is `(subject, value, observed time)`. *As built (MS-5):* prices per market, risk
+A fact is `(subject, value, observed time)`. *(Round 2: also each gate's captor, MIL-17.)*
+*As built (MS-5):* prices per market, risk
 per sector, the state between two roots, and the latest sighting of each army (position,
 target, faction, power), and whether a planet is a pirate planet (MS-6). Each is a sorted
 list merged newest-wins. Subjects in v1:

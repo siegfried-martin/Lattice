@@ -81,13 +81,14 @@ Routes planet_routes(const World& w) {
     return out;
 }
 
-std::vector<Step> path_avoiding(const World& w, Id a, Id b, const std::vector<bool>& closed) {
+std::vector<Step> path_avoiding(const World& w, Id a, Id b, const std::vector<bool>& closed, bool board_at_start) {
     const auto& c = w.config.travel;
     const std::size_t np = w.planets.size(), nn = w.map.nodes.size(), n = np + nn;
     auto pos = [&](std::size_t v) {
         return v < np ? std::pair{w.planets[v].x, w.planets[v].y} : std::pair{w.map.nodes[v - np].x, w.map.nodes[v - np].y};
     };
-    auto shut = [&](std::size_t v) { return v >= np && closed[v - np]; };
+    const std::size_t start = at(a);
+    auto shut = [&](std::size_t v) { return v >= np && closed[v - np] && (board_at_start || v != start); };
     std::vector<std::vector<std::pair<std::size_t, LegKind>>> links(n);
     for (const LatticeEdge& e : w.map.edges) {
         links[np + at(e.a)].emplace_back(np + at(e.b), LegKind::Lattice);
@@ -117,7 +118,7 @@ std::vector<Step> path_avoiding(const World& w, Id a, Id b, const std::vector<bo
             if (t < best[v]) best[v] = t, pred[v] = static_cast<std::int32_t>(u), via[v] = LegKind::Space;
         }
         for (auto [v, kind] : links[u]) {
-            if (done[v]) continue;
+            if (done[v] || (u == start && !board_at_start && kind == LegKind::Lattice)) continue;
             const auto [vx, vy] = pos(v);
             const double t = best[u] + (kind == LegKind::Hop ? c.hop_days : std::hypot(ux - vx, uy - vy) / c.lattice_speed);
             if (t < best[v]) best[v] = t, pred[v] = static_cast<std::int32_t>(u), via[v] = kind;

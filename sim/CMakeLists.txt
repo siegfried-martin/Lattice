@@ -52,6 +52,7 @@ add_library(lattice_core STATIC
     src/war/combat.cpp
     src/war/diplomacy.cpp
     src/war/encounters.cpp
+    src/war/gates.cpp
     src/war/raids.cpp
     src/war/risk.cpp
     src/war/spies.cpp

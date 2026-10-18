@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "lattice/market.hpp"
+#include "war/gates.hpp"
 
 namespace lattice::economy {
 
@@ -156,6 +157,7 @@ void planet_day(World& w, Id id) {
     // a cut in spending lowers it at once.
     const double max_defence = c.defence.per_spend * p.security;
     if (p.siege == kNone) p.defence = std::min(max_defence, p.defence + c.defence.regen * max_defence);
+    if (const Id node = w.gates.empty() ? kNone : gates::held_by(w, id); node != kNone) gates::regen(w, node);
 
     // The income average, for the credit limit (SYS-3).
     p.income_avg += (p.income_today - p.income_avg) / static_cast<double>(c.time.payment_days);

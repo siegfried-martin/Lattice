@@ -270,6 +270,7 @@ void check_references(const World& w) {
         for (const RiskFact& rf : f.risks) require(in(rf.sector, m.sectors.size()), "risk fact");
         for (const DipFact& df : f.dips) require(in(df.a, np) && in(df.b, np) && df.state <= 2, "war fact");
         for (const PirateFact& pf : f.pirates) require(in(pf.planet, np), "pirate fact");
+        for (const GateFact& gf : f.gates) require(in(gf.node, m.nodes.size()) && opt(gf.captor, np), "gate fact");
         for (const Sighting& s : f.sightings) {
             require(in(s.army, w.armies.size()) && opt(s.target, np) && opt(s.faction, np), "sighting");
         }
@@ -315,6 +316,7 @@ void check_references(const World& w) {
     }
     for (const Army& a : w.armies) {
         require(in(a.commissioner, nc) && in(a.home, np) && opt(a.target, np) && opt(a.planet, np) &&
+                    opt(a.target_node, m.nodes.size()) && opt(a.node, m.nodes.size()) &&
                     opt(a.battle, w.battles.size()) && opt(a.siege, w.sieges.size()),
                 "army");
         for (Id member : a.members) require(in(member, nc), "army member");
@@ -329,7 +331,13 @@ void check_references(const World& w) {
             for (Id c : side) require(in(c, nc), "battle side");
         }
     }
-    for (const Siege& s : w.sieges) require(in(s.planet, np) && in(s.army, w.armies.size()), "siege");
+    for (const Siege& s : w.sieges) {
+        require(in(s.planet, np) && opt(s.node, m.nodes.size()) && in(s.army, w.armies.size()), "siege");
+    }
+    require(w.gates.size() == m.nodes.size(), "gates");
+    for (const Gate& g : w.gates) {
+        require(opt(g.siege, w.sieges.size()) && opt(g.captor, np) && opt(g.garrison, w.armies.size()), "gate");
+    }
     for (const CourierRun& r : w.courier_runs) {
         require(in(r.from, np) && in(r.to, np), "courier run");
         facts_ok(r.packet);
@@ -364,7 +372,7 @@ void check_references(const World& w) {
 template <class Ar, class W>
 void world_fields(Ar& ar, W& w) {
     ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.characters, w.contracts,
-       w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.risk, w.authority, w.ledger);
+       w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.gates, w.risk, w.authority, w.ledger);
 }
 
 }  // namespace

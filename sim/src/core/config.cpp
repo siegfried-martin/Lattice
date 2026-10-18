@@ -303,6 +303,10 @@ void validate(const Config& c) {
     share(c.combat.pod_death_p, "pod.death_p");
     non_negative(c.defence.per_spend, "defence.per_spend");
     share(c.defence.regen, "defence.regen");
+    non_negative(c.value.blockade_months, "value.blockade_months");
+    non_negative(c.value.retake_months, "value.retake_months");
+    non_negative(c.blockade.defence_share, "blockade.defence_share");
+    non_negative(static_cast<double>(c.blockade.hold_days), "blockade.hold_days");
     share(c.capture.happiness_loss, "capture.happiness_loss");
     share(c.capture.stock_loss, "capture.stock_loss");
     share(c.capture.pop_loss, "capture.pop_loss");

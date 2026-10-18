@@ -155,6 +155,7 @@ CHECKS = [
     ("CHK-3", "Authority dues, monthly variation (cv)", lambda r: cv([b - a for a, b in zip(values(r, "world.dues"), values(r, "world.dues")[3:])][::3] or [1]), None, 0.5),
     ("CHK-4", "pirate planets on the fringe, share of pirate-planet time", lambda r: (sum(values(r, "world.fringe_pirate_planets")) / max(1e-9, sum(values(r, "world.pirate_planets")))) if sum(values(r, "world.pirate_planets")) else 1.0, 0.5, None),
     ("CHK-6", "planets changing hands a year, share of planets", captures_share, 0.01, 0.2),
+    ("CHK-6b", "blockades a year per faction", lambda r: per_year(r, "world.blockades") / max(1, statistics.fmean(values(r, "world.roots"))), 0.5, None),
     ("CHK-7", "money supply growth a year", lambda r: growth(r, "world.money_total"), 0.8, 1.25),
     ("CHK-7b", "price index, end over start", lambda r: values(r, "world.price_index")[-1] / values(r, "world.price_index")[0], 0.67, 1.5),
     ("CHK-8", "share of time each faction is at war", war_share, 0.5, 0.8),

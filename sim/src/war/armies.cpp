@@ -14,6 +14,7 @@
 #include "politics/opinion.hpp"
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
+#include "war/gates.hpp"
 #include "info/facts.hpp"
 #include "pirates/pirates.hpp"
 #include "war/raids.hpp"
@@ -111,19 +112,38 @@ void start_leg(World& w, Id id) {
     w.events.push({.time = l.arrive, .kind = EventKind::ArmyArrive, .record = id, .a = a.travel_seq});
 }
 
-void go(World& w, Id id, Id dest) {
+// An army leaving a gate it held stops holding it (MIL-17).
+void leave_gate(World& w, Id id) {
+    Army& a = w.armies[at(id)];
+    if (a.node != kNone && !w.gates.empty() && w.gates[at(a.node)].garrison == id) w.gates[at(a.node)].garrison = kNone;
+}
+
+const Facts* army_facts(const World& w, const Army& a) { return &w.characters[at(a.commissioner)].facts; }
+
+// To a planet, or to a gate (MIL-17), from where it stands: a planet or a gate.
+void go(World& w, Id id, Id dest, Id dest_node = kNone) {
     Army& a = w.armies[at(id)];
     const Id from = a.planet;
-    if (from == kNone) return;  // already on its way; its arrival decides what's next
-    std::vector<Leg> route = move::plan(w, fealty::root_of(w, a.home), from, dest);
+    if (from == kNone && a.node == kNone) return;  // already on its way; its arrival decides what's next
+    const Id faction = fealty::root_of(w, a.home);
+    const auto np = static_cast<std::int32_t>(w.planets.size());
+    std::vector<Leg> route;
+    if (from != kNone && dest_node == kNone) {
+        route = move::plan(w, faction, from, dest, army_facts(w, a));
+    } else if (from != kNone || a.node != dest_node) {
+        route = move::plan_between(w, faction, from != kNone ? from : np + a.node, dest_node != kNone ? np + dest_node : dest,
+                                   army_facts(w, a));
+    }
     if (route.empty()) {
         disband(w, id, nullptr);
         return;
     }
+    leave_gate(w, id);
     a.route = std::move(route);
     a.leg = 0;
     ++a.travel_seq;
     a.planet = kNone;
+    a.node = kNone;
     for (Id m : a.members) {
         Character& c = w.characters[at(m)];
         c.planet = kNone;
@@ -141,7 +161,8 @@ void retreat(World& w, Id id, Observer* observer) {
     }
     a.action = ArmyAction::Retreat;
     a.target = kNone;
-    if (a.planet == kNone) return;  // on the move: it heads home when it arrives
+    a.target_node = kNone;
+    if (a.planet == kNone && a.node == kNone) return;  // on the move: it heads home when it arrives
     if (a.planet == a.home) {
         disband(w, id, observer);
         return;
@@ -153,7 +174,102 @@ void end_siege(World& w, Id siege) {
     Siege& s = w.sieges[at(siege)];
     if (!s.alive) return;
     s.alive = false;
-    w.planets[at(s.planet)].siege = kNone;
+    if (s.node != kNone) {
+        w.gates[at(s.node)].siege = kNone;
+    } else {
+        w.planets[at(s.planet)].siege = kNone;
+    }
+}
+
+// A battle at a gate, there rather than at a planet (MIL-17).
+Id fight_at_gate(World& w, Id node, std::vector<Id> attackers, std::vector<Id> defenders, Id army0, Id army1, Observer* observer) {
+    const Id b = combat::start(w, std::move(attackers), std::move(defenders), kNone, false, army0, army1, observer);
+    w.battles[at(b)].x = w.map.nodes[at(node)].x;
+    w.battles[at(b)].y = w.map.nodes[at(node)].y;
+    return b;
+}
+
+// The holder's faction's armies garrisoning a gate.
+std::vector<Id> gate_guards(const World& w, Id node, Id& first) {
+    std::vector<Id> out;
+    first = kNone;
+    const Id h = gates::holder(w, node);
+    for (Id g = 0; g < static_cast<Id>(w.armies.size()); ++g) {
+        const Army& other = w.armies[at(g)];
+        if (!other.alive || other.action != ArmyAction::Garrison || other.node != node || !fealty::same_faction(w, other.home, h)) continue;
+        if (first == kNone) first = g;
+        for (Id m : other.members) out.push_back(m);
+    }
+    return out;
+}
+
+void besiege_gate(World& w, Id id, Observer* observer) {
+    Army& a = w.armies[at(id)];
+    const Id n = a.node, h = gates::holder(w, n);
+    a.action = ArmyAction::Besiege;
+    w.sieges.push_back({.planet = h, .node = n, .army = id, .start = w.now, .called = true});
+    const auto siege = static_cast<Id>(w.sieges.size() - 1);
+    a.siege = siege;
+    w.gates[at(n)].siege = siege;
+    ++w.ledger.gate_attacks;
+    if (observer) observer->log(w.now, "gate.attacked", n, "army " + std::to_string(id) + " at holder " + std::to_string(h));
+    // The holder, beside its gate, knows at once and calls for help (MIL-11).
+    w.events.push({.time = w.now + kHour, .kind = EventKind::CallForHelp, .record = siege, .a = h});
+    Id garrison = kNone;
+    std::vector<Id> defenders = gate_guards(w, n, garrison);
+    if (!defenders.empty()) {
+        fight_at_gate(w, n, a.members, defenders, id, garrison, observer);
+        return;
+    }
+    w.events.push({.time = w.now + kDay, .kind = EventKind::SiegeRound, .record = siege});
+}
+
+// An army reached the gate it was sent to (MIL-17).
+void at_gate(World& w, Id id, Observer* observer) {
+    Army& a = w.armies[at(id)];
+    const Id n = a.node, h = gates::holder(w, n);
+    const Gate& g = w.gates[at(n)];
+    const Id faction = fealty::root_of(w, a.home);
+    for (Id m : a.members) gates::observe(w, w.characters[at(m)].facts, n);
+    if (a.action == ArmyAction::Retreat || n != a.target_node || h == kNone) {
+        retreat(w, id, observer);
+        return;
+    }
+    if (a.relief) {
+        if (g.siege != kNone && w.sieges[at(g.siege)].alive) {
+            const Id besiegers = w.sieges[at(g.siege)].army;
+            fight_at_gate(w, n, w.armies[at(besiegers)].members, a.members, besiegers, id, observer);
+            return;
+        }
+        if (g.captor == kNone) {
+            // Here before the attack, or after it failed: hold the gate a while.
+            a.action = ArmyAction::Garrison;
+            w.events.push({.time = w.now + w.config.army.muster_days * kDay, .kind = EventKind::ArmyMuster, .record = id,
+                           .a = a.travel_seq + 1});
+            return;
+        }
+        // Too late: it's blockaded. Take it back.
+    }
+    if (g.captor != kNone) {
+        const Id captor = gates::captor_faction(w, n);
+        if (captor == faction || !fealty::same_faction(w, h, a.home)) {
+            retreat(w, id, observer);  // already ours, or not ours to take back
+            return;
+        }
+        const Id held = g.garrison;
+        if (held != kNone && w.armies[at(held)].alive && !w.armies[at(held)].members.empty()) {
+            fight_at_gate(w, n, a.members, w.armies[at(held)].members, id, held, observer);
+            return;
+        }
+        gates::retake(w, n, observer);  // nobody holds it (MIL-17)
+        retreat(w, id, observer);
+        return;
+    }
+    if (w.planets[at(h)].pirate || !diplomacy::hostile_planets(w, a.home, h)) {
+        retreat(w, id, observer);
+        return;
+    }
+    besiege_gate(w, id, observer);
 }
 
 // FAC-8: keep or grant, down the tree from the commissioner (proposed scores):
@@ -336,6 +452,7 @@ double power(const World& w, const Army& a) { return fleet_power(w, a.members); 
 
 std::pair<double, double> position(const World& w, const Army& a) {
     if (a.planet != kNone) return {w.planets[at(a.planet)].x, w.planets[at(a.planet)].y};
+    if (a.node != kNone) return {w.map.nodes[at(a.node)].x, w.map.nodes[at(a.node)].y};
     if (a.route.empty()) return {0, 0};
     const Leg& l = a.route[at(a.leg)];
     const double span = static_cast<double>(std::max<Time>(1, l.arrive - l.depart));
@@ -374,12 +491,41 @@ Plan best_invasion(const World& w, Id planet) {
         const double value = p * gain;
         if (value / cost > best_ratio) best_ratio = value / cost, best = {t, value, cost};
     }
+    // Gates (MIL-17): an enemy's to blockade, or one's own to take back.
+    if (!w.config.blockade.enabled || w.gates.empty()) return best;
+    const Facts& facts = w.characters[at(gov)].facts;
+    for (Id n = 0; n < static_cast<Id>(w.map.nodes.size()); ++n) {
+        const Id h = gates::holder(w, n);
+        if (h == kNone || w.planets[at(h)].pirate || w.gates[at(n)].siege != kNone) continue;
+        if (w.derived.travel(planet, h) > w.config.dip.border_days) continue;
+        const Gate& g = w.gates[at(n)];
+        const GateFact* known = gates::find(facts, n);
+        const bool retake = known && known->captor != kNone && g.captor != kNone && fealty::same_faction(w, h, planet) &&
+                            gates::captor_faction(w, n) != fealty::root_of(w, planet);
+        const bool assault = g.captor == kNone &&
+                             std::find(enemies.begin(), enemies.end(), fealty::root_of(w, h)) != enemies.end();
+        if (!retake && !assault) continue;
+        double defence = 0;
+        if (assault) {
+            Id first = kNone;
+            defence = g.defence + fleet_power(w, gate_guards(w, n, first));
+        } else if (g.garrison != kNone && w.armies[at(g.garrison)].alive) {
+            defence = power(w, w.armies[at(g.garrison)]);
+        }
+        const double p = defence > 0 ? win_chance(attack, defence) : 1;
+        const double gain = gates::group_income(w, n) * (retake ? v.retake_months : v.blockade_months);
+        const double days = w.derived.travel(planet, h) + 3 + 10;
+        const double cost = std::max(1.0, pay * days / static_cast<double>(w.config.time.payment_days));
+        const double value = p * gain;
+        if (value / cost > best_ratio) best_ratio = value / cost, best = {h, value, cost, n};
+    }
     return best;
 }
 
-Id commission(World& w, Id planet, Id target, bool relief, Observer* observer) {
+Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, Id node) {
     const Id gov = w.planets[at(planet)].governor;
-    w.armies.push_back({.commissioner = gov, .home = planet, .target = target, .relief = relief, .formed = w.now, .planet = planet});
+    w.armies.push_back({.commissioner = gov, .home = planet, .target = target, .target_node = node, .relief = relief,
+                        .formed = w.now, .planet = planet});
     const auto id = static_cast<Id>(w.armies.size() - 1);
     for (Id m : ready(w, planet)) {
         attach(w, id, m);
@@ -407,12 +553,13 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer) {
     }
     if (observer) {
         observer->log(w.now, relief ? "army.relief" : "army.raised", id,
-                      "from " + std::to_string(planet) + " against " + std::to_string(target) + ", " +
+                      "from " + std::to_string(planet) + " against " + std::to_string(target) +
+                          (node != kNone ? " gate " + std::to_string(node) : std::string()) + ", " +
                           std::to_string(a.members.size()) + " now, " + std::to_string(a.called.size()) + " called");
     }
     if (relief || a.called.empty()) {
         a.action = ArmyAction::Move;
-        go(w, id, target);
+        go(w, id, target, node);
     } else {
         w.events.push({.time = w.now + w.config.army.muster_days * kDay, .kind = EventKind::ArmyMuster, .record = id});
     }
@@ -435,24 +582,25 @@ void member_arrived(World& w, Id id, Observer*) {
         if (a.target == kNone) {
             disband(w, c.army, nullptr);
         } else {
-            go(w, c.army, a.target);
+            go(w, c.army, a.target, a.target_node);
         }
     }
 }
 
-void muster_deadline(World& w, Id id, Observer* observer) {
+void muster_deadline(World& w, Id id, std::uint32_t token, Observer* observer) {
     Army& a = w.armies[at(id)];
     if (a.alive && a.action == ArmyAction::Garrison) {
+        if (token != a.travel_seq + 1) return;  // a muster deadline from before it marched
         for (Id m : a.members) {
             if (w.characters[at(m)].battle != kNone) {  // not in the middle of a fight
-                w.events.push({.time = w.now + kDay, .kind = EventKind::ArmyMuster, .record = id});
+                w.events.push({.time = w.now + kDay, .kind = EventKind::ArmyMuster, .record = id, .a = token});
                 return;
             }
         }
         retreat(w, id, observer);  // the garrison's time is up
         return;
     }
-    if (!a.alive || a.action != ArmyAction::Muster) return;
+    if (!a.alive || a.action != ArmyAction::Muster || token != 0) return;
     // Those not there yet are left behind.
     for (Id m : std::vector<Id>(a.called)) release(w, m, w.characters[at(m)].planet != kNone ? w.characters[at(m)].planet : a.home);
     a.called.clear();
@@ -461,26 +609,55 @@ void muster_deadline(World& w, Id id, Observer* observer) {
         return;
     }
     a.action = ArmyAction::Move;
-    go(w, id, a.target);
+    go(w, id, a.target, a.target_node);
 }
 
 void on_arrive(World& w, Id id, std::uint32_t seq, Observer* observer) {
     Army& a = w.armies[at(id)];
     if (!a.alive || seq != a.travel_seq || a.route.empty()) return;
     if (a.leg + 1 < static_cast<std::int32_t>(a.route.size())) {
+        // A gate it meant to get on or off at is blockaded (MIL-17): it finds out, and
+        // goes another way.
+        const Leg& done = a.route[at(a.leg)];
+        const Leg& next = a.route[at(a.leg + 1)];
+        const bool off = done.kind == LegKind::Lattice && next.kind != LegKind::Lattice;
+        const bool on = done.kind != LegKind::Lattice && next.kind == LegKind::Lattice;
+        const Id faction = fealty::root_of(w, a.home);
+        if (done.to_node != kNone && (on || off) && gates::shut_to(w, done.to_node, faction)) {
+            const Id node = done.to_node;
+            gates::observe(w, w.characters[at(a.commissioner)].facts, node);
+            for (Id m : a.members) gates::observe(w, w.characters[at(m)].facts, node);
+            const auto np = static_cast<std::int32_t>(w.planets.size());
+            const Leg& last = a.route.back();
+            const std::int32_t dest = last.to_planet != kNone ? last.to_planet : np + last.to_node;
+            std::vector<Leg> again = move::plan_between(w, faction, np + node, dest, army_facts(w, a), off);
+            if (!again.empty()) {
+                a.route = std::move(again);
+                a.leg = 0;
+                ++a.travel_seq;
+                start_leg(w, id);
+                return;
+            }
+        }
         ++a.leg;
         start_leg(w, id);
         return;
     }
-    a.planet = a.route.back().to_planet;
+    const Leg last = a.route.back();
+    a.planet = last.to_planet;
+    a.node = last.to_planet == kNone ? last.to_node : kNone;
     a.route.clear();
     a.leg = 0;
+    if (a.node != kNone) {
+        at_gate(w, id, observer);
+        return;
+    }
     for (Id m : a.members) w.characters[at(m)].last_planet = a.planet;
-    if (a.action == ArmyAction::Retreat || a.target == kNone || a.planet != a.target) {
+    if (a.action == ArmyAction::Retreat || a.target == kNone || a.planet != a.target || a.target_node != kNone) {
         if (a.planet == a.home || a.target == kNone) {
             disband(w, id, observer);
         } else {
-            go(w, id, a.target);
+            go(w, id, a.target, a.target_node);
         }
         return;
     }
@@ -491,7 +668,8 @@ void on_arrive(World& w, Id id, std::uint32_t seq, Observer* observer) {
             // Here before the siege: garrison the planet until the threat passes or
             // army.muster_days go by (MIL-11, INF-12).
             a.action = ArmyAction::Garrison;
-            w.events.push({.time = w.now + w.config.army.muster_days * kDay, .kind = EventKind::ArmyMuster, .record = id});
+            w.events.push({.time = w.now + w.config.army.muster_days * kDay, .kind = EventKind::ArmyMuster, .record = id,
+                           .a = a.travel_seq + 1});
             if (observer) observer->log(w.now, "army.garrison", id, "at " + std::to_string(t));
             return;
         }
@@ -516,6 +694,16 @@ void battle_over(World& w, Id battle, int winner, Observer* observer) {
     Army& a = w.armies[at(attacker)];
     if (!a.alive) return;
     const Id siege = a.siege;
+    if ((siege == kNone || !w.sieges[at(siege)].alive) && a.target_node != kNone) {
+        // A fight to take back a blockaded gate from its garrison (MIL-17).
+        const Id n = a.target_node;
+        if (winner == 0 && w.gates[at(n)].captor != kNone && fealty::same_faction(w, gates::holder(w, n), a.home)) {
+            gates::retake(w, n, observer);
+        }
+        if (reliever != kNone && w.armies[at(reliever)].alive) retreat(w, reliever, observer);
+        retreat(w, attacker, observer);
+        return;
+    }
     if (winner == 0) {
         // The defenders are gone: the siege goes on against the static defence.
         if (reliever != kNone) retreat(w, reliever, observer);
@@ -557,14 +745,15 @@ void siege_round(World& w, Id id, Observer* observer) {
             return;
         }
     }
-    Planet& p = w.planets[at(s.planet)];
+    // A gate's static defence, or the planet's (MIL-17, MIL-10).
+    double& defence = s.node != kNone ? w.gates[at(s.node)].defence : w.planets[at(s.planet)].defence;
     const auto& c = w.config.combat;
     Rng& rng = w.rng[Stream::Combat];
     const double attack = power(w, a);
-    if (p.defence > 0) {
+    if (defence > 0) {
         const double hit = c.lethality * attack * rng.uniform(1 - c.noise, 1 + c.noise);
-        const double back = c.lethality * p.defence * rng.uniform(1 - c.noise, 1 + c.noise);
-        p.defence = std::max(0.0, p.defence - hit);
+        const double back = c.lethality * defence * rng.uniform(1 - c.noise, 1 + c.noise);
+        defence = std::max(0.0, defence - hit);
         double carried = 0;
         const double lost = combat::destroy(w, a.members, back, carried, observer);
         diplomacy::record_loss(w, fealty::root_of(w, a.home), fealty::root_of(w, s.planet), 0, lost);
@@ -574,7 +763,19 @@ void siege_round(World& w, Id id, Observer* observer) {
         disband(w, s.army, observer);
         return;
     }
-    if (p.defence <= 0 && ready(w, s.planet).empty()) {
+    if (s.node != kNone && defence <= 0) {
+        // The gate falls: a blockade, held by the army for blockade.hold_days (MIL-17).
+        const Id n = s.node, army = s.army;
+        end_siege(w, id);
+        Army& held = w.armies[at(army)];
+        held.siege = kNone;
+        held.action = ArmyAction::Garrison;
+        gates::capture(w, n, army, observer);
+        w.events.push({.time = w.now + w.config.blockade.hold_days * kDay, .kind = EventKind::ArmyMuster, .record = army,
+                       .a = held.travel_seq + 1});
+        return;
+    }
+    if (s.node == kNone && defence <= 0 && ready(w, s.planet).empty()) {
         capture(w, id, observer);
         return;
     }
@@ -583,7 +784,7 @@ void siege_round(World& w, Id id, Observer* observer) {
         const double f = ships::fleet(w, w.characters[at(m)]).combat;
         if (f > strongest) strongest = f, risk = w.characters[at(m)].risk;
     }
-    if (power(w, a) < (c.retreat_base - c.retreat_risk * risk) * p.defence) {
+    if (power(w, a) < (c.retreat_base - c.retreat_risk * risk) * defence) {
         end_siege(w, id);
         retreat(w, s.army, observer);
         return;
@@ -600,14 +801,15 @@ void call_for_help(World& w, Id id, Id liege, Observer* observer) {
     const double relief = fleet_power(w, free);
     const double besiegers = power(w, w.armies[at(s.army)]);
     // Relief goes when it stands a fair chance (proposed): P(win) of at least a third
-    // against the besiegers.
+    // against the besiegers. A gate's holder answers its own gate's call first (MIL-17).
+    const bool self = liege == s.planet;
     if (relief > 0 && win_chance(relief, besiegers) >= 1.0 / 3 && fealty::same_faction(w, liege, s.planet)) {
-        if (commission(w, liege, s.planet, true, observer) != kNone) {
-            opinion::deed(w, asking, gov, DeedKind::HelpSent, observer);
+        if (commission(w, liege, s.planet, true, observer, s.node) != kNone) {
+            if (!self) opinion::deed(w, asking, gov, DeedKind::HelpSent, observer);
             return;
         }
     }
-    opinion::deed(w, asking, gov, DeedKind::HelpMissed, observer);
+    if (!self) opinion::deed(w, asking, gov, DeedKind::HelpMissed, observer);
     // Up the tree (INF-8).
     const Id up = w.planets[at(liege)].liege;
     if (up != kNone) {
@@ -625,6 +827,7 @@ void leave(World& w, Id army, Id id) {
 void disband(World& w, Id id, Observer* observer) {
     Army& a = w.armies[at(id)];
     if (!a.alive) return;
+    leave_gate(w, id);
     a.alive = false;
     a.action = ArmyAction::Disband;
     const Id where = a.planet != kNone ? a.planet : a.home;

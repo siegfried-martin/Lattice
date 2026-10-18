@@ -302,6 +302,17 @@ void fields(Ar& ar, F& f) {
     ar(f.army, f.time, f.x, f.y, f.target, f.faction, f.power);
 }
 
+// Whether a gate is blockaded, and by whom, as last heard (MIL-17).
+struct GateFact {
+    Id node = kNone;
+    Time time = 0;
+    Id captor = kNone;  // the planet whose army took it; none: open
+};
+template <class Ar, record_of<GateFact> F>
+void fields(Ar& ar, F& f) {
+    ar(f.node, f.time, f.captor);
+}
+
 // A character's information. Each list is sorted by its subject, so sharing is a merge of
 // sorted lists keeping the newer of each (INF-4).
 struct Facts {
@@ -310,10 +321,11 @@ struct Facts {
     std::vector<DipFact> dips{};
     std::vector<Sighting> sightings{};
     std::vector<PirateFact> pirates{};
+    std::vector<GateFact> gates{};
 };
 template <class Ar, record_of<Facts> F>
 void fields(Ar& ar, F& f) {
-    ar(f.prices, f.risks, f.dips, f.sightings, f.pirates);
+    ar(f.prices, f.risks, f.dips, f.sightings, f.pirates, f.gates);
 }
 
 // ---- Character (MOD-3) ----
@@ -576,6 +588,8 @@ struct Ledger {
     double security = 0, ceasefire_tribute = 0, power_destroyed = 0;
     std::array<double, kGoodCount> destroyed{};  // goods lost in capture and battle
     std::int64_t wars = 0, ceasefires = 0, battles = 0, sieges = 0, captures = 0, reliefs = 0, deaths = 0, pods = 0;
+    // Blockades (MIL-17).
+    std::int64_t gate_attacks = 0, blockades = 0, retakes = 0, lifts = 0;
 };
 template <class Ar, record_of<Ledger> L>
 void fields(Ar& ar, L& l) {
@@ -590,6 +604,7 @@ void fields(Ar& ar, L& l) {
     ar(l.spies_hired, l.spy_visits, l.musters_seen, l.spies_caught, l.spy_pay);
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,
        l.reliefs, l.deaths, l.pods);
+    ar(l.gate_attacks, l.blockades, l.retakes, l.lifts);
 }
 
 // ---- Diplomacy (MOD-5, DIP-1 to DIP-3) ----
@@ -627,7 +642,8 @@ enum class ArmyAction : std::uint8_t { Muster = 0, Move = 1, Besiege = 2, Retrea
 struct Army {
     Id commissioner = kNone;  // the governor (character) who raised it (MIL-9)
     Id home = kNone;          // its planet: the muster point
-    Id target = kNone;        // the planet it's to take: its intent (MIL-7)
+    Id target = kNone;        // the planet it's to take: its intent (MIL-7); a gate's holder
+    Id target_node = kNone;   // the gate it's to take or retake (MIL-17)
     bool relief = false;      // sent to break a siege (MIL-11)
     std::vector<Id> members{};
     std::vector<Id> called{};  // commanders on their way to join
@@ -635,6 +651,7 @@ struct Army {
     Time formed = 0;
     // Moving as one, at the slowest member's speed (MIL-8).
     Id planet = kNone;  // where it is, when not moving
+    Id node = kNone;    // or the gate it's at
     std::vector<Leg> route{};
     std::int32_t leg = 0;
     std::uint32_t travel_seq = 0;
@@ -643,8 +660,8 @@ struct Army {
 };
 template <class Ar, record_of<Army> A>
 void fields(Ar& ar, A& a) {
-    ar(a.commissioner, a.home, a.target, a.relief, a.members, a.called, a.action, a.formed);
-    ar(a.planet, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive);
+    ar(a.commissioner, a.home, a.target, a.target_node, a.relief, a.members, a.called, a.action, a.formed);
+    ar(a.planet, a.node, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive);
 }
 
 // A fight, resolved in hourly rounds (SYS-14). Side 0 attacks.
@@ -670,7 +687,8 @@ void fields(Ar& ar, B& b) {
 
 // MOD-7: once no defending ships remain, daily rounds against the static defence.
 struct Siege {
-    Id planet = kNone;
+    Id planet = kNone;  // the planet, or the holder of the gate
+    Id node = kNone;    // the gate under attack, for a gate (MIL-17)
     Id army = kNone;
     Time start = 0;
     bool called = false;  // the call for help has gone out (MIL-11)
@@ -679,7 +697,22 @@ struct Siege {
 };
 template <class Ar, record_of<Siege> S>
 void fields(Ar& ar, S& s) {
-    ar(s.planet, s.army, s.start, s.called, s.relieved, s.alive);
+    ar(s.planet, s.node, s.army, s.start, s.called, s.relieved, s.alive);
+}
+
+// ---- Gates (MIL-17) ----
+
+// One per Lattice node; only interchanges are ever attacked.
+struct Gate {
+    double defence = 0;    // static defence now, in combat power
+    Id siege = kNone;      // the attack it's under
+    Id captor = kNone;     // blockaded by this planet's army (its faction holds it); none: open
+    Time since = kNever;   // when it was captured
+    Id garrison = kNone;   // the captor's army holding it
+};
+template <class Ar, record_of<Gate> G>
+void fields(Ar& ar, G& g) {
+    ar(g.defence, g.siege, g.captor, g.since, g.garrison);
 }
 
 // ---- Risk (SYS-19, TRD-16) ----

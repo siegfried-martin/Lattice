@@ -104,6 +104,8 @@ faction** allow it.
   standing with the faction (its root, REL-5). Members of a faction at war with it are
   refused (DIP-6).
 - *(proposed)* A pirate planet's gates are shut with the Authority's key.
+- *(proposed)* A **blockaded** gate is shut to everyone but the faction that captured it
+  (MIL-17).
 - *(open)* Whether junction gates, which no planet holds, have only the Authority's key
   (OPN-22).
 
@@ -119,6 +121,8 @@ and fly in, without the boost.
   attacker a new exit one step deeper.
 - **A pirate-held interchange is dead in both directions:** pirates can't board, and
   nobody else can exit there.
+- *(proposed)* **A captured gate is a forward exit** for the captor's armies, one step
+  past the defender's home-field advantage (MIL-17).
 - *(proposed)* Neutral planets decide whether to let a passing army out, possibly for a
   price.
 
