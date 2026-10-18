@@ -127,6 +127,29 @@ Pirate planets and flips, broke commanders, raiding and loot, pirate missions an
 smugglers, the pirate relation, contraband in lawful markets, policing and suspicion
 (SYS-16, SYS-17).
 
+*Part 1 built 2026-10-18.*
+- **What runs:**
+  - pirate planets: flips, contraband production, low costs, no dues, recapture;
+  - starting pirate planets with crews;
+  - the pirate faction's hostility, and its exclusion from the Lattice;
+  - pirate raids, loot sold at home;
+  - broke commanders turning pirate;
+  - the pirate relation;
+  - Authority clearing contracts.
+- **Changed while building:**
+  - Pirate planets were made known: flips are seen nearby, and a landing shows the whole
+    system. Otherwise no broke commander could ever find one.
+  - Pirates were given raiding reach (`pirate.range_days` 20); at 6 days of open space
+    few havens had a target.
+  - An engagement cooldown was added: a raider holding station had re-engaged hundreds
+    of times.
+  - Invasions wait out the warm-up, like declarations.
+- **Seen over five development years:** pirates take hold in some seeds, not others. In
+  seed 3 one fringe haven persists, with 14 broke commanders joining it and 50 pirate
+  sorties.
+- **Part 2:** pirate missions, smugglers, contraband in lawful markets, policing and
+  suspicion.
+
 ### MS-7 Spies `v1`
 
 Spies (INF-13, SYS-17). Last because suspicion already exists for smuggling, so a spy

@@ -254,6 +254,7 @@ struct Config {
         double meet_cooldown_hours = 6;  // a character merges facts in open space at most this often
         double engage_p = 0.5;          // chance per step that a hostile in range is engaged
         double evade = 0.5;             // a faster quarry's chance to slip away, x its speed edge
+        double engage_cooldown_hours = 12;  // after a fight, neither side is engaged again for this long
 
         friend bool operator==(const Space&, const Space&) = default;
     } space;
@@ -384,6 +385,38 @@ struct Config {
         friend bool operator==(const Security&, const Security&) = default;
     } security;
 
+    struct Pirate {
+        std::int64_t flip_days = 60;  // days in deficit before a planet turns (SYS-16)
+        double flip_debt = 3;         // and a debt of this many months of costs
+        double cost_mult = 0.3;       // a pirate planet's operating costs (ECO-14)
+        bool turn_all = false;        // EXP-9: every broke commander turns pirate, not risk-weighted
+        double salary = 0.6;          // pirate stipend / lawful stipend (PIR-5)
+        double range_days = 20;       // how far, in open space, pirates go raiding (about 3 sectors)
+        std::int64_t commanders = 2;  // pirate commanders at each starting pirate planet (GEN-9)
+        double need_fill = 0.5, surplus_fill = 1.2;
+        double smuggler_risk = 0.7;
+        double contraband_price = 1.5;  // x base, what a lawful population pays a smuggler
+        double demand_cap = 0.3;        // per thousand a day
+
+        friend bool operator==(const Pirate&, const Pirate&) = default;
+    } pirate;
+
+    struct PirateRelation {
+        double accept = 0, success = 15, fail = -50, rest = -50, fade = 0.02;  // PIR-9
+
+        friend bool operator==(const PirateRelation&, const PirateRelation&) = default;
+    } pirel;
+
+    struct AuthorityParams {
+        double risk_post = 0.3;           // a sector this risky near the network gets a clearing contract
+        std::int64_t clear_days = 30;
+        double pay = 300;                 // a day
+        std::int64_t contracts = 3;       // most posted a week
+        double opinion_per_job = 5;       // its opinion of a mercenary who completes one
+
+        friend bool operator==(const AuthorityParams&, const AuthorityParams&) = default;
+    } authority;
+
     struct Capture {
         double happiness_loss = 0.4;
         double stock_loss = 0.5;
@@ -432,6 +465,7 @@ struct Config {
         double favour_mult = 3;      // weight of each region's favoured good
         double independent_share = 0.1;  // planets that start as their own roots (GEN-8)
         double commanders_per_income = 1e-5;  // starting combat power per credit of monthly income (GEN-9)
+        std::int64_t pirate_planets = 2;      // fringe planets that start as pirate planets (GEN-8)
 
         friend bool operator==(const Gen&, const Gen&) = default;
     } gen;
@@ -580,6 +614,7 @@ void for_each_field(C& c, F&& f) {
     f("space.meet_cooldown_hours", c.space.meet_cooldown_hours);
     f("space.engage_p", c.space.engage_p);
     f("space.evade", c.space.evade);
+    f("space.engage_cooldown_hours", c.space.engage_cooldown_hours);
     f("risk.window", c.risk.window);
     f("risk.presence", c.risk.presence);
     f("risk.clear", c.risk.clear);
@@ -591,6 +626,28 @@ void for_each_field(C& c, F&& f) {
     f("security.risk_post", c.security.risk_post);
     f("security.days", c.security.days);
     f("security.pay", c.security.pay);
+    f("pirate.flip_days", c.pirate.flip_days);
+    f("pirate.flip_debt", c.pirate.flip_debt);
+    f("pirate.cost_mult", c.pirate.cost_mult);
+    f("pirate.turn_all", c.pirate.turn_all);
+    f("pirate.salary", c.pirate.salary);
+    f("pirate.range_days", c.pirate.range_days);
+    f("pirate.commanders", c.pirate.commanders);
+    f("pirate.need_fill", c.pirate.need_fill);
+    f("pirate.surplus_fill", c.pirate.surplus_fill);
+    f("pirate.smuggler_risk", c.pirate.smuggler_risk);
+    f("pirate.contraband_price", c.pirate.contraband_price);
+    f("pirate.demand_cap", c.pirate.demand_cap);
+    f("pirel.accept", c.pirel.accept);
+    f("pirel.success", c.pirel.success);
+    f("pirel.fail", c.pirel.fail);
+    f("pirel.rest", c.pirel.rest);
+    f("pirel.fade", c.pirel.fade);
+    f("authority.risk_post", c.authority.risk_post);
+    f("authority.clear_days", c.authority.clear_days);
+    f("authority.pay", c.authority.pay);
+    f("authority.contracts", c.authority.contracts);
+    f("authority.opinion_per_job", c.authority.opinion_per_job);
 
     f("rel.fade", c.rel.fade);
     f("rel.culture_rest", c.rel.culture_rest);
@@ -696,6 +753,7 @@ void for_each_field(C& c, F&& f) {
     f("gen.favour_mult", c.gen.favour_mult);
     f("gen.independent_share", c.gen.independent_share);
     f("gen.commanders_per_income", c.gen.commanders_per_income);
+    f("gen.pirate_planets", c.gen.pirate_planets);
 }
 
 class ConfigError : public std::runtime_error {

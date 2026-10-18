@@ -82,6 +82,7 @@ void merge_into(Facts& dst, const Facts& src) {
     merge_list(dst.risks, src.risks, risk_key);
     merge_list(dst.dips, src.dips, dip_key);
     merge_list(dst.sightings, src.sightings, sighting_key);
+    merge_list(dst.pirates, src.pirates, [](const PirateFact& f) { return f.planet; });
 }
 
 void observe_risk(const World& w, Facts& facts, Id sector) {
@@ -112,6 +113,12 @@ bool believes_war(const Facts& facts, Id a, Id b) {
 }
 
 void add_sighting(Facts& facts, const Sighting& s) { put(facts.sightings, s, sighting_key); }
+
+bool knows_pirate(const Facts& facts, Id planet) {
+    auto it = std::lower_bound(facts.pirates.begin(), facts.pirates.end(), planet,
+                               [](const PirateFact& f, Id p) { return f.planet < p; });
+    return it != facts.pirates.end() && it->planet == planet && it->pirate;
+}
 
 void share(Facts& a, Facts& b) {
     merge_into(a, b);

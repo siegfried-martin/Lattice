@@ -13,7 +13,7 @@ double reserve(const Config& c, const Planet& p, Good g) {
         case GoodKind::Luxury:
             return gp.reserve_days * p.population * c.lux.consumption / static_cast<double>(kLuxuries.size());
         case GoodKind::Contraband:
-            return 0;
+            return p.pirate ? gp.reserve_days * p.population * gp.consumption : 0;
     }
     return 0;
 }

@@ -14,7 +14,8 @@ std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 }  // namespace
 
 double monthly_costs(const Config& c, const Planet& p) {
-    return c.econ.op_base + c.econ.op_per_capita * p.population;
+    const double cost = c.econ.op_base + c.econ.op_per_capita * p.population;
+    return p.pirate ? cost * c.pirate.cost_mult : cost;  // a low cost base (ECO-14)
 }
 
 void init_state(World& w) {
@@ -76,6 +77,22 @@ void planet_day(World& w, Id id) {
     budget -= cost;
     double spent = cost;
 
+    // Contraband, the cheapest happiness (PRD-6), comes next. A lawful population buys it
+    // from smugglers (SYS-16), counted as they sell; a pirate planet's from its own market,
+    // at the ask, as much as its unhappiness wants up to pirate.demand_cap.
+    if (p.pirate && p.stock[kStims] > 0 && n > 0) {
+        const double want = std::min(n * c.goods[kStims].consumption * (1 - p.happiness), c.pirate.demand_cap * n);
+        const double stims_ask = market::ask(c, p, kStims);
+        const double q = std::min({want, p.stock[kStims], std::max(0.0, budget) / stims_ask});
+        if (q > 0) {
+            p.stock[kStims] -= q;
+            w.ledger.consumed[kStims] += q;
+            budget -= q * stims_ask;
+            spent += q * stims_ask;
+            p.contraband_today += q;
+        }
+    }
+
     // Luxuries (PRD-4): use scales with how full luxury stocks are against their
     // reserves, split by each luxury's share of the stock, then limited by the budget.
     double lux_stock = 0, lux_reserve = 0;
@@ -110,8 +127,8 @@ void planet_day(World& w, Id id) {
             joy += buy[g] * c.goods[g].happiness / n;
             variety += buy[g] > 0 && buy[g] >= c.lux.variety_min * full_use;
         }
-        // Contraband comes from smugglers (SYS-16, MS-6); none is bought yet.
-        const double contraband = 0;
+        const double contraband = p.contraband_today;
+        p.contraband_today = 0;
         joy += contraband * c.goods[kStims].happiness / n;
         p.happiness = std::clamp(p.happiness + joy + c.lux.variety_bonus[at(variety)] - c.pop.happiness_drain, 0.0, 1.0);
         p.contraband_avg += (contraband / n - p.contraband_avg) / static_cast<double>(c.pop.contraband_window);
@@ -147,6 +164,7 @@ void planet_day(World& w, Id id) {
 void planet_labour(World& w, Id id) {
     const Config& c = w.config;
     Planet& p = w.planets[at(id)];
+    if (p.pirate) return;  // its whole labour is on contraband (PIR-3)
     // Score each good by its bid at the planet's own market times efficiency, and move
     // prod.labour_shift of all labour from the worst to the best.
     std::array<double, 3> score{};

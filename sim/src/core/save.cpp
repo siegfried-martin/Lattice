@@ -269,6 +269,7 @@ void check_references(const World& w) {
         for (const PriceFact& pf : f.prices) require(in(pf.planet, np), "fact");
         for (const RiskFact& rf : f.risks) require(in(rf.sector, m.sectors.size()), "risk fact");
         for (const DipFact& df : f.dips) require(in(df.a, np) && in(df.b, np) && df.state <= 2, "war fact");
+        for (const PirateFact& pf : f.pirates) require(in(pf.planet, np), "pirate fact");
         for (const Sighting& s : f.sightings) {
             require(in(s.army, w.armies.size()) && opt(s.target, np) && opt(s.faction, np), "sighting");
         }
@@ -302,7 +303,8 @@ void check_references(const World& w) {
     }
     for (const Planet& p : w.planets) require(opt(p.siege, w.sieges.size()), "planet siege");
     for (const Character& c : w.characters) {
-        require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()) && opt(c.escort, nc) && opt(c.escorting, nc),
+        require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()) && opt(c.escort, nc) && opt(c.escorting, nc) &&
+                    opt(c.renounce_to, np),
                 "character war");
     }
     for (const Planet& p : w.planets) require(opt(p.warned_army, w.armies.size()), "planet warning");

@@ -297,6 +297,7 @@ void validate(const Config& c) {
     share(c.capture.pop_loss, "capture.pop_loss");
     share(c.space.engage_p, "space.engage_p");
     share(c.space.evade, "space.evade");
+    non_negative(c.space.engage_cooldown_hours, "space.engage_cooldown_hours");
     positive(c.risk.window, "risk.window");
     non_negative(c.risk.presence, "risk.presence");
     non_negative(c.risk.clear, "risk.clear");
@@ -307,6 +308,20 @@ void validate(const Config& c) {
     non_negative(c.security.risk_post, "security.risk_post");
     positive(static_cast<double>(c.security.days), "security.days");
     non_negative(c.security.pay, "security.pay");
+    require(c.pirate.flip_days >= 0, "pirate.flip_days can't be negative");
+    non_negative(c.pirate.flip_debt, "pirate.flip_debt");
+    non_negative(c.pirate.cost_mult, "pirate.cost_mult");
+    non_negative(c.pirate.salary, "pirate.salary");
+    non_negative(c.pirate.range_days, "pirate.range_days");
+    require(c.pirate.commanders >= 0, "pirate.commanders can't be negative");
+    non_negative(c.pirate.contraband_price, "pirate.contraband_price");
+    non_negative(c.pirate.demand_cap, "pirate.demand_cap");
+    share(c.pirel.fade, "pirel.fade");
+    non_negative(c.authority.risk_post, "authority.risk_post");
+    positive(static_cast<double>(c.authority.clear_days), "authority.clear_days");
+    non_negative(c.authority.pay, "authority.pay");
+    require(c.authority.contracts >= 0, "authority.contracts can't be negative");
+    require(c.gen.pirate_planets >= 0, "gen.pirate_planets can't be negative");
 
     require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
     require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");

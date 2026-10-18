@@ -55,7 +55,7 @@ after loading.
 | static defence | current strength, maximum (MIL-5) |
 | fuel price | fixed at world build (ECO-11) |
 | liege | the planet whose governor this one's is sworn to, or none for a root; fealty is kept per planet because governor and planet are one to one (FAC-1) |
-| pirate | flag, plus the goods-made set to restore on recapture (PIR-3) |
+| pirate | flag, plus the goods-made set to restore on recapture (PIR-3); *as built*, also the tiers, and the contraband its population bought today |
 | deficit days | days in deficit, for turning pirate (ECO-13) |
 | mission board | list of mission IDs posted here |
 
@@ -73,7 +73,7 @@ after loading.
 | contracts | contract IDs held (REL-8) |
 | opinions | sparse map: other character ID → opinion value, plus recent deeds for the UI (REL-2) |
 | facts | the character's information (MOD-8) |
-| pirate status | none, full pirate (PIR-11) |
+| pirate status | none, full pirate (PIR-11); *as built*, also the pirate planet it's heading to when turning (PIR-4) and its last fight in open space |
 | suspicion | per faction root, plus Authority (INF-14) |
 | goal, action | current long-term goal and short-term action (CHR-2) |
 | broke since | for running out of money (PIR-4) |
@@ -148,7 +148,8 @@ for help has gone out and whether it was relieved.
 
 A fact is `(subject, value, observed time)`. *As built (MS-5):* prices per market, risk
 per sector, the state between two roots, and the latest sighting of each army (position,
-target, faction, power). Each is a sorted list merged newest-wins. Subjects in v1:
+target, faction, power), and whether a planet is a pirate planet (MS-6). Each is a sorted
+list merged newest-wins. Subjects in v1:
 
 | Subject | Value |
 |---|---|

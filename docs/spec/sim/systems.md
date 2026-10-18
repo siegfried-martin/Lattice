@@ -644,6 +644,42 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 - **The pirate relation** moves by `pirel.accept`, `pirel.success`, `pirel.fail` and fades
   toward `pirel.rest` (hostile) at `pirel.fade` per week.
 
+*As built (MS-6, part 1):*
+- **The pirate faction:**
+  - Pirate planets and full pirates form one faction with no root.
+  - They take no part in diplomacy, are hostile to everyone outside them, and have no
+    osmosis with lawful markets.
+  - Full pirates route without the Lattice; a pirate planet's gates are shut to everyone.
+- **Turning pirate:**
+  - The check is weekly.
+  - The flipped planet's governor turns with it, and contracts it paid end.
+  - Its vassals become roots at peace. Its contraband takes its first slot at high
+    efficiency, with all its labour, and labour doesn't shift.
+  - Its forgiven debt counts as money created (ECO-13).
+  - Governors within `dip.neighbour_days` see it happen; others hear. Landing shows every
+    planet in that system.
+- **A pirate planet:**
+  - Its population buys contraband from its own market, right after life support.
+  - Its budget buys only static defence. It keeps every commander who joins, at
+    `pirate.salary` of the stipend (proposed).
+  - It can be invaded by any governor who knows of it. Capture restores its old goods
+    and destroys its contraband.
+  - No invasions during the warm-up (GEN-10).
+- **Broke commanders:**
+  - They go to the nearest pirate planet they know of, with chance equal to their risk
+    tolerance (all of them under `pirate.turn_all`).
+  - They ride the Lattice as lawful until they arrive, renounce every contract, and are
+    hired.
+- **Pirate raids** *(proposed)*:
+  - Weekly, each pirate commander at home sorties with chance `raid.share` × (1 + the
+    planet's worst life-support shortfall).
+  - The target is a lawful planet within `pirate.range_days` of open space, weighted by
+    population, which stands in for believed traffic.
+  - They attack anyone below neutral with them (PIR-9) and sell loot only at home
+    (PIR-5).
+- **Not yet:** pirate missions, smugglers and selling contraband in lawful space come in
+  part 2.
+
 ### SYS-17 Suspicion and spies `v1`
 
 *Implements:* INF-13, INF-14, PIR-15. *Cadence:* events; fade weekly.
@@ -713,8 +749,15 @@ it on visit and share it as a fact.
 
 Collects `dues.access` from every lawful planet and `dues.gate` from gate holders.
 *As built (MS-4):* each planet pays at its monthly payment; gate holders are the holders
-of on-network groups. The Authority's surplus builds up until mercenary contracts exist
-(MS-6).
+of on-network groups.
+
+*As built (MS-6):*
+- **Clearing contracts:** weekly, the Authority posts up to `authority.contracts` of
+  them, for the riskiest sectors (above `authority.risk_post`) that hold an on-network
+  lawful planet, while its treasury covers them.
+- **A contract** is a patrol from that planet of `authority.clear_days`, paid from the
+  Authority's treasury. Completing one raises the Authority's opinion of the mercenary.
+- **Not yet:** hunting named pirate commanders.
 Spends `authority.maintenance` of income (a sink); the surplus funds mercenary contracts:
 hunting known pirate commanders and clearing the highest-risk sectors near the Lattice
 for `authority.clear_days`. Its opinion of a character rises with contracts completed and

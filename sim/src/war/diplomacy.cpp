@@ -15,7 +15,8 @@ namespace {
 
 std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 
-bool is_root(const World& w, Id p) { return w.planets[at(p)].liege == kNone; }
+// A lawful root: pirate planets take no part in diplomacy (DIP-7).
+bool is_root(const World& w, Id p) { return p >= 0 && w.planets[at(p)].liege == kNone && !w.planets[at(p)].pirate; }
 
 const Relation* find(const World& w, Id a, Id b) {
     if (a == b || a == kNone || b == kNone) return nullptr;
@@ -110,7 +111,7 @@ double war_vote(const World& w, Id root, Id target) {
 }  // namespace
 
 DipState state(const World& w, Id a, Id b) {
-    if (a == kNone || b == kNone || !is_root(w, a) || !is_root(w, b)) return DipState::Peace;
+    if (a < 0 || b < 0 || !is_root(w, a) || !is_root(w, b)) return DipState::Peace;
     const Relation* r = find(w, a, b);
     return r ? r->state : DipState::Peace;
 }
@@ -119,8 +120,13 @@ bool at_war(const World& w, Id a, Id b) { return state(w, a, b) == DipState::War
 
 bool planets_at_war(const World& w, Id a, Id b) { return at_war(w, fealty::root_of(w, a), fealty::root_of(w, b)); }
 
+bool hostile_planets(const World& w, Id a, Id b) {
+    return w.planets[at(a)].pirate != w.planets[at(b)].pirate || planets_at_war(w, a, b);
+}
+
 std::vector<Id> enemies(const World& w, Id root) {
     std::vector<Id> out;
+    if (root < 0) return out;
     for (const Relation& r : w.relations) {
         if (r.state != DipState::War || !is_root(w, r.a) || !is_root(w, r.b)) continue;
         if (r.a == root) out.push_back(r.b);

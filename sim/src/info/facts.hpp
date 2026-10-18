@@ -22,6 +22,9 @@ bool believes_war(const Facts& facts, Id root_a, Id root_b);
 // Sightings (INF-3): an army seen, kept newest per army.
 void add_sighting(Facts& facts, const Sighting& s);
 
+// Whether the facts say a planet is a pirate planet (MOD-8).
+bool knows_pirate(const Facts& facts, Id planet);
+
 // dst keeps the newer of each subject from either side (INF-4).
 void merge_into(Facts& dst, const Facts& src);
 // Both keep the newer of each subject.

@@ -14,6 +14,8 @@
 #include "core/travel.hpp"
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
+#include "pirates/pirates.hpp"
+#include "politics/authority.hpp"
 #include "politics/governor.hpp"
 #include "politics/opinion.hpp"
 #include "trade/merchants.hpp"
@@ -131,6 +133,7 @@ void sample_metrics(const World& w, Observer& o) {
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
         const Planet& pl = w.planets[at(p)];
         if (pl.liege == kNone) {
+            if (pl.pirate) continue;  // the pirate faction is not a root (PIR-1)
             ++roots;
             factions += size[at(p)] >= 2;
         } else {
@@ -189,6 +192,19 @@ void sample_metrics(const World& w, Observer& o) {
     }
     o.sample(t, "world.mean_risk", -1, w.risk.empty() ? 0 : risk_sum / static_cast<double>(w.risk.size()));
     o.sample(t, "world.max_risk", -1, risk_max);
+
+    // Piracy (CHK-4, CHK-9, CHK-23).
+    std::int64_t pirate_planets = 0, fringe_pirates = 0, pirates = 0;
+    for (const Planet& pl : w.planets) pirate_planets += pl.pirate, fringe_pirates += pl.pirate && pl.fringe;
+    for (const Character& ch : w.characters) pirates += ch.alive && ch.pirate;
+    o.sample(t, "world.pirate_planets", -1, static_cast<double>(pirate_planets));
+    o.sample(t, "world.fringe_pirate_planets", -1, static_cast<double>(fringe_pirates));
+    o.sample(t, "world.pirates", -1, static_cast<double>(pirates));
+    o.sample(t, "world.flips", -1, static_cast<double>(w.ledger.flips));
+    o.sample(t, "world.recaptures", -1, static_cast<double>(w.ledger.recaptures));
+    o.sample(t, "world.turned_pirate", -1, static_cast<double>(w.ledger.turned_pirate));
+    o.sample(t, "world.pirate_raids", -1, static_cast<double>(w.ledger.pirate_raids));
+    o.sample(t, "world.authority_contracts", -1, static_cast<double>(w.ledger.authority_contracts));
     o.sample(t, "world.fires", -1, static_cast<double>(w.ledger.fires));
     o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
     o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);
@@ -219,6 +235,7 @@ void on_daily_tick(World& w, Observer* observer) {
     osmosis::run(w);
     chars::daily(w, observer);
     risk::daily(w);
+    if (day_of(w.now) % 7 == 0) authority::weekly(w, observer);
 }
 
 void on_debug_ping(World& w, const Event& e) {

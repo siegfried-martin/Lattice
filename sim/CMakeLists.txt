@@ -38,6 +38,8 @@ add_library(lattice_core STATIC
     src/chars/movement.cpp
     src/chars/ships.cpp
     src/info/facts.cpp
+    src/pirates/pirates.cpp
+    src/politics/authority.cpp
     src/politics/budget.cpp
     src/politics/fealty.cpp
     src/politics/governor.cpp
@@ -82,6 +84,7 @@ if(LATTICE_BUILD_TESTS)
         tests/test_characters.cpp
         tests/test_politics.cpp
         tests/test_war.cpp
+        tests/test_pirates.cpp
     )
     set_target_properties(lattice-tests PROPERTIES CXX_EXTENSIONS OFF)
     target_include_directories(lattice-tests SYSTEM PRIVATE third_party/doctest)

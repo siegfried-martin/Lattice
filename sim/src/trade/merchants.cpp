@@ -136,7 +136,10 @@ void finish(const Ctx& x, Plan& plan, double profit) {
 std::vector<Id> candidates(const World& w, const Character& c, Id from) {
     std::vector<std::pair<double, Id>> known;
     for (const PriceFact& f : c.facts.prices) {
-        if (f.planet != from) known.emplace_back(w.derived.travel(from, f.planet), f.planet);
+        // Pirate markets are for pirates and smugglers (PIR-5, MS-6 part 2).
+        if (f.planet != from && w.planets[static_cast<std::size_t>(f.planet)].pirate == c.pirate) {
+            known.emplace_back(w.derived.travel(from, f.planet), f.planet);
+        }
     }
     std::sort(known.begin(), known.end());
     std::vector<Id> out;
@@ -343,7 +346,7 @@ Id explore_target(const World& w, const Character& c) {
     Id best = kNone;
     double best_days = 0;
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
-        if (p == c.planet) continue;
+        if (p == c.planet || w.planets[at(p)].pirate != c.pirate) continue;
         const PriceFact* f = info::find(c.facts, p);
         if (f && static_cast<double>(w.now - f->time) < stale) continue;
         const double d = w.derived.travel(c.planet, p);
@@ -376,8 +379,9 @@ void consider_salary(World& w, Id id, Observer* observer) {
         }
         return;
     }
-    if (m.salary <= 0) return;
+    if (m.salary <= 0 || c.pirate) return;
     const Id root = fealty::root_of(w, c.planet);
+    if (w.planets[at(root)].pirate) return;  // the pirates have no merchants (PIR-1)
     const Id root_governor = w.planets[at(root)].governor;
     int hired = 0;
     for (Id k : w.characters[at(root_governor)].contracts) {

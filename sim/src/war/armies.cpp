@@ -14,6 +14,8 @@
 #include "politics/opinion.hpp"
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
+#include "info/facts.hpp"
+#include "pirates/pirates.hpp"
 #include "war/raids.hpp"
 
 namespace lattice::armies {
@@ -229,6 +231,8 @@ void capture(World& w, Id siege, Observer* observer) {
     const Id old_root = fealty::root_of(w, t);
     const Id winner_root = fealty::root_of(w, army.home);
     diplomacy::record_loss(w, old_root, winner_root, 1, 0);
+    const bool was_pirate = planet.pirate;
+    pirates::restore(w, t);  // back to its old production (PIR-3, MIL-12)
 
     // The deposed governor stays, as a character with no planet; those it paid lose their
     // contracts with it.
@@ -247,6 +251,8 @@ void capture(World& w, Id siege, Observer* observer) {
     const std::vector<Id> below = fealty::vassals(w, t);
     if (planet.liege != kNone) {
         for (Id v : below) fealty::swear(w, v, planet.liege);
+    } else if (was_pirate) {
+        // A pirate planet has no vassals.
     } else if (!below.empty()) {
         Id heir = below[0];
         for (Id v : below) {
@@ -340,7 +346,6 @@ std::pair<double, double> position(const World& w, const Army& a) {
 Plan best_invasion(const World& w, Id planet) {
     Plan best;
     const std::vector<Id> enemies = raids::believed_enemies(w, planet);  // as it has heard (DIP-5)
-    if (enemies.empty()) return best;
     const Id gov = w.planets[at(planet)].governor;
     for (const Army& a : w.armies) {
         if (a.alive && a.commissioner == gov && !a.relief) return best;  // one campaign at a time
@@ -355,8 +360,10 @@ Plan best_invasion(const World& w, Id planet) {
     const auto& v = w.config.value;
     double best_ratio = 0;
     for (Id t = 0; t < static_cast<Id>(w.planets.size()); ++t) {
+        // An enemy's planet, or a pirate planet it knows of (MIL-9).
         const Id troot = fealty::root_of(w, t);
-        if (std::find(enemies.begin(), enemies.end(), troot) == enemies.end()) continue;
+        const bool pirate = w.planets[at(t)].pirate && info::knows_pirate(w.characters[at(gov)].facts, t);
+        if (!pirate && std::find(enemies.begin(), enemies.end(), troot) == enemies.end()) continue;
         if (w.derived.travel(planet, t) > w.config.dip.border_days) continue;
         if (w.planets[at(t)].siege != kNone) continue;
         const double defence = w.planets[at(t)].defence + fleet_power(w, ready(w, t));
@@ -495,7 +502,7 @@ void on_arrive(World& w, Id id, std::uint32_t seq, Observer* observer) {
         combat::start(w, w.armies[at(besiegers)].members, defenders, t, true, besiegers, id, observer);
         return;
     }
-    if (!diplomacy::planets_at_war(w, a.home, t)) {
+    if (!diplomacy::hostile_planets(w, a.home, t)) {
         retreat(w, id, observer);
         return;
     }
