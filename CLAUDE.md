@@ -4,13 +4,18 @@ Read `docs/VISION.md` first. It is the intent everything else serves.
 
 ## The prototype and the plan
 
-- Everything directly in `docs/` describes the current prototype (POC) or the game's
-  general intent. The POC existed to prove out the feel of travel and combat. Its
-  conveniences (unlimited missiles, numpad ship switching, starting in a freighter, the
-  small fixed 4×4 map) are testing scaffolding, not design.
-- `docs/planning/` holds the design of the full game. Once its decisions are settled,
-  those documents become the source of truth and the roadmap is written from them. See
+- `docs/spec/` is the source of truth for the full game: `design/` holds the rules and
+  `sim/` the simulation spec. Every rule has a stable ID (`FAC-8`, `SYS-3`); cite IDs in
+  code comments, tests and commits. Start from `docs/spec/README.md`, which indexes
+  everything and explains the tags (`v1`, `later`, `proposed`, `open`, …).
+- `docs/planning/` holds the planning agent's ideation drafts, which aren't
+  authoritative. Once a round is settled, write its decisions into `docs/spec/` with IDs,
+  log them in `docs/spec/DECISIONS.md`, and delete the drafts. See
   `docs/planning/README.md`.
+- The other files directly in `docs/` describe the current prototype (POC) and the brief.
+  The POC existed to prove out the feel of travel and combat. Its conveniences (unlimited
+  missiles, numpad ship switching, starting in a freighter, the small fixed 4×4 map) are
+  testing scaffolding, not design.
 - Don't read a POC shortcut as a design decision, and don't propose prototyping systems
   whose feel isn't in question (a market screen, say) ahead of the plan.
 
@@ -51,5 +56,6 @@ Read `docs/VISION.md` first. It is the intent everything else serves.
 ## Git
 
 - Work on a branch, `feat/…`, `fix/…` or `docs/…`, and merge through a PR.
-- Update `docs/` in the same change when a design decision changes.
+- Update `docs/` in the same change when a design decision changes: the rule in
+  `docs/spec/`, plus a line in `docs/spec/DECISIONS.md`.
   `docs/BRIEF.md` is the code-free summary the human uses for brainstorming; keep it current too.

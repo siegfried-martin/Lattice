@@ -1,9 +1,9 @@
 # Lattice: project brief
 
 *A code-free summary of the game and where it stands, for brainstorming outside the
-repo. Current as of 2026-10-16. The detailed design docs are `VISION.md`,
-`WORLD_AND_TRAVEL.md`, `COMBAT.md` and `ROADMAP.md`; this brief condenses them. The
-full game's design is being worked out separately in `docs/planning/`.*
+repo. Current as of 2026-10-18. It condenses `VISION.md`, the prototype docs
+(`WORLD_AND_TRAVEL.md`, `COMBAT.md`), `ROADMAP.md`, and the full game's specification in
+`docs/spec/`, whose rules are cited here by ID (FAC-8 and so on).*
 
 ## The pitch
 
@@ -179,6 +179,58 @@ requirement: a summoner may never ride a missile.
 - Flying a missile into a target felt hard but rewarding: "really accomplished."
 - The missile fuse (unspecified, but picked up from the design) works well.
 
+## The full game (from the spec)
+
+The design of the full game is settled enough to build its simulation. In brief:
+
+- **One kind of character.** Governor, commander, merchant, scout, courier, escort,
+  smuggler, spy, pirate and the player are roles, held as contracts that either side can
+  end without penalty (CHR-1, REL-8). Everyone owns their own ships (CHR-8). New
+  characters start at the bottom and climb: scout → escort → commander → governor, or
+  courier → merchant → rich merchant (CHR-11). There's one personality trait, risk
+  tolerance (CHR-4).
+- **Losing:** no capture, ever. A destroyed ship's pilot rides a missile-fast escape pod
+  to safety; if the player's pod is shot down they reload from the autosave made on
+  landing (CHR-14, CHR-15, CHR-18).
+- **Two systems: money and relationships.** Opinion between characters is moved by deeds
+  and fades over time. A vassal's opinion of its liege is loyalty, the liege's of the
+  vassal is favor, and standing with a faction is its root's opinion of you (REL-1 to
+  REL-5).
+- **Factions are fealty trees of governors,** one governor per planet. The liege gives
+  protection, patronage, intelligence and trade; the vassal pays tribute and serves in
+  its wars. A conquering governor keeps a planet (installing a new governor under
+  themselves) or grants it down the tree. Vassals defect after sustained low opinion when
+  there's somewhere better to go (FAC-5 to FAC-11).
+- **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing faction
+  sues for peace and pays tribute (DIP-1 to DIP-3).
+- **War:** armies with telegraphed intent cross open space from the nearest gate that
+  lets them out; sieges grind down a planet's defences while couriers race to bring help
+  (MIL-7 to MIL-11). Combat away from the player is auto-resolved (MIL-13).
+- **Economy:** population buying goods is the only source of new money; every planet is
+  a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
+  to ECO-5). The v1 goods are food, water, oxygen, three luxuries and one contraband
+  (PRD-1). Each planet makes three goods at high, medium and low efficiency, partly by
+  region; prices come from stock against a reserve; droughts and festivals keep them
+  moving (PRD-7 to PRD-11). Fuel is a fixed local price in v1 (ECO-11).
+- **Trade:** merchants are characters. A faction root pays merchants a salary for its
+  information network, in return for trips that start and end at home; independents run
+  single trips. Merchants hire escorts by weighing route risk against cargo value. A slow
+  osmosis keeps markets from becoming deserts (TRD-3 to TRD-13).
+- **Piracy:** one anarchic pirate faction on the fringe, unable to use the Lattice. Broke
+  commanders turn pirate; loot sells only at pirate planets, which make contraband. One
+  pirate relation both shields you from pirates and raises lawful suspicion, so smuggling
+  is a real risk (PIR-1 to PIR-13).
+- **Information moves at the speed of ships.** Every character has its own dated facts;
+  members of a faction share on contact; couriers carry news, orders and calls for help
+  down the fealty tree; scouts and spies watch the enemy (INF-1 to INF-14).
+- **The simulation** is a C++ library with a thin Godot binding, deterministic and fast
+  enough to run many worlds in parallel. First it gets tuned until the world is stable;
+  then experiments switch mechanics off for one faction to see whether each earns its
+  cost (`docs/spec/sim/`).
+
+Still open, among others: what triggers a war, how sieges play when rendered, how the
+Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`).
+
 ## Decisions worth remembering
 
 - **Feel is found by playing.** There's one prototype per feel question, and the human
@@ -208,27 +260,20 @@ requirement: a summoner may never ride a missile.
 - Authored places versus generated ones.
 - How big the real map gets.
 
-### Simulation (later, once more of the game exists)
-- How factions, characters, fleets, stations and markets exist unrendered.
-- How fleets move on the graph of Lattice roads, hop lanes and open space.
-- How the economy moves goods on actual ships.
-- How entities are handed to the rendered world and back.
-- How to keep one faction from snowballing.
+### The full game
+- The design's open questions are tracked in `docs/spec/OPEN.md`, by ID.
 
 ### Playstyles
 - What each one's loop looks like end to end.
-- How crew hiring and crew quality work.
-- What missions look like.
-- How reputation opens access.
+- How crew hiring and crew quality work (OPN-36).
 
 ## Roadmap
 
-The earlier roadmap, which went straight to simulation architecture, has been withdrawn
-because the game needs many more of its elements before there is anything to simulate.
-
-- **Done:** the travel foundation and a first combat prototype.
-- **Now:** collecting design idea documents in `docs/planning/` and analysing them into
-  a concrete path. So far: factions and allegiance, the economy, and trade.
+- **Done:** the travel foundation, a first combat prototype, and four rounds of design
+  (factions, economy, trade, characters) formalised as the spec.
+- **Now:** building the headless simulation in C++, milestone by milestone, then tuning
+  it for stability and testing each mechanic's worth.
+- **Next:** connecting the simulation to the rendered game.
 
 ## Glossary
 

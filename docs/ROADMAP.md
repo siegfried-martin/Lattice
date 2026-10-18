@@ -1,13 +1,11 @@
 # Roadmap
 
-*Reset 2026-09-27.*
+*Reset 2026-09-27; updated 2026-10-18.*
 
-The previous roadmap is withdrawn. It moved on to simulation architecture too early:
-the game needs many more of its elements defined before there is anything worth
-simulating.
+Done so far: the travel foundation (`WORLD_AND_TRAVEL.md`), a first combat prototype
+(`COMBAT.md`), and four rounds of design, now formalised as the spec (`docs/spec/`).
 
-Done so far: the travel foundation (`WORLD_AND_TRAVEL.md`) and a first combat
-prototype (`COMBAT.md`).
-
-**Current step:** collecting design idea documents in `docs/planning/`. A concrete path
-will be worked out from them and written here.
+**Current step:** the headless simulation, built in C++ in the order of
+`docs/spec/sim/milestones.md` (MS-1 to MS-9): every v1 system first, then tuning until
+the world is stable (Phase A), then experiments testing whether each mechanic earns its
+cost (Phase B). Connecting the simulation to the rendered game follows.

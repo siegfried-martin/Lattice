@@ -1,30 +1,27 @@
 # Planning
 
-Design idea documents from the human, collected here to be analysed together and turned
-into a concrete path forward. They replace the old roadmap, which planned to simulate the
-world before the game had enough elements to simulate.
+Ideation drafts for the next design round. **Nothing here is authoritative:** the game's
+rules are in `docs/spec/`. Between rounds this folder holds only this README.
 
-**How this folder relates to the rest of `docs/`.** Everything directly in `docs/`
-describes the current prototype's behaviour or the game's general intent. The prototype
-proved out the feel of travel and combat; its conveniences (unlimited missiles, ship
-switching, the small fixed map) are testing scaffolding, not design. Everything here in
-`docs/planning/` describes the future build. Once its decisions are settled, these
-documents become the source of truth for the new documentation, and a roadmap for the
-initial version of the game and its simulation is written from them.
-Early prototypes are only for systems whose feel is in question, as travel and combat
-were; other systems wait for the roadmap.
+## For the planning agent
 
-Documents are added as they arrive, then revised in place as the human corrects or
-settles them (each notes what changed). Analysis and the resulting plan go in separate
-files alongside them.
+1. **Read `docs/spec/README.md` first**, then `docs/spec/OPEN.md`. The open questions
+   tagged *design* are the natural starting points for a round, and every rule you'd
+   change already has an ID.
+2. **Write drafts here,** one file per topic, as rough as the ideas are.
+3. **Name the rules a draft changes or adds to:** "replaces FAC-8", "answers OPN-1",
+   "new rule for `trade.md`". That's what lets the review be quick.
+4. **Mark what's settled and what isn't** with the spec's tags (`proposed`, `open`,
+   `later`, `experimental`), so the review knows what's being asked.
+5. Don't edit `docs/spec/` directly.
 
-## Documents
+## The round
 
-| File | Received | Covers |
-|---|---|---|
-| `FACTIONS.md` | 2026-09-27 | Political power: planets and governors, commanders, fealty trees, cultures, the Trade Authority, mercenaries, pirates, gate permissions, physical information, armies, prisoners |
-| `ECONOMY.md` | 2026-09-28 | Money (population demand, market taxes, operating costs and sinks, budget decisions, transfers within a faction), production and the supply chain, goods, fuel, munitions, ships, role switching, two-tier Authority dues, piracy as an economic outcome, contraband, academy worlds |
-| `TRADE.md` | 2026-10-12 | Who moves goods: named merchants, planet merchant fleets and convoys, ambient trade (osmosis), escorts, trade missions for the player, and how NPCs move at scale (a placeholder for a simulation document) |
+1. The planning agent writes drafts here.
+2. The human reviews them with the implementation agent. Within a round, a newer draft
+   wins over an older one.
+3. The implementation agent writes the settled decisions into `docs/spec/`, logs them in
+   `docs/spec/DECISIONS.md`, and deletes the drafts. Git keeps them.
 
-A document's own "for the implementation agent" notes are not acted on while it sits
-here. Promoting it into `docs/` happens once the planning pass has settled it.
+The first drafts (`FACTIONS.md`, `ECONOMY.md`, `TRADE.md`, `CHARACTERS.md`) were
+formalised on 2026-10-18 and are preserved at the git tag `planning-drafts-1`.
