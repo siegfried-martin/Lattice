@@ -5,6 +5,18 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-7, spies
+
+- **Hiring:** spies are a budget option at war, hired from idle independent traders on a
+  secret contract that doesn't count as membership (INF-13, SYS-17).
+- **Rounds:** to the least recently seen enemy market in range. Cover trades lower
+  suspicion; a visit without one raises it.
+- **What they see:** armies forming or stationed there, recorded as sightings that reach
+  home and the threat check.
+- **Caught:** cover blown on inspection; the contract ends; the `caught` deed; an attack
+  by the planet's commanders.
+- **EXP-4:** `spy.enabled` turns spies off.
+
 ### 2026-10-18 · MS-6 part 2, smuggling and suspicion
 
 - **Pirate runs:**

@@ -8,6 +8,7 @@
 #include "politics/fealty.hpp"
 #include "politics/opinion.hpp"
 #include "war/diplomacy.hpp"
+#include "war/spies.hpp"
 
 namespace lattice::suspicion {
 
@@ -52,6 +53,9 @@ bool on_landing(World& w, Id id, Observer* observer) {
     const Id root = fealty::root_of(w, planet);
     const double relation = std::max(0.0, pirates::relation(w, c));
     const bool contraband = c.cargo_good == kStims && c.cargo_qty > 0;
+    // A spy abroad: an inspection can blow its cover (SYS-17).
+    const Id spymaster = spies::employer(w, id);
+    const bool spying = spymaster != kNone && fealty::root_of(w, w.characters[at(spymaster)].governs) != root;
     Rng& rng = w.rng[Stream::Missions];
     const bool inspected = rng.chance(std::min(1.0, s.inspect_base * intensity(w, planet)));
     if (inspected) ++w.ledger.inspections;
@@ -64,6 +68,10 @@ bool on_landing(World& w, Id id, Observer* observer) {
         add(w, c, root, s.caught);
         ++w.ledger.caught;
         if (observer) observer->log(w.now, "smuggler.caught", id, "at " + std::to_string(planet));
+        return true;
+    }
+    if (inspected && spying && rng.chance(find)) {
+        spies::caught(w, id, planet, observer);
         return true;
     }
     if (contraband) add(w, c, root, s.contraband);

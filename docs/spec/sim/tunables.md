@@ -201,6 +201,9 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `sus.find_base`, `sus.scale` | An inspection catches with min(1, find_base + suspicion ÷ scale) *(proposed, MS-6)* | 0.3, 100 |
 | `sus.contraband`, `sus.pirate`, `sus.trade`, `sus.caught`, `sus.fade` | Suspicion per landing with contraband, per point of pirate relation above neutral per landing, removed per genuine trade, added when caught; weekly fade *(proposed, MS-6)* | 10, 0.2, 2, 30, 0.05 |
 | `sus.police_effect` | Budget value of policing: × the share of income contraband costs *(proposed, MS-6)* | 2 |
+| `sus.no_trade`, `sus.muster` | Suspicion for a visit without trading, and for lingering where an army is forming (INF-14) *(proposed, MS-7)* | 15, 10 |
+| `spy.enabled` | EXP-4's switch | true |
+| `spy.salary`, `spy.range_days`, `spy.value` | A spy's secret monthly pay; how far from home it works; its budget value as a share of monthly income × threat *(proposed, MS-7)* | 500, 10, 0.005 |
 | `deed.caught` | Opinion change when a governor's inspection catches someone (INF-14) *(proposed, MS-6)* | −20 |
 
 ## World generation (GEN)

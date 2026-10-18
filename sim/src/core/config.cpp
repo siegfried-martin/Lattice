@@ -330,6 +330,11 @@ void validate(const Config& c) {
     positive(c.sus.scale, "sus.scale");
     share(c.sus.fade, "sus.fade");
     non_negative(c.sus.police_effect, "sus.police_effect");
+    non_negative(c.sus.no_trade, "sus.no_trade");
+    non_negative(c.sus.muster, "sus.muster");
+    non_negative(c.spy.salary, "spy.salary");
+    non_negative(c.spy.range_days, "spy.range_days");
+    non_negative(c.spy.value, "spy.value");
 
     require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
     require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");

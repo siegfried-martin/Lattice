@@ -421,9 +421,20 @@ struct Config {
         double caught = 30;
         double fade = 0.05;           // weekly
         double police_effect = 2;     // the budget's value of policing (SYS-5)
+        double no_trade = 15;         // a visit to a planet without trading there (INF-14)
+        double muster = 10;           // lingering where an army is forming
 
         friend bool operator==(const Sus&, const Sus&) = default;
     } sus;
+
+    struct SpyParams {
+        bool enabled = true;      // EXP-4 switches spies off
+        double salary = 500;      // a month, secret
+        double range_days = 10;   // how far from home a spy works
+        double value = 0.005;     // the budget's value of a spy: this share of monthly income, x threat
+
+        friend bool operator==(const SpyParams&, const SpyParams&) = default;
+    } spy;
 
     struct AuthorityParams {
         double risk_post = 0.3;           // a sector this risky near the network gets a clearing contract
@@ -668,6 +679,12 @@ void for_each_field(C& c, F&& f) {
     f("sus.caught", c.sus.caught);
     f("sus.fade", c.sus.fade);
     f("sus.police_effect", c.sus.police_effect);
+    f("sus.no_trade", c.sus.no_trade);
+    f("sus.muster", c.sus.muster);
+    f("spy.enabled", c.spy.enabled);
+    f("spy.salary", c.spy.salary);
+    f("spy.range_days", c.spy.range_days);
+    f("spy.value", c.spy.value);
     f("pirel.accept", c.pirel.accept);
     f("pirel.success", c.pirel.success);
     f("pirel.fail", c.pirel.fail);

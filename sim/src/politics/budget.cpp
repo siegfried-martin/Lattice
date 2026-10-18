@@ -12,6 +12,7 @@
 #include "war/armies.hpp"
 #include "war/diplomacy.hpp"
 #include "war/raids.hpp"
+#include "war/spies.hpp"
 
 namespace lattice::budget {
 
@@ -132,6 +133,16 @@ void weekly(World& w, Id planet, Observer* observer) {
         for (int k = 0; k < 16; ++k) policing.units.push_back({c.value.security_unit * pressure, harm});
     }
 
+    // Spies (INF-13) *(proposed)*: at war, each is worth spy.value of monthly income x the
+    // threat, for spy.salary a month; those it has come first.
+    Option spying;
+    std::vector<Id> spy_people;
+    if (c.spy.enabled && !p.pirate && !enemies.empty()) {
+        spy_people = spies::employed(w, gov);
+        for (Id id : spies::candidates(w, planet)) spy_people.push_back(id);
+        for (std::size_t i = 0; i < spy_people.size(); ++i) spying.units.push_back({c.spy.salary * pressure, c.spy.value * income * threat});
+    }
+
     // An invasion, at war or facing a pirate planet (SYS-13): one unit for the best target.
     // Pirates raid; they don't invade (PIR-8).
     Option invasion;
@@ -154,7 +165,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     }
 
     // Fund the best value per cost first.
-    std::vector<Option*> options{&defence, &security, &policing, &invasion};
+    std::vector<Option*> options{&defence, &security, &policing, &spying, &invasion};
     for (Option& o : patronage) options.push_back(&o);
     for (;;) {
         Option* best = nullptr;
@@ -199,6 +210,17 @@ void weekly(World& w, Id planet, Observer* observer) {
 
     w.planets[at(planet)].security = static_cast<double>(security.funded) * c.value.security_unit;
     w.planets[at(planet)].policing = static_cast<double>(policing.funded) * c.value.security_unit;
+    // Spies: keep the funded, let the rest go, hire funded candidates.
+    const std::vector<Id> spies_now = spies::employed(w, gov);
+    for (std::size_t i = 0; i < spy_people.size(); ++i) {
+        const bool kept = i < spying.funded;
+        const bool has = std::find(spies_now.begin(), spies_now.end(), spy_people[i]) != spies_now.end();
+        if (has && !kept) spies::release(w, spy_people[i]);
+        if (!has && kept) spies::hire(w, planet, spy_people[i], observer);
+    }
+    if (spy_people.empty()) {
+        for (Id id : spies_now) spies::release(w, id);  // at peace: no more need of them
+    }
     if (invasion.funded > 0) armies::commission(w, planet, plan.target, false, observer);
 
     // Patronage: paid now, a good deed once per grant.
