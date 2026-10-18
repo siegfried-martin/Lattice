@@ -176,8 +176,9 @@ Lattice, docked or flying. Open space costs nothing.
   position (the map is 20 times the Lattice's size), with its heading and speed.
 - Refuel by landing at a planet or a service station.
 
-`docs/planning/FACTIONS.md` has the wider design this belongs to (NPC fuel stops,
-pirates who don't use the Lattice, a proposed reserve for limping home).
+The full game's rules are in `docs/spec/design/world.md` (WLD-8, a proposed reserve for
+limping home), `economy.md` (ECO-11, fuel prices) and `piracy.md` (PIR-2, pirates who
+don't use the Lattice).
 
 ### The network's shape
 
@@ -212,7 +213,7 @@ first.
 
 The continuous interchange isn't ruled out. An earlier idea had different factions
 building their highways with different technology; that's dropped, and human highway
-technology is the same everywhere (`docs/planning/ECONOMY.md`).
+technology is the same everywhere (WLD-20 in `docs/spec/design/world.md`).
 
 ### Getting on and off
 
@@ -288,6 +289,6 @@ Snapshot at the rebuild. All of this is expected to move.
   authored places yet.
 - Wandering NPC traffic still passes through planets and stations (asteroids it
   bounces off).
-- While landed the whole game pauses. That's intended (`docs/planning/TRADE.md`), and
-  so is landing as a way out of a fight. The planned version adds landing permission
-  with a wait that depends on standing (`docs/planning/FACTIONS.md`).
+- While landed the whole game pauses. That's intended (WLD-15 in
+  `docs/spec/design/world.md`), and so is landing as a way out of a fight. The planned
+  version adds landing permission with a wait that depends on standing (WLD-14).
