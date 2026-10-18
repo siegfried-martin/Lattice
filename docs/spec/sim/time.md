@@ -44,6 +44,9 @@ next call, and splitting one advance into several gives the same world.
 
 All of these are tunables (TUN).
 
+*As built (MS-3):* a character decides when it lands (after `merchant.dock_hours` on a
+trip) and, when idle, again a day later. Only its latest scheduled decision runs.
+
 *As built (MS-2):* each planet's day, labour shift and payments are its own recurring
 events, staggered across their period by planet. The world's daily tick, at the start
 of each day, samples metrics, rolls events and runs osmosis.
@@ -75,6 +78,11 @@ is interpolated along the path when anything needs it. Nothing can happen to a s
 transit, because there's no combat on the Lattice (WLD-2). Fuel is charged at entry
 (ECO-11).
 
+*As built (MS-3):* a journey is a route of legs, each scheduling its own arrival. The
+legs are open space, the Lattice (consecutive Lattice edges merged into one transit) and
+hop lanes. Every route follows the reference route (TIM-4); gate permissions will filter
+routes when they first refuse anyone (MS-5).
+
 ### TIM-6 Open space is cheap kinematics `v1`
 
 In open space a ship has a position (sector plus local offset, for precision) and a
@@ -83,6 +91,15 @@ on the next step. **Encounters** are proximity checks with a **spatial hash per 
 two ships within detection range on a step get a detection roll from patrol coverage,
 hostility, suspicion and stealth; a detected hostile meeting starts a battle (SYS-14) or
 an evasion. Sightings (INF-3) come from the same check.
+
+*As built (MS-3):*
+- An open-space leg is a straight line with known start and end times; the step
+  interpolates positions rather than integrating velocity, which comes to the same thing
+  for straight legs. A diversion is a new leg from the current position.
+- The step hashes only the ships something could happen to, in cells of
+  `space.detect_range`, and checks neighbouring cells. In MS-3 that is members who can
+  share facts. Hashing every ship cost a hundred times more at busy systems, where
+  traffic crowds the short hops between planets and interchanges.
 
 ### TIM-7 Hazards cost time `v1` `proposed`
 

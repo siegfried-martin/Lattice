@@ -5,6 +5,31 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-3, characters, movement, information and trade
+
+- **Order:** fealty trees (GEN-8) and governors (GEN-9) are built in MS-3, ahead of MS-4,
+  because faction merchants, sharing and couriers need them. Escorts move to MS-6 (no
+  risk before pirates); sightings to MS-5.
+- **Ships:** every culture has four classes (courier, scout, freighter, gunship) at three
+  tiers, from per-class stats scaled per tier and varied per culture, as placeholders for
+  the content round (OPN-35).
+- **Movement:** journeys are routes of legs; open space is straight legs with known
+  times, interpolated by the kinematic step, which hashes only ships something could
+  happen to (TIM-5, TIM-6). Fuel is per Lattice transit, at the last landing's price.
+- **Facts** are per-market price records; members are governors and holders of standing
+  contracts; members share on landing at a faction planet and on meeting in open space
+  (INF-4, SYS-15).
+- **Merchants:** slice-by-slice leg sizing, cargo aboard sold first, docking time, a
+  faction merchant heads home when away, idle merchants explore stale markets (SYS-7).
+  Every root offers a fixed salary until the budget model exists (SYS-9).
+- **Missions:** courier missions are a share of the liege-to-vassal runs; roots post
+  trade scouting as planet-level missions open to anyone *(proposed)*; missions are round
+  trips paid on return; reputation is missions completed (SYS-8, REL-7).
+- **Spending:** a ship of the class that has paid (freighter or gunship), added or
+  replacing the cheapest one tier up; broke characters sell ships (SYS-8, PIR-4).
+- **Found, not acted on:** merchants can't fix the starting values' food shortage, and the
+  happiness loop is bistable (MS-3's note).
+
 ### 2026-10-18 · MS-2, world generation and the economy
 
 Choices made while building, all *(proposed)* where they go beyond a rule:

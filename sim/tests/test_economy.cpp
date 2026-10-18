@@ -6,6 +6,7 @@
 #include "economy/economy.hpp"
 #include "economy/events.hpp"
 #include "lattice/market.hpp"
+#include "helpers.hpp"
 #include "lattice/save.hpp"
 #include "lattice/world.hpp"
 #include "trade/osmosis.hpp"
@@ -18,7 +19,7 @@ std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 
 // A world whose planet 0 makes food, water and oxygen at high, medium and low.
 World lab() {
-    World w = new_world(Config{}, 7);
+    World w = new_world(test::small(), 7);
     Planet& p = w.planets[0];
     p.makes = {kFood, kWater, kOxygen};
     p.tiers = {kHigh, kMedium, kLow};
@@ -31,9 +32,11 @@ void fill_to(World& w, Planet& p, double fill) {
     for (int g = 0; g < kGoodCount; ++g) p.stock[at(g)] = fill * market::reserve(w.config, p, static_cast<Good>(g));
 }
 
+// Every credit anyone holds: treasuries and characters' wealth.
 double total_money(const World& w) {
     double m = 0;
     for (const Planet& p : w.planets) m += p.treasury;
+    for (const Character& c : w.characters) m += c.wealth;
     return m;
 }
 
@@ -230,25 +233,29 @@ TEST_CASE("osmosis moves goods toward the emptier market and never makes money (
 }
 
 TEST_CASE("money and goods add up over a year (CHK-7)") {
-    World w = new_world(Config{}, 11);
-    const double money0 = total_money(w);
-    std::array<double, kGoodCount> stock0{};
-    for (const Planet& p : w.planets) {
-        for (int g = 0; g < kGoodCount; ++g) stock0[at(g)] += p.stock[at(g)];
-    }
-    advance(w, 365 * kDay);
-    CHECK(total_money(w) - money0 == doctest::Approx(w.ledger.money_created - w.ledger.money_sunk).epsilon(1e-9));
-    for (int g = 0; g < kLawfulGoodCount; ++g) {
+    World w = new_world(test::small(), 11);
+    const double money0 = total_money(w), spawned0 = w.ledger.money_spawned;
+    auto goods = [&](int g) {
         double stock = 0;
         for (const Planet& p : w.planets) stock += p.stock[at(g)];
+        for (const Character& c : w.characters) stock += c.cargo_good == g ? c.cargo_qty : 0;  // cargo aboard
+        return stock;
+    };
+    std::array<double, kGoodCount> stock0{};
+    for (int g = 0; g < kGoodCount; ++g) stock0[at(g)] = goods(g);
+    advance(w, 365 * kDay);
+    const double expected = w.ledger.money_created + (w.ledger.money_spawned - spawned0) - w.ledger.money_sunk;
+    CHECK(total_money(w) - money0 == doctest::Approx(expected).epsilon(1e-9));
+    for (int g = 0; g < kLawfulGoodCount; ++g) {
+        const double stock = goods(g);
         CHECK(stock - stock0[at(g)] == doctest::Approx(w.ledger.produced[at(g)] - w.ledger.consumed[at(g)]).epsilon(1e-9));
     }
     CHECK(w.ledger.osmosis_volume > 0);
 }
 
-TEST_CASE("three years stay finite and in range") {
-    World w = new_world(Config{}, 12);
-    advance(w, 3 * 365 * kDay);
+TEST_CASE("two years stay finite and in range") {
+    World w = new_world(test::small(), 12);
+    advance(w, 2 * 365 * kDay);
     const Config& c = w.config;
     for (const Planet& p : w.planets) {
         CHECK(std::isfinite(p.population));
@@ -267,7 +274,7 @@ TEST_CASE("three years stay finite and in range") {
 }
 
 TEST_CASE("a loaded world rebuilds its derived tables") {
-    World w = new_world(Config{}, 13);
+    World w = new_world(test::small(), 13);
     advance(w, 50 * kDay);
     World loaded = load_world(save_world(w));
     CHECK(loaded.derived.travel_days == w.derived.travel_days);

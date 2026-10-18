@@ -119,6 +119,15 @@ of planets independent (their own roots), and start a few fringe planets as pira
 planets (`gen.pirate_planets`) so the pirate faction exists from the first tick. All
 factions start at peace.
 
+*As built (MS-3, ahead of MS-4 because merchants and couriers need factions):*
+- Seats are gate holders.
+- A breadth-first search over the Lattice from the seats' interchanges gives each
+  interchange the next one toward its seat. A group's holder swears to the holder there;
+  the group's other planets swear to their holder. An off-network group's holder swears
+  to the holder of the nearest on-network group.
+- Independents are drawn from planets with no vassals, so trees stay whole.
+- Pirate planets wait for MS-6.
+
 ### GEN-9 Starting characters `v1` `proposed`
 
 - A governor for every planet (CHR-7), with reputation scaled by tree height.
@@ -129,6 +138,11 @@ factions start at peace.
 - The rest of `char.target` as bottom-rung characters (CHR-6).
 
 Risk tolerance for all from `char.risk_dist`.
+
+*As built (MS-3):* governors and the bottom rung, placed by population. A governor's risk
+tolerance sets its planet's growth factor (PRD-3). Commanders, faction merchants and
+pirates wait for their milestones; faction merchants are hired from the bottom rung by
+salary (SYS-9).
 
 ### GEN-10 Starting state and warm-up `v1` `proposed`
 

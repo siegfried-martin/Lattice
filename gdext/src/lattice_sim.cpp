@@ -51,6 +51,9 @@ Dictionary LatticeSim::snapshot() const {
     for (const lattice::Planet& p : world_->planets) population += p.population, money += p.treasury;
     d["planets"] = static_cast<int64_t>(world_->planets.size());
     d["population"] = population;
+    int64_t characters = 0;
+    for (const lattice::Character& c : world_->characters) characters += c.alive;
+    d["characters"] = characters;
     d["money"] = money;
     return d;
 }

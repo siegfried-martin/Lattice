@@ -212,6 +212,23 @@ protection(e)    = escort combat / (escort combat + merchant.threat_ref × route
 The offer is broadcast to characters in detection range (TIM-6) along the route; NPCs
 accept by SYS-8. Paid at trip end (REL-9).
 
+*As built (MS-3):*
+- Candidates are ranked by the reference travel times; trip days and fuel use the
+  merchant's own fleet speed along the reference route.
+- A leg's quantity is found in eight slices of the most it can carry or afford, adding
+  slices while the next one still pays at the source's walked ask and the destination's
+  walked bid. The destination's reserve is read back off the believed price and stock.
+- Cargo already aboard (left unsold) is sold first, on a single leg.
+- Each stop takes `merchant.dock_hours`. On arrival the merchant sells everything aboard
+  at whatever the market pays: plans can disappoint.
+- A faction merchant away from its faction plans a leg home. Triangles return to the
+  planet they started from.
+- No trip at `merchant.min_score` or better sends it to the nearest market it hasn't seen
+  for `merchant.stale_days` (TRD-4), if it can afford the fuel and keep its reserve;
+  otherwise it waits a day.
+- Escorts wait for risk (MS-6). With no pirates every route's risk is 0, so nobody
+  would hire.
+
 ### SYS-8 Missions and careers `v1`
 
 *Implements:* CHR-10, CHR-11, INF-10, INF-11. *Cadence:* on posting; on idle.
@@ -230,6 +247,34 @@ accept by SYS-8. Paid at trip end (REL-9).
   What to buy follows the missions that have paid best recently: more combat or more
   cargo.
 
+*As built (MS-3):*
+- **Posting:**
+  - Courier missions are runs from a liege to a vassal, which `courier.mission_share` of
+    the time are posted instead of automated; an untaken one goes automated when it
+    expires.
+  - Scout missions are a root's weekly trade scouting of the nearest outside market it
+    hasn't heard of for `scout.stale_days`. *(proposed)* These are posted as planet-level
+    missions at the root's own planet, open to anyone with `scout.min_combat`. In
+    peacetime there are no other members to take faction-level work.
+  - Base pay is `mission.courier_pay` or `mission.scout_pay` per day of the reference
+    round trip.
+- **Missions are round trips:**
+  - A courier carries the poster's facts out and the target governor's facts back.
+  - A scout observes every market in the target's system and brings them back.
+  - Pay comes from the poster's treasury on return, then the contract ends (REL-8).
+- **Choosing:** a character sees the board where it is. Score = pay ÷ days ×
+  (1 + `skill.bonus` × skill) − running cost − fuel per day, compared with its best trade
+  score. Ties go to the mission.
+- **Reputation** grows by 1 per mission completed (REL-7, OPN-11's working default).
+- **Spending:**
+  - The focus is cargo or combat, whichever of the running averages of trade and courier
+    earnings against scout and combat earnings is higher. The next ship is a freighter
+    or a gunship of that culture.
+  - It's added at the best tier owned while the fleet has fewer than `fleet.max_ships`;
+    past that it replaces the cheapest ship one tier up, which is sold at `ship.resale`.
+- **Broke** (`char.broke_days` below zero): sell ships, cheapest first, until solvent,
+  keeping the last hull. Turning pirate instead arrives in MS-6.
+
 ### SYS-9 Contracts and hiring `v1` `proposed`
 
 *Implements:* REL-8, MIL-2, MIL-6, TRD-3. *Cadence:* weekly with the budget.
@@ -242,6 +287,13 @@ accept by SYS-8. Paid at trip end (REL-9).
 - **Faction merchant salary:** the root sets a salary; an independent merchant in the
   faction's territory accepts when salary + `merchant.info_value` exceeds its estimate of
   what the trip-shape constraint costs it. It quits when that flips.
+  *As built (MS-3):*
+  - Every root offers `merchant.salary` until the budget model sets it (MS-4), to
+    `merchant.per_planet` merchants per faction planet. It pays monthly from its
+    treasury.
+  - The cost of the constraint is the merchant's best independent score less its best
+    faction score, from its own facts.
+  - A character weighs a salary at most once a payment period.
 - **Ending:** either side ends a contract when it stops paying for them (REL-8). Losing
   the fleet ends service contracts automatically (CHR-16).
 
@@ -384,6 +436,18 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
   scout flies to the target, records sightings, and its facts merge with the poster's on
   return.
 
+*As built (MS-3):*
+- **Facts:** facts are prices only, one per market: every lawful good's price and stock
+  at the time seen. Sightings, risk and diplomatic states arrive with the systems that
+  use them (MS-5, MS-6).
+- **Members:** a member is a governor in the faction, or the holder of a standing
+  contract with one of its governors. One-job contracts don't count.
+- **A governor** observes its own market whenever it shares.
+- **Automated runs:** a run is due for every sworn planet every
+  `courier.interval_days`, staggered. It takes the reference travel time each way and
+  carries a copy of the facts.
+- **Open space:** members merge at most every `space.meet_cooldown_hours`.
+
 ### SYS-16 Piracy `v1`
 
 *Implements:* PIR-1 to PIR-13, ECO-13. *Cadence:* events and daily.
@@ -441,6 +505,10 @@ at random lawful planets weighted by population, with the planet's culture, risk
 tolerance drawn from `char.risk_dist`, wealth `char.start_wealth` and a first-tier hull
 (armed or unarmed at `char.start_armed_p`). Characters die only by pod roll (SYS-14).
 
+*As built (MS-3):* the armed hull is a scout and the unarmed one a courier, of the
+planet's culture. A new character knows its own planet's market. The starting world
+fills `char.target` the same way (GEN-9).
+
 ### SYS-19 Risk `v1`
 
 *Implements:* TRD-16, INF-6. *Cadence:* daily.
@@ -474,3 +542,6 @@ fuel             = Lattice distance × fuel.burn × fuel price at the last refue
 
 Munitions after a battle cost `fleet.munitions_per_power` × combat power used, at the next
 friendly or neutral landing (MIL-4).
+
+*As built (MS-3):* running costs are charged daily. Fuel is charged per Lattice transit at
+entry, at the fuel price of the planet where the fleet last landed, for every ship.

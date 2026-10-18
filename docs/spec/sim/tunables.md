@@ -74,7 +74,7 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `budget.credit_risk` | How far into the red risk tolerance lets a spender plan | 1 month of income × risk |
 | `budget.diminishing` | Value multiplier per further unit of one option | 0.6 |
 | `budget.debt_pressure` | Cost multiplier per month in the red | 0.1 |
-| `fuel.base`, `fuel.fringe`, `fuel.burn` | Fuel price and use (GEN-7, SYS-21) | 2, 1.0, 1 per Lattice km per ship |
+| `fuel.base`, `fuel.fringe`, `fuel.burn` | Fuel price and use (GEN-7, SYS-21); `fuel.burn` is per sector width of Lattice travel per ship (a sector width is about a Lattice km at the prototype's scale) | 2, 1.0, 1 |
 | `fuel.fringe_mult` | Fuel price multiplier off the network (GEN-7) *(proposed, MS-2)* | 1.5 |
 | `value.*` | Option value heuristics for the budget model (SYS-5) | set in MS-4 |
 
@@ -103,6 +103,10 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `merchant.loss_rate` | Expected cargo loss per unit of risk | 0.1 |
 | `merchant.threat_ref` | Threat scale for escort protection | 5 |
 | `merchant.info_value` | Value of faction information per month | 300 |
+| `merchant.salary` | Monthly salary every root offers its merchants until the budget model sets it (MS-4) *(proposed, MS-3)* | 600 |
+| `merchant.per_planet` | Salaried merchants a root wants per faction planet *(proposed, MS-3)* | 1 |
+| `merchant.stale_days` | Prices older than this send an idle merchant to look again (TRD-4) *(proposed, MS-3)* | 30 |
+| `merchant.dock_hours` | Time at each stop, loading and unloading (TRD-12) *(proposed, MS-3)* | 6 |
 
 ## Characters and contracts (CHR, REL, SYS-8 to SYS-11, SYS-18)
 
@@ -110,16 +114,22 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 |---|---|---|
 | `char.target` | Target character count | dev 500, v1 2,000 |
 | `char.spawn_per_day` | Most new characters a day | 3 |
-| `char.risk_dist` | Risk tolerance distribution | uniform 0–1 |
+| `char.risk_dist` | Risk tolerance distribution (built in, not a key) | uniform 0–1 |
 | `char.start_wealth` | New character's money | 2,000 |
 | `char.start_armed_p` | Chance a new character gets an armed hull | 0.5 |
 | `char.broke_days` | Days below zero before broke | 14 |
 | `fleet.run_cost[tier]` | Running cost per ship per day | 5, 15, 40 |
 | `fleet.munitions_per_power` | Refill cost per combat power used | 100 |
+| `fleet.max_ships` | Most ships in one character's fleet; past it a purchase replaces the cheapest *(proposed, MS-3)* | 4 |
+| `ship.<class>.combat`, `.cargo`, `.speed`, `.price` | Tier-1 stats of each class: courier, scout, freighter, gunship (MOD-1). Content, to be designed (OPN-35) *(proposed, MS-3)* | courier 0, 60, 0.3, 8,000; scout 2, 20, 0.25, 10,000; freighter 0.5, 400, 0.12, 20,000; gunship 5, 30, 0.18, 30,000 |
+| `ship.tier_combat`, `_cargo`, `_speed`, `_price` | Multiplier per tier above 1 *(proposed, MS-3)* | 1.8, 2, 1.05, 2.5 |
+| `ship.culture_spread` | Each culture's variant of a class within ± this *(proposed, MS-3)* | 0.15 |
+| `ship.resale` | Share of the price a sold ship returns *(proposed, MS-3)* | 0.5 |
 | `mission.pay_growth` | Pay growth per day unfilled | 0.05 |
 | `mission.expiry_days` | Mission lifetime | 30 |
+| `mission.courier_pay`, `mission.scout_pay` | Base pay per day of the expected round trip *(proposed, MS-3)* | 150, 300 |
 | `skill.gain`, `skill.max`, `skill.bonus` | Skill per mission, cap, pay weighting | 1, 20, 0.02 |
-| `spend.threshold(risk)` | Wealth over ship price before buying | 2 − risk |
+| `spend.threshold_base`, `spend.threshold_risk` | Wealth over ship price before buying: `base − risk × this` | 2, 1 |
 | `spend.reserve_months` | Running costs kept back by the cautious | 3 × (1 − risk) |
 | `hire.range_days`, `hire.stipend_per_power` | Hiring reach, stipend per combat power per month | 5, 300 |
 | `hire.w_power`, `hire.w_opinion`, `hire.w_culture` | Hiring weights | 1, 0.05, 0.5 |
@@ -155,6 +165,10 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | Key | Meaning | Start |
 |---|---|---|
 | `courier.interval_days`, `courier.run_cost` | Automated courier cadence and cost | 7, 50 |
+| `courier.mission_share` | Share of runs posted as courier missions instead (INF-8) *(proposed, MS-3)* | 0.25 |
+| `scout.min_combat`, `scout.stale_days` | Combat power a scout mission needs; a root scouts outside markets it hasn't heard of for this long *(proposed, MS-3)* | 1, 60 |
+| `space.detect_range` | Detection range in open space, sector widths (the rendered 4 km) *(proposed, MS-3)* | 0.25 |
+| `space.meet_cooldown_hours` | A character shares in open space at most this often *(proposed, MS-3)* | 6 |
 | `scout.threat_days` | Threat range that triggers scouting | 7 |
 | `risk.window`, `risk.presence`, `risk.clear` | Risk average and weights (SYS-19) | 30, 0.2, 0.5 |
 | `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet turns | 60, 3 |

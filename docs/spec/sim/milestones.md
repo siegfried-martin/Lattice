@@ -43,6 +43,24 @@ Lattice transit and open-space movement with encounters (TIM-4 to TIM-6), facts 
 sharing (SYS-15), independent and faction merchants (SYS-7), missions and careers
 (SYS-8), contracts (SYS-9), automated couriers.
 
+*Built 2026-10-18.*
+- **What runs:** characters spawn toward `char.target` and generate ship catalogues
+  (MOD-1). They move along routes over open space, the Lattice and hop lanes, paying
+  fuel and running costs. They observe markets and share facts within their faction.
+- **Work:** they trade as independents or salaried faction merchants (all three trip
+  shapes), take courier and scout missions, buy ships with their savings, and sell them
+  when broke. Automated couriers carry facts down and up the fealty trees.
+- **Moved in:** fealty trees (GEN-8) and governors (part of GEN-9) came forward from
+  MS-4, because faction merchants, sharing and couriers need them.
+- **Moved out:** escorts move to MS-6, where routes first carry risk; sightings move to
+  MS-5, where armies are what they're for.
+- **Speed:** a v1-size world with 2,000 characters runs a year in about 7 s.
+- **Found:** merchants move more life support than the planets make (goods change hands
+  more than once) but can't fix MS-2's structural shortage: populations still shrink
+  under the starting values. With `prod.labour_per_capita` at 7 a world settles at about
+  60% of its start. Happiness then flips between 0 and 1 across planets: the happiness,
+  productivity and budget loop reinforces itself. Both are for Phase A.
+
 ### MS-4 Politics `v1`
 
 Fealty trees and starting factions (GEN-8, GEN-9), relationships and deeds (SYS-10),

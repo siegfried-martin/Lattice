@@ -264,14 +264,52 @@ void check_references(const World& w) {
         require(e.good < kGoodCount && opt(e.region, m.regions.size()), "world event");
         for (Id p : e.planets) require(in(p, np), "world event planet");
     }
+    const auto nc = w.characters.size();
+    auto facts_ok = [&](const Facts& f) {
+        for (const PriceFact& pf : f.prices) require(in(pf.planet, np), "fact");
+    };
+    for (const ShipVariant& v : m.variants) require(in(v.culture, m.regions.size()), "ship variant");
+    for (const Planet& p : w.planets) {
+        require(opt(p.governor, nc) && opt(p.liege, np), "planet politics");
+        for (Id mi : p.missions) require(in(mi, w.missions.size()), "mission board");
+    }
+    for (const Character& c : w.characters) {
+        require(in(c.culture, m.regions.size()) && opt(c.planet, np) && opt(c.last_planet, np) && opt(c.governs, np) &&
+                    opt(c.mission, w.missions.size()) && c.cargo_good <= kGoodCount,
+                "character");
+        for (Id v : c.ships) require(in(v, m.variants.size()), "character ship");
+        for (Id k : c.contracts) require(in(k, w.contracts.size()), "character contract");
+        for (const TripStop& t : c.trip) require(in(t.planet, np) && t.buy <= kGoodCount, "trip");
+        for (const Leg& l : c.route) require(opt(l.to_planet, np) && opt(l.to_node, m.nodes.size()), "route");
+        require(c.route.empty() || in(c.leg, c.route.size()), "route leg");
+        facts_ok(c.facts);
+    }
+    for (const Contract& k : w.contracts) {
+        require(in(k.employer, nc) && in(k.employee, nc) && opt(k.mission, w.missions.size()), "contract");
+    }
+    for (const Mission& mi : w.missions) {
+        require(in(mi.poster, nc) && in(mi.at, np) && in(mi.target, np) && opt(mi.taker, nc), "mission");
+        facts_ok(mi.packet);
+    }
+    for (const CourierRun& r : w.courier_runs) {
+        require(in(r.from, np) && in(r.to, np), "courier run");
+        facts_ok(r.packet);
+    }
     for (const Event& e : w.events.raw()) {
         switch (e.kind) {
-            case EventKind::DailyTick: break;
+            case EventKind::DailyTick:
+            case EventKind::KinematicStep: break;
             case EventKind::DebugPing: require(in(e.record, w.ping_fires.size()), "ping event"); break;
             case EventKind::PlanetDay:
             case EventKind::PlanetLabour:
-            case EventKind::PlanetPayment: require(in(e.record, np), "planet event"); break;
+            case EventKind::PlanetPayment:
+            case EventKind::CourierDue:
+            case EventKind::RootWeekly: require(in(e.record, np), "planet event"); break;
             case EventKind::WorldEventEnd: require(in(e.record, w.world_events.size()), "world event end"); break;
+            case EventKind::CharDecide:
+            case EventKind::CharArrive: require(in(e.record, nc), "character event"); break;
+            case EventKind::CourierArrive: require(in(e.record, w.courier_runs.size()), "courier event"); break;
+            case EventKind::MissionExpire: require(in(e.record, w.missions.size()), "mission event"); break;
             default: require(false, "event kind");
         }
     }
@@ -280,7 +318,8 @@ void check_references(const World& w) {
 // The world after its config, in save order. Derived values aren't saved.
 template <class Ar, class W>
 void world_fields(Ar& ar, W& w) {
-    ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.ledger);
+    ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.characters, w.contracts,
+       w.missions, w.courier_runs, w.ledger);
 }
 
 }  // namespace

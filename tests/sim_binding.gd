@@ -18,12 +18,13 @@ func _run() -> bool:
 	for i in 3600:
 		sim.advance(1.0 / 60.0)
 	var snap: Dictionary = sim.snapshot()
-	if snap.day != 1 or snap.seed != 42 or snap.events_processed < 1 or snap.planets < 2:
+	if snap.day != 1 or snap.seed != 42 or snap.events_processed < 1 or snap.planets < 2 or snap.characters < snap.planets:
 		printerr("sim binding: unexpected snapshot ", snap)
 		return false
 	var planet: Dictionary = sim.planet(0)
 	if planet.is_empty() or planet.population <= 0 or not planet.prices.has("food"):
 		printerr("sim binding: unexpected planet ", planet)
 		return false
-	print("sim binding: ok day %d, %d planets, population %.0f" % [snap.day, snap.planets, snap.population])
+	print("sim binding: ok day %d, %d planets, %d characters, population %.0f" % [
+		snap.day, snap.planets, snap.characters, snap.population])
 	return true

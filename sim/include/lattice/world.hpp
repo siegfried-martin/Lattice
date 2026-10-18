@@ -33,6 +33,20 @@ struct Derived {
     // Reference travel time between planets in days (TIM-4), row-major by planet.
     std::vector<double> travel_days;
     std::size_t planet_count = 0;
+    // The reference routes behind travel_days (travel::path reads them): per source
+    // planet, each vertex's predecessor and how it's reached.
+    std::vector<std::int32_t> route_pred;
+    std::vector<std::uint8_t> route_via;
+    // Along each reference route, P x P: open-space distance, Lattice length and hop
+    // lanes, so any fleet's trip time and fuel are quick to work out (TIM-4).
+    struct RouteSum {
+        double space = 0, lattice = 0;
+        std::int32_t hops = 0;
+    };
+    std::vector<RouteSum> route_sums;
+    const RouteSum& route(Id a, Id b) const {
+        return route_sums[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
+    }
     double travel(Id a, Id b) const {
         return travel_days[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
     }
@@ -62,6 +76,10 @@ struct World {
     Map map;
     std::vector<Planet> planets;
     std::vector<WorldEvent> world_events;  // never removed; ended ones have alive = false
+    std::vector<Character> characters;    // dead ones keep their slot (ARC-2)
+    std::vector<Contract> contracts;
+    std::vector<Mission> missions;
+    std::vector<CourierRun> courier_runs;
     Ledger ledger;
 
     Derived derived;

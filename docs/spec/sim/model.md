@@ -19,7 +19,7 @@ Generated once (GEN) and never changed by the simulation.
 | **Lattice edge** | two nodes, length (sets transit time) |
 | **Hop lane** | two planets, length |
 | **Seats of power** | the planets chosen as seats (GEN-8) |
-| **Ship variant** | name, culture, class, tier, combat power, trade power (cargo), speed in open space, Lattice Drive (yes/no), price |
+| **Ship variant** | culture, class (courier, scout, freighter, gunship), tier 1–3, combat power, trade power (cargo, tons), speed in open space, Lattice Drive (yes/no), price; every culture has every class at every tier (MS-3). Names wait for the content round (OPN-35) |
 | **Good** | kind (life support, luxury, contraband), base price, reserve days, price exponent, consumption per capita, happiness value |
 
 Goods are a fixed list in code (food, water, oxygen; wine, spice, silk; stims, the
@@ -52,6 +52,7 @@ after loading.
 | patrol upkeep, policing spend | ECO-4, PIR-15 |
 | static defence | current strength, maximum (MIL-5) |
 | fuel price | fixed at world build (ECO-11) |
+| liege | the planet whose governor this one's is sworn to, or none for a root; fealty is kept per planet because governor and planet are one to one (FAC-1) |
 | pirate | flag, plus the goods-made set to restore on recapture (PIR-3) |
 | deficit days | days in deficit, for turning pirate (ECO-13) |
 | mission board | list of mission IDs posted here |
@@ -75,6 +76,13 @@ after loading.
 | goal, action | current long-term goal and short-term action (CHR-2) |
 | broke since | for running out of money (PIR-4) |
 
+*As built (MS-3)*, also: the planet it's at, the planet where it last landed (and
+refuelled), its route and current leg, what it governs, its mission, cargo (one good,
+quantity, cost), its trip's remaining stops and profit so far, running averages of cargo
+and combat earnings (SYS-8), missions completed, when it last shared in open space, and
+when it last weighed a salary. Opinions, suspicion and pirate status arrive with their
+systems.
+
 The pirate faction's shared opinion of each character (PIR-9) and the Authority's
 opinion (FAC-14) are stored as two fields on the character.
 
@@ -85,6 +93,7 @@ opinion (FAC-14) are stored as two fields on the character.
 | kind | fealty (governor to governor), service (commander to governor), merchant salary, escort, courier, scout, security, mercenary task, pirate hire |
 | parties | employer, employee |
 | pay | amount and schedule (per period, or on completion) |
+| mission | the mission a one-job contract carries out |
 | terms | trip, target or region, deadline |
 | start time | |
 
@@ -153,6 +162,8 @@ little. Sharing is a merge of two sorted vectors keeping the newer of each key (
 | pay | grows the longer it sits (CHR-10) |
 | requirements | minimum combat or trade power, faction membership |
 | posted, expires | times |
+| state, taker, agreed pay, leg | open, taken, done or expired; the pay is fixed when taken; outbound or returning |
+| packet | the facts a courier or scout carries |
 
 ### MOD-10 World event `v1`
 
@@ -182,3 +193,9 @@ ECO-1), money sunk (operating costs, the osmosis margin and later every other si
 goods produced and consumed per good, osmosis volume and margin. The total of all money
 held always equals the starting total plus money created minus money sunk; a test holds
 the simulation to it.
+
+### MOD-13 Automated courier run `v1`
+
+A scheduled transit, not a ship (INF-8): from and to planets (the liege's and the
+vassal's), whether it is returning, and the copy of the facts it carries. Runs that have
+ended keep their slot with `alive = false` (ARC-2).

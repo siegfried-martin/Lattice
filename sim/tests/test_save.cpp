@@ -2,6 +2,7 @@
 
 #include <cstdio>
 
+#include "helpers.hpp"
 #include "lattice/save.hpp"
 
 using namespace lattice;
@@ -9,7 +10,7 @@ using namespace lattice;
 namespace {
 
 World busy_world() {
-    Config c;
+    Config c = test::small();
     c.debug.pings = 50;
     c.time.real_seconds_per_day = 45.5;
     World w = new_world(c, 1234);

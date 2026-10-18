@@ -21,6 +21,7 @@ Config v1_size() {
     c.gen.planets = 100;
     c.gen.regions = 6;
     c.gen.seats = 6;
+    c.chars.target = 0;  // governors only: these tests are about the map
     return c;
 }
 
@@ -151,7 +152,9 @@ void check_world(const World& w) {
 TEST_CASE("development worlds keep every generation promise (GEN-1 to GEN-8)") {
     for (std::uint64_t seed = 1; seed <= 30; ++seed) {
         CAPTURE(seed);
-        check_world(new_world(Config{}, seed));
+        Config c;
+        c.chars.target = 0;
+        check_world(new_world(c, seed));
     }
 }
 
