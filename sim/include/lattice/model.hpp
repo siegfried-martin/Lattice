@@ -170,8 +170,10 @@ struct Planet {
     // Money (SYS-5).
     double treasury = 0;      // may be negative (ECO-8)
     double tax_rate = 0;      // ECO-3
-    double income_avg = 0;    // daily income, averaged over a payment period
+    double income_avg = 0;    // daily income (receipts), averaged over a payment period
     double income_today = 0;  // since the planet's last day
+    double net_avg = 0;       // daily receipts less goods paid for, bought or made (OPN-39), averaged likewise
+    double net_today = 0;
     std::int64_t deficit_days = 0;  // consecutive days with a negative treasury (ECO-13)
 
     // Politics (FAC-1, FAC-2).
@@ -179,7 +181,7 @@ struct Planet {
     Id liege = kNone;     // the planet whose governor this one's governor is sworn to; none for a root
     std::vector<Id> missions{};  // mission board (MOD-9): open missions posted here
     double tribute_rate = 0;     // set by its liege (FAC-6)
-    double income_month = 0;     // own income since its last payment (sales and tax)
+    double income_month = 0;     // own net income since its last payment (sales and tax, less goods paid for)
     double tribute_month = 0;    // tribute received since its last payment
     double tribute_paid = 0;     // its last payment's tribute, as its liege saw it
     Time low_since = kNever;     // its governor's opinion of the liege below fealty.defect_opinion since
@@ -202,7 +204,7 @@ void fields(Ar& ar, P& p) {
     ar(p.sector, p.region, p.system, p.group, p.moon_of, p.x, p.y, p.fringe, p.makes, p.tiers, p.fuel_price);
     ar(p.population, p.happiness, p.productivity, p.growth_factor, p.contraband_avg);
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
-    ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
+    ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.net_avg, p.net_today, p.deficit_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
     ar(p.security, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
@@ -559,7 +561,7 @@ void fields(Ar& ar, E& e) {
 // World totals kept for the money and goods checks (CHK-7). Cumulative.
 struct Ledger {
     double money_created = 0;   // population spending, the only new money (ECO-1), and debts written off (ECO-13)
-    double money_sunk = 0;      // operating costs and the osmosis margin (ECO-5)
+    double money_sunk = 0;      // operating costs, the cost of making goods and the osmosis margin (ECO-5)
     double osmosis_volume = 0;  // goods moved by osmosis
     double osmosis_margin = 0;  // part of money_sunk
     std::array<double, kGoodCount> produced{};
@@ -581,6 +583,7 @@ struct Ledger {
     // Piracy (MS-6).
     std::int64_t flips = 0, recaptures = 0, turned_pirate = 0, pirate_raids = 0, authority_contracts = 0, secessions = 0;
     std::int64_t holds = 0;  // conquests held by their army, rather than left (SYS-13)
+    double production_cost = 0;  // the cost of making goods, part of money_sunk (PRD-7)
     std::int64_t offers = 0, smuggled_runs = 0, legal_runs = 0, inspections = 0, caught = 0;
     double smuggled = 0, confiscated = 0, policing = 0, smuggler_profit = 0;
     // Spies (MS-7).
@@ -601,7 +604,7 @@ void fields(Ar& ar, L& l) {
        l.tribute_changes);
     ar(l.loot, l.escort_pay, l.raids, l.escorts, l.sightings, l.warnings, l.garrisons, l.patrols);
     ar(l.flips, l.recaptures, l.turned_pirate, l.pirate_raids, l.authority_contracts, l.secessions);
-    ar(l.holds);
+    ar(l.holds, l.production_cost);
     ar(l.offers, l.smuggled_runs, l.legal_runs, l.inspections, l.caught, l.smuggled, l.confiscated, l.policing, l.smuggler_profit);
     ar(l.spies_hired, l.spy_visits, l.musters_seen, l.spies_caught, l.spy_pay);
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,

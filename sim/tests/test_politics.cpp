@@ -189,7 +189,7 @@ TEST_CASE("the budget keeps commanders while they're worth it and lets them go w
     CHECK(hired > 0);
     CHECK(hired < 11 + 4);
     // Income gone: nobody is worth a stipend.
-    w.planets[at(rich)].income_avg = 0;
+    w.planets[at(rich)].net_avg = 0;  // the budget reads net income (OPN-39)
     budget::weekly(w, rich, nullptr);
     CHECK(count() == 0);
     CHECK(w.ledger.fires >= hired);

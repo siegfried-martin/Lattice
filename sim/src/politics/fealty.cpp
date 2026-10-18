@@ -124,6 +124,7 @@ void pay_tribute(World& w, Id id, Observer*) {
         p.treasury -= tribute;
         liege.treasury += tribute;
         liege.income_today += tribute;  // income for the liege's credit limit (SYS-5)
+        liege.net_today += tribute;
         liege.tribute_month += tribute;
         p.tribute_paid = tribute;
         w.ledger.tribute += tribute;

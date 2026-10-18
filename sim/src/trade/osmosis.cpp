@@ -69,7 +69,7 @@ double run(World& w) {
                 src->stock[g] -= q;
                 dst->stock[g] += q;
                 market::receive(*src, paid);
-                dst->treasury -= received;
+                market::pay(*dst, received);
                 w.ledger.money_sunk += received - paid;
                 w.ledger.osmosis_margin += received - paid;
                 w.ledger.osmosis_volume += q;

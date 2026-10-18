@@ -206,6 +206,24 @@ def price_cv(run):
     return statistics.fmean(v for by in [run["series"]["good.price_cv"]] for pts in by.values() for _, v in last_half(pts))
 
 
+def at_price_floor(run):
+    """Share of planet-good price samples at price.min, second half (CHK-14c)."""
+    cfg = run["config"]
+    floor = cfg.get("price", {}).get("min", 0.2)
+    at, total = 0, 0
+    for name, by in run["series"].items():
+        if not name.startswith("planet.price."):
+            continue
+        base = cfg.get("good", {}).get(name.removeprefix("planet.price."), {}).get("base_price")
+        if base is None:
+            continue
+        for pts in by.values():
+            for _, v in last_half(pts):
+                total += 1
+                at += v <= base * floor * (1 + 1e-6)
+    return at / total if total else float("nan")
+
+
 def profit_per_trip(run):
     trips = per_year(run, "world.trips")
     return per_year(run, "world.trade_profit") / trips if trips > 0 else 0.0
@@ -237,6 +255,7 @@ CHECKS = [
     ("CHK-13", "labour share change per sample, second half", labour_churn, None, 0.02),
     ("CHK-14", "price dispersion across planets (cv), second half", price_cv, 0.05, 0.6),
     ("CHK-14b", "merchant profit per trip", profit_per_trip, 0, None),
+    ("CHK-14c", "planet-good prices at price.min, share, second half", at_price_floor, None, 0.1),
     ("CHK-17", "characters over target", lambda r: values(r, "world.characters")[-1] / max(1, values(r, "world.characters")[0]), 0.95, 1.05),
     ("CHK-17b", "share of characters idle", idle_share, None, 0.2),
     ("CHK-20", "battles a year", lambda r: per_year(r, "world.battles"), 12, None),
