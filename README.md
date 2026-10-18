@@ -17,12 +17,16 @@ Godot 4.7 (`godot` on your PATH).
 
 ```
 make run        # play
-make check      # parse every script and build both worlds headless
+make check      # simulation tests, the binding, then every script and both worlds headless
 make tour       # scripted fly-through with screenshots
 make tour-combat  # scripted combat run with screenshots
 make tour-jct   # free flight through junction gates both ways
 make tour-land  # landing, refuelling, moons, asteroid hits, running out of fuel
 ```
+
+The simulation (`sim/`, C++) needs `build-essential cmake ninja-build ccache` and the
+godot-cpp submodule (`git submodule update --init`). `make gdext` builds the binding;
+run it before opening the editor on a fresh checkout.
 
 ## Controls
 

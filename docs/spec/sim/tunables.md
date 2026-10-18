@@ -15,6 +15,12 @@ thousands.
 | `time.labour_days`, `time.budget_days`, `time.diplomacy_days` | Cadences (TIM-3) | 7 |
 | `time.payment_days` | Monthly payments | 30 |
 
+## Debug
+
+| Key | Meaning | Start |
+|---|---|---|
+| `debug.pings` | Records that fire at random intervals, to exercise the queue, RNG and saves (scaffolding, MS-1) | 0 |
+
 ## Goods and prices (PRD, SYS-1 to SYS-4)
 
 | Key | Meaning | Start |

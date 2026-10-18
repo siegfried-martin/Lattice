@@ -43,9 +43,23 @@ Read `docs/VISION.md` first. It is the intent everything else serves.
 - Combat: `combat.gd` (child of the space world, world coordinates; tuning in `Combat.T`).
   `main.gd` owns the player's station (pilot / turret / missile) and applies combat events.
 
+## The simulation
+
+- `sim/` is the C++20 core (`docs/spec/sim/`), with no Godot types; `gdext/` is the
+  thin binding, which builds into `bin/`. Both build with CMake and Ninja.
+- `make sim-test` builds and runs the tests; `make sim-release` builds the runner,
+  `sim/build/release/lattice-run --help`.
+- Keep it deterministic (ARC-5, ARC-6): iterate only vectors or `std::map`, draw random
+  numbers from the system's own stream, and schedule through the event queue.
+- A new record field or event kind changes the save layout: bump `kSaveVersion`. A new
+  tunable goes in `Config`, `for_each_field` and `tunables.md`.
+- Run `make gdext` before opening the editor on a fresh checkout (ARC-4).
+
 ## Checking your work
 
-- `make check` must pass before anything is called done.
+- `make check` must pass before anything is called done. It runs the simulation's tests
+  under ASan and UBSan, builds the Godot binding, loads it from Godot, and runs the
+  project headless. The first run compiles godot-cpp, which takes a few minutes.
 - For anything visual, run `make tour` (or `make tour-hop`, `make tour-combat`, `make tour-jct`, `make tour-collide`, `make tour-land`) and look at the
   screenshots before asking the human to. They land in
   `~/.local/share/godot/app_userdata/Lattice/tour/`. The tour turns vsync off, so it

@@ -10,6 +10,11 @@ CMake core library, runner, doctest with sanitizers, config loading, the event q
 clock (TIM-1, TIM-2), metrics output, versioned saves, and a minimal godot-cpp binding
 (`advance`, a snapshot) loaded by the Godot project to prove the toolchain (ARC-4).
 
+*Done 2026-10-18.* The world has no systems yet: a daily cadence event and the
+`debug.pings` scaffolding exercise the queue, the RNG streams and saves. Tests cover
+event order, RNG streams, config errors, save round trips and rejection, determinism,
+and that splitting an advance changes nothing.
+
 ### MS-2 World and economy `v1`
 
 World generation (GEN-1 to GEN-7), population, production, labour, markets and prices,

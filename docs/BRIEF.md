@@ -272,7 +272,8 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
 - **Done:** the travel foundation, a first combat prototype, and four rounds of design
   (factions, economy, trade, characters) formalised as the spec.
 - **Now:** building the headless simulation in C++, milestone by milestone, then tuning
-  it for stability and testing each mechanic's worth.
+  it for stability and testing each mechanic's worth. The first milestone, the skeleton
+  and toolchain, is done; next are world generation and the economy.
 - **Next:** connecting the simulation to the rendered game.
 
 ## Glossary

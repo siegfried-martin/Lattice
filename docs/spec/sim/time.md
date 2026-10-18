@@ -14,12 +14,16 @@ the runner advances as fast as it can. When the player lands, the binding stops 
 
 1. **A scheduled-event queue** (MOD-11) for things that happen at a known time: Lattice
    arrivals, siege rounds, contract deadlines, event ends, courier deliveries. Popped in
-   order of time, then sequence number.
+   order of time, then phase (this list's order), then sequence number.
 2. **Decisions on a fixed cadence per role** (TIM-3), staggered so that not every
    governor decides on the same tick.
 3. **A coarse kinematic step** for ships in open space (TIM-6).
 
-`advance(dt)` runs everything due up to `now + dt`, in that order within each step.
+All three run through the one queue: cadence decisions and the open-space step are
+recurring events, so `advance(dt)` is a single loop. It runs every event due in
+`[now, now + dt)`, in order of time, phase and sequence number, then sets `now` to
+`now + dt`. The interval is half-open, so an event at exactly `now + dt` runs in the
+next call, and splitting one advance into several gives the same world.
 
 ### TIM-3 Cadences `v1` `proposed`
 

@@ -1,0 +1,15 @@
+; The simulation binding (ARC-4). Build it with `make gdext`; the libraries named here
+; are build output and aren't committed.
+
+[configuration]
+
+entry_symbol = "lattice_library_init"
+compatibility_minimum = "4.7"
+reloadable = false
+
+[libraries]
+
+linux.debug.x86_64 = "res://bin/liblattice.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://bin/liblattice.linux.template_release.x86_64.so"
+windows.debug.x86_64 = "res://bin/liblattice.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/liblattice.windows.template_release.x86_64.dll"
