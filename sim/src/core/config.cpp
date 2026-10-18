@@ -308,6 +308,7 @@ void validate(const Config& c) {
     non_negative(c.blockade.defence_share, "blockade.defence_share");
     non_negative(static_cast<double>(c.blockade.hold_days), "blockade.hold_days");
     share(c.capture.happiness_loss, "capture.happiness_loss");
+    non_negative(static_cast<double>(c.capture.hold_days), "capture.hold_days");
     share(c.capture.stock_loss, "capture.stock_loss");
     share(c.capture.pop_loss, "capture.pop_loss");
     share(c.space.engage_p, "space.engage_p");

@@ -548,6 +548,8 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   - Keep or grant runs from the commissioner. The keeper chooses the new governor from
     the army and its own commanders.
   - Its security spending restarts at zero, so a fresh conquest is weakly held.
+  - *(proposed, round 2)* The conquering army garrisons it for `capture.hold_days`, then
+    goes home. Without it, a planet could change hands 19 times in three years.
 
 *As built (round 2): gate attacks and blockades* (MIL-17) *(proposed)*:
 - **State:** every Lattice node has a gate record: static defence, the attack it's under,

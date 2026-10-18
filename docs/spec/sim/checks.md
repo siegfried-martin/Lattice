@@ -18,9 +18,11 @@ Each check names the metric (ARC-8) and the rules it tests.
   - checks that need role transitions (CHK-16), mission delays by depth (CHK-22), escort
     choices against risk (CHK-21), or experiment runs (CHK-15);
   - CHK-2 and CHK-5, which need defections and reliefs broken down further.
-- **Two metrics added:** CHK-8b, war declarations per faction per year, because "any war
+- **Metrics added:** CHK-8b, war declarations per faction per year, because "any war
   in the world" is nearly always true with many factions; and CHK-17, characters at end
-  over start.
+  over start. Round 2 made CHK-8 each faction's share of time at war, and added CHK-8c
+  (median war length), CHK-6b (blockades) and CHK-9b (secessions). CHK-8b's band moved
+  from 0.05–1 to 2–5 a year with DIP-4's pacing.
 
 ## Politics
 

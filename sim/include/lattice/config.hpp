@@ -310,8 +310,8 @@ struct Config {
         double security_unit = 1000;  // static defence is bought in units of this much a month
         double invade_months = 12;    // a planet taken is worth this many months of its income
         double gate_months = 6;       // more for one that holds gates (WLD-5)
-        double aftermath_months = 2;  // rebuilding after capture costs this many months of its income
-        double blockade_months = 4;   // blockading a gate is worth this many months of its group's income (MIL-17)
+        double aftermath_months = 8;  // rebuilding after capture costs this many months of its income (round 2: 2)
+        double blockade_months = 8;   // blockading a gate is worth this many months of its group's income (MIL-17)
         double retake_months = 8;     // and retaking one's own, this many
         double protect = 0.1;         // keep or grant: protection cost per day of travel from the keeper
 
@@ -370,7 +370,7 @@ struct Config {
     } blockade;
 
     struct Defence {
-        double per_spend = 0.005;  // static defence power per credit of monthly security spend
+        double per_spend = 0.01;   // static defence power per credit of monthly security spend (round 2: 0.005)
         double regen = 0.05;       // share of its maximum restored a day, when not besieged
 
         friend bool operator==(const Defence&, const Defence&) = default;
@@ -481,6 +481,7 @@ struct Config {
         double happiness_loss = 0.4;
         double stock_loss = 0.5;
         double pop_loss = 0.05;
+        std::int64_t hold_days = 30;  // the conquering army garrisons the planet this long (SYS-13)
 
         friend bool operator==(const Capture&, const Capture&) = default;
     } capture;
@@ -812,6 +813,7 @@ void for_each_field(C& c, F&& f) {
     f("blockade.hold_days", c.blockade.hold_days);
 
     f("capture.happiness_loss", c.capture.happiness_loss);
+    f("capture.hold_days", c.capture.hold_days);
     f("capture.stock_loss", c.capture.stock_loss);
     f("capture.pop_loss", c.capture.pop_loss);
 

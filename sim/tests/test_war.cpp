@@ -272,9 +272,14 @@ TEST_CASE("an invasion besieges, wins and captures (SYS-13, FAC-8, FAC-9, FAC-10
     const double pop = w.planets[at(f.b)].population;
     const Id army = armies::commission(w, f.a, f.b, false, nullptr);
     REQUIRE(army != kNone);
-    advance(w, 60 * kDay);
+    for (int d = 0; d < 60 && w.ledger.captures == 0; ++d) advance(w, kDay);
     CHECK(w.ledger.sieges >= 1);
     REQUIRE(w.ledger.captures == 1);
+    // The army holds its prize a while (SYS-13).
+    CHECK(w.armies[at(army)].alive);
+    CHECK(w.armies[at(army)].action == ArmyAction::Garrison);
+    CHECK(w.armies[at(army)].planet == f.b);
+    advance(w, (w.config.capture.hold_days + 30) * kDay);
     CHECK(fealty::root_of(w, f.b) == f.root_a);
     CHECK(w.planets[at(f.b)].governor != old_gov);
     CHECK(w.characters[at(old_gov)].governs == kNone);

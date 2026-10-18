@@ -25,6 +25,10 @@ Agreed with the human in conversation, written straight into the spec as `propos
   holder's faction; it lifts with peace. Blockades are facts; travellers route around
   known ones and find out at the gate otherwise (MIL-17, WLD-12, WLD-13, INF-2, SYS-13,
   CHK-6).
+- **Capture:** the conquering army garrisons its prize for `capture.hold_days` (SYS-13).
+- **Round 2 tuning:** `value.aftermath_months` 2 → 8, `defence.per_spend` 0.005 → 0.01,
+  `value.blockade_months` 8, `rebel.shortfall` 0.5, `rebel.days` 90; CHK-8b's band 2 to 5
+  (MS-8's note).
 
 ### 2026-10-18 · MS-8, the harness and Phase A round 1
 

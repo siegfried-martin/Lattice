@@ -13,5 +13,6 @@ cost (Phase B). Connecting the simulation to the rendered game follows.
 MS-1, the skeleton and toolchain, is done: the core, runner, tests, saves and a Godot
 binding the project loads. MS-2 to MS-7 are built: world generation and the economy,
 characters, movement, information and trade, politics, war, piracy and suspicion, and
-spies. Every v1 system runs. Next is MS-8: full scale, the experiment harness, and Phase
-A tuning.
+spies. Every v1 system runs. MS-8 is in progress: the experiment harness is built, and
+Phase A has had two rounds. Round 2 added war pacing, rebellion and gate blockades. The
+next round waits on how the economy's surplus should be spent (`sim/milestones.md`).

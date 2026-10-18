@@ -160,7 +160,7 @@ CHECKS = [
     ("CHK-7b", "price index, end over start", lambda r: values(r, "world.price_index")[-1] / values(r, "world.price_index")[0], 0.67, 1.5),
     ("CHK-8", "share of time each faction is at war", war_share, 0.5, 0.8),
     ("CHK-8c", "war length in days, median", war_length, 30, 90),
-    ("CHK-8b", "war declarations a year per faction", lambda r: per_year(r, "world.wars") / max(1, statistics.fmean(values(r, "world.roots"))), 0.05, 1),
+    ("CHK-8b", "war declarations a year per faction", lambda r: per_year(r, "world.wars") / max(1, statistics.fmean(values(r, "world.roots"))), 2, 5),
     ("CHK-9", "pirate flips a year, share of planets", lambda r: per_year(r, "world.flips") / max(1, len(r["planets"])), None, 0.05),
     ("CHK-9b", "secessions a year, share of planets", lambda r: per_year(r, "world.secessions") / max(1, len(r["planets"])), None, 0.05),
     ("CHK-10", "contraband reaching lawful populations a year", lambda r: per_year(r, "world.smuggled"), 1, None),

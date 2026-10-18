@@ -410,7 +410,17 @@ void capture(World& w, Id siege, Observer* observer) {
         observer->log(w.now, "planet.captured", t,
                       "by army " + std::to_string(s.army) + " kept by " + std::to_string(keeper) + " governor " + std::to_string(chosen));
     }
-    disband(w, s.army, observer);
+    // The army holds its prize for capture.hold_days while its defences rebuild (SYS-13).
+    Army& held = w.armies[at(s.army)];
+    if (held.members.empty() || w.config.capture.hold_days <= 0) {
+        disband(w, s.army, observer);
+        return;
+    }
+    held.siege = kNone;
+    held.target = kNone;
+    held.action = ArmyAction::Garrison;
+    w.events.push({.time = w.now + w.config.capture.hold_days * kDay, .kind = EventKind::ArmyMuster, .record = s.army,
+                   .a = held.travel_seq + 1});
 }
 
 void besiege(World& w, Id id, Observer* observer) {
