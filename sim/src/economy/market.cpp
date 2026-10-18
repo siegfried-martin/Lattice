@@ -53,8 +53,7 @@ Fill buy(Planet& p, const Config& c, Good g, double max_qty, double budget, doub
         double q = std::min({chunk, max_qty - f.qty, p.stock[g], (budget - f.money) / unit});
         if (q <= 1e-9) break;
         p.stock[g] -= q;
-        p.treasury += q * unit;
-        p.income_today += q * unit;
+        receive(p, q * unit);
         f.qty += q;
         f.money += q * unit;
     }

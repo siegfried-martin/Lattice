@@ -8,7 +8,8 @@ namespace lattice::test {
 // sanitizers.
 inline Config small() {
     Config c;
-    c.chars.target = 60;
+    c.chars.target = 100;
+    c.gen.commanders_per_income = 3e-6;  // a commander or so per planet
     return c;
 }
 

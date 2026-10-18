@@ -32,12 +32,12 @@ void fill_to(World& w, Planet& p, double fill) {
     for (int g = 0; g < kGoodCount; ++g) p.stock[at(g)] = fill * market::reserve(w.config, p, static_cast<Good>(g));
 }
 
-// Every credit anyone holds: treasuries and characters' wealth.
+// Every credit anyone holds: treasuries, characters' wealth and the Authority's.
 double total_money(const World& w) {
     double m = 0;
     for (const Planet& p : w.planets) m += p.treasury;
     for (const Character& c : w.characters) m += c.wealth;
-    return m;
+    return m + w.authority.treasury;
 }
 
 }  // namespace

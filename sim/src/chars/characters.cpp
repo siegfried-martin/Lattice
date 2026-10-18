@@ -129,6 +129,22 @@ Id make_governor(World& w, Id planet) {
 
 void populate(World& w) {
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) make_governor(w, p);
+    // Commanders sworn to each governor, with combat power in proportion to the planet's
+    // income (GEN-9): one gunship each.
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const Planet& planet = w.planets[at(p)];
+        const double target = w.config.gen.commanders_per_income * planet.income_avg * static_cast<double>(w.config.time.payment_days);
+        double power = 0;
+        while (power < target && static_cast<std::int64_t>(w.characters.size()) < w.config.chars.target) {
+            const Id id = spawn(w, p);
+            Character& c = w.characters[at(id)];
+            c.ships = {ships::variant(w.map, c.culture, ShipClass::Gunship, 1)};
+            const ships::Fleet f = ships::fleet(w, c);
+            power += f.combat;
+            contracts::sign(w, ContractKind::Service, planet.governor, id, w.config.hire.stipend_per_power * f.combat,
+                            w.config.time.payment_days * kDay);
+        }
+    }
     std::vector<double> weights;
     for (const Planet& p : w.planets) weights.push_back(p.population);
     Rng& rng = w.rng[Stream::Characters];
@@ -173,8 +189,8 @@ void daily(World& w, Observer*) {
         c.earned_cargo -= c.earned_cargo * decay;
         c.earned_combat -= c.earned_combat * decay;
         if (c.wealth >= 0) {
-            c.broke_since = -1;
-        } else if (c.broke_since < 0) {
+            c.broke_since = kNever;
+        } else if (c.broke_since == kNever) {
             c.broke_since = w.now;
         } else if (w.now - c.broke_since >= cfg.chars.broke_days * kDay) {
             go_broke(w, id);
@@ -204,6 +220,22 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
         return;
     }
     if (c.activity == Activity::Mission) return;  // arrivals drive it
+
+    // A sworn commander serves at its governor's planet (MIL-2): the governor sets the
+    // objective, which in peacetime is the defence of home.
+    const Id service = contracts::held(w, id, ContractKind::Service);
+    if (service != kNone) {
+        maybe_buy_ship(w, id, observer);
+        const Id home = w.characters[at(w.contracts[at(service)].employer)].governs;
+        if (c.planet != home && move::travel_to(w, id, home)) {
+            c.activity = Activity::Idle;
+            return;
+        }
+        c.activity = Activity::Serving;
+        wake(w, id, w.now + 7 * kDay);
+        return;
+    }
+    if (c.activity == Activity::Serving) c.activity = Activity::Idle;
 
     maybe_buy_ship(w, id, observer);
     merchant::consider_salary(w, id, observer);

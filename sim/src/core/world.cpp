@@ -13,6 +13,8 @@
 #include "core/travel.hpp"
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
+#include "politics/governor.hpp"
+#include "politics/opinion.hpp"
 #include "trade/merchants.hpp"
 #include "economy/economy.hpp"
 #include "economy/events.hpp"
@@ -86,7 +88,7 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.events_active", -1, static_cast<double>(active));
 
     // Characters (CHK-16 to CHK-18).
-    std::array<std::int64_t, 5> by_activity{};
+    std::array<std::int64_t, 6> by_activity{};
     std::int64_t alive = 0, faction_merchants = 0, ships = 0;
     double wealth = 0, cargo = 0;
     for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
@@ -102,7 +104,7 @@ void sample_metrics(const World& w, Observer& o) {
     }
     o.sample(t, "world.characters", -1, static_cast<double>(alive));
     o.sample(t, "world.char_wealth", -1, wealth);
-    o.sample(t, "world.money_total", -1, money + wealth);
+    o.sample(t, "world.money_total", -1, money + wealth + w.authority.treasury);
     o.sample(t, "world.money_spawned", -1, w.ledger.money_spawned);
     o.sample(t, "world.ships", -1, static_cast<double>(ships));
     o.sample(t, "world.cargo_capacity", -1, cargo);
@@ -111,6 +113,38 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.chars_exploring", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Exploring)]));
     o.sample(t, "world.chars_mission", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Mission)]));
     o.sample(t, "world.faction_merchants", -1, static_cast<double>(faction_merchants));
+    o.sample(t, "world.chars_serving", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Serving)]));
+
+    // Politics (CHK-1, CHK-3).
+    std::int64_t roots = 0, factions = 0, sworn = 0;
+    double loyalty = 0;
+    std::vector<std::int64_t> size(w.planets.size(), 0);
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) ++size[at(fealty::root_of(w, p))];
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const Planet& pl = w.planets[at(p)];
+        if (pl.liege == kNone) {
+            ++roots;
+            factions += size[at(p)] >= 2;
+        } else {
+            ++sworn;
+            loyalty += opinion::get(w, pl.governor, w.planets[at(pl.liege)].governor);
+        }
+    }
+    std::int64_t commanders = 0;
+    for (const Contract& k : w.contracts) commanders += k.alive && k.kind == ContractKind::Service;
+    o.sample(t, "world.roots", -1, static_cast<double>(roots));
+    o.sample(t, "world.factions", -1, static_cast<double>(factions));
+    o.sample(t, "world.loyalty", -1, sworn ? loyalty / static_cast<double>(sworn) : 0);
+    o.sample(t, "world.commanders", -1, static_cast<double>(commanders));
+    o.sample(t, "world.defections", -1, static_cast<double>(w.ledger.defections));
+    o.sample(t, "world.tribute", -1, w.ledger.tribute);
+    o.sample(t, "world.patronage", -1, w.ledger.patronage);
+    o.sample(t, "world.stipends", -1, w.ledger.stipends);
+    o.sample(t, "world.salaries", -1, w.ledger.salaries);
+    o.sample(t, "world.dues", -1, w.ledger.dues);
+    o.sample(t, "world.authority_treasury", -1, w.authority.treasury);
+    o.sample(t, "world.hires", -1, static_cast<double>(w.ledger.hires));
+    o.sample(t, "world.fires", -1, static_cast<double>(w.ledger.fires));
     o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
     o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);
     o.sample(t, "world.running_costs", -1, w.ledger.running_costs);
@@ -165,7 +199,7 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             break;
         case EventKind::PlanetPayment:
             economy::planet_payment(w, record);
-            if (w.planets[at(record)].liege == kNone) merchant::pay_salaries(w, record, observer);
+            governor::monthly(w, record, observer);
             break;
         case EventKind::WorldEventEnd:
             events::end(w, record, observer);
@@ -188,8 +222,8 @@ void dispatch(World& w, const Event& e, Observer* observer) {
         case EventKind::MissionExpire:
             missions::expire(w, record, observer);
             break;
-        case EventKind::RootWeekly:
-            missions::root_weekly(w, record, observer);
+        case EventKind::GovernorWeekly:
+            governor::weekly(w, record, observer);
             break;
     }
 }
@@ -238,7 +272,7 @@ World new_world(const Config& config, std::uint64_t seed) {
     const Time step = config.time.space_step_minutes * kMinute;
     world.events.push({.time = step, .phase = Phase::Kinematic, .kind = EventKind::KinematicStep, .period = step});
     info::schedule_couriers(world);
-    missions::schedule(world);
+    governor::schedule(world);
 
     world.ping_fires.assign(static_cast<std::size_t>(config.debug.pings), 0);
     for (std::int64_t i = 0; i < config.debug.pings; ++i) {

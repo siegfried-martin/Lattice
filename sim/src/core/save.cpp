@@ -278,6 +278,10 @@ void check_references(const World& w) {
                     opt(c.mission, w.missions.size()) && c.cargo_good <= kGoodCount,
                 "character");
         for (Id v : c.ships) require(in(v, m.variants.size()), "character ship");
+        for (const Opinion& o : c.opinions) {
+            require(in(o.of, nc), "opinion");
+            for (const Deed& d : o.recent) require(static_cast<int>(d.kind) < kDeedKindCount, "deed");
+        }
         for (Id k : c.contracts) require(in(k, w.contracts.size()), "character contract");
         for (const TripStop& t : c.trip) require(in(t.planet, np) && t.buy <= kGoodCount, "trip");
         for (const Leg& l : c.route) require(opt(l.to_planet, np) && opt(l.to_node, m.nodes.size()), "route");
@@ -304,7 +308,7 @@ void check_references(const World& w) {
             case EventKind::PlanetLabour:
             case EventKind::PlanetPayment:
             case EventKind::CourierDue:
-            case EventKind::RootWeekly: require(in(e.record, np), "planet event"); break;
+            case EventKind::GovernorWeekly: require(in(e.record, np), "planet event"); break;
             case EventKind::WorldEventEnd: require(in(e.record, w.world_events.size()), "world event end"); break;
             case EventKind::CharDecide:
             case EventKind::CharArrive: require(in(e.record, nc), "character event"); break;
@@ -319,7 +323,7 @@ void check_references(const World& w) {
 template <class Ar, class W>
 void world_fields(Ar& ar, W& w) {
     ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.characters, w.contracts,
-       w.missions, w.courier_runs, w.ledger);
+       w.missions, w.courier_runs, w.authority, w.ledger);
 }
 
 }  // namespace

@@ -80,6 +80,7 @@ struct World {
     std::vector<Contract> contracts;
     std::vector<Mission> missions;
     std::vector<CourierRun> courier_runs;
+    Authority authority;
     Ledger ledger;
 
     Derived derived;

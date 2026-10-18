@@ -256,6 +256,73 @@ struct Config {
         friend bool operator==(const Space&, const Space&) = default;
     } space;
 
+    struct Rel {
+        double fade = 0.03;          // weekly share of opinion lost toward rest (SYS-10)
+        double culture_rest = 20;    // a vassal's resting opinion of its liege per culture share
+        std::int64_t recent_deeds = 3;  // kept per relationship for the UI (REL-12)
+
+        friend bool operator==(const Rel&, const Rel&) = default;
+    } rel;
+
+    // Opinion change per deed (REL-3), by DeedKind.
+    struct Deeds {
+        std::array<double, 12> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5};
+
+        friend bool operator==(const Deeds&, const Deeds&) = default;
+    } deed;
+
+    struct Fealty {
+        bool cascade = true;         // tribute on tribute received (FAC-6)
+        double tribute_rate = 0.15;  // starting rate
+        double rate_step = 0.05;     // a liege moves a vassal's rate by this
+        double rate_min = 0;
+        double rate_max = 0.5;
+        double raise_opinion = 20;   // a liege short of money raises tribute only on vassals this loyal
+        double defect_opinion = -30;
+        std::int64_t defect_weeks = 8;
+        std::int64_t threat_days = 10;
+        double rival_opinion = 20;
+        double w_favor = 1;
+        double capture_bonus = 30;
+
+        friend bool operator==(const Fealty&, const Fealty&) = default;
+    } fealty;
+
+    struct Budget {
+        double credit_risk = 1;     // months of income of credit, x risk tolerance (SYS-5)
+        double diminishing = 0.6;   // each further unit of an option, at risk 0
+        double debt_pressure = 0.1; // cost multiplier per month in the red
+
+        friend bool operator==(const Budget&, const Budget&) = default;
+    } budget;
+
+    // Option values for the budget model (SYS-5): first guesses for Phase A.
+    struct Value {
+        double defence = 0.01;        // a value.power_ref fleet is worth this share of monthly income
+        double power_ref = 10;
+        double patronage_months = 12; // patronage is worth this many months of the tribute it saves
+
+        friend bool operator==(const Value&, const Value&) = default;
+    } value;
+
+    struct Hire {
+        double range_days = 5;
+        double stipend_per_power = 300;  // per month
+        double w_power = 1;
+        double w_opinion = 0.05;
+        double w_culture = 0.5;
+
+        friend bool operator==(const Hire&, const Hire&) = default;
+    } hire;
+
+    struct Dues {
+        double access = 500;   // per month, every lawful planet (ECO-10)
+        double gate = 1500;    // per month, more for gate holders
+        double maintenance = 0.6;  // share the Authority spends on the network (a sink)
+
+        friend bool operator==(const Dues&, const Dues&) = default;
+    } dues;
+
     struct Gen {
         std::int64_t width = 6;  // sectors
         std::int64_t height = 8;
@@ -277,6 +344,7 @@ struct Config {
         double weight_spread = 0.5;  // region production weights in 1 +- this
         double favour_mult = 3;      // weight of each region's favoured good
         double independent_share = 0.1;  // planets that start as their own roots (GEN-8)
+        double commanders_per_income = 1e-5;  // starting combat power per credit of monthly income (GEN-9)
 
         friend bool operator==(const Gen&, const Gen&) = default;
     } gen;
@@ -424,6 +492,46 @@ void for_each_field(C& c, F&& f) {
     f("space.detect_range", c.space.detect_range);
     f("space.meet_cooldown_hours", c.space.meet_cooldown_hours);
 
+    f("rel.fade", c.rel.fade);
+    f("rel.culture_rest", c.rel.culture_rest);
+    f("rel.recent_deeds", c.rel.recent_deeds);
+
+    constexpr const char* deeds[] = {"help_sent", "help_missed", "planet_granted", "patronage", "tribute_raised",
+                                     "passed_over", "call_answered", "call_refused", "border_held", "job_done",
+                                     "attacked", "tribute_lowered"};
+    for (std::size_t i = 0; i < c.deed.amount.size(); ++i) f(std::string("deed.") + deeds[i], c.deed.amount[i]);
+
+    f("fealty.cascade", c.fealty.cascade);
+    f("fealty.tribute_rate", c.fealty.tribute_rate);
+    f("fealty.rate_step", c.fealty.rate_step);
+    f("fealty.rate_min", c.fealty.rate_min);
+    f("fealty.rate_max", c.fealty.rate_max);
+    f("fealty.raise_opinion", c.fealty.raise_opinion);
+    f("fealty.defect_opinion", c.fealty.defect_opinion);
+    f("fealty.defect_weeks", c.fealty.defect_weeks);
+    f("fealty.threat_days", c.fealty.threat_days);
+    f("fealty.rival_opinion", c.fealty.rival_opinion);
+    f("fealty.w_favor", c.fealty.w_favor);
+    f("fealty.capture_bonus", c.fealty.capture_bonus);
+
+    f("budget.credit_risk", c.budget.credit_risk);
+    f("budget.diminishing", c.budget.diminishing);
+    f("budget.debt_pressure", c.budget.debt_pressure);
+
+    f("value.defence", c.value.defence);
+    f("value.power_ref", c.value.power_ref);
+    f("value.patronage_months", c.value.patronage_months);
+
+    f("hire.range_days", c.hire.range_days);
+    f("hire.stipend_per_power", c.hire.stipend_per_power);
+    f("hire.w_power", c.hire.w_power);
+    f("hire.w_opinion", c.hire.w_opinion);
+    f("hire.w_culture", c.hire.w_culture);
+
+    f("dues.access", c.dues.access);
+    f("dues.gate", c.dues.gate);
+    f("authority.maintenance", c.dues.maintenance);
+
     f("gen.width", c.gen.width);
     f("gen.height", c.gen.height);
     f("gen.planets", c.gen.planets);
@@ -444,6 +552,7 @@ void for_each_field(C& c, F&& f) {
     f("gen.weight_spread", c.gen.weight_spread);
     f("gen.favour_mult", c.gen.favour_mult);
     f("gen.independent_share", c.gen.independent_share);
+    f("gen.commanders_per_income", c.gen.commanders_per_income);
 }
 
 class ConfigError : public std::runtime_error {

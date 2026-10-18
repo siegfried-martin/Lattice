@@ -13,7 +13,6 @@ void post_courier(World& world, Id liege, Id vassal, Observer* observer);
 
 // Weekly, per root: trade scouting of the outside market it has heard least of (INF-9).
 void root_weekly(World& world, Id planet, Observer* observer);
-void schedule(World& world);
 
 // pay = base x (1 + mission.pay_growth x days waiting).
 double pay_now(const World& world, const Mission& m);

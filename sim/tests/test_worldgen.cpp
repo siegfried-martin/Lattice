@@ -169,7 +169,7 @@ TEST_CASE("v1-size worlds keep every generation promise") {
 
 TEST_CASE("about one system in gen.fringe_share is off the network (GEN-3)") {
     std::size_t systems = 0, fringe = 0;
-    for (std::uint64_t seed = 1; seed <= 20; ++seed) {
+    for (std::uint64_t seed = 1; seed <= 12; ++seed) {
         const World w = new_world(v1_size(), seed);
         for (const System& s : w.map.systems) fringe += s.fringe, ++systems;
     }

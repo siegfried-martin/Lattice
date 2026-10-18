@@ -58,8 +58,7 @@ double run(World& w) {
                 if (received < paid) break;
                 src->stock[g] -= q;
                 dst->stock[g] += q;
-                src->treasury += paid;
-                src->income_today += paid;
+                market::receive(*src, paid);
                 dst->treasury -= received;
                 w.ledger.money_sunk += received - paid;
                 w.ledger.osmosis_margin += received - paid;

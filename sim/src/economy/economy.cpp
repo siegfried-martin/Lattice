@@ -11,11 +11,6 @@ namespace {
 
 std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 
-void credit(Planet& p, double money) {
-    p.treasury += money;
-    p.income_today += money;
-}
-
 }  // namespace
 
 double monthly_costs(const Config& c, const Planet& p) {
@@ -101,7 +96,7 @@ void planet_day(World& w, Id id) {
 
     for (Good g : kLifeSupport) p.stock[g] -= buy[g], w.ledger.consumed[g] += buy[g];
     for (Good g : kLuxuries) p.stock[g] -= buy[g], w.ledger.consumed[g] += buy[g];
-    credit(p, spent);
+    market::receive(p, spent);
     w.ledger.money_created += spent;
 
     // Happiness: luxuries raise it, with a bonus for variety, and it drains all the

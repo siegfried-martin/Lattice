@@ -67,6 +67,24 @@ Fealty trees and starting factions (GEN-8, GEN-9), relationships and deeds (SYS-
 tribute, patronage and defection (SYS-11), the governor's budget model (SYS-5), the Trade
 Authority and dues (SYS-20).
 
+*Built 2026-10-18.*
+- **What runs:**
+  - opinions with deeds and fade;
+  - tribute with the cascade;
+  - the liege's tribute tools;
+  - defection to a rival or to independence;
+  - the weekly budget over commanders and patronage;
+  - commander hiring and stipends;
+  - starting commanders sworn to every governor (GEN-9);
+  - Authority dues.
+- **Not yet:** keep-or-grant and choosing a governor need capture (MS-5).
+- **Seen in a peaceful run:**
+  - tribute flows up the trees and patronage reaches vassals in the red;
+  - loyalty rises with patronage;
+  - commanders follow income: hired when governors are rich and let go as populations
+    (and incomes) shrink under the starting values;
+  - nobody defects: only war deeds push opinion that low.
+
 ### MS-5 War `v1`
 
 Diplomacy (SYS-12), combat resolution (SYS-14), escorts, armies, invasions, sieges,
