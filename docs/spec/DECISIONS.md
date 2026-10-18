@@ -5,6 +5,32 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · Phase A round 3, design changes (not built yet)
+
+Agreed with the human in conversation, written into the spec as `proposed`.
+
+- **Happiness:** a signed scale with 0 neutral and no caps. It settles toward a target
+  set by luxuries (each with diminishing returns, so variety pays), contraband and
+  hunger, below neutral with no luxuries. A content population buys fewer luxuries
+  (PRD-4, SYS-1).
+- **Productivity and growth:** 1× at neutral, rising toward a ceiling and falling toward
+  a floor with diminishing returns. The floor lets a miserable planet just feed itself:
+  poverty is sticky, not a death spiral. Unhappiness slows growth (PRD-5, PRD-2, PRD-6).
+- **Eight luxuries,** six regional and two from the fringe, so luxuries are carried and
+  distant planets have something to sell (PRD-1, PRD-8, GEN-6). Names are placeholders
+  (OPN-35).
+- **One money supply per planet:** an unhappy planet raises its luxury reserves and so
+  pays merchants more (PRD-10, SYS-3).
+- **Rebellion** is a weekly chance from unhappiness and debt, under one scale factor
+  (ECO-13, SYS-16).
+- **Garrisoning a conquest** is a weighed choice, not fixed (MIL-12, SYS-13).
+- **Defence** is bought in proportion to income, and reserves beyond a cushion raise its
+  value; deep treasuries at wealthy core planets are intended (MIL-5, SYS-5, CHK-7).
+- **Checks:** border planets may change hands often (CHK-6 to 40% a year, the
+  most-traded planet at most twice a year); reserves must level off, not stop at a growth
+  cap (CHK-7); happiness must spread out (CHK-12).
+- Held in reserve: output per head falling with population (OPN-38).
+
 ### 2026-10-18 · Phase A round 2, design changes
 
 Agreed with the human in conversation, written straight into the spec as `proposed`.

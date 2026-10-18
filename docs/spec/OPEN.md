@@ -35,9 +35,10 @@ The planning agent should start a round from the **design** entries.
 | OPN-30 | Do planets need trade deals or loans? | ECO-9 | Only if the simulation shows the need |
 | OPN-31 | Do neutral planets sell armies passage? | WLD-13 | — |
 | OPN-34 | Does war between the largest factions need special treatment? | DIP-1 | No; it happens when the simulation produces it |
+| OPN-38 | Should output per head fall a little as a population grows (limited land and resources), so a shrunken planet recovers and a crowded one imports? | PRD-5, PRD-7 | Not yet: held in reserve if the poverty floor and the other forces aren't enough |
 | OPN-37 | What happens to a failing root with vassals: nothing, its vassals break away, or it turns pirate and frees them? | ECO-13 | Nothing (it stays as it is) |
 | OPN-36 | How the player hires crew (gunners for the summoner playstyle) and what crew quality means, now academy worlds are dropped | VISION playstyles | — |
-| OPN-35 | World content: how much ship and weapon variety, and what gives each culture an identity players get excited about | WLD-17 | A creative discussion of its own |
+| OPN-35 | World content: how much ship and weapon variety, and what gives each culture an identity players get excited about; *(round 3)* the eight luxuries' names, placeholders for now | WLD-17, PRD-1 | A creative discussion of its own |
 
 ## Tuning
 

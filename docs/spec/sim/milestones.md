@@ -239,6 +239,43 @@ and tuning until the checks pass (`checks.md`).
     5.9% against at most 5%), each passing on a quarter of seeds;
   - fringe growth (CHK-11, 0.40), price dispersion (CHK-14, 0.67), and smuggling, which
     runs in three-year runs but fades to almost nothing over five (CHK-10, CHK-24).
+- **Found after round 2:**
+  - **A poverty trap in the constants.** Purchasing power is `econ.wage` 40 × P a day per
+    thousand, with P from 0.6 (unhappy) to 1.2. Life support at reserve prices costs 30
+    (3 goods × 1.0 × 10). At P 0.6 a planet can't feed itself, so it starves and stays
+    unhappy: 55% of planet-samples sat at happiness 0 and 33% at 1.
+  - **A knife edge:** at full luxury use, daily joy (0.5 × 0.02) equals the drain (0.01).
+  - **A luxury glut:** about 90% of planets make one of the three luxuries, and luxury
+    prices sit at the floor (0.2 × base) nearly everywhere, fringe included.
+  - Under ECO-1, more luxury buying creates money rather than sinking it; luxury trade
+    moves money from consumers' treasuries to merchants and producers. The sinks are
+    military, fuel and ships.
+- **Round 3 plan** (agreed with the human 2026-10-18; spec written, not built), on
+  branch `feat/sim-round-3`, in this order:
+  1. **Happiness and productivity** (PRD-4, PRD-5, PRD-2, SYS-1): signed H with 0
+     neutral, settling toward a target, per-luxury log returns, consumption falling as
+     H rises, F(H) and G(H) through tanh with the productivity floor, capture as a drop
+     of `capture.happiness_drop`, `gen.start_happiness` 0. Contraband demand's
+     `(1 − H)` becomes u of unhappiness (SYS-16). Retire the old `pop.*` and `lux.*`
+     keys. Check Planet fields (happiness's meaning changes; the save version bumps).
+  2. **Eight luxuries** (PRD-1, PRD-8, GEN-6): six regional (wine, spice, silk, tea,
+     perfume, glassware: placeholders) and two fringe (crystal, amber: placeholders).
+     `Good` and `kLuxuries` grow; `goods` defaults, the market, osmosis, facts' price
+     arrays and the save follow. GEN-6's regional weights and repair rule as written.
+     Luxury reserves rise with unhappiness (`happy.want`, SYS-3).
+  3. **Rebellion as a weekly chance** (ECO-13, SYS-16): `rebel.scale`, `rebel.power`,
+     `rebel.w_debt` replace `rebel.happiness`, `rebel.shortfall`, `rebel.days` and the
+     deficit counter's role in failure (Planet.unrest_days goes).
+  4. **Garrisoning as a choice** (MIL-12, SYS-13): hold or go home at capture.
+  5. **Defence sized to income, and reserves** (MIL-5, SYS-5): `value.security_share`,
+     `budget.hoard`; move `dip.reserve_months` and `dip.treasury_cap` to `budget.*`.
+     Retune `defence.per_spend`.
+  6. **Checks** (`checks.py`): CHK-6 band 0.05 to 0.4 and CHK-6c (the most-traded
+     planet's captures a year, at most 2, from `planet.captured` events); CHK-7 as
+     second-half growth at most 1.1 and median treasury months levelling off; CHK-12c
+     (happiness at the ends at most 20% of planet-days; fringe median below the
+     network's, above the floor). The runner may need series for treasury months or F.
+  7. **Run round 3** (v1, 8 seeds, 5 years), compare with round 2, tune, report.
 
 ### MS-9 Phase B `v1`
 

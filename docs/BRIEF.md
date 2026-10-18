@@ -213,10 +213,13 @@ The design of the full game is settled enough to build its simulation. In brief:
   (MIL-13).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
-  to ECO-5). The v1 goods are food, water, oxygen, three luxuries and one contraband
+  to ECO-5). The v1 goods are food, water, oxygen, three luxuries (eight planned) and one contraband
   (PRD-1). Each planet makes three goods at high, medium and low efficiency, partly by
   region; prices come from stock against a reserve; droughts and festivals keep them
-  moving (PRD-7 to PRD-11). Fuel is a fixed local price in v1 (ECO-11).
+  moving (PRD-7 to PRD-11). *Planned (round 3):* eight luxuries, six regional and two
+  from the fringe; happiness on a signed scale that settles toward what a population
+  gets, with diminishing returns on productivity and a poverty floor, so poor planets
+  stay poor without collapsing; an unhappy planet pays more for luxuries (PRD-4, PRD-5). Fuel is a fixed local price in v1 (ECO-11).
 - **Trade:** merchants are characters. A faction root pays merchants a salary for its
   information network, in return for trips that start and end at home; independents run
   single trips. Merchants hire escorts by weighing route risk against cargo value. A slow

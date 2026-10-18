@@ -90,6 +90,16 @@ efficiency at random (PRD-7). Then repair: every good must have at least
 `gen.min_producers` producers per region at medium or better (PRD-8); swap draws until it
 holds. Contraband is never drawn for a lawful planet.
 
+*(proposed, round 3)* **Luxuries are regional:**
+- Each of the six regional luxuries has `gen.lux_home_regions` home regions, spread so
+  every region is home to about two. A region's weight for a luxury it isn't home to
+  is × `gen.lux_away`; for one it is, × `gen.favour_mult`.
+- The two fringe luxuries have weight × `gen.lux_away` on network planets, and fringe
+  planets weight them × `gen.fringe_lux_mult`.
+- The repair guarantees life support in every region, and each luxury only in its home
+  regions (each fringe luxury across the fringe as a whole, if there are enough fringe
+  planets).
+
 *As built:* a region's weights are `1 ± gen.weight_spread` per lawful good, with one
 favoured good × `gen.favour_mult`. The repair takes a medium-or-better slot from a good
 that has more producers than it needs: it either swaps tiers with the short good where

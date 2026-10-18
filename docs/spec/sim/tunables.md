@@ -57,6 +57,25 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `lux.variety_min` | Share of full use that counts toward variety | 0.2 |
 | `lux.variety_bonus[n]` | Daily bonus for n luxuries | 0, 0, 0.003, 0.006 |
 | `prod.efficiency[tier]` | Output multiplier by tier | high 1.0, medium 0.6, low 0.3 |
+
+*Round 3, proposed and not built yet (SYS-1, SYS-3, PRD-4, PRD-5).* These replace
+`pop.happiness_drain`, `pop.starve_happiness`, `pop.p_base`, `pop.p_happy`,
+`lux.consumption`, `lux.variety_min` and `lux.variety_bonus` when built.
+
+| Key | Meaning | Start |
+|---|---|---|
+| `happy.need` | Each luxury's full use, per thousand per day | 0.1 |
+| `happy.sated` | How much a happy population cuts its luxury use | 1 |
+| `happy.base` | Target happiness with no luxuries | −0.3 |
+| `happy.lux` | Target happiness per luxury, × ln(1 + use ÷ need) | 0.25 |
+| `happy.contraband` | The same for contraband, more than a legal luxury (PRD-6) | 0.5 |
+| `happy.hunger` | Target happiness lost at total life-support shortfall | 1 |
+| `happy.settle_days` | Days for happiness to close most of the gap to its target | 30 |
+| `happy.scale` | Happiness at which effects are about three quarters of their full size | 0.5 |
+| `happy.p_up`, `happy.p_down` | Productivity's ceiling and floor: 1 + up, 1 − down | 0.3, 0.2 |
+| `happy.g_up`, `happy.g_down` | Growth's boost when happy, and its cut when unhappy (1 stops it) | 0, 1 |
+| `happy.want` | An unhappy planet's luxury reserves grow by up to this share | 1 |
+| `capture.happiness_drop` | Happiness lost at capture, replacing `capture.happiness_loss` | 0.4 |
 | `prod.labour_per_capita` | Output per thousand at share 1, efficiency 1, P 1 *(Phase A round 1; was 3.5)* | 8 |
 | `prod.labour_shift` | Share of labour moved per week | 0.05 |
 | `event.drought_p`, `event.drought_days` | Drought chance per producer per day, length | 0.0005, 30 |
@@ -168,6 +187,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `combat.retreat_loss`, `combat.cargo_destroyed` | Retreat losses, cargo destroyed | 0.2, 0.3 |
 | `defence.per_spend` | Static defence per credit of security spend per month *(proposed; round 2, from 0.005)* | 0.01 |
 | `defence.regen` | Share of the maximum static defence rebuilt a day, when not besieged *(proposed, MS-5)* | 0.05 |
+| `value.security_share` | Round 3: a security unit is this share of monthly income, replacing `value.security_unit` for defence *(proposed, not built)* | 0.02 |
+| `budget.hoard`, `budget.reserve_months`, `budget.hoard_cap` | Round 3: money beyond the reserve raises defence values by up to hoard × cap; the war vote's reserve and cap move here from `dip.*` *(proposed, not built)* | 1, 6, 3 |
 | `value.blockade_months`, `value.retake_months` | Blockading an enemy's gate, and retaking one's own, are worth this many months of the income of the planets it serves (MIL-17) *(proposed, round 2)* | 8, 8 |
 | `blockade.enabled`, `blockade.defence_share`, `blockade.hold_days` | Gate attacks on or off; a gate's static defence against its holder's; how long the captor's army garrisons it (MIL-17) *(proposed, round 2)* | true, 0.7, 30 |
 | `value.war_mult`, `value.border_mult` | Defence is worth `1 + war_mult` at war, `+ border_mult` with an enemy planet within `dip.border_days` *(proposed, MS-5)* | 2, 1 |
@@ -194,6 +215,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `security.risk_post`, `security.days`, `security.pay` | A planet whose sector's believed risk passes this posts a patrol of this many days, at this pay a day *(proposed, MS-5)* | 0.5, 10, 200 |
 | `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet fails (ECO-13) | 60, 3 |
 | `rebel.happiness`, `rebel.shortfall`, `rebel.days` | A planet below this happiness, with a shortfall above this, for this many days in a row fails (ECO-13) *(proposed, round 2: a shortfall of 0 flipped 31% of planets a year, mostly war-cut ones on the network)* | 0.15, 0.5, 90 |
+| `rebel.scale`, `rebel.power`, `rebel.w_debt` | Round 3, replacing the three above and the deficit counter: weekly failure chance = scale × (u(H)^power below neutral + w_debt × debt share) *(proposed, not built)* | 0.01, 2, 1 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
 | `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of with chance equal to its risk tolerance | false |
 | `pirate.range_days` | How far pirates go raiding, in days of open space at the reference speed *(proposed, MS-6)* | 20 |
@@ -232,5 +254,6 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `gen.pop_median` | Median starting population, thousands (GEN-3) *(proposed, MS-2)* | 1,000 |
 | `gen.pop_spread`, `gen.region_pop_spread` | Log-normal spread per planet and per region *(proposed, MS-2)* | 0.8, 0.3 |
 | `gen.moon_pop` | A moon's population against a planet's *(proposed, MS-2)* | 0.3 |
-| `gen.start_happiness` | Starting happiness (GEN-10) *(proposed, MS-2)* | 0.5 |
+| `gen.start_happiness` | Starting happiness (GEN-10) *(proposed, MS-2; round 3 makes it 0, neutral)* | 0.5 |
 | `gen.weight_spread`, `gen.favour_mult` | Region production weights `1 ± spread`, and the favoured good's multiplier (GEN-6) *(proposed, MS-2)* | 0.5, 3 |
+| `gen.lux_home_regions`, `gen.lux_away`, `gen.fringe_lux_mult` | Round 3: home regions per regional luxury; the weight elsewhere; fringe planets' weight for the fringe luxuries (GEN-6) *(proposed, not built)* | 2, 0.1, 5 |
