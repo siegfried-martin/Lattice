@@ -14,6 +14,11 @@ Agreed with the human in conversation, written straight into the spec as `propos
   hoped to take, a hope that fades. Money beyond a reserve votes for war. Target: each
   faction at war a little more than half the time, wars of one to three months (DIP-3,
   DIP-4, SYS-12, CHK-8).
+- **Rebellion:** hunger drains happiness (PRD-2). A planet fails on a long deficit or on
+  long hunger and misery; with no vassals it turns pirate, with vassals it secedes and
+  its old faction declares war (ECO-13, PIR-3, SYS-16). Rebellions continue through the
+  warm-up (GEN-10). A failing root with vassals is open (OPN-37). World generation stays
+  as it is: where piracy lives should come from the mechanics.
 
 ### 2026-10-18 · MS-8, the harness and Phase A round 1
 

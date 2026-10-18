@@ -80,6 +80,7 @@ struct Config {
         double growth_factor_min = 0.5;
         double growth_factor_max = 1.5;
         double happiness_drain = 0.01;
+        double starve_happiness = 0.03;  // daily happiness lost at total shortfall (PRD-2)
         double p_base = 0.6;
         double p_happy = 0.6;
         double contraband_penalty = 4;
@@ -395,6 +396,15 @@ struct Config {
         friend bool operator==(const Security&, const Security&) = default;
     } security;
 
+    // Rebellion (ECO-13): a planet unhappy and starving for `days` in a row rebels.
+    struct Rebel {
+        double happiness = 0.15;  // below this
+        double shortfall = 0.5;   // and a life-support shortfall above this
+        std::int64_t days = 90;
+
+        friend bool operator==(const Rebel&, const Rebel&) = default;
+    } rebel;
+
     struct Pirate {
         std::int64_t flip_days = 60;  // days in deficit before a planet turns (SYS-16)
         double flip_debt = 3;         // and a debt of this many months of costs
@@ -553,6 +563,7 @@ void for_each_field(C& c, F&& f) {
     f("pop.growth_factor_min", c.pop.growth_factor_min);
     f("pop.growth_factor_max", c.pop.growth_factor_max);
     f("pop.happiness_drain", c.pop.happiness_drain);
+    f("pop.starve_happiness", c.pop.starve_happiness);
     f("pop.p_base", c.pop.p_base);
     f("pop.p_happy", c.pop.p_happy);
     f("pop.contraband_penalty", c.pop.contraband_penalty);
@@ -665,6 +676,9 @@ void for_each_field(C& c, F&& f) {
     f("security.risk_post", c.security.risk_post);
     f("security.days", c.security.days);
     f("security.pay", c.security.pay);
+    f("rebel.happiness", c.rebel.happiness);
+    f("rebel.shortfall", c.rebel.shortfall);
+    f("rebel.days", c.rebel.days);
     f("pirate.flip_days", c.pirate.flip_days);
     f("pirate.flip_debt", c.pirate.flip_debt);
     f("pirate.cost_mult", c.pirate.cost_mult);

@@ -48,6 +48,7 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |
 | `pop.growth_factor_min`, `_max` | Governor growth factor range (PRD-3) | 0.5, 1.5 |
 | `pop.happiness_drain` | Daily drain | 0.01 |
+| `pop.starve_happiness` | Daily happiness lost at total life-support shortfall (PRD-2) *(proposed, round 2)* | 0.03 |
 | `pop.p_base`, `pop.p_happy` | Productivity = base + happy × H | 0.6, 0.6 |
 | `pop.contraband_penalty` | Productivity lost per unit of recent contraband per thousand | 4 |
 | `pop.contraband_window` | Days in the contraband average | 30 |
@@ -188,7 +189,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `raid.enabled`, `raid.share`, `raid.days`, `raid.standoff` | Raiding at war: on (EXP-1 switches it off), the weekly chance a spare commander is sent, days held, distance short of the enemy planet in sector widths *(proposed, MS-5)* | true, 0.3, 10, 0.15 |
 | `escort.rate` | What an escort asks per combat power per day of the trip *(proposed, MS-5)* | 20 |
 | `security.risk_post`, `security.days`, `security.pay` | A planet whose sector's believed risk passes this posts a patrol of this many days, at this pay a day *(proposed, MS-5)* | 0.5, 10, 200 |
-| `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet turns | 60, 3 |
+| `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet fails (ECO-13) | 60, 3 |
+| `rebel.happiness`, `rebel.shortfall`, `rebel.days` | A planet below this happiness, with a shortfall above this, for this many days in a row fails (ECO-13) *(proposed, round 2: a shortfall of 0 flipped 31% of planets a year, mostly war-cut ones on the network)* | 0.15, 0.5, 90 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
 | `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of with chance equal to its risk tolerance | false |
 | `pirate.range_days` | How far pirates go raiding, in days of open space at the reference speed *(proposed, MS-6)* | 20 |

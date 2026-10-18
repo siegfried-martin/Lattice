@@ -30,6 +30,8 @@ and how much labour it has.
 - **Growth follows the excess of whichever life-support good is lowest,** relative to its
   reserve (PRD-10).
 - **A population missing any of the three slowly shrinks.** Never a sudden die-off.
+- *(proposed)* **Hunger hurts happiness:** a shortfall drains happiness, and a
+  population hungry and miserable long enough rebels (ECO-13).
 
 *Consequence:* each planet settles at the size its own production plus imports can feed.
 Merchants literally keep populations alive, a blockade shrinks a planet slowly, and a

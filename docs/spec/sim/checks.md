@@ -80,7 +80,8 @@ Rebellion pressure comes from margin, not planet size. One disrupted route doesn
 off a map-wide wave. Repeated collapse concentrates at overstretched factions; if whole
 factions spiral, rulers value their planets too cheaply. *Metric:* pirate flips by
 planet size, clustering in time and space, repeat flips per planet, faction war count at
-the time. *Tests:* ECO-13, ECO-15.
+the time. *(proposed, round 2)* Secessions count as collapse too, with the same band as
+flips (at most 5% of planets a year). *Tests:* ECO-13, ECO-15.
 
 ### CHK-10 Contraband tension holds `v1`
 

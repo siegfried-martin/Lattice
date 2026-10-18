@@ -29,6 +29,7 @@ buy_l      = lux_total split by each luxury's share of luxury stock, limited by 
 variety    = number of luxuries with buy_l ≥ lux.variety_min × N
 H         += Σ_l buy_l × good.happiness[l] / N + lux.variety_bonus[variety]
              + contraband_bought × good.happiness[contraband] / N − pop.happiness_drain
+             − pop.starve_happiness × min(shortfall, 1)                 (proposed, round 2)
 H          = clamp(H, 0, 1)
 C          = EMA over pop.contraband_window days of contraband bought / N
 P          = (pop.p_base + pop.p_happy × H) × max(0, 1 − pop.contraband_penalty × C)
@@ -629,10 +630,16 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 
 *Implements:* PIR-1 to PIR-13, ECO-13. *Cadence:* events and daily.
 
-- **A planet turns pirate** when it has been in deficit for `pirate.flip_days` and its
-  treasury is below `−pirate.flip_debt` × monthly costs. It leaves its faction (vassals
-  become roots), its labour moves wholly to contraband, its costs drop to
-  `pirate.cost_mult`, dues stop.
+- **A planet fails** when it has been in deficit for `pirate.flip_days` and its
+  treasury is below `−pirate.flip_debt` × monthly costs, or *(proposed, round 2)* when
+  its happiness has been below `rebel.happiness` with a life-support shortfall above
+  `rebel.shortfall` for `rebel.days` in a row. Checked weekly, warm-up included.
+- **A failing planet with no vassals turns pirate.** It leaves its faction, its labour
+  moves wholly to contraband, its costs drop to `pirate.cost_mult`, dues stop.
+- *(proposed, round 2)* **A failing planet with vassals secedes:** it becomes a root with
+  its branch, forgets any relations from an earlier time as a root, stops paying
+  tribute, and its old root declares war on it. A failing root with vassals does
+  nothing (OPN-37).
 - **A commander goes broke** when wealth stays below zero for `char.broke_days`. Then,
   if it knows a pirate planet: with probability `pirate.turn_p(risk)` it travels there
   (running costs suspended), renounces and is hired at `pirate.salary`; otherwise it

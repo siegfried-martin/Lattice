@@ -163,14 +163,14 @@ TEST_CASE("money piled up past the reserve votes for war (DIP-4)") {
     CHECK(diplomacy::at_war(w, f.root_a, f.root_b));
 }
 
-TEST_CASE("no war is declared during the warm-up (GEN-10)") {
+TEST_CASE("no war is voted during the warm-up (GEN-10)") {
     Config c = quiet();
     c.dip.declare_threshold = -1e9;  // everyone wants war
     World w = new_world(c, 62);
     advance(w, (c.gen.warmup_days - 1) * kDay);
-    CHECK(w.ledger.wars == 0);
+    CHECK(w.ledger.wars == w.ledger.secessions);  // a rebellion's war is no vote (ECO-13)
     advance(w, 14 * kDay);
-    CHECK(w.ledger.wars > 0);
+    CHECK(w.ledger.wars > w.ledger.secessions);
 }
 
 TEST_CASE("war stops osmosis between the factions (TRD-6)") {

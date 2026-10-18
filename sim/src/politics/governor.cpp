@@ -35,7 +35,7 @@ void weekly(World& w, Id planet, Observer* observer) {
         smuggling::post(w, planet, observer);
         return;
     }
-    pirates::check_flip(w, planet, observer);
+    pirates::check_rebellion(w, planet, observer);
     if (w.planets[at(planet)].pirate) return;
     diplomacy::root_weekly(w, planet, observer);
     fealty::adjust_tribute(w, planet, observer);

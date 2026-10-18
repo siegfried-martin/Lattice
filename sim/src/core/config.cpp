@@ -172,6 +172,10 @@ void validate(const Config& c) {
     non_negative(c.pop.growth_factor_min, "pop.growth_factor_min");
     require(c.pop.growth_factor_max >= c.pop.growth_factor_min, "pop.growth_factor_max must be at least pop.growth_factor_min");
     non_negative(c.pop.happiness_drain, "pop.happiness_drain");
+    non_negative(c.pop.starve_happiness, "pop.starve_happiness");
+    share(c.rebel.happiness, "rebel.happiness");
+    share(c.rebel.shortfall, "rebel.shortfall");
+    positive(static_cast<double>(c.rebel.days), "rebel.days");
     non_negative(c.pop.p_base, "pop.p_base");
     non_negative(c.pop.p_happy, "pop.p_happy");
     non_negative(c.pop.contraband_penalty, "pop.contraband_penalty");

@@ -81,11 +81,35 @@ void flip(World& w, Id id, Observer* observer) {
     if (observer) observer->log(w.now, "planet.pirate", id, "turned pirate");
 }
 
-void check_flip(World& w, Id id, Observer* observer) {
+void secede(World& w, Id id, Observer* observer) {
+    Planet& p = w.planets[at(id)];
+    const Id old_root = fealty::root_of(w, id);
+    if (p.liege == kNone || old_root == id) return;
+    fealty::swear(w, id, kNone);  // its vassals go with it
+    diplomacy::forget(w, id);     // anything left from an earlier time as a root
+    p.tribute_rate = 0;
+    p.deficit_days = 0;
+    p.unrest_days = 0;
+    diplomacy::declare_war(w, old_root, id, observer);  // it won't be let go
+    ++w.ledger.secessions;
+    if (observer) observer->log(w.now, "planet.seceded", id, "from " + std::to_string(old_root));
+}
+
+void check_rebellion(World& w, Id id, Observer* observer) {
     const Planet& p = w.planets[at(id)];
-    if (p.pirate || p.deficit_days < w.config.pirate.flip_days) return;
-    if (p.treasury >= -w.config.pirate.flip_debt * economy::monthly_costs(w.config, p)) return;
-    flip(w, id, observer);
+    if (p.pirate) return;
+    const bool broke = p.deficit_days >= w.config.pirate.flip_days &&
+                       p.treasury < -w.config.pirate.flip_debt * economy::monthly_costs(w.config, p);
+    const bool unrest = p.unrest_days >= w.config.rebel.days;
+    if (!broke && !unrest) return;
+    // ECO-13: a planet with no vassals turns pirate; one with vassals breaks away with
+    // them, at war with its old faction. A root with vassals has no one to rebel against
+    // (OPN-41).
+    if (fealty::vassals(w, id).empty()) {
+        flip(w, id, observer);
+    } else {
+        secede(w, id, observer);
+    }
 }
 
 void restore(World& w, Id id) {

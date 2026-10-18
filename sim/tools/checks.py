@@ -161,6 +161,7 @@ CHECKS = [
     ("CHK-8c", "war length in days, median", war_length, 30, 90),
     ("CHK-8b", "war declarations a year per faction", lambda r: per_year(r, "world.wars") / max(1, statistics.fmean(values(r, "world.roots"))), 0.05, 1),
     ("CHK-9", "pirate flips a year, share of planets", lambda r: per_year(r, "world.flips") / max(1, len(r["planets"])), None, 0.05),
+    ("CHK-9b", "secessions a year, share of planets", lambda r: per_year(r, "world.secessions") / max(1, len(r["planets"])), None, 0.05),
     ("CHK-10", "contraband reaching lawful populations a year", lambda r: per_year(r, "world.smuggled"), 1, None),
     ("CHK-11", "fringe population growth over on-network growth", fringe_ratio, 0.5, None),
     ("CHK-12", "world population, end over start", lambda r: values(r, "world.population")[-1] / values(r, "world.population")[0], 0.7, 1.5),
