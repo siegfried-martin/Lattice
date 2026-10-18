@@ -49,7 +49,9 @@ ship in range) and a **security force**.
 - *(proposed, round 3)* **Defence is bought in proportion to income,** not in fixed
   amounts, so a rich planet's spending is on the scale of its wealth. Money beyond a
   reserve makes a governor value defence more: in war, deep treasuries drain into fleets
-  and guns. Ships destroyed and planets lost are where that money finally leaves.
+  and guns. Ships destroyed and planets lost are where that money finally leaves. The
+  share of income spent depends on threat, reserves and the ruler's boldness, not on how
+  rich the planet is (round 3: valued by income, the richest overspent into debt).
 - **Routine patrols are procedurally generated**, not characters. The planet's patrol
   upkeep (ECO-4) is the budget line that sets how strong they are.
 - **Planets may post paid security missions** for the player and NPCs.

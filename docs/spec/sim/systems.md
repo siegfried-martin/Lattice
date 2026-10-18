@@ -5,7 +5,7 @@ Every constant is a tunable (`tunables.md`); names in `code` are config keys. Wh
 design leaves a mechanism open, the formula here is a working default and is tagged
 `proposed`.
 
-Notation: `N` population, `H` happiness (0–1), `P` productivity, `g` a good, `p` a
+Notation: `N` population, `H` happiness (signed, 0 neutral; SYS-1), `P` productivity, `g` a good, `p` a
 planet, `c` a character. Rates are per game day unless noted.
 
 ## Economy
@@ -14,41 +14,7 @@ planet, `c` a character. Rates are per game day unless noted.
 
 *Implements:* PRD-2, PRD-3, PRD-4, PRD-5, ECO-1. *Cadence:* daily.
 
-*(proposed, round 3; not built yet: the block after it is what's built)*
-
-```
-budget     = N × econ.wage × P
-need_g     = N × good.consumption[g]                  life support, as now
-shortfall  = max over life support of (1 − buy_g / need_g)
-growth     as now, × G(H); shrinking as now
-
-lux_need   = happy.need × N                           per luxury
-fill_l     = stock_l / reserve_l
-use_l      = lux_need × min(fill_l, lux.max_fill) / (1 + happy.sated × max(0, H))
-buy_l      = use_l, limited by the budget left after life support and contraband
-
-H*         = happy.base
-             + Σ_l happy.lux × ln(1 + buy_l / lux_need)            each luxury its own curve
-             + happy.contraband × ln(1 + contraband_bought / lux_need)
-             − happy.hunger × shortfall
-H         += (H* − H) / happy.settle_days                          daily, no clamp
-capture    H −= capture.happiness_drop                             a shock, then recovery
-
-u(H)       = tanh(|H| / happy.scale)                               0 to 1, diminishing
-F(H)       = 1 + happy.p_up × u(H) for H ≥ 0;  1 − happy.p_down × u(H) for H < 0
-G(H)       = 1 + happy.g_up × u(H) for H ≥ 0;  max(0, 1 − happy.g_down × u(H)) for H < 0
-P          = F(H) × max(0, 1 − pop.contraband_penalty × C)
-```
-
-- **The floor:** at the bottom, F = 1 − `happy.p_down`. Start it where a planet can just
-  buy its life support at reserve prices: `econ.wage` × F ≥ Σ consumption × base price
-  (40 × 0.8 = 32 against 30).
-- **Starting values** put a planet with no luxuries a little unhappy (`happy.base`
-  −0.3, F ≈ 0.89) and one with full use of three luxuries a little happy (about +0.2).
-  The budget after life support buys roughly three luxuries' full use, so variety
-  costs.
-- Contraband demand stays as SYS-16 has it, with `(1 − H)` read as `u` of unhappiness
-  (more the unhappier, nothing when content).
+*(proposed, round 3: built)* Happiness is signed, 0 neutral, with no clamp (PRD-4).
 
 ```
 budget     = N × econ.wage × P                       purchasing power, new money (ECO-1)
@@ -58,40 +24,57 @@ shortfall  = max over life support of (1 − buy_g / need_g)
 
 if shortfall > 0:   N −= N × pop.shrink_rate × shortfall
 else:               excess_g = (stock_g − reserve_g) / reserve_g    after buying
-                    N += N × growth_factor × pop.growth_rate × max(0, min_g excess_g)
+                    N += N × growth_factor × G(H) × pop.growth_rate × max(0, min_g excess_g)
 
-lux_total  = N × lux.consumption × clamp(Σ_l stock_l / Σ_l reserve_l, 0, lux.max_fill)
-buy_l      = lux_total split by each luxury's share of luxury stock, limited by budget left
-variety    = number of luxuries with buy_l ≥ lux.variety_min × N
-H         += Σ_l buy_l × good.happiness[l] / N + lux.variety_bonus[variety]
-             + contraband_bought × good.happiness[contraband] / N − pop.happiness_drain
-             − pop.starve_happiness × min(shortfall, 1)                 (proposed, round 2)
-H          = clamp(H, 0, 1)
+lux_need   = happy.need × N                           per luxury
+fill_l     = stock_l / reserve_l
+use_l      = lux_need × min(fill_l, lux.max_fill) × event.festival_mult^festivals
+             / (1 + happy.sated × max(0, H))
+buy_l      = min(stock_l, use_l), limited by the budget left after life support and contraband
+
+H*         = happy.base
+             + Σ_l happy.lux × ln(1 + buy_l / lux_need)            each luxury its own curve
+             + happy.contraband × ln(1 + contraband_bought / lux_need)
+             − happy.hunger × min(shortfall, 1)
+H         += (H* − H) / happy.settle_days                          daily, no clamp
+capture    H −= capture.happiness_drop                             a shock, then recovery
+
+u(H)       = tanh(|H| / happy.scale)                               0 to 1, diminishing
+F(H)       = 1 + happy.p_up × u(H) for H ≥ 0;  1 − happy.p_down × u(H) for H < 0
+G(H)       = 1 + happy.g_up × u(H) for H ≥ 0;  max(0, 1 − happy.g_down × u(H)) for H < 0
 C          = EMA over pop.contraband_window days of contraband bought / N
-P          = (pop.p_base + pop.p_happy × H) × max(0, 1 − pop.contraband_penalty × C)
+P          = F(H) × max(0, 1 − pop.contraband_penalty × C)
 ```
 
+- **The floor:** at the bottom, F = 1 − `happy.p_down`. Start it where a planet can just
+  buy its life support at reserve prices: `econ.wage` × F ≥ Σ consumption × base price
+  (40 × 0.8 = 32 against 30).
+- **Starting values** put a planet with no luxuries a little unhappy (`happy.base`
+  −0.3, F ≈ 0.89) and one with full use of three luxuries a little happy (about +0.2).
+  At base prices the budget after life support buys roughly three luxuries' full use,
+  so variety costs.
 - Money the population pays goes to the planet's treasury (ECO-2). Contraband is bought
   from smugglers, not the market (SYS-16).
 - `growth_factor` is `pop.growth_factor_min` + risk tolerance × (`max` − `min`) for the
   governor (PRD-3).
-- *Interpretation:* "consumed in proportion to combined excess" is read as consumption
-  scaling with how full the luxury stocks are against their reserves.
 - *Tuning constraint* (PRD-6): at steady state, the productivity a population loses to
-  contraband must exceed what its extra happiness gains, so
-  `pop.contraband_penalty` > `pop.p_happy` × `good.happiness[contraband]` per unit.
-- *As built (MS-2):*
+  contraband must exceed what its extra happiness gains.
+- *As built:*
   - A planet's day runs production (SYS-2) first, then buying, then growth, happiness
     and productivity.
   - The population buys at the ask computed before it buys, without slippage. When the
     budget can't cover all three life-support goods, every purchase is scaled down by
-    the same factor, and the shortfall counts.
+    the same factor, and the shortfall counts. Luxuries are scaled down alike the same
+    way when the budget left can't cover them.
   - Growth uses the excess clamped to 1, so `pop.growth_rate` is the most a day can add
     ("daily growth at full excess").
-  - *Correction:* the variety threshold is `lux.variety_min` × a luxury's full use,
-    `N × lux.consumption / 3`, as the tunable describes. The formula's `lux.variety_min × N`
-    is more than a luxury's full use, so variety could never count.
-  - Contraband bought is 0 until smugglers exist (MS-6); `C` still averages it.
+  - *Round 3, found in the runs:* the network's median settles at +0.5 to +0.7
+    (F ≈ 1.23) and the fringe's anywhere from −0.7 to +0.4 depending on the world;
+    about 5% of planet-samples sit near either end (round 2: 67%).
+- *Before round 3:* happiness was a share from 0 to 1. Each day added each luxury's
+  `good.happiness` per unit and a variety bonus, and took off a fixed drain and a hunger
+  term; P was `pop.p_base + pop.p_happy × H`. At full use the gain and the drain were
+  nearly equal, so planets piled up at 0 (55% of samples) and 1 (33%).
 
 ### SYS-2 Production and labour `v1`
 
@@ -99,15 +82,22 @@ P          = (pop.p_base + pop.p_happy × H) × max(0, 1 − pop.contraband_pena
 
 ```
 eff_g      = prod.efficiency[tier_g + event_shift_g]       tiers: high, medium, low
-output_g   = N × prod.labour_per_capita × share_g × eff_g × P    added to stock_g
+output_g   = N × prod.labour_per_capita × share_g × eff_g × good.yield[g] × P    added to stock_g
 
-weekly:    score_g = bid_price_g × eff_g                    at the planet's own market
+weekly:    score_g = bid_price_g × eff_g × good.yield[g]   at the planet's own market
            move prod.labour_shift of total labour from the lowest-scoring good
            to the highest-scoring good (shares stay ≥ 0 and sum to 1)
 ```
 
 Local price is the right signal: if merchants buy a good away, its stock falls and its
 price rises; if it gluts, the price falls and labour moves off it.
+
+*(proposed, round 3)* **`good.yield`** is output per unit of labour against life
+support's: a regional luxury takes six times the labour, a fringe luxury three times.
+At a yield of 1 a luxury, three times the price of food, paid more per worker even with
+both at the price floor, so labour piled into luxuries and every luxury market glutted
+at 0.2× base. The score uses the yield, so labour weighs what a worker makes, not what a
+unit sells for.
 
 *As built:* ties go to the first good in the planet's list, and no labour moves when
 all three score the same. `eff_g` above high is high × `event.bumper_mult` (SYS-4); below
@@ -133,11 +123,10 @@ trader pays ask × (1 + tax) and receives bid × (1 − tax); tax goes to the tr
   limit (`econ.credit_limit` × monthly income) stops buying.
 - Lawful markets don't trade contraband (PIR-14).
 - **Bands for the player** (`price.bands`) are a view of `price_g / base_price`.
-- *(proposed, round 3)* **A luxury's reserve** is `good.reserve_days` × `happy.need` × N
-  × (1 + `happy.want` × u(H) when H < 0): an unhappy planet stocks more, so it bids more
-  at the same stock (PRD-10).
-- *As built:* a luxury's reserve uses its third of `lux.consumption` (its use at a fill
-  of 1). Monthly income for the credit limit is a running average of daily income over
+- *(proposed, round 3: built)* **A luxury's reserve** is `good.reserve_days` ×
+  `happy.need` × N × (1 + `happy.want` × u(H) when H < 0): an unhappy planet stocks
+  more, so it bids more at the same stock (PRD-10).
+- *As built:* monthly income for the credit limit is a running average of daily income over
   `time.payment_days`, started at what the population would spend with its whole
   budget. `price.bands` waits for the binding to be connected.
 
@@ -190,14 +179,24 @@ with the systems that pay them.
 Starting value heuristics for options are in `tunables.md` under `value.*`. They're the
 first thing Phase A tunes.
 
-*(proposed, round 3; not built yet)*
+*(proposed, round 3: built)*
 - **Security is bought in units of `value.security_share` × monthly income,** not a fixed
-  `value.security_unit`, so defence spending scales with wealth (MIL-5). Static defence
-  per credit (`defence.per_spend`) is retuned to match.
+  `value.security_unit` (which still sizes policing), so defence spending scales with
+  wealth (MIL-5). `defence.per_spend` is retuned to 0.0015.
+- **Each unit is worth `value.security_ratio` × its cost × threat × hoard,** so how many
+  units a governor buys depends on threat, reserves and its risk tolerance, not on its
+  income; a richer planet buys bigger units. *Found in round 3:* valued as before
+  (`value.defence` × income × the power a unit buys ÷ `value.power_ref`), a unit's value
+  grew as income squared against a cost that grew as income, and the richest planets
+  spent a third of their gross income on guns, fell into debt and pulled their lieges
+  down through patronage.
 - **Reserves:** every defence unit's value (commanders and security) is ×
   (1 + `budget.hoard` × clamp(treasury months ÷ `budget.reserve_months` − 1, 0,
   `budget.hoard_cap`)). The war vote's treasury term (SYS-12) uses the same reserve and
-  cap, which move from `dip.*` to `budget.*`.
+  cap, which moved from `dip.*` to `budget.*`.
+- **Threat** is the factor 1 + `value.war_mult` at war + `value.border_mult` with an
+  enemy planet within `dip.border_days` or an enemy army seen coming, as the governor
+  believes; SYS-13's hold decision uses it too.
 
 *As built (MS-4):*
 - **When:** weekly per governor.
@@ -465,7 +464,7 @@ vote        = (dip.w_idle × idle combat power under them
              + dip.w_targets × believed wealth of target planets within dip.border_days
              + dip.w_strength × (believed own strength / believed target strength − 1)
              + dip.w_peace × prosperity growth since the last war
-             + dip.w_treasury × clamp(treasury months / dip.reserve_months − 1, 0, dip.treasury_cap)
+             + dip.w_treasury × clamp(treasury months / budget.reserve_months − 1, 0, budget.hoard_cap)
              − dip.w_wars × wars ongoing − dip.w_losses × recent losses)
              × (0.5 + risk tolerance)
 declare if Σ weight × vote / Σ weight > dip.declare_threshold
@@ -546,7 +545,8 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   adding power to the defender. Once no defending ships remain, daily rounds reduce
   static defence by attacker damage while it keeps firing back. **Static defence at zero
   and no defenders is capture.** A relief force that arrives joins as a new battle.
-- **Capture** *(proposed)*: the planet's happiness × (1 − `capture.happiness_loss`),
+- **Capture** *(proposed)*: the planet's happiness − `capture.happiness_drop` *(round 3;
+  was × (1 − `capture.happiness_loss`))*,
   stocks × (1 − `capture.stock_loss`), population × (1 − `capture.pop_loss`); then keep
   or grant (SYS-11). Prosperity, `N × P`, falls with it and recovers through ordinary
   economics.
@@ -598,7 +598,7 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   - Its security spending restarts at zero, so a fresh conquest is weakly held.
   - *(proposed, round 2)* The conquering army garrisons it for `capture.hold_days`, then
     goes home. Without it, a planet could change hands 19 times in three years.
-  - *(proposed, round 3; not built yet)* **Garrisoning is a choice** (MIL-12). At
+  - *(proposed, round 3: built)* **Garrisoning is a choice** (MIL-12). At
     capture the commissioner compares:
     - hold: value = P(loss) × the planet's capture value (SYS-13's gain), with
       P(loss) = E² ÷ (E² + A²), E the enemy power it believes is within
@@ -608,6 +608,9 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
       `value.power_ref` × threat, for the same time).
     It holds if the value is larger, and goes home otherwise; moving on to a next target
     is the next budget week's decision.
+  - *As built:* E is the power of the commanders at home on planets hostile to the
+    army's faction within `dip.border_days` of the prize, read from the world as
+    invasions read defence. In the round 3 runs about 30% of conquests were held.
 
 *As built (round 2): gate attacks and blockades* (MIL-17) *(proposed)*:
 - **State:** every Lattice node has a gate record: static defence, the attack it's under,
@@ -727,14 +730,11 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 
 *Implements:* PIR-1 to PIR-13, ECO-13. *Cadence:* events and daily.
 
-- **A planet fails** when it has been in deficit for `pirate.flip_days` and its
-  treasury is below `−pirate.flip_debt` × monthly costs, or *(proposed, round 2)* when
-  its happiness has been below `rebel.happiness` with a life-support shortfall above
-  `rebel.shortfall` for `rebel.days` in a row. Checked weekly, warm-up included.
-- *(proposed, round 3; not built yet)* **Failure becomes a weekly chance,** replacing
-  the day counters:
+- *(proposed, round 3: built)* **A planet fails with a weekly chance,**
   `p = rebel.scale × (u(H)^rebel.power for H < 0 + rebel.w_debt × clamp(debt ÷ (pirate.flip_debt × monthly costs), 0, 1))`,
-  drawn from the planet's events stream. Hunger acts through H.
+  drawn from the events stream, warm-up included. Hunger acts through H. *Before round
+  3:* a planet failed after `pirate.flip_days` in deficit with a debt past
+  `pirate.flip_debt` months, or after `rebel.days` unhappy and starving.
 - **A failing planet with no vassals turns pirate.** It leaves its faction, its labour
   moves wholly to contraband, its costs drop to `pirate.cost_mult`, dues stop.
 - *(proposed, round 2)* **A failing planet with vassals secedes:** it becomes a root with
@@ -755,8 +755,9 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 - **Selling contraband in lawful space:** a smuggler landing at a lawful planet faces an
   inspection roll (SYS-17). If not caught, it sells to the population at
   `pirate.contraband_price` × demand, where
-  `demand = N × good.consumption[contraband] × (1 − H)`, saturating at
-  `pirate.demand_cap`. Money comes from the population's budget, untaxed.
+  `demand = N × good.consumption[contraband] × (1 − s(H)) ÷ 2`, saturating at
+  `pirate.demand_cap`, where s(H) is u(H) signed like H *(round 3: the signed form of
+  the old `(1 − H)`: 1 when miserable, ½ at neutral, toward 0 when content)*. Money comes from the population's budget, untaxed.
 - **The pirate relation** moves by `pirel.accept`, `pirel.success`, `pirel.fail` and fades
   toward `pirel.rest` (hostile) at `pirel.fade` per week.
 
@@ -806,7 +807,7 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
   - At the haven, the smuggler buys contraband from its market (PIR-6). It takes it to
     the most populous lawful market it knows, discounted by distance.
   - It sells to the population at `pirate.contraband_price` × base, up to its daily wish
-    `N × consumption × (1 − H)`, capped at `pirate.demand_cap` per thousand.
+    `N × consumption × (1 − s(H)) ÷ 2` (SYS-16), capped at `pirate.demand_cap` per thousand.
   - The money is population spending (ECO-1), untaxed. What doesn't sell goes on to the
     next market, or overboard.
 - **Legal goods:** the runner buys at the cheapest lawful source it knows, sells into the

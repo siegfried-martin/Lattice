@@ -125,6 +125,14 @@ into the planet's market.
   region, a water region). That's what makes long hauls pay and gives regions identity.
 - A planet in peacetime drifts toward its best good; it's fine if an efficient faction
   has planets producing only that.
+- *(proposed, round 3)* **A luxury takes more labour than life support,** in proportion
+  to its worth: a worker makes fewer bottles of wine than bushels of grain. Fringe
+  luxuries take less than regional ones, so a fringe world has something worth selling.
+  *Why:* when a unit of each took the same labour, a luxury paid three times as much per
+  worker even at a glut, so labour piled into luxuries and every luxury market sat at
+  its price floor.
+- *(proposed, round 3)* **Fringe worlds grow more of their own life support** (GEN-6):
+  far from trade, a settlement that couldn't feed itself wouldn't last.
 
 *Why:* comparative advantage from geography. Opportunity comes from breadth and spatial
 separation, not chain length.
@@ -133,7 +141,8 @@ separation, not chain length.
 
 At world build, every good has **at least two or three producers per culture region**.
 *(proposed, round 3)* That holds for life support. A luxury is guaranteed producers only
-in its home regions, and a fringe luxury on the fringe, so luxuries have to be carried.
+across its home regions together, and a fringe luxury across the fringe, so luxuries
+have to be carried.
 The guarantee is per region, not per faction, because factions move and regions don't. A
 faction can still lose a good by losing territory; that's the cost of losing it.
 

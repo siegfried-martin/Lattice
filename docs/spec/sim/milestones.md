@@ -276,6 +276,52 @@ and tuning until the checks pass (`checks.md`).
      (happiness at the ends at most 20% of planet-days; fringe median below the
      network's, above the floor). The runner may need series for treasury months or F.
   7. **Run round 3** (v1, 8 seeds, 5 years), compare with round 2, tune, report.
+- **Round 3, built** (`feat/sim-round-3`): steps 1 to 6 as planned, then tuning on 4 seeds
+  over 3 years, then the round 3 run (v1, 8 seeds, 5 years). What the runs found, and
+  what changed (DECISIONS):
+  - First run: luxuries glutted (made 10 times faster than used, every price at the
+    floor), so the network sat near the happiness ceiling and fringe planets starved.
+    Fixed by a per-good `good.yield` (regional luxuries 1/6, fringe 1/3) and fringe
+    planets weighting life support × 3 (`gen.fringe_ls_mult`).
+  - Rich planets overspent on security into debt (a unit's value grew as income
+    squared), and debt drove rebellions on happy network planets. Fixed by valuing a
+    unit at `value.security_ratio` × its cost × threat × reserves.
+  - `rebel.scale` 0.007.
+
+  | Measure | Round 2 | Round 3 |
+  |---|---|---|
+  | Each faction's time at war | 62% | 64% |
+  | Median war | 71 days | 66 days |
+  | Planets changing hands a year | 22% | 42% |
+  | Most-traded planet's captures a year | 1.9 | 2.3 |
+  | Conquests held by their army | all | about 30% |
+  | Blockades per faction a year | 3.7 | 1.9 |
+  | Pirate flips a year | 5.9% | 6.8% |
+  | Secessions a year | 0.8% | 2.0% |
+  | Pirate-planet time on the fringe | 93% | 68% |
+  | Money growth a year, second half | 1.17 | 1.05 |
+  | Median treasury months, end over halfway | 1.12 | 0.93 |
+  | Population, end over start | 95% | 126% |
+  | Happiness samples near either end | 67% | 5% |
+  | Median happiness, network and fringe | (0 to 1 scale) | +0.5 to +0.7; fringe −0.7 to +0.4 by world |
+  | Luxury prices, median over base | 0.2 (the floor) | 0.8 to 1.4; fringe 2.4 to 3.6 |
+  | Life-support prices, median over base | | 0.24 (near the floor) |
+  | Contraband reaching lawful populations a year | 0 | 465 |
+
+  16 of 31 checks pass on every seed (round 2 under the same checks: 17, its happiness
+  checks read on its 0-to-1 scale). Newly passing: CHK-8, CHK-12c, CHK-23. Newly
+  failing on some seeds: CHK-6 (0.42, band to 0.4), CHK-8b, CHK-12b, CHK-20b.
+- **Still failing after round 3:**
+  - Life support is overproduced: its prices sit near the floor everywhere, and price
+    dispersion (CHK-14, 1.16) comes from that floor against the cap at planets that
+    lack a good. Lowering `prod.labour_per_capita` eases it but starves the fringe.
+  - The fringe still shrinks against the network over five years (CHK-11, 0.33), and a
+    third of pirate-planet time is on the network (CHK-4, 68%): network planets that
+    rebel are mostly fresh conquests (the capture shock) or in debt.
+  - Flips (CHK-9, 6.8%), the most-traded planet (CHK-6c, 2.3), the price index (CHK-7b,
+    1.6, inflation in some worlds), smuggling runs (CHK-24, 0.4).
+  - Budgets read gross income (market receipts), not net of imports, so a big
+    importer's budget overstates what it can afford (OPN-39).
 
 ### MS-9 Phase B `v1`
 

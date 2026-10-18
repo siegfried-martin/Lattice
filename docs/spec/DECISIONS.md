@@ -5,7 +5,30 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
-### 2026-10-18 · Phase A round 3, design changes (not built yet)
+### 2026-10-18 · Phase A round 3, built and run
+
+The design below, built (MS-8, round 3), with what the runs found. Proposed until the
+human signs off.
+
+- **Luxuries take more labour than life support** (`good.yield`: regional 1/6, fringe
+  1/3). At a yield of 1 a luxury paid more per worker than food even at a glut, so
+  every luxury market sat at the price floor (PRD-7, SYS-2).
+- **A security unit is worth a fixed multiple of its cost** (× threat × reserves), so
+  the number bought doesn't grow with income; a rich planet buys bigger units. Valued
+  by income, the richest spent a third of their gross income on guns and dragged their
+  lieges into debt through patronage (MIL-5, SYS-5).
+- **Fringe planets weight life support × 3** (`gen.fringe_ls_mult`), and the fringe
+  luxuries × 2, not 5: most fringe planets otherwise lost 90% of their people (PRD-7,
+  GEN-6).
+- **A luxury's producer guarantee holds across its home regions together,** not per
+  home region: small worlds can't fit it per region (PRD-8, GEN-6).
+- **Contraband demand** reads the old `(1 − H)` as `(1 − s(H)) ÷ 2`, s the signed u: ½
+  at neutral, so content planets still buy some (SYS-16).
+- **Tuning:** `rebel.scale` 0.01 → 0.007, `defence.per_spend` 0.01 → 0.0015.
+- **Fixed:** an event's efficiency shift was left behind when a planet's goods changed
+  (turning pirate, recapture); it's now moved with them (SYS-4).
+
+### 2026-10-18 · Phase A round 3, design changes
 
 Agreed with the human in conversation, written into the spec as `proposed`.
 
