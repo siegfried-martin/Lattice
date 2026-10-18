@@ -111,7 +111,7 @@ tree (cache per tick). Between each pair of neighbouring roots:
 | state | war, peace, ceasefire (DIP-1) |
 | since | start time |
 | ceasefire terms | payer, payee, amount per period, end time (DIP-2) |
-| war ledger | planets and fleet power lost by each side since the war began, for suing for peace (DIP-3) |
+| war ledger | planets and fleet power lost by each side since the war began, and the enemy income near each side's border at the declaration, for suing for peace (DIP-3) |
 
 When a root changes (defection, capture of the root's planet), relations carry over to
 the new root *(proposed)*: the breakaway starts at peace with everyone except the pirates.

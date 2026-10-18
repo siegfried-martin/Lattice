@@ -281,6 +281,13 @@ void validate(const Config& c) {
     non_negative(c.dip.neighbour_days, "dip.neighbour_days");
     non_negative(c.dip.border_days, "dip.border_days");
     non_negative(c.dip.tribute_rate, "dip.tribute_rate");
+    non_negative(c.dip.w_treasury, "dip.w_treasury");
+    positive(c.dip.reserve_months, "dip.reserve_months");
+    non_negative(c.dip.treasury_cap, "dip.treasury_cap");
+    non_negative(c.dip.s_months, "dip.s_months");
+    non_negative(static_cast<double>(c.dip.min_war_days), "dip.min_war_days");
+    non_negative(c.dip.hope_share, "dip.hope_share");
+    positive(c.dip.hope_halflife_months, "dip.hope_halflife_months");
     positive(static_cast<double>(c.dip.ceasefire_days), "dip.ceasefire_days");
     positive(static_cast<double>(c.army.muster_days), "army.muster_days");
     non_negative(c.army.detour_ratio, "army.detour_ratio");

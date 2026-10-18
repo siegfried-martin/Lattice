@@ -155,7 +155,10 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `dip.neighbour_days` | Lattice days within which factions border | 3 |
 | `dip.w_idle`, `dip.w_targets`, `dip.w_strength`, `dip.w_peace`, `dip.w_wars`, `dip.w_losses` | War vote weights *(proposed; Phase A round 1, from 0.2, 0.3, 1, 0.5, 1.5, 0.5)* | 0.1, 0.05, 0.1, 0.5, 1.5, 0.5 |
 | `dip.border_days`, `dip.declare_threshold` | War vote reach and threshold *(threshold proposed; Phase A round 1, from 1)* | 5, 1.5 |
-| `dip.s_planets`, `dip.s_power`, `dip.s_treasury`, `dip.s_wars`, `dip.sue_threshold` | Suing-for-peace score *(proposed, MS-5)* | 3, 2, 1, 1, 1 |
+| `dip.w_treasury`, `dip.reserve_months`, `dip.treasury_cap` | Money beyond `reserve_months` of operating costs votes for war, up to `treasury_cap` (DIP-4) *(proposed, round 2)* | 0.3, 6, 3 |
+| `dip.s_planets`, `dip.s_power`, `dip.s_treasury`, `dip.s_months`, `dip.sue_threshold` | Suing-for-peace score; `s_months` is weariness a month at war *(proposed; round 2 replaced `s_wars` 1)* | 3, 2, 1, 0.4, 1 |
+| `dip.min_war_days` | No offer is heard before this (DIP-3) *(proposed, round 2)* | 30 |
+| `dip.hope_share`, `dip.hope_halflife_months` | The winner's hope: this share of the loser's income near its border, by power share, halving this often (DIP-3) *(proposed, round 2)* | 0.5, 2 |
 | `dip.tribute_rate`, `dip.ceasefire_days` | Ceasefire tribute and length (DIP-2) | 0.1, 90 |
 | `army.muster_days`, `army.detour_ratio` | Muster timeout, detour budget | 14, 0.15 |
 | `combat.lethality` | Power lost per round per enemy power | 0.05 |

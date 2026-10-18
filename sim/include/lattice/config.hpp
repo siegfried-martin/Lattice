@@ -321,8 +321,17 @@ struct Config {
         // Phase A round 1: 0.2, 0.3, 1 and a threshold of 1 had every faction at war all the time.
         double w_idle = 0.1, w_targets = 0.05, w_strength = 0.1, w_peace = 0.5, w_wars = 1.5, w_losses = 0.5;
         double declare_threshold = 1.5;
-        double s_planets = 3, s_power = 2, s_treasury = 1, s_wars = 1;
+        // Money beyond reserve_months of costs votes for war, up to treasury_cap (DIP-4).
+        double w_treasury = 0.3, reserve_months = 6, treasury_cap = 3;
+        // Suing (DIP-3): losses, a treasury in the red, and weariness a month at war. The
+        // number of wars isn't a term of its own; several wars make each go worse.
+        double s_planets = 3, s_power = 2, s_treasury = 1, s_months = 0.4;
         double sue_threshold = 1;
+        // The winner hears no offer before min_war_days; after, it wants what it hoped
+        // to take (hope_share of the enemy's income near its border, by its share of the
+        // two sides' power), a hope that halves every hope_halflife_months.
+        std::int64_t min_war_days = 30;
+        double hope_share = 0.5, hope_halflife_months = 2;
         double tribute_rate = 0.1;  // ceasefire tribute per month, x severity x the loser's income
         std::int64_t ceasefire_days = 90;
 
@@ -744,11 +753,17 @@ void for_each_field(C& c, F&& f) {
     f("dip.w_wars", c.dip.w_wars);
     f("dip.w_losses", c.dip.w_losses);
     f("dip.declare_threshold", c.dip.declare_threshold);
+    f("dip.w_treasury", c.dip.w_treasury);
+    f("dip.reserve_months", c.dip.reserve_months);
+    f("dip.treasury_cap", c.dip.treasury_cap);
     f("dip.s_planets", c.dip.s_planets);
     f("dip.s_power", c.dip.s_power);
     f("dip.s_treasury", c.dip.s_treasury);
-    f("dip.s_wars", c.dip.s_wars);
+    f("dip.s_months", c.dip.s_months);
     f("dip.sue_threshold", c.dip.sue_threshold);
+    f("dip.min_war_days", c.dip.min_war_days);
+    f("dip.hope_share", c.dip.hope_share);
+    f("dip.hope_halflife_months", c.dip.hope_halflife_months);
     f("dip.tribute_rate", c.dip.tribute_rate);
     f("dip.ceasefire_days", c.dip.ceasefire_days);
 

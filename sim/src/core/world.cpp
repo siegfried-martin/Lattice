@@ -163,6 +163,13 @@ void sample_metrics(const World& w, Observer& o) {
     for (const Army& a : w.armies) armies += a.alive;
     for (const Planet& pl : w.planets) besieged += pl.siege != kNone, defence += pl.defence;
     o.sample(t, "world.wars_now", -1, static_cast<double>(at_war));
+    // Lawful roots with a war on, for each faction's share of time at war (CHK-8).
+    std::int64_t roots_at_war = 0;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const Planet& pl = w.planets[at(p)];
+        roots_at_war += pl.liege == kNone && !pl.pirate && !diplomacy::enemies(w, p).empty();
+    }
+    o.sample(t, "world.roots_at_war", -1, static_cast<double>(roots_at_war));
     o.sample(t, "world.armies", -1, static_cast<double>(armies));
     o.sample(t, "world.besieged", -1, static_cast<double>(besieged));
     o.sample(t, "world.static_defence", -1, defence);

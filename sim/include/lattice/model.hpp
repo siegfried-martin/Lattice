@@ -610,11 +610,12 @@ struct Relation {
     // The war ledger (DIP-3): per side (a, b), since the war began.
     std::array<double, 2> planets_lost{}, power_lost{};
     std::array<double, 2> planets_at_start{}, power_at_start{};
+    std::array<double, 2> hoped{};  // each side's monthly income of enemy planets near its border, at the declaration
 };
 template <class Ar, record_of<Relation> R>
 void fields(Ar& ar, R& r) {
     ar(r.a, r.b, r.state, r.since, r.peace_since, r.peace_income, r.payer, r.payee, r.amount, r.until);
-    ar(r.planets_lost, r.power_lost, r.planets_at_start, r.power_at_start);
+    ar(r.planets_lost, r.power_lost, r.planets_at_start, r.power_at_start, r.hoped);
 }
 
 // ---- Armies, battles and sieges (MOD-6, MOD-7) ----

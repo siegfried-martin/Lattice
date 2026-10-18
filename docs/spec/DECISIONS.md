@@ -5,6 +5,16 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · Phase A round 2, design changes
+
+Agreed with the human in conversation, written straight into the spec as `proposed`.
+
+- **War pacing:** the number of wars is no longer a suing term; weariness a month at war
+  is. The winner hears no offer before `dip.min_war_days`, and holds out for what it
+  hoped to take, a hope that fades. Money beyond a reserve votes for war. Target: each
+  faction at war a little more than half the time, wars of one to three months (DIP-3,
+  DIP-4, SYS-12, CHK-8).
+
 ### 2026-10-18 · MS-8, the harness and Phase A round 1
 
 - **Tools:** experiments, checks with proposed bands, and an HTML report, using only

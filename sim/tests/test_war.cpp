@@ -104,6 +104,65 @@ TEST_CASE("war, ceasefire and peace between roots (DIP-1, DIP-2)") {
     CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Peace);
 }
 
+TEST_CASE("a beaten faction's offer waits for dip.min_war_days; weariness ends a quiet war (DIP-3)") {
+    Config c = quiet();
+    c.raid.enabled = false;
+    c.dip.hope_share = 0;  // the winner takes any offer it hears
+    World w = new_world(c, 66);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+
+    SUBCASE("losses make it sue, but not before the winner could have arrived") {
+        diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+        diplomacy::record_loss(w, f.root_a, f.root_b, 3, 0);  // a rout
+        advance(w, 14 * kDay);
+        CHECK(diplomacy::at_war(w, f.root_a, f.root_b));
+        advance(w, (c.dip.min_war_days + 7) * kDay);
+        CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Ceasefire);
+    }
+    SUBCASE("with no fighting at all, weariness sues after about 1 / dip.s_months months") {
+        diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+        const double months = c.dip.sue_threshold / c.dip.s_months;
+        advance(w, static_cast<Time>(months * 30 * 0.8) * kDay);
+        CHECK(diplomacy::at_war(w, f.root_a, f.root_b));
+        advance(w, static_cast<Time>(months * 30 * 0.4) * kDay);
+        CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Ceasefire);
+    }
+}
+
+TEST_CASE("the winner holds out for what it hoped to take, a hope that fades (DIP-3)") {
+    Config c = quiet();
+    c.raid.enabled = false;
+    c.dip.min_war_days = 0;
+    c.dip.s_months = 0;
+    c.dip.hope_share = 10;
+    c.dip.hope_halflife_months = 0.5;
+    World w = new_world(c, 67);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    // Enough to sue, with a small offer.
+    const double start = static_cast<double>(fealty::faction_planets(w, f.root_a).size());
+    diplomacy::record_loss(w, f.root_a, f.root_b, 0.4 * start, 0);
+    advance(w, 21 * kDay);
+    CHECK(diplomacy::at_war(w, f.root_a, f.root_b));  // the hope is worth more than the offer
+    advance(w, 365 * kDay);
+    CHECK(!diplomacy::at_war(w, f.root_a, f.root_b));  // until it fades
+}
+
+TEST_CASE("money piled up past the reserve votes for war (DIP-4)") {
+    Config c = quiet();
+    c.dip.declare_threshold = 1.5;
+    c.gen.warmup_days = 0;
+    c.dip.w_treasury = 100;
+    World w = new_world(c, 68);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    for (Id p : fealty::faction_planets(w, f.root_a)) w.planets[at(p)].treasury = 1e12;
+    advance(w, 8 * kDay);
+    CHECK(diplomacy::at_war(w, f.root_a, f.root_b));
+}
+
 TEST_CASE("no war is declared during the warm-up (GEN-10)") {
     Config c = quiet();
     c.dip.declare_threshold = -1e9;  // everyone wants war

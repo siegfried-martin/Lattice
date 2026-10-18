@@ -416,6 +416,7 @@ vote        = (dip.w_idle × idle combat power under them
              + dip.w_targets × believed wealth of target planets within dip.border_days
              + dip.w_strength × (believed own strength / believed target strength − 1)
              + dip.w_peace × prosperity growth since the last war
+             + dip.w_treasury × clamp(treasury months / dip.reserve_months − 1, 0, dip.treasury_cap)
              − dip.w_wars × wars ongoing − dip.w_losses × recent losses)
              × (0.5 + risk tolerance)
 declare if Σ weight × vote / Σ weight > dip.declare_threshold
@@ -425,11 +426,15 @@ declare if Σ weight × vote / Σ weight > dip.declare_threshold
 
 ```
 war_score  = − dip.s_planets × planets lost share − dip.s_power × fleet power lost share
-             − dip.s_treasury × treasury trend − dip.s_wars × (wars − 1)
+             − dip.s_treasury × treasury trend − dip.s_months × months at war
 if war_score < −dip.sue_threshold: offer tribute = dip.tribute_rate × severity × income
                                    per month, for dip.ceasefire_days
-winner accepts if offer × months > believed value of continuing
-             (expected planets taken × planet value − monthly war cost × months)
+no offer is heard before dip.min_war_days
+winner accepts if offer ≥ max(taken, hope)
+  taken = planets taken a month × the loser's average planet income × value.invade_months ÷ 12
+  hope  = dip.hope_share × hoped × winner's share of the two sides' power
+          × 0.5 ^ (months at war ÷ dip.hope_halflife_months)
+  hoped = the loser's monthly income within dip.border_days of the winner, at the declaration
 ```
 
 Declarations, acceptances and ceasefire ends are facts that travel by courier (DIP-5).
@@ -450,15 +455,18 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   - targets = the enemy's income within `dip.border_days` ÷ the governor's own income;
   - strength = faction power (commanders and static defence) ÷ the target's, − 1;
   - peace = faction income ÷ its income when the last war with this target ended, − 1;
+  - treasury months = the governor's treasury ÷ its monthly operating costs;
   - wars = wars now;
   - losses = planets lost in them.
   Strength and wealth are read from the world, not beliefs, until facts carry them.
 - **Suing** *(proposed)*:
   - The score uses the shares of planets and power lost since the war began, the
-    treasury below zero against monthly income, and the wars at once.
+    treasury below zero against monthly income, and months at war.
   - The offer is `dip.tribute_rate` × min(severity, 3) × income a month.
-  - The winner accepts when the offer covers what it has been taking: planets taken per
-    month × the loser's average planet income × `value.invade_months` ÷ 12.
+  - The winner accepts by the formula above. Power is read from the world.
+  - *Phase A round 2:* before it, the score also counted wars at once (`dip.s_wars`) and
+    the winner valued only what it had taken. A faction in three wars sued at once, and
+    with nothing taken yet any offer was accepted, so the median war lasted 7 days.
 - **A ceasefire** stands down armies sent between the two. When it ends, peace records
   each side's income for the next vote.
 - **Roots changing:**

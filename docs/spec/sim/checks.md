@@ -70,7 +70,9 @@ ECO-5.
 ### CHK-8 Peace and war cycle `v1`
 
 Treasuries fill in peace and drain in war, and factions do go back to war. *Metric:*
-treasury trend by diplomatic state; time spent at war. *Tests:* ECO-7, DIP-3, DIP-4.
+treasury trend by diplomatic state; each faction's share of time at war, and the median
+war's length. *(proposed bands)* At war 0.5 to 0.8 of the time; median war 30 to 90 days
+(DIP-4's pacing). *Tests:* ECO-7, DIP-3, DIP-4.
 
 ### CHK-9 Collapse is individual and concentrated `v1`
 
