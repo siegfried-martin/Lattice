@@ -9,3 +9,6 @@ Done so far: the travel foundation (`WORLD_AND_TRAVEL.md`), a first combat proto
 `docs/spec/sim/milestones.md` (MS-1 to MS-9): every v1 system first, then tuning until
 the world is stable (Phase A), then experiments testing whether each mechanic earns its
 cost (Phase B). Connecting the simulation to the rendered game follows.
+
+MS-1, the skeleton and toolchain, is done: the core, runner, tests, saves and a Godot
+binding the project loads. Next is MS-2, world generation and the economy.

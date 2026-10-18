@@ -5,6 +5,20 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-1, the simulation skeleton
+
+- **Build:** the Godot binding is built with godot-cpp's CMake support, not SCons, so
+  one build system covers the core, tests, runner and binding (ARC-11, ARC-12).
+- **Determinism:** the RNG distributions are written in the core, and FMA contraction
+  is off, so builds at different optimisation levels agree (ARC-6).
+- **Event order:** events at the same time run by phase (scheduled, cadence, kinematic),
+  then sequence number; `advance(dt)` covers `[now, now + dt)`; cadences are recurring
+  events in the one queue (TIM-2, MOD-11).
+- **Saves:** magic, version, payload and hash; config stored by key; a build reads only
+  its own version (ARC-9).
+- **Binding:** `make gdext` registers the extension itself, working around a Godot 4.7
+  crash on the first discovery of a godot-cpp extension (ARC-4).
+
 ### 2026-10-18 · The spec is created
 
 The planning drafts `FACTIONS.md` (2026-09-27), `ECONOMY.md` (2026-09-28), `TRADE.md`

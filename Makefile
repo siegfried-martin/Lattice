@@ -1,6 +1,7 @@
 GODOT ?= godot
 
-.PHONY: run tour tour-hop tour-combat tour-jct tour-collide tour-land check editor
+.PHONY: run tour tour-hop tour-combat tour-jct tour-collide tour-land check check-godot editor \
+	sim sim-test sim-release gdext
 
 run:
 	$(GODOT) --path .
@@ -30,11 +31,42 @@ tour-land:
 tour-hop:
 	$(GODOT) --path . -- --tour --hop-only
 
+# Everything that must pass before a change is done: the simulation's tests, the
+# binding, and the Godot project.
+check: sim-test gdext check-godot
+	@out=$$($(GODOT) --headless --path . --script res://tests/sim_binding.gd 2>&1); \
+	echo "$$out" | grep "^sim binding:"; echo "$$out" | grep -q "^sim binding: ok" || exit 1
+	@echo "check: ok"
+
 # Parse every script and build both worlds headless; fails on any script error.
-check:
+check-godot:
 	@out=$$($(GODOT) --headless --path . --quit-after 30 2>&1); \
 	echo "$$out" | grep -E "SCRIPT ERROR|Parse Error|Failed to load" && exit 1; \
-	echo "$$out" | grep "^Galaxy:"; echo "check: ok"
+	echo "$$out" | grep "^Galaxy:"; echo "check-godot: ok"
+
+# The simulation core (docs/spec/sim), built with ASan and UBSan, and its tests.
+sim:
+	@cmake --preset dev -S sim >/dev/null
+	@cmake --build sim/build/dev -- --quiet
+
+sim-test: sim
+	@sim/build/dev/lattice-tests --no-version
+
+# The optimised runner, for real runs: sim/build/release/lattice-run --help
+sim-release:
+	@cmake --preset release -S sim >/dev/null
+	@cmake --build sim/build/release -- --quiet
+
+# The Godot binding, into bin/. The first build compiles godot-cpp (a few minutes).
+# The extension is registered in .godot/extension_list.cfg here rather than left for
+# Godot to discover: Godot 4.7 crashes on exit in the session that first discovers a
+# godot-cpp extension.
+gdext:
+	@test -f gdext/godot-cpp/CMakeLists.txt || git submodule update --init gdext/godot-cpp
+	@test -f gdext/build/debug/build.ninja || cmake --preset debug -S gdext >/dev/null
+	@cmake --build gdext/build/debug -- --quiet
+	@mkdir -p .godot; grep -qx "res://bin/lattice.gdextension" .godot/extension_list.cfg 2>/dev/null \
+		|| echo "res://bin/lattice.gdextension" >> .godot/extension_list.cfg
 
 editor:
 	$(GODOT) --path . --editor

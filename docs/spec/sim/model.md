@@ -149,5 +149,14 @@ PRD-11.
 
 ### MOD-11 The scheduled-event queue `v1`
 
-`(time, sequence number, kind, record ID, payload)`, ordered by time then sequence
-(TIM-2).
+| Field | Notes |
+|---|---|
+| time | game seconds (TIM-1) |
+| phase | scheduled, cadence or kinematic: the order among events at the same time (TIM-2) |
+| sequence number | assigned on push; breaks the remaining ties, so the order is total |
+| kind | what to run |
+| record ID | the record it concerns, or none |
+| period | above zero: rescheduled this far ahead after it runs (cadences, TIM-3) |
+| payload | two integers, their meaning set by the kind |
+
+Ordered by time, then phase, then sequence number (TIM-2).
