@@ -23,6 +23,13 @@ thousands.
 
 ## Goods and prices (PRD, SYS-1 to SYS-4)
 
+Per-good keys are written `good.<name>.<key>` in config, for example
+`good.food.base_price`. The goods are food, water and oxygen (life support), wine, spice
+and silk (luxuries) and stims (contraband). Luxuries have no `consumption` key (they use
+`lux.consumption`) and life support no `happiness` key. Keys with a tier or count in
+brackets are written as separate keys (`prod.efficiency_high`) or a list
+(`lux.variety_bonus = [0, 0, 0.003, 0.006]`).
+
 | Key | Meaning | Start |
 |---|---|---|
 | `good.base_price[g]` | Price at reserve | life support 10, luxuries 30, contraband 60 |
@@ -68,7 +75,20 @@ thousands.
 | `budget.diminishing` | Value multiplier per further unit of one option | 0.6 |
 | `budget.debt_pressure` | Cost multiplier per month in the red | 0.1 |
 | `fuel.base`, `fuel.fringe`, `fuel.burn` | Fuel price and use (GEN-7, SYS-21) | 2, 1.0, 1 per Lattice km per ship |
+| `fuel.fringe_mult` | Fuel price multiplier off the network (GEN-7) *(proposed, MS-2)* | 1.5 |
 | `value.*` | Option value heuristics for the budget model (SYS-5) | set in MS-4 |
+
+## Travel (TIM-4)
+
+Reference speeds for planning and osmosis, in sector widths per game day (neighbouring
+sector centres are 1 apart). Ship variants bring their own open-space speeds (MS-3).
+*(proposed, MS-2)*
+
+| Key | Meaning | Start |
+|---|---|---|
+| `travel.lattice_speed` | On the Lattice | 2 |
+| `travel.space_speed` | In open space (a freighter) | 0.15 |
+| `travel.hop_days` | One hop lane | 0.25 |
 
 ## Trade (TRD, SYS-6, SYS-7)
 
@@ -160,3 +180,10 @@ thousands.
 | `gen.independent_share`, `gen.pirate_planets` | Starting independents and pirate planets | 0.1, 2 |
 | `gen.commanders_per_income` | Starting commanders | set in MS-4 |
 | `gen.start_treasury_months`, `gen.warmup_days` | Starting treasury, warm-up | 3, 180 |
+| `gen.moon_share` | Share of planets with one to three moons (WLD-4) | 0.25 |
+| `gen.split_planets` | Planets in a system that make it two groups (GEN-3) *(proposed, MS-2)* | 4 |
+| `gen.pop_median` | Median starting population, thousands (GEN-3) *(proposed, MS-2)* | 1,000 |
+| `gen.pop_spread`, `gen.region_pop_spread` | Log-normal spread per planet and per region *(proposed, MS-2)* | 0.8, 0.3 |
+| `gen.moon_pop` | A moon's population against a planet's *(proposed, MS-2)* | 0.3 |
+| `gen.start_happiness` | Starting happiness (GEN-10) *(proposed, MS-2)* | 0.5 |
+| `gen.weight_spread`, `gen.favour_mult` | Region production weights `1 ± spread`, and the favoured good's multiplier (GEN-6) *(proposed, MS-2)* | 0.5, 3 |

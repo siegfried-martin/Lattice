@@ -24,8 +24,10 @@ public:
     void advance(double real_seconds);
     // Advances by whole game seconds.
     void advance_game_seconds(int64_t game_seconds);
-    // The world's clock and counters.
+    // The world's clock, counters and totals.
     Dictionary snapshot() const;
+    // One planet's state, or an empty Dictionary for a bad ID.
+    Dictionary planet(int64_t id) const;
 
 protected:
     static void _bind_methods();

@@ -4,7 +4,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <random>
+#include <iterator>
 #include <string>
+#include <utility>
 
 namespace lattice {
 
@@ -14,6 +16,7 @@ namespace lattice {
 enum class Stream : std::uint8_t {
     WorldGen = 0,
     Debug = 1,
+    Events = 2,  // world events (SYS-4)
     Count
 };
 
@@ -32,6 +35,32 @@ public:
     // Uniform in [lo, hi).
     double uniform(double lo, double hi) { return lo + (hi - lo) * uniform01(); }
     bool chance(double p) { return uniform01() < p; }
+    // Standard normal, by Box-Muller (one value per call).
+    double normal();
+    // An index drawn with probability proportional to weights[i]. Requires a positive
+    // total; zero weights are never drawn.
+    template <class Weights>
+    std::size_t weighted(const Weights& weights) {
+        double total = 0;
+        for (double w : weights) total += w;
+        double r = uniform01() * total;
+        std::size_t last = 0;
+        for (std::size_t i = 0; i < std::size(weights); ++i) {
+            if (weights[i] <= 0) continue;
+            last = i;
+            if (r < weights[i]) return i;
+            r -= weights[i];
+        }
+        return last;  // rounding at the top end
+    }
+    // Fisher-Yates.
+    template <class Vec>
+    void shuffle(Vec& v) {
+        for (std::size_t i = std::size(v); i > 1; --i) {
+            const auto j = static_cast<std::size_t>(uniform_int(0, static_cast<std::int64_t>(i) - 1));
+            std::swap(v[i - 1], v[j]);
+        }
+    }
 
     // The engine state as text; the format is fixed by the standard.
     std::string state() const;

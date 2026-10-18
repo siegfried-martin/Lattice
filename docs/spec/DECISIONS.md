@@ -5,6 +5,29 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-2, world generation and the economy
+
+Choices made while building, all *(proposed)* where they go beyond a rule:
+
+- **Scale:** the planet count includes moons, every body a settled market (GEN-1).
+  Distances are in sector widths, and reference travel speeds follow the prototype's
+  scale, a week to cross a sector in open space and half a day on the Lattice (TIM-4).
+- **Generation:** at most one system per sector, placed by smoothed random density with
+  regions taking turns so each has enough planets (GEN-3); large systems split into
+  inner and outer groups (GEN-3); fringe chosen toward edges and region borders (GEN-3);
+  junctions where three or more roads meet an interchange (GEN-4); the producer repair
+  never creates a new shortfall (GEN-6); seats of power are chosen now, for fuel prices
+  (GEN-7, GEN-8); fringe fuel × `fuel.fringe_mult` (GEN-7).
+- **Economy:** production runs before buying; a short budget scales life-support
+  purchases down evenly; growth's excess is capped at 1; the variety threshold is a share
+  of a luxury's full use, correcting SYS-1's formula, which made variety impossible
+  (SYS-1). A tier below low is low × low ÷ medium (SYS-2). Events don't stack (SYS-4).
+- **Osmosis** stops when the sale no longer covers the purchase, so it can never create
+  money (SYS-6, ECO-1).
+- **Saves:** each record lists its fields once; loading checks every index (ARC-9).
+- **Found, not acted on:** with the starting values the world can't feed itself
+  (MS-2's note). Tuning waits for merchants and Phase A.
+
 ### 2026-10-18 · MS-1, the simulation skeleton
 
 - **Build:** the Godot binding is built with godot-cpp's CMake support, not SCons, so

@@ -23,8 +23,11 @@ constexpr std::string_view kUsage = R"(usage: lattice-run [options]
   --config FILE   config to build a new world from (defaults otherwise)
   --seed N        world seed (default 1)
   --load FILE     continue a saved world instead (it carries its config and seed)
-  --days N        game days to run (default 365)
-  --out DIR       write config.toml, run.toml, series.csv and events.csv here
+  --days N        game days to measure (default 365)
+  --out DIR       write config.toml, run.toml, the map and the metrics here
+  --every N       keep metrics every N days (default 1)
+  --observe-warmup  a new world first runs gen.warmup_days unmeasured (GEN-10);
+                  this measures them too
   --save FILE     save the world when the run ends
   --dump-config   print the full config, defaults included, and exit
 )";
@@ -33,7 +36,9 @@ struct Options {
     std::optional<std::string> config, load, out, save;
     std::optional<std::uint64_t> seed;
     std::int64_t days = 365;
+    std::int64_t every = 1;
     bool dump_config = false;
+    bool observe_warmup = false;
 };
 
 template <class T>
@@ -60,6 +65,8 @@ Options parse_args(int argc, char** argv) {
         else if (arg == "--days") o.days = parse_number<std::int64_t>(arg, value());
         else if (arg == "--out") o.out = value();
         else if (arg == "--save") o.save = value();
+        else if (arg == "--every") o.every = parse_number<std::int64_t>(arg, value());
+        else if (arg == "--observe-warmup") o.observe_warmup = true;
         else if (arg == "--dump-config") o.dump_config = true;
         else if (arg == "--help" || arg == "-h") {
             std::cout << kUsage;
@@ -70,6 +77,7 @@ Options parse_args(int argc, char** argv) {
     }
     if (o.load && (o.config || o.seed)) throw std::runtime_error("--load can't be combined with --config or --seed");
     if (o.days < 0) throw std::runtime_error("--days can't be negative");
+    if (o.every < 1) throw std::runtime_error("--every must be at least 1");
     return o;
 }
 
@@ -82,31 +90,38 @@ int run(const Options& o) {
     }
 
     World world = o.load ? load_world_file(*o.load) : new_world(o.config ? load_config_file(*o.config) : Config{}, o.seed.value_or(1));
-    const std::int64_t start_day = day_of(world.now);
 
     std::optional<CsvObserver> csv;
     if (o.out) {
         std::filesystem::create_directories(*o.out);
         std::ofstream(*o.out + "/config.toml") << to_toml(world.config);
-        std::ofstream(*o.out + "/run.toml") << "seed = " << world.seed << "\n"
-                                            << "start_day = " << start_day << "\n"
-                                            << "days = " << o.days << "\n"
-                                            << "save_version = " << kSaveVersion << "\n"
-                                            << "loaded_from = \"" << o.load.value_or("") << "\"\n";
-        csv.emplace(*o.out);
+        write_map(world, *o.out);
+        csv.emplace(*o.out, o.every);
     }
 
+    // A new world settles before measurement starts (GEN-10).
     const auto t0 = std::chrono::steady_clock::now();
+    const std::int64_t warmup = o.load ? 0 : world.config.gen.warmup_days;
+    advance(world, warmup * kDay, o.observe_warmup && csv ? &*csv : nullptr);
+    const std::int64_t start_day = day_of(world.now);
     advance(world, o.days * kDay, csv ? &*csv : nullptr);
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     if (csv) csv->flush();
 
+    if (o.out) {
+        std::ofstream(*o.out + "/run.toml") << "seed = " << world.seed << "\n"
+                                            << "warmup_days = " << warmup << "\n"
+                                            << "start_day = " << start_day << "\n"
+                                            << "days = " << o.days << "\n"
+                                            << "save_version = " << kSaveVersion << "\n"
+                                            << "loaded_from = \"" << o.load.value_or("") << "\"\n";
+    }
     if (o.save) save_world_file(world, *o.save);
 
-    std::printf("ran days %lld to %lld (seed %llu) in %.3f s, %.0f days/s, %llu events; state %016llx\n",
-                static_cast<long long>(start_day), static_cast<long long>(day_of(world.now)),
+    std::printf("warm-up %lld days, measured days %lld to %lld (seed %llu) in %.3f s, %.0f days/s, %llu events; state %016llx\n",
+                static_cast<long long>(warmup), static_cast<long long>(start_day), static_cast<long long>(day_of(world.now)),
                 static_cast<unsigned long long>(world.seed), seconds,
-                seconds > 0 ? static_cast<double>(o.days) / seconds : 0.0,
+                seconds > 0 ? static_cast<double>(o.days + warmup) / seconds : 0.0,
                 static_cast<unsigned long long>(world.events_processed),
                 static_cast<unsigned long long>(state_hash(world)));
     return 0;

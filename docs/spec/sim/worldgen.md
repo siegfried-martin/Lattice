@@ -14,7 +14,12 @@ is stored in saves (ARC-9), so a world is never regenerated to load it.
 | Characters (target) | about 500 | about 2,000 |
 
 Both are config, so any size in between can be run. Verdicts are taken at v1 size
-(SIM-2).
+(SIM-2). The config defaults build a development world; `sim/configs/v1.toml` sets the
+v1 sizes.
+
+*(proposed)* The planet count includes moons: every planet and moon is a settled market,
+as in the prototype's body count. That gives about 8 systems in a development world and
+about 27 in a v1 world.
 
 ### GEN-2 Sectors and regions `v1` `proposed`
 
@@ -23,6 +28,11 @@ per region spread far apart, then grow regions outward by alternating steps (a
 breadth-first fill) so they come out roughly equal and compact. Each region draws its
 culture and production weights (GEN-6).
 
+*As built:* odd rows sit half a sector east, and neighbouring sector centres are one
+unit apart; every distance in the simulation is in these sector widths. Seeds are
+chosen by farthest-point sampling from a random first sector; regions take turns
+claiming the oldest unclaimed sector on their frontier.
+
 ### GEN-3 Systems and planets `v1` `proposed`
 
 Place systems in sectors with a density that varies (some sectors empty), one to four
@@ -30,6 +40,22 @@ planets each, a quarter with one to three moons (WLD-4). Each system is one grou
 large system splits into two. Planets get a starting population drawn per region.
 Mark **fringe** systems: about one in six, placed toward the map's edges and region
 borders, left off the network (WLD-6).
+
+*As built:*
+- At most one system per sector. Sectors are weighted by a random density smoothed
+  over each sector's neighbours and cubed, so systems crowd in some stretches and leave
+  others empty.
+- Regions take turns placing systems, the region with the fewest planets first, so
+  each region has enough planets for GEN-6's producer guarantee.
+- Population is `gen.pop_median` × the region's scale (log-normal,
+  `gen.region_pop_spread`) × the planet's own draw (log-normal, `gen.pop_spread`); a
+  moon gets `gen.moon_pop` of that.
+- A system with `gen.split_planets` planets or more is two groups, its inner and outer
+  halves; moons go with their planet.
+- Fringe systems are the top `gen.fringe_share` by a score of closeness to the map's
+  edge (within two sectors), a region border in the sector, and a random part. At
+  least two systems stay on the network.
+- Hop lanes join each moon to its planet and a group's planets in a chain by orbit.
 
 ### GEN-4 The Lattice network `v1` `open`
 
@@ -40,6 +66,14 @@ relative neighbourhood graph until the network has some loops (a share
 Lattice stays directionally accurate. Where three or more roads meet, insert a junction.
 The rendered Lattice has to draw whatever this makes (right-hand traffic, junction gates,
 `docs/WORLD_AND_TRAVEL.md`), which is GDScript work when the binding is connected.
+
+*As built:* each on-network group's interchange sits beside its holder. The extra
+edges are the shortest relative-neighbourhood edges not in the tree. Both graphs are
+planar, so roads never cross; edges are straight lines between interchanges, which is
+what keeps the Lattice directionally accurate (aligning roads to hex directions is left
+to the rendered layout). An interchange where three or more roads would meet gets a
+junction at the same position: the roads move to the junction, and the interchange
+hangs off it by a zero-length link, so no interchange has more than two roads.
 
 *See:* OPN-6.
 
@@ -56,10 +90,24 @@ efficiency at random (PRD-7). Then repair: every good must have at least
 `gen.min_producers` producers per region at medium or better (PRD-8); swap draws until it
 holds. Contraband is never drawn for a lawful planet.
 
+*As built:* a region's weights are `1 ± gen.weight_spread` per lawful good, with one
+favoured good × `gen.favour_mult`. The repair takes a medium-or-better slot from a good
+that has more producers than it needs: it either swaps tiers with the short good where
+the planet already makes it at low, or replaces that slot's good. Neither creates a new
+shortfall, so the repair always ends, and it always succeeds when the region has at
+least 3 × `gen.min_producers` planets.
+
 ### GEN-7 Fuel prices `v1`
 
 Each planet's fuel price is `fuel.base × (1 + fuel.fringe × distance in Lattice hops
 from the nearest seat of power, normalised)`, higher again for fringe planets (ECO-11).
+
+*As built:* hops are counted between interchanges (a junction's link is free) and
+normalised by the largest in the world. A fringe planet counts the hops of its nearest
+interchange plus one, and its price is multiplied by `fuel.fringe_mult`
+*(proposed)*. The seats of power are chosen in MS-2 for this, by GEN-8's rule: the most
+populous on-network planet first, then each next one by population share × distance
+share from the seats already chosen, in a region without a seat while one remains.
 
 ### GEN-8 Factions `v1` `proposed`
 
@@ -88,3 +136,8 @@ Stocks start at their reserve targets, treasuries at `gen.start_treasury_months`
 costs, and opinions at their resting points. A run first simulates `gen.warmup_days`
 with war declarations disabled, so markets and labour settle, and measurement starts
 after it.
+
+*As built:* labour starts split equally across a planet's three goods, happiness at
+`gen.start_happiness`, and each planet's income average at what its population would
+spend with its whole budget. The runner runs the warm-up unmeasured on a new world
+(`--observe-warmup` measures it too).

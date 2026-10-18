@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "lattice/fields.hpp"
 #include "lattice/time.hpp"
 
 namespace lattice {
@@ -20,6 +21,10 @@ enum class Phase : std::uint8_t {
 enum class EventKind : std::uint16_t {
     DailyTick = 0,  // the daily economy cadence (TIM-3)
     DebugPing = 1,  // scaffolding that exercises the queue and RNG (debug.pings)
+    PlanetDay = 2,     // a planet's daily economy, staggered over the day (SYS-1 to SYS-3)
+    PlanetLabour = 3,  // a planet's weekly labour shift (SYS-2)
+    PlanetPayment = 4, // a planet's monthly operating costs (SYS-5)
+    WorldEventEnd = 5, // a world event ends (SYS-4); record is the event
 };
 
 // One entry in the scheduled-event queue (MOD-11).
@@ -35,6 +40,11 @@ struct Event {
 
     friend bool operator==(const Event&, const Event&) = default;
 };
+
+template <class Ar, record_of<Event> E>
+void fields(Ar& ar, E& e) {
+    ar(e.time, e.phase, e.seq, e.kind, e.record, e.period, e.a, e.b);
+}
 
 // A min-heap on (time, phase, seq). Every key is unique, so the pop order is fully
 // determined by what was pushed, whatever the heap layout.

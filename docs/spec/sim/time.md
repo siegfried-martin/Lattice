@@ -44,6 +44,10 @@ next call, and splitting one advance into several gives the same world.
 
 All of these are tunables (TUN).
 
+*As built (MS-2):* each planet's day, labour shift and payments are its own recurring
+events, staggered across their period by planet. The world's daily tick, at the start
+of each day, samples metrics, rolls events and runs osmosis.
+
 ### TIM-4 Travel times `v1`
 
 Planning uses travel times from a precomputed graph:
@@ -53,6 +57,12 @@ Planning uses travel times from a precomputed graph:
 - **Open space:** straight-line distance between sector positions over the ship's speed,
   plus the hazard penalty (TIM-7).
 - **Hop lanes:** a short fixed time.
+
+*As built (MS-2):* reference times use `travel.space_speed`, `travel.lattice_speed` and
+`travel.hop_days`, in sector widths per day, ignoring gate permissions. They are the
+shortest path over every planet and Lattice node, with open space joining any two. The
+starting speeds follow the prototype's scale: a freighter crosses a sector of open space
+in about a week of game time, and the Lattice in about half a day *(proposed)*.
 
 A merchant or army plans a route as: open space to the nearest entrance it may use,
 Lattice to the exit nearest the destination that will let it out, open space to the

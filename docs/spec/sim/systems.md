@@ -43,6 +43,18 @@ P          = (pop.p_base + pop.p_happy × H) × max(0, 1 − pop.contraband_pena
 - *Tuning constraint* (PRD-6): at steady state, the productivity a population loses to
   contraband must exceed what its extra happiness gains, so
   `pop.contraband_penalty` > `pop.p_happy` × `good.happiness[contraband]` per unit.
+- *As built (MS-2):*
+  - A planet's day runs production (SYS-2) first, then buying, then growth, happiness
+    and productivity.
+  - The population buys at the ask computed before it buys, without slippage. When the
+    budget can't cover all three life-support goods, every purchase is scaled down by
+    the same factor, and the shortfall counts.
+  - Growth uses the excess clamped to 1, so `pop.growth_rate` is the most a day can add
+    ("daily growth at full excess").
+  - *Correction:* the variety threshold is `lux.variety_min` × a luxury's full use,
+    `N × lux.consumption / 3`, as the tunable describes. The formula's `lux.variety_min × N`
+    is more than a luxury's full use, so variety could never count.
+  - Contraband bought is 0 until smugglers exist (MS-6); `C` still averages it.
 
 ### SYS-2 Production and labour `v1`
 
@@ -59,6 +71,10 @@ weekly:    score_g = bid_price_g × eff_g                    at the planet's own
 
 Local price is the right signal: if merchants buy a good away, its stock falls and its
 price rises; if it gluts, the price falls and labour moves off it.
+
+*As built:* ties go to the first good in the planet's list, and no labour moves when
+all three score the same. `eff_g` above high is high × `event.bumper_mult` (SYS-4); below
+low it is low × low ÷ medium *(proposed)*.
 
 ### SYS-3 Markets and prices `v1`
 
@@ -80,6 +96,10 @@ trader pays ask × (1 + tax) and receives bid × (1 − tax); tax goes to the tr
   limit (`econ.credit_limit` × monthly income) stops buying.
 - Lawful markets don't trade contraband (PIR-14).
 - **Bands for the player** (`price.bands`) are a view of `price_g / base_price`.
+- *As built:* a luxury's reserve uses its third of `lux.consumption` (its use at a fill
+  of 1). Monthly income for the credit limit is a running average of daily income over
+  `time.payment_days`, started at what the population would spend with its whole
+  budget. `price.bands` waits for the binding to be connected.
 
 ### SYS-4 World events `v1`
 
@@ -91,6 +111,11 @@ trader pays ask × (1 + tax) and receives bid × (1 − tax); tax goes to the tr
 | Bumper harvest (planet) | `event.bumper_p` per producer, any good | one tier up (high stays high, ×`event.bumper_mult`) | `event.bumper_days` |
 | Festival (planet) | `event.festival_p` | luxury consumption × `event.festival_mult` | `event.festival_days` |
 | Regional drought | `event.region_drought_p` per region | drought on every food producer in the region | `event.drought_days` |
+
+*As built:* bumper harvests roll per good a planet makes. Events don't stack: a planet
+under a drought (its own or its region's) gets no second drought, a good under a bumper
+harvest no second one, and a planet in a festival no second festival. Each event is a
+record (MOD-10) that schedules its own end, which undoes its effect.
 
 ### SYS-5 Treasury and the governor's budget `v1`
 
@@ -104,6 +129,10 @@ costs      = econ.op_base + econ.op_per_capita × N + patrol_upkeep + policing
              + patronage given + mission pay + automated courier runs
 treasury  += income − costs     (may go negative, ECO-8)
 ```
+
+*In MS-2:* income is sales to the population and to osmosis, plus the tax on osmosis
+trades; costs are operating costs, paid monthly, staggered by planet. The rest arrive
+with the systems that pay them.
 
 **The budget model** *(proposed)*, one routine for every spender (ECO-8):
 
@@ -138,6 +167,14 @@ flow       = osmosis.rate × gap × min(reserve_i, reserve_j) × exp(−travel_d
 The flow executes as a buy at the source and a sell at the destination at market
 prices with tax; the trader's margin is removed (a sink, ECO-5). Lattice travel time
 uses the Lattice graph, so connected markets exchange faster.
+
+*As built:*
+- Travel days are the reference times of TIM-4, the slower direction of the pair.
+- The trade runs in chunks of `price.chunk` × the smaller reserve and stops when the
+  sale at the destination no longer covers the purchase at the source, or the
+  destination is past its credit limit. *(proposed)* Without that stop, a flow across a
+  small gap would pay out more than it took in and create money, against ECO-1.
+- Pairs are visited in a fixed order (lower planet ID first), goods in good order.
 
 ## Characters and trade
 

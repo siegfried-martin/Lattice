@@ -4,11 +4,13 @@
 cmake_minimum_required(VERSION 3.22)
 project(lattice_gdext LANGUAGES CXX)
 
-set(GODOTCPP_API_VERSION "4.7" CACHE STRING "Godot API version to target")
+# Plain variables rather than cache entries, so a stale cache can't override them
+# (godot-cpp's option() calls honour them, CMP0077).
+set(GODOTCPP_API_VERSION "4.7")
 # The core reports bad configs and saves with exceptions, caught here.
-set(GODOTCPP_DISABLE_EXCEPTIONS OFF CACHE BOOL "")
+set(GODOTCPP_DISABLE_EXCEPTIONS OFF)
 # Our strict warnings are for our code, not godot-cpp's headers.
-set(GODOTCPP_SYSTEM_HEADERS ON CACHE BOOL "")
+set(GODOTCPP_SYSTEM_HEADERS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_subdirectory(godot-cpp)

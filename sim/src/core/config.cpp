@@ -1,5 +1,6 @@
 #include "lattice/config.hpp"
 
+#include <array>
 #include <fstream>
 #include <set>
 #include <sstream>
@@ -30,16 +31,27 @@ void collect_keys(const toml::table& table, const std::string& prefix,
     }
 }
 
+template <class T>
+struct is_std_array : std::false_type {};
+template <std::size_t N>
+struct is_std_array<std::array<double, N>> : std::true_type {};
+
 // Inserts value at a dotted path, creating the tables on the way.
 template <class T>
-void insert_path(toml::table& root, std::string_view path, T value) {
+void insert_path(toml::table& root, std::string_view path, const T& value) {
     toml::table* table = &root;
     std::size_t start = 0;
     for (std::size_t dot; (dot = path.find('.', start)) != std::string_view::npos; start = dot + 1) {
         auto [it, _] = table->insert(path.substr(start, dot - start), toml::table{});
         table = it->second.as_table();
     }
-    table->insert_or_assign(path.substr(start), value);
+    if constexpr (is_std_array<T>::value) {
+        toml::array array;
+        for (double v : value) array.push_back(v);
+        table->insert_or_assign(path.substr(start), std::move(array));
+    } else {
+        table->insert_or_assign(path.substr(start), value);
+    }
 }
 
 }  // namespace
@@ -68,6 +80,22 @@ Config parse_config(std::string_view toml_text, std::string_view source) {
                 field = static_cast<double>(i->get());
             } else {
                 throw ConfigError(where(source, *node.node()) + ": " + std::string(key) + " must be a number");
+            }
+        } else if constexpr (is_std_array<T>::value) {
+            const toml::array* array = node.as_array();
+            if (!array || array->size() != field.size()) {
+                throw ConfigError(where(source, *node.node()) + ": " + std::string(key) + " must be a list of " +
+                                  std::to_string(field.size()) + " numbers");
+            }
+            for (std::size_t i = 0; i < field.size(); ++i) {
+                const toml::node& item = *array->get(i);
+                if (auto f = item.as_floating_point()) {
+                    field[i] = f->get();
+                } else if (auto n = item.as_integer()) {
+                    field[i] = static_cast<double>(n->get());
+                } else {
+                    throw ConfigError(where(source, item) + ": " + std::string(key) + " must be a list of numbers");
+                }
             }
         } else if constexpr (std::is_same_v<T, bool>) {
             auto b = node.as_boolean();
@@ -102,17 +130,105 @@ Config load_config_file(const std::string& path) {
 }
 
 void validate(const Config& c) {
-    auto require = [](bool ok, const char* message) {
+    auto require = [](bool ok, const std::string& message) {
         if (!ok) throw ConfigError(message);
     };
-    require(c.time.real_seconds_per_day > 0, "time.real_seconds_per_day must be above 0");
-    require(c.time.space_step_minutes > 0, "time.space_step_minutes must be above 0");
-    require(c.time.battle_round_hours > 0, "time.battle_round_hours must be above 0");
-    require(c.time.labour_days > 0, "time.labour_days must be above 0");
-    require(c.time.budget_days > 0, "time.budget_days must be above 0");
-    require(c.time.diplomacy_days > 0, "time.diplomacy_days must be above 0");
-    require(c.time.payment_days > 0, "time.payment_days must be above 0");
+    auto positive = [&](double v, const char* key) { require(v > 0, std::string(key) + " must be above 0"); };
+    auto non_negative = [&](double v, const char* key) { require(v >= 0, std::string(key) + " can't be negative"); };
+    auto share = [&](double v, const char* key) { require(v >= 0 && v <= 1, std::string(key) + " must be 0 to 1"); };
+
+    positive(c.time.real_seconds_per_day, "time.real_seconds_per_day");
+    positive(static_cast<double>(c.time.space_step_minutes), "time.space_step_minutes");
+    positive(static_cast<double>(c.time.battle_round_hours), "time.battle_round_hours");
+    positive(static_cast<double>(c.time.labour_days), "time.labour_days");
+    positive(static_cast<double>(c.time.budget_days), "time.budget_days");
+    positive(static_cast<double>(c.time.diplomacy_days), "time.diplomacy_days");
+    positive(static_cast<double>(c.time.payment_days), "time.payment_days");
     require(c.debug.pings >= 0 && c.debug.pings <= 1'000'000, "debug.pings must be 0 to 1,000,000");
+
+    for (int i = 0; i < kGoodCount; ++i) {
+        const auto& g = c.goods[static_cast<std::size_t>(i)];
+        const std::string name = "good." + std::string(good_name(static_cast<Good>(i)));
+        require(g.base_price > 0, name + ".base_price must be above 0");
+        require(g.reserve_days > 0, name + ".reserve_days must be above 0");
+        require(g.k > 0, name + ".k must be above 0");
+        require(g.consumption >= 0, name + ".consumption can't be negative");
+        require(g.happiness >= 0, name + ".happiness can't be negative");
+    }
+
+    positive(c.price.min, "price.min");
+    require(c.price.max >= c.price.min, "price.max must be at least price.min");
+    require(c.price.spread >= 0 && c.price.spread < 2, "price.spread must be 0 to 2");
+    positive(c.price.chunk, "price.chunk");
+
+    require(c.econ.tax >= 0 && c.econ.tax < 1, "econ.tax must be 0 to 1");
+    non_negative(c.econ.wage, "econ.wage");
+    non_negative(c.econ.credit_limit, "econ.credit_limit");
+    non_negative(c.econ.op_base, "econ.op_base");
+    non_negative(c.econ.op_per_capita, "econ.op_per_capita");
+
+    non_negative(c.pop.growth_rate, "pop.growth_rate");
+    share(c.pop.shrink_rate, "pop.shrink_rate");
+    non_negative(c.pop.growth_factor_min, "pop.growth_factor_min");
+    require(c.pop.growth_factor_max >= c.pop.growth_factor_min, "pop.growth_factor_max must be at least pop.growth_factor_min");
+    non_negative(c.pop.happiness_drain, "pop.happiness_drain");
+    non_negative(c.pop.p_base, "pop.p_base");
+    non_negative(c.pop.p_happy, "pop.p_happy");
+    non_negative(c.pop.contraband_penalty, "pop.contraband_penalty");
+    positive(static_cast<double>(c.pop.contraband_window), "pop.contraband_window");
+
+    non_negative(c.lux.consumption, "lux.consumption");
+    positive(c.lux.max_fill, "lux.max_fill");
+    non_negative(c.lux.variety_min, "lux.variety_min");
+
+    positive(c.prod.efficiency_high, "prod.efficiency_high");
+    positive(c.prod.efficiency_medium, "prod.efficiency_medium");
+    positive(c.prod.efficiency_low, "prod.efficiency_low");
+    non_negative(c.prod.labour_per_capita, "prod.labour_per_capita");
+    share(c.prod.labour_shift, "prod.labour_shift");
+
+    share(c.event.drought_p, "event.drought_p");
+    positive(static_cast<double>(c.event.drought_days), "event.drought_days");
+    share(c.event.bumper_p, "event.bumper_p");
+    positive(static_cast<double>(c.event.bumper_days), "event.bumper_days");
+    positive(c.event.bumper_mult, "event.bumper_mult");
+    share(c.event.festival_p, "event.festival_p");
+    positive(static_cast<double>(c.event.festival_days), "event.festival_days");
+    positive(c.event.festival_mult, "event.festival_mult");
+    share(c.event.region_drought_p, "event.region_drought_p");
+
+    non_negative(c.osmosis.range_days, "osmosis.range_days");
+    non_negative(c.osmosis.rate, "osmosis.rate");
+    positive(c.osmosis.falloff, "osmosis.falloff");
+    share(c.osmosis.max_close, "osmosis.max_close");
+
+    non_negative(c.fuel.base, "fuel.base");
+    non_negative(c.fuel.fringe, "fuel.fringe");
+    positive(c.fuel.fringe_mult, "fuel.fringe_mult");
+
+    positive(c.travel.lattice_speed, "travel.lattice_speed");
+    positive(c.travel.space_speed, "travel.space_speed");
+    non_negative(c.travel.hop_days, "travel.hop_days");
+
+    require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
+    require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");
+    require(c.gen.planets >= 2 && c.gen.planets <= 10'000, "gen.planets must be 2 to 10,000");
+    require(c.gen.regions >= 1 && c.gen.regions <= c.gen.width * c.gen.height, "gen.regions must be 1 to the number of sectors");
+    require(c.gen.seats >= 1, "gen.seats must be at least 1");
+    share(c.gen.fringe_share, "gen.fringe_share");
+    non_negative(c.gen.lattice_loops, "gen.lattice_loops");
+    require(c.gen.min_producers >= 0, "gen.min_producers can't be negative");
+    non_negative(c.gen.start_treasury_months, "gen.start_treasury_months");
+    require(c.gen.warmup_days >= 0, "gen.warmup_days can't be negative");
+    share(c.gen.moon_share, "gen.moon_share");
+    require(c.gen.split_planets >= 2, "gen.split_planets must be at least 2");
+    positive(c.gen.pop_median, "gen.pop_median");
+    non_negative(c.gen.pop_spread, "gen.pop_spread");
+    non_negative(c.gen.region_pop_spread, "gen.region_pop_spread");
+    positive(c.gen.moon_pop, "gen.moon_pop");
+    share(c.gen.start_happiness, "gen.start_happiness");
+    require(c.gen.weight_spread >= 0 && c.gen.weight_spread < 1, "gen.weight_spread must be 0 to 1");
+    positive(c.gen.favour_mult, "gen.favour_mult");
 }
 
 std::string to_toml(const Config& config) {

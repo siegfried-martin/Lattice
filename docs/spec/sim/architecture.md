@@ -85,7 +85,10 @@ output so results are reproducible. Experiment switches (EXP) are config too.
 ### ARC-8 Metrics `v1`
 
 The runner writes **CSV**: one row per day (or per N days) per tracked series (per
-planet, per faction, world totals), plus an event log. A **Python script** plots runs and
+planet, per faction, world totals), plus an event log. *As built:* `series.csv` (day,
+series, id, value), `events.csv` (day, kind, id, detail), and the generated map
+(`sectors.csv`, `planets.csv`, `lattice_nodes.csv`, `lattice_edges.csv`). Series are
+named `planet.*`, `good.*` (id is the good) and `world.*` (id −1). A **Python script** plots runs and
 compares experiment groups. The series are listed by check (`checks.md`).
 
 ### ARC-9 Saves `v1`
@@ -99,6 +102,10 @@ map, not a seed to regenerate it from.
   only its own version. Saves made during development are disposable.
 - Config is stored by key, so adding a tunable doesn't need a version bump; a key
   missing from an old save takes its default.
+- Each record lists its saved fields once, in a `fields()` function beside its
+  definition (`model.hpp`); the writer and the reader both walk that list. Indices in a
+  loaded save are checked against the records they point at, so a bad save is rejected
+  rather than read out of bounds. Derived tables (MOD-1) are rebuilt after loading.
 
 ### ARC-10 World generation lives in C++ `v1`
 
@@ -124,7 +131,10 @@ sim/                    C++ core (static library), runner and tests
   CMakeLists.txt        presets: dev (Debug, ASan and UBSan), release
   include/lattice/      public headers: World, Config, the event queue, RNG, saves
   src/core/             the clock, queue, config, saves and world loop
-  src/<system>/         one directory per system (SYS), from MS-2
+  src/<area>/           one directory per area of systems (SYS): gen/ (world
+                        generation), economy/ (SYS-1 to SYS-5), trade/ (osmosis,
+                        merchants); internal headers live beside their sources
+  configs/              ready-made configs, such as v1.toml (the v1 world size)
   runner/               headless CLI, lattice-run
   tests/                doctest
   third_party/          vendored doctest and toml++

@@ -67,3 +67,13 @@ TEST_CASE("saves round-trip through a file") {
     std::remove(path.c_str());
     CHECK_THROWS_AS(load_world_file("/nonexistent/save.bin"), SaveError);
 }
+
+TEST_CASE("a save whose indices point nowhere is rejected (ARC-9)") {
+    World w = busy_world();
+    w.planets[0].group = 100000;
+    CHECK_THROWS_WITH_AS(load_world(save_world(w)), doctest::Contains("inconsistent"), SaveError);
+
+    World v = busy_world();
+    v.events.push({.time = v.now + kDay, .kind = EventKind::PlanetDay, .record = 100000});
+    CHECK_THROWS_WITH_AS(load_world(save_world(v)), doctest::Contains("inconsistent"), SaveError);
+}
