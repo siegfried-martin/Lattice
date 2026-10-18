@@ -21,6 +21,9 @@
 #include "lattice/market.hpp"
 #include "gen/worldgen.hpp"
 #include "trade/osmosis.hpp"
+#include "war/armies.hpp"
+#include "war/combat.hpp"
+#include "war/diplomacy.hpp"
 
 namespace lattice {
 
@@ -88,7 +91,7 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.events_active", -1, static_cast<double>(active));
 
     // Characters (CHK-16 to CHK-18).
-    std::array<std::int64_t, 6> by_activity{};
+    std::array<std::int64_t, kActivityCount> by_activity{};
     std::int64_t alive = 0, faction_merchants = 0, ships = 0;
     double wealth = 0, cargo = 0;
     for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
@@ -114,6 +117,7 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.chars_mission", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Mission)]));
     o.sample(t, "world.faction_merchants", -1, static_cast<double>(faction_merchants));
     o.sample(t, "world.chars_serving", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Serving)]));
+    o.sample(t, "world.chars_army", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Army)]));
 
     // Politics (CHK-1, CHK-3).
     std::int64_t roots = 0, factions = 0, sworn = 0;
@@ -144,6 +148,26 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.dues", -1, w.ledger.dues);
     o.sample(t, "world.authority_treasury", -1, w.authority.treasury);
     o.sample(t, "world.hires", -1, static_cast<double>(w.ledger.hires));
+
+    // War (CHK-5, CHK-6, CHK-8, CHK-20).
+    std::int64_t at_war = 0, armies = 0, besieged = 0;
+    double defence = 0;
+    for (const Relation& r : w.relations) at_war += diplomacy::state(w, r.a, r.b) == DipState::War;
+    for (const Army& a : w.armies) armies += a.alive;
+    for (const Planet& pl : w.planets) besieged += pl.siege != kNone, defence += pl.defence;
+    o.sample(t, "world.wars_now", -1, static_cast<double>(at_war));
+    o.sample(t, "world.armies", -1, static_cast<double>(armies));
+    o.sample(t, "world.besieged", -1, static_cast<double>(besieged));
+    o.sample(t, "world.static_defence", -1, defence);
+    o.sample(t, "world.security", -1, w.ledger.security);
+    o.sample(t, "world.wars", -1, static_cast<double>(w.ledger.wars));
+    o.sample(t, "world.ceasefires", -1, static_cast<double>(w.ledger.ceasefires));
+    o.sample(t, "world.battles", -1, static_cast<double>(w.ledger.battles));
+    o.sample(t, "world.sieges", -1, static_cast<double>(w.ledger.sieges));
+    o.sample(t, "world.captures", -1, static_cast<double>(w.ledger.captures));
+    o.sample(t, "world.reliefs", -1, static_cast<double>(w.ledger.reliefs));
+    o.sample(t, "world.deaths", -1, static_cast<double>(w.ledger.deaths));
+    o.sample(t, "world.power_destroyed", -1, w.ledger.power_destroyed);
     o.sample(t, "world.fires", -1, static_cast<double>(w.ledger.fires));
     o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
     o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);
@@ -224,6 +248,21 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             break;
         case EventKind::GovernorWeekly:
             governor::weekly(w, record, observer);
+            break;
+        case EventKind::ArmyMuster:
+            armies::muster_deadline(w, record, observer);
+            break;
+        case EventKind::ArmyArrive:
+            armies::on_arrive(w, record, static_cast<std::uint32_t>(e.a), observer);
+            break;
+        case EventKind::BattleRound:
+            combat::round(w, record, observer);
+            break;
+        case EventKind::SiegeRound:
+            armies::siege_round(w, record, observer);
+            break;
+        case EventKind::CallForHelp:
+            armies::call_for_help(w, record, static_cast<Id>(e.a), observer);
             break;
     }
 }

@@ -12,6 +12,7 @@
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
+#include "war/armies.hpp"
 
 namespace lattice::chars {
 
@@ -220,7 +221,16 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
         return;
     }
     if (c.activity == Activity::Mission) return;  // arrivals drive it
-
+    if (c.army != kNone) {
+        // Called to an army: go to the muster point and join (MIL-9).
+        const Army& a = w.armies[at(c.army)];
+        if (a.alive && a.action == ArmyAction::Muster && c.planet != a.home) {
+            if (!move::travel_to(w, id, a.home)) armies::member_arrived(w, id, observer);
+            return;
+        }
+        armies::member_arrived(w, id, observer);
+        return;
+    }
     // A sworn commander serves at its governor's planet (MIL-2): the governor sets the
     // objective, which in peacetime is the defence of home.
     const Id service = contracts::held(w, id, ContractKind::Service);
@@ -274,6 +284,9 @@ void landed(World& w, Id id, Observer* observer) {
             return;
         case Activity::Trading:
             wake(w, id, w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour));  // TRD-12: loading takes time
+            return;
+        case Activity::Army:
+            wake(w, id, w.now);
             return;
         default:
             c.activity = Activity::Idle;

@@ -18,4 +18,13 @@ Routes planet_routes(const World& world);
 // The vertices from planet a to planet b along the reference route, a first.
 std::vector<std::int32_t> path(const World& world, Id a, Id b);
 
+// A route from planet a to planet b that never enters or leaves the Lattice at a closed
+// node (WLD-12: gates shut to the traveller), though it may pass along the road through
+// one. Each step is a vertex and how it's reached; empty if there is no way.
+struct Step {
+    std::int32_t vertex;
+    LegKind via;
+};
+std::vector<Step> path_avoiding(const World& world, Id a, Id b, const std::vector<bool>& closed);
+
 }  // namespace lattice::travel

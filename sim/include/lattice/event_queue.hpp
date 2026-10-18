@@ -32,6 +32,11 @@ enum class EventKind : std::uint16_t {
     CourierArrive = 10,  // an automated courier run arrives; record is the run
     MissionExpire = 11,  // record is the mission
     GovernorWeekly = 12,  // a governor's weekly decisions (SYS-5, SYS-11, SYS-12); record is the planet
+    ArmyMuster = 13,   // an army's muster deadline (SYS-13); record is the army
+    ArmyArrive = 14,   // an army's leg ends; a = its travel sequence
+    BattleRound = 15,  // hourly (SYS-14); record is the battle
+    SiegeRound = 16,   // daily; record is the siege
+    CallForHelp = 17,  // a call for help reaches a liege; record is the siege, a the liege's planet
 };
 
 // One entry in the scheduled-event queue (MOD-11).

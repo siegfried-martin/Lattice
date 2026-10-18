@@ -10,6 +10,7 @@
 #include "info/facts.hpp"
 #include "lattice/market.hpp"
 #include "politics/fealty.hpp"
+#include "war/diplomacy.hpp"
 
 namespace lattice::merchant {
 
@@ -155,6 +156,7 @@ Plan best_trip(const World& w, const Character& c, Id root) {
     if (c.cargo_qty > 0) {
         for (Id b : near) {
             if (root != kNone && !fealty::same_faction(w, b, root) && !fealty::same_faction(w, here, root)) continue;
+            if (root != kNone && diplomacy::at_war(w, root, fealty::root_of(w, b))) continue;
             Plan p{.stops = {{here, kGoodCount}, {b, kGoodCount}}};
             finish(x, p, cargo_value(x, b));
             consider(best, p);
@@ -173,9 +175,13 @@ Plan best_trip(const World& w, const Character& c, Id root) {
         return best;
     }
 
-    // Faction merchant (TRD-3): trips start and end at a faction planet.
+    // Faction merchant (TRD-3): trips start and end at a faction planet, and never touch
+    // a faction at war with it (TRD-6).
     std::vector<Id> inside, outside;
-    for (Id b : near) (fealty::same_faction(w, b, root) ? inside : outside).push_back(b);
+    for (Id b : near) {
+        if (diplomacy::at_war(w, root, fealty::root_of(w, b))) continue;
+        (fealty::same_faction(w, b, root) ? inside : outside).push_back(b);
+    }
     if (!fealty::same_faction(w, here, root)) {
         // Away from home: the leg back in, carrying what pays.
         for (Id b : inside) {
@@ -225,6 +231,7 @@ namespace {
 void buy_for_leg(World& w, Id id, Good g, Id next, Observer*) {
     Character& c = w.characters[at(id)];
     if (g == kGoodCount || next == kNone) return;
+    if (c.cargo_qty > 0 && c.cargo_good != g) return;  // one good aboard at a time
     const ships::Fleet f = ships::fleet(w, c);
     const Ctx x{w, c, f.cargo, std::max(0.0, c.wealth - chars::reserve(w, c)), f.run_cost};
     Curve from = curve_at(x, c.planet, g, true);
@@ -290,19 +297,27 @@ void start(World& w, Id id, const Plan& plan, Observer* observer) {
 
 void at_stop(World& w, Id id, Observer* observer) {
     Character& c = w.characters[at(id)];
+    // A trip that ends here waits out the stop's docking time before the next decision,
+    // so no plan can repeat within an instant.
+    const Time docked = w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour) + 1;
     if (c.trip.empty() || c.trip.front().planet != c.planet) {
         // Not where the plan expected (it was replanned elsewhere): end the trip here.
         sell_cargo(w, id);
         end_trip(w, id);
-        chars::wake(w, id, w.now);
+        chars::wake(w, id, docked);
         return;
     }
     sell_cargo(w, id);
     const Good g = c.trip.front().buy;
     c.trip.erase(c.trip.begin());
+    // A faction merchant bound for an enemy turns for home instead (TRD-6).
+    const Id employer = employer_root(w, id);
+    if (!c.trip.empty() && employer != kNone && diplomacy::at_war(w, employer, fealty::root_of(w, c.trip.front().planet))) {
+        c.trip.clear();
+    }
     if (c.trip.empty()) {
         end_trip(w, id);
-        chars::wake(w, id, w.now);
+        chars::wake(w, id, docked);
         return;
     }
     buy_for_leg(w, id, g, c.trip.front().planet, observer);

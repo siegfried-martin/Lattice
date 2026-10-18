@@ -248,8 +248,8 @@ accept by SYS-8. Paid at trip end (REL-9).
 - No trip at `merchant.min_score` or better sends it to the nearest market it hasn't seen
   for `merchant.stale_days` (TRD-4), if it can afford the fuel and keep its reserve;
   otherwise it waits a day.
-- Escorts wait for risk (MS-6). With no pirates every route's risk is 0, so nobody
-  would hire.
+- Escorts wait for risk (MS-5, part 2). Until something raids, every route's risk is 0,
+  so nobody would hire.
 
 ### SYS-8 Missions and careers `v1`
 
@@ -423,6 +423,34 @@ winner accepts if offer × months > believed value of continuing
 
 Declarations, acceptances and ceasefire ends are facts that travel by courier (DIP-5).
 
+*As built (MS-5):*
+- **When:** weekly per root, and no declarations during the warm-up (GEN-10).
+- **Neighbours:** two factions border when any planet of one is within
+  `dip.neighbour_days` of a planet of the other.
+- **The vote's terms** *(proposed)*:
+  - idle = the governor's commanders at their posts ÷ `value.power_ref`;
+  - targets = the enemy's income within `dip.border_days` ÷ the governor's own income;
+  - strength = faction power (commanders and static defence) ÷ the target's, − 1;
+  - peace = faction income ÷ its income when the last war with this target ended, − 1;
+  - wars = wars now;
+  - losses = planets lost in them.
+  Strength and wealth are read from the world, not beliefs, until facts carry them.
+- **Suing** *(proposed)*:
+  - The score uses the shares of planets and power lost since the war began, the
+    treasury below zero against monthly income, and the wars at once.
+  - The offer is `dip.tribute_rate` × min(severity, 3) × income a month.
+  - The winner accepts when the offer covers what it has been taking: planets taken per
+    month × the loser's average planet income × `value.invade_months` ÷ 12.
+- **A ceasefire** stands down armies sent between the two. When it ends, peace records
+  each side's income for the next vote.
+- **Roots changing:**
+  - Relations are kept between roots.
+  - A new root (defection, or an heir) forgets anything left from an earlier time as a
+    root.
+  - The heir of a captured root inherits its wars (MOD-5).
+- **Not yet:** declarations take effect at once everywhere; travelling by courier
+  (DIP-5) comes with part 2.
+
 ## War
 
 ### SYS-13 Armies, invasions, sieges and capture `v1`
@@ -449,6 +477,45 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   or grant (SYS-11). Prosperity, `N × P`, falls with it and recovers through ordinary
   economics.
 
+*As built (MS-5, part 1):*
+- **Commissioning:** an invasion is a budget option for a governor whose faction is at
+  war. It is one unit for the best enemy planet within `dip.border_days`:
+  - value = P(win) × the target's monthly income × (`value.invade_months`, plus
+    `value.gate_months` for a gate holder, less `value.aftermath_months`);
+  - cost = the stipends of the commanders it would use over about two weeks plus travel;
+  - P(win) = A² ÷ (A² + D²), where A is its own commanders at their posts plus half its
+    vassals', and D is the target's static defence plus its sworn commanders at home.
+  One campaign at a time.
+- **Muster:** a vassal answers the call if its opinion of the liege is at least 0, a
+  deed either way. Its commanders leave after the courier's travel time, go to the
+  commissioner's planet and join. The army leaves when everyone called has arrived, or
+  after `army.muster_days` without the stragglers.
+- **Moving:** the army moves as one, on the route for its faction (gates of enemies
+  shut, WLD-13), at its slowest member's speed. Each fleet pays its own fuel. Armies
+  don't fight on the way yet.
+- **Siege:**
+  - On arrival, the defender's commanders at home fight with the static defence beside
+    them; the static defence takes no damage while ships remain.
+  - Then daily rounds trade damage between the army and the static defence. The army
+    retreats by SYS-14's rule.
+  - Static defence at zero with no defenders is capture. A battle at the planet pauses
+    the siege.
+- **Calls for help:**
+  - A siege sends a call to the planet's liege, arriving after the reference travel time.
+  - The liege sends its own commanders at home as relief when P(win) against the
+    besiegers is at least a third (a deed, `help_sent`). Otherwise the call is a missed
+    deed and goes on up the tree.
+  - Relief fights the besiegers beside the planet's defence. A lifted siege is a
+    `border_held` deed for the planet's governor.
+  - A liege answers calls in the order they arrive, not by favour yet.
+- **Capture:**
+  - The deposed governor stays as an ordinary character; contracts it paid end.
+  - The planet's vassals stay with the old faction: under its liege, or, if it was the
+    root, under its most populous vassal, which becomes the root and inherits the wars.
+  - Keep or grant runs from the commissioner. The keeper chooses the new governor from
+    the army and its own commanders.
+  - Its security spending restarts at zero, so a fresh conquest is weakly held.
+
 ### SYS-14 Combat resolution `v1`
 
 *Implements:* MIL-13, CHR-15. *Cadence:* battle rounds hourly.
@@ -463,11 +530,22 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 ```
 
 - **Pods:** each destroyed character's pod dies with probability `pod.death_p` (CHR-15).
+  *As built (MS-5):* a surviving pod lands at the nearest planet whose faction isn't at
+  war with the pilot's, and every contract that needed the fleet ends (CHR-16).
 - **Cargo:** a destroyed merchant's cargo is destroyed with share `combat.cargo_destroyed`;
   a raiding winner takes up to its capacity from the rest; the remainder is lost (a sink,
   MIL-15).
 - *(later)* Calibrate `combat.lethality` and `combat.noise` against rendered combat
   (OPN-23).
+
+*As built (MS-5):*
+- **Damage:** damage below a ship's combat power carries over to the next round.
+  Zero-power ships go at the first damage.
+- **Retreat:** the side's risk tolerance is its strongest fleet's. A retreating side
+  pays `combat.retreat_loss` of its remaining power as damage, then leaves.
+- **Static defence** never retreats; the planet's defenders can.
+- **Accounting:** losses go into the war ledger, and destroyed cargo into the goods
+  ledger.
 
 ## Information
 

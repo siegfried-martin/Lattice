@@ -4,6 +4,7 @@
 #include "politics/budget.hpp"
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
+#include "war/diplomacy.hpp"
 
 namespace lattice::governor {
 
@@ -23,6 +24,7 @@ void schedule(World& w) {
 }
 
 void weekly(World& w, Id planet, Observer* observer) {
+    diplomacy::root_weekly(w, planet, observer);
     fealty::adjust_tribute(w, planet, observer);
     fealty::check_defection(w, planet, observer);
     budget::weekly(w, planet, observer);
@@ -46,7 +48,13 @@ void monthly(World& w, Id planet, Observer* observer) {
     w.ledger.maintenance += upkeep;
     w.ledger.money_sunk += upkeep;
 
+    // Security (ECO-4, MIL-5): patrols and static defence, a sink.
+    p.treasury -= p.security;
+    w.ledger.security += p.security;
+    w.ledger.money_sunk += p.security;
+
     fealty::pay_tribute(w, planet, observer);
+    if (p.liege == kNone) diplomacy::pay_ceasefire(w, planet, observer);
     budget::pay_stipends(w, planet, observer);
     if (p.liege == kNone) merchant::pay_salaries(w, planet, observer);
 }

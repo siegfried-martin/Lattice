@@ -22,6 +22,7 @@ Id sign(World& w, ContractKind kind, Id employer, Id employee, double pay, Time 
 }
 
 void end(World& w, Id id) {
+    if (id == kNone) return;  // already ended (a deposed employer, a lost fleet)
     Contract& k = w.contracts[at(id)];
     if (!k.alive) return;
     k.alive = false;

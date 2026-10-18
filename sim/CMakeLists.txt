@@ -43,6 +43,9 @@ add_library(lattice_core STATIC
     src/politics/governor.cpp
     src/politics/opinion.cpp
     src/trade/merchants.cpp
+    src/war/armies.cpp
+    src/war/combat.cpp
+    src/war/diplomacy.cpp
     src/economy/economy.cpp
     src/economy/events.cpp
     src/economy/market.cpp
@@ -73,6 +76,7 @@ if(LATTICE_BUILD_TESTS)
         tests/test_economy.cpp
         tests/test_characters.cpp
         tests/test_politics.cpp
+        tests/test_war.cpp
     )
     set_target_properties(lattice-tests PROPERTIES CXX_EXTENSIONS OFF)
     target_include_directories(lattice-tests SYSTEM PRIVATE third_party/doctest)

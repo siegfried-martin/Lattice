@@ -19,6 +19,7 @@ enum class Stream : std::uint8_t {
     Events = 2,  // world events (SYS-4)
     Characters = 3,  // generation and spawning (SYS-18)
     Missions = 4,    // posting (SYS-8, SYS-15)
+    Combat = 5,      // battle noise and pods (SYS-14)
     Count
 };
 

@@ -5,6 +5,34 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-5 part 1, war
+
+- **Correction:** escorts come with risk in MS-5, not MS-6 as MS-3's entry said; MS-5's
+  scope already lists them.
+- **Diplomacy:**
+  - weekly war vote and suing with first-guess weights;
+  - no declarations in the warm-up;
+  - relations between roots, forgotten by a new root and inherited by a captured root's
+    heir;
+  - declarations take effect at once until DIP-5 is built (SYS-12).
+- **Combat:** damage carries between rounds; zero-power ships go first; the strongest
+  fleet's risk tolerance sets the retreat point; pods land at the nearest planet not at
+  war with the pilot (SYS-14).
+- **Defence:**
+  - static defence is a budget option bought in units of monthly security spend;
+  - defence and invasions are worth more at war and on the border;
+  - static defence rebuilds daily when not besieged (MIL-5, SYS-5).
+- **Invasions:**
+  - a one-unit budget option on P(win) = A² ÷ (A² + D²);
+  - vassals answer by opinion;
+  - armies move as one around enemy gates;
+  - static defence is only damaged once the defending ships are gone;
+  - relief goes at P(win) of at least a third, or the call goes up the tree;
+  - keep or grant scores protection by travel days (SYS-13, FAC-8, FAC-9).
+- **Capture of a root:** its most populous vassal becomes the root, with the wars.
+- **Goods ledger:** capture losses and destroyed cargo are recorded. A merchant carries
+  one good at a time.
+
 ### 2026-10-18 · MS-4, politics
 
 - **Opinion** fades lazily (the same as a weekly pass) and keeps the last

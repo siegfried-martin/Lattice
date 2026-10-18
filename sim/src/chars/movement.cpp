@@ -6,6 +6,8 @@
 #include "chars/characters.hpp"
 #include "chars/ships.hpp"
 #include "core/travel.hpp"
+#include "politics/fealty.hpp"
+#include "war/diplomacy.hpp"
 
 namespace lattice::move {
 
@@ -33,17 +35,17 @@ double leg_days(const World& w, const Leg& l, double speed) {
 
 }  // namespace
 
+namespace {
+
 // Open-space and hop-lane steps one by one, consecutive Lattice edges merged into one
 // transit (TIM-5).
-std::vector<Leg> route_legs(const World& w, Id a, Id b) {
+std::vector<Leg> build(const World& w, const std::vector<travel::Step>& steps) {
     std::vector<Leg> out;
-    const std::vector<std::int32_t> verts = travel::path(w, a, b);
-    if (verts.size() < 2) return out;
+    if (steps.size() < 2) return out;
     const auto np = static_cast<std::int32_t>(w.planets.size());
-    const std::size_t n = w.planets.size() + w.map.nodes.size();
-    for (std::size_t i = 1; i < verts.size(); ++i) {
-        const std::int32_t u = verts[i - 1], v = verts[i];
-        const auto kind = static_cast<LegKind>(w.derived.route_via[at(a) * n + at(v)]);
+    for (std::size_t i = 1; i < steps.size(); ++i) {
+        const std::int32_t u = steps[i - 1].vertex, v = steps[i].vertex;
+        const LegKind kind = steps[i].via;
         const auto [x0, y0] = vertex_pos(w, u);
         const auto [x1, y1] = vertex_pos(w, v);
         const Id to_planet = v < np ? v : kNone;
@@ -58,6 +60,46 @@ std::vector<Leg> route_legs(const World& w, Id a, Id b) {
                        .lattice_length = kind == LegKind::Lattice ? std::hypot(x1 - x0, y1 - y0) : 0});
     }
     return out;
+}
+
+}  // namespace
+
+std::vector<Leg> route_legs(const World& w, Id a, Id b) {
+    const std::vector<std::int32_t> verts = travel::path(w, a, b);
+    const std::size_t n = w.planets.size() + w.map.nodes.size();
+    std::vector<travel::Step> steps;
+    for (std::int32_t v : verts) steps.push_back({v, static_cast<LegKind>(w.derived.route_via[at(a) * n + at(v)])});
+    return build(w, steps);
+}
+
+std::vector<Leg> plan(const World& w, Id faction, Id a, Id b) {
+    std::vector<Leg> legs = route_legs(w, a, b);
+    if (faction == kNone) return legs;
+    const std::vector<Id> enemies = diplomacy::enemies(w, faction);
+    if (enemies.empty()) return legs;
+    std::vector<bool> closed(w.map.nodes.size(), false);
+    bool any = false;
+    for (Id n = 0; n < static_cast<Id>(w.map.nodes.size()); ++n) {
+        const LatticeNode& node = w.map.nodes[at(n)];
+        if (node.kind != NodeKind::Interchange) continue;  // junctions have only the Authority's key (OPN-22)
+        const Id holder_root = fealty::root_of(w, w.map.groups[at(node.group)].holder);
+        closed[at(n)] = std::find(enemies.begin(), enemies.end(), holder_root) != enemies.end();
+        any = any || closed[at(n)];
+    }
+    if (!any) return legs;
+    // Does the reference route get on or off at a shut gate?
+    bool blocked = false;
+    for (std::size_t i = 0; i < legs.size(); ++i) {
+        if (legs[i].kind != LegKind::Space) continue;
+        if (legs[i].to_node != kNone && closed[at(legs[i].to_node)]) blocked = true;
+        if (i > 0 && legs[i - 1].kind == LegKind::Lattice && legs[i - 1].to_node != kNone && closed[at(legs[i - 1].to_node)]) blocked = true;
+    }
+    if (!blocked) return legs;
+    return build(w, travel::path_avoiding(w, a, b, closed));
+}
+
+Time leg_time(const World& w, const Leg& l, double speed) {
+    return to_time(leg_days(w, l, speed > 0 ? speed : w.config.travel.space_speed));
 }
 
 namespace {
@@ -83,7 +125,7 @@ void start_leg(World& w, Id id) {
 bool travel_to(World& w, Id id, Id dest) {
     Character& c = w.characters[at(id)];
     if (c.planet == kNone || c.planet == dest) return false;
-    std::vector<Leg> route = route_legs(w, c.planet, dest);
+    std::vector<Leg> route = plan(w, chars::faction_of(w, c), c.planet, dest);
     if (route.empty()) return false;
     c.route = std::move(route);
     c.leg = 0;
