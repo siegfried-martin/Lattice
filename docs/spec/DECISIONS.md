@@ -5,6 +5,25 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-4, politics
+
+- **Opinion** fades lazily (the same as a weekly pass) and keeps the last
+  `rel.recent_deeds` deeds per relationship (SYS-10).
+- **Tribute** is paid at the vassal's monthly payment on its income since the last one,
+  cascading; the liege's tools are rules: raise on the loyal when in the red, lower for
+  the wavering, each a deed, with `deed.tribute_lowered` new (SYS-11, FAC-12).
+- **Defection** goes to the rival root that thinks best of the defector within
+  `fealty.threat_days`, else independence; a "not set" time is now `kNever`, not −1
+  (SYS-11).
+- **Budget:** commanders and patronage as unit options valued in money per month, with
+  the `value.*` heuristics; risk eases diminishing returns as
+  `budget.diminishing ^ (1 − risk ÷ 2)`; the existing commanders are funded first
+  (SYS-5, SYS-9). Every value is a first guess for Phase A.
+- **Commanders** serve at their governor's planet in peacetime; starting commanders are
+  one gunship each, up to `gen.commanders_per_income` × income (GEN-9).
+- **Dues** at each planet's monthly payment; the Authority keeps its surplus until it
+  can hire mercenaries (SYS-20).
+
 ### 2026-10-18 · MS-3, characters, movement, information and trade
 
 - **Order:** fealty trees (GEN-8) and governors (GEN-9) are built in MS-3, ahead of MS-4,

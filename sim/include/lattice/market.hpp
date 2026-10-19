@@ -17,6 +17,14 @@ double price(const Config& c, const Planet& p, Good g);
 inline double ask(const Config& c, const Planet& p, Good g) { return price(c, p, g) * (1 + c.price.spread / 2); }
 inline double bid(const Config& c, const Planet& p, Good g) { return price(c, p, g) * (1 - c.price.spread / 2); }
 
+// Money the planet earns (sales and tax, ECO-3): into the treasury and its income
+// counts (the credit limit's average, and the month's income that tribute is paid on).
+inline void receive(Planet& p, double money) {
+    p.treasury += money;
+    p.income_today += money;
+    p.income_month += money;
+}
+
 // A planet whose treasury is below its credit limit (econ.credit_limit months of
 // income in the red) stops buying from traders.
 bool can_buy(const Config& c, const Planet& p);

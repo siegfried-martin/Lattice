@@ -380,6 +380,7 @@ void pay_salaries(World& w, Id root, Observer*) {
         if (!ct.alive || ct.kind != ContractKind::MerchantSalary || ct.employer != governor) continue;
         p.treasury -= ct.pay;
         chars::earn(w.characters[at(ct.employee)], ct.pay, false);
+        w.ledger.salaries += ct.pay;
     }
 }
 

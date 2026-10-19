@@ -8,6 +8,7 @@
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
+#include "politics/opinion.hpp"
 
 namespace lattice::missions {
 
@@ -53,14 +54,6 @@ void post_courier(World& w, Id liege, Id vassal, Observer* observer) {
           .posted = w.now,
           .expires = w.now + c.courier.interval_days * kDay},
          observer);
-}
-
-void schedule(World& w) {
-    const auto n = static_cast<std::int64_t>(w.planets.size());
-    const Time week = w.config.time.budget_days * kDay;
-    for (std::int64_t p = 0; p < n; ++p) {
-        w.events.push({.time = stagger(week, p, n), .phase = Phase::Cadence, .kind = EventKind::RootWeekly, .record = p, .period = week});
-    }
 }
 
 // A faction scouts for trade: prices in neutral territory no single planet would pay to
@@ -186,6 +179,7 @@ void arrived(World& w, Id id, Observer* observer) {
     ++c.missions_done;
     c.reputation += 1;  // REL-7: grows with missions completed (OPN-11)
     contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
+    opinion::deed(w, m.poster, id, DeedKind::JobDone, observer);  // REL-3: a job done well under contract
     ++w.ledger.missions_done;
     if (observer) observer->log(w.now, "mission.done", c.mission, "by " + std::to_string(id));
     c.mission = kNone;

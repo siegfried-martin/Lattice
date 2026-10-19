@@ -139,6 +139,10 @@ factions start at peace.
 
 Risk tolerance for all from `char.risk_dist`.
 
+*As built (MS-4):* each governor starts with commanders sworn to it: characters with one
+first-tier gunship each, enough that their combat power reaches
+`gen.commanders_per_income` × the planet's monthly income, at the full stipend.
+
 *As built (MS-3):* governors and the bottom rung, placed by population. A governor's risk
 tolerance sets its planet's growth factor (PRD-3). Commanders, faction merchants and
 pirates wait for their milestones; faction merchants are hired from the bottom rung by

@@ -76,7 +76,8 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `budget.debt_pressure` | Cost multiplier per month in the red | 0.1 |
 | `fuel.base`, `fuel.fringe`, `fuel.burn` | Fuel price and use (GEN-7, SYS-21); `fuel.burn` is per sector width of Lattice travel per ship (a sector width is about a Lattice km at the prototype's scale) | 2, 1.0, 1 |
 | `fuel.fringe_mult` | Fuel price multiplier off the network (GEN-7) *(proposed, MS-2)* | 1.5 |
-| `value.*` | Option value heuristics for the budget model (SYS-5) | set in MS-4 |
+| `value.defence`, `value.power_ref` | A fleet of `power_ref` combat power is worth `defence` of the governor's monthly income per month (SYS-5) *(proposed, MS-4)* | 0.01, 10 |
+| `value.patronage_months` | Patronage is worth this many months of the tribute it keeps flowing (SYS-5) *(proposed, MS-4)* | 12 |
 
 ## Travel (TIM-4)
 
@@ -135,9 +136,12 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `hire.w_power`, `hire.w_opinion`, `hire.w_culture` | Hiring weights | 1, 0.05, 0.5 |
 | `rel.fade` | Weekly share of opinion lost toward rest | 0.03 |
 | `rel.culture_rest` | Rest shift from culture share | 20 |
-| `deed.*` | Opinion change per deed (REL-3) | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30 |
+| `rel.recent_deeds` | Deeds kept per relationship for the UI (REL-12) *(proposed, MS-4)* | 3 |
+| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)* |
 | `fealty.cascade` | Tribute cascades (FAC-6) | true |
 | `fealty.tribute_rate` | Starting tribute rate | 0.15 |
+| `fealty.rate_step`, `fealty.rate_min`, `fealty.rate_max` | How far a liege moves a tribute rate at once, and its bounds (FAC-12) *(proposed, MS-4)* | 0.05, 0, 0.5 |
+| `fealty.raise_opinion` | A liege in the red raises tribute only on vassals at least this loyal (FAC-12) *(proposed, MS-4)* | 20 |
 | `fealty.defect_opinion`, `fealty.defect_weeks` | Defection threshold and duration | −30, 8 |
 | `fealty.threat_days`, `fealty.rival_opinion` | Independence safety, rival offer threshold | 10, 20 |
 | `fealty.w_favor`, `fealty.capture_bonus` | Keep-or-grant and governor choice weights | 1, 30 |
@@ -192,7 +196,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `gen.lattice_loops` | Extra edges beyond the spanning tree | 0.3 |
 | `gen.min_producers` | Producers per good per region | 2 |
 | `gen.independent_share`, `gen.pirate_planets` | Starting independents and pirate planets | 0.1, 2 |
-| `gen.commanders_per_income` | Starting commanders | set in MS-4 |
+| `gen.commanders_per_income` | Starting combat power sworn to a governor per credit of its planet's monthly income (GEN-9) *(proposed, MS-4)* | 0.00001 |
 | `gen.start_treasury_months`, `gen.warmup_days` | Starting treasury, warm-up | 3, 180 |
 | `gen.moon_share` | Share of planets with one to three moons (WLD-4) | 0.25 |
 | `gen.split_planets` | Planets in a system that make it two groups (GEN-3) *(proposed, MS-2)* | 4 |

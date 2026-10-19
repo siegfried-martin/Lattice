@@ -175,6 +175,11 @@ struct Planet {
     Id governor = kNone;  // character
     Id liege = kNone;     // the planet whose governor this one's governor is sworn to; none for a root
     std::vector<Id> missions{};  // mission board (MOD-9): open missions posted here
+    double tribute_rate = 0;     // set by its liege (FAC-6)
+    double income_month = 0;     // own income since its last payment (sales and tax)
+    double tribute_month = 0;    // tribute received since its last payment
+    double tribute_paid = 0;     // its last payment's tribute, as its liege saw it
+    Time low_since = kNever;     // its governor's opinion of the liege below fealty.defect_opinion since
 };
 template <class Ar, record_of<Planet> P>
 void fields(Ar& ar, P& p) {
@@ -182,7 +187,39 @@ void fields(Ar& ar, P& p) {
     ar(p.population, p.happiness, p.productivity, p.growth_factor, p.contraband_avg);
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
     ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
-    ar(p.governor, p.liege, p.missions);
+    ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
+}
+
+// ---- Relationships (REL-2, REL-3, SYS-10) ----
+
+// What happened (REL-3). Append only.
+enum class DeedKind : std::uint8_t {
+    HelpSent = 0, HelpMissed = 1, PlanetGranted = 2, Patronage = 3, TributeRaised = 4, PassedOver = 5,
+    CallAnswered = 6, CallRefused = 7, BorderHeld = 8, JobDone = 9, Attacked = 10, TributeLowered = 11,
+};
+inline constexpr int kDeedKindCount = 12;
+
+struct Deed {
+    DeedKind kind = DeedKind::JobDone;
+    double amount = 0;
+    Time time = 0;
+};
+template <class Ar, record_of<Deed> D>
+void fields(Ar& ar, D& d) {
+    ar(d.kind, d.amount, d.time);
+}
+
+// One character's opinion of another. The value drifts toward its resting point as
+// time passes; it's brought up to date whenever it's read or moved (SYS-10).
+struct Opinion {
+    Id of = kNone;  // the character it's about
+    double value = 0;
+    Time updated = 0;
+    std::vector<Deed> recent{};  // the last few, for the UI (REL-12)
+};
+template <class Ar, record_of<Opinion> O>
+void fields(Ar& ar, O& o) {
+    ar(o.of, o.value, o.updated, o.recent);
 }
 
 // ---- Facts (MOD-8, INF-2) ----
@@ -235,6 +272,7 @@ enum class Activity : std::uint8_t {
     Trading = 2,    // on a trip (SYS-7)
     Exploring = 3,  // moving to look at another market (TRD-4)
     Mission = 4,    // on a mission (SYS-8)
+    Serving = 5,    // a sworn commander at its post (MIL-2)
 };
 
 // The kinds of mission and skill (CHR-10). Append only.
@@ -270,6 +308,8 @@ struct Character {
 
     // Work.
     Activity activity = Activity::Idle;
+    std::vector<Opinion> opinions{};  // sorted by who it's about (REL-2)
+    double authority_opinion = 0;     // the Trade Authority's opinion of it: its standing (FAC-14)
     Id governs = kNone;                    // the planet it governs (FAC-1)
     std::vector<Id> contracts{};           // MOD-4
     Id mission = kNone;                    // the mission it's on
@@ -292,7 +332,7 @@ struct Character {
     Facts facts;
     Time last_meet = -kDay;  // last fact merge in open space (SYS-15)
     Time idle_since = 0;
-    Time broke_since = -1;   // below zero since (PIR-4); -1 when solvent
+    Time broke_since = kNever;  // below zero since (PIR-4); kNever when solvent
     std::uint32_t wake_seq = 0;  // only the latest scheduled decision runs
     Time salary_checked = -kDay * 365;  // last weighed a merchant salary (SYS-9)
 };
@@ -300,7 +340,8 @@ template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
     ar(c.name, c.culture, c.alive, c.risk, c.wealth, c.ships, c.born);
     ar(c.planet, c.last_planet, c.route, c.leg, c.travel_seq);
-    ar(c.activity, c.governs, c.contracts, c.mission, c.skills, c.reputation, c.missions_done);
+    ar(c.activity, c.opinions, c.authority_opinion, c.governs, c.contracts, c.mission, c.skills, c.reputation,
+       c.missions_done);
     ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
     ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked);
 }
@@ -403,12 +444,28 @@ struct Ledger {
     std::int64_t trips = 0;
     std::int64_t detections = 0, meetings_shared = 0;
     std::int64_t missions_posted = 0, missions_done = 0, missions_expired = 0;
+    // Politics (MS-4).
+    double tribute = 0, patronage = 0, stipends = 0, salaries = 0, dues = 0, maintenance = 0;
+    std::int64_t defections = 0, hires = 0, fires = 0, tribute_changes = 0;
 };
 template <class Ar, record_of<Ledger> L>
 void fields(Ar& ar, L& l) {
     ar(l.money_created, l.money_sunk, l.osmosis_volume, l.osmosis_margin, l.produced, l.consumed);
     ar(l.money_spawned, l.running_costs, l.fuel, l.ships_bought, l.courier_runs, l.traded, l.trade_profit, l.trips);
     ar(l.detections, l.meetings_shared, l.missions_posted, l.missions_done, l.missions_expired);
+    ar(l.tribute, l.patronage, l.stipends, l.salaries, l.dues, l.maintenance, l.defections, l.hires, l.fires,
+       l.tribute_changes);
+}
+
+// ---- The Trade Authority (FAC-13, FAC-14, SYS-20) ----
+
+// Not a fealty tree and holds no planets: a treasury fed by dues.
+struct Authority {
+    double treasury = 0;
+};
+template <class Ar, record_of<Authority> A>
+void fields(Ar& ar, A& a) {
+    ar(a.treasury);
 }
 
 }  // namespace lattice

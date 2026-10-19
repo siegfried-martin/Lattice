@@ -150,6 +150,28 @@ with the systems that pay them.
 Starting value heuristics for options are in `tunables.md` under `value.*`. They're the
 first thing Phase A tunes.
 
+*As built (MS-4):*
+- **When:** weekly per governor.
+- **Units:** costs and values are per month. Monthly income is the planet's daily income
+  average × `time.payment_days`.
+- **Options:**
+  - **Commanders.** Each sworn or candidate commander is a unit, costing its stipend
+    and worth `value.defence` × income × its combat power ÷ `value.power_ref`. Value and
+    stipend both scale with power, so how many are funded depends on income, not fleet
+    size. Sworn commanders come first, so they aren't churned.
+  - **Patronage** to each vassal in the red. A unit is a month of the vassal's operating
+    costs, worth the vassal's last tribute × `value.patronage_months` ×
+    (1 + `fealty.w_favor` × favor ÷ 100), up to clearing the deficit.
+- **Funding:** units are funded best value per cost first, while value covers cost and
+  money lasts. Each further unit of an option is worth `budget.diminishing ^ (1 − risk
+  ÷ 2)` times the last, so the boldest ruler's units fall off at the square root of the
+  cautious one's rate.
+- **Commanders not funded are let go.** A funded candidate gets an offer of
+  `hire.stipend_per_power` × combat power, and takes it if that beats its running
+  average of earnings.
+- **Later options:** patrols, policing, missions and invasions join with MS-5 and MS-6.
+  Merchant salaries stay a fixed offer for now.
+
 ### SYS-6 Osmosis `v1`
 
 *Implements:* TRD-13. *Cadence:* daily.
@@ -297,6 +319,14 @@ accept by SYS-8. Paid at trip end (REL-9).
 - **Ending:** either side ends a contract when it stops paying for them (REL-8). Losing
   the fleet ends service contracts automatically (CHR-16).
 
+*As built (MS-4):*
+- **Candidates:** armed characters at planets within `hire.range_days` (reference
+  travel), not on a mission, with no service or salary contract. They're known because
+  they're near.
+- **Sworn commanders** go to their governor's planet and serve there; in peacetime the
+  objective is home defence. They're paid monthly, and their stipend follows their
+  combat power each week.
+
 ### SYS-10 Relationships `v1`
 
 *Implements:* REL-2, REL-3. *Cadence:* deeds on events; fade weekly.
@@ -310,6 +340,13 @@ rest        = 0, or for a vassal's opinion of its liege:
 ```
 
 Each character stores its last few deeds per relationship for the UI (REL-12).
+
+*As built (MS-4):*
+- **Storage:** opinions are a sorted list per holder. The weekly fade is applied lazily,
+  as `(1 − rel.fade)` to the power of the weeks since the opinion last changed, whenever
+  it's read or moved. The same thing as a weekly pass, without one.
+- **Deeds in use so far:** patronage, tribute raised and lowered, and job done (a
+  mission's poster about its taker). The rest arrive with war and piracy.
 
 ### SYS-11 Fealty, tribute, patronage and defection `v1`
 
@@ -336,6 +373,25 @@ tribute_paid = tribute_rate × (own income + tribute received if fealty.cascade)
 - **Choosing the governor** *(proposed)*: candidates the keeper knows (its commanders and
   characters with a contract in its tree), scored
   `rep + opinion + fealty.capture_bonus if they led the capture`.
+
+*As built (MS-4):*
+- **Tribute:**
+  - It's paid at the vassal's monthly payment, on its own income since the last payment
+    (sales and tax) plus, with the cascade, the tribute it received.
+  - Received tribute counts as the liege's income for its credit limit.
+  - Starting rates are `fealty.tribute_rate`; a planet that swears fealty later starts
+    there too.
+- **The liege's tools** *(proposed)*: weekly, for each vassal:
+  - in the red, it raises tribute by `fealty.rate_step` on vassals at least
+    `fealty.raise_opinion` loyal (a bad deed);
+  - it lowers tribute for vassals below half `fealty.defect_opinion` (a good deed,
+    `deed.tribute_lowered`).
+- **Defection:**
+  - A rival is a root within `fealty.threat_days` (reference travel) whose governor
+    thinks better of the defector than `fealty.rival_opinion`; the defector picks the
+    one that thinks best of it.
+  - Otherwise it goes independent. With no armies before MS-5, nothing threatens it.
+- **Keep or grant and choosing a governor** arrive with capture (MS-5).
 
 ### SYS-12 Diplomacy `v1` `proposed`
 
@@ -526,6 +582,9 @@ it on visit and share it as a fact.
 *Implements:* FAC-13, FAC-14, ECO-10. *Cadence:* monthly.
 
 Collects `dues.access` from every lawful planet and `dues.gate` from gate holders.
+*As built (MS-4):* each planet pays at its monthly payment; gate holders are the holders
+of on-network groups. The Authority's surplus builds up until mercenary contracts exist
+(MS-6).
 Spends `authority.maintenance` of income (a sink); the surplus funds mercenary contracts:
 hunting known pirate commanders and clearing the highest-risk sectors near the Lattice
 for `authority.clear_days`. Its opinion of a character rises with contracts completed and

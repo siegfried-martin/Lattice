@@ -48,6 +48,8 @@ after loading.
 | income average, income today | for the credit limit (SYS-3) |
 | tax rate | ECO-3 |
 | tribute rate | set by its liege (FAC-6) |
+| income this month, tribute received this month, last tribute paid | for tribute (FAC-6) and patronage (SYS-5) |
+| low since | when its governor's opinion of the liege fell below the defection threshold (FAC-11) |
 | growth factor | from governor's risk tolerance (PRD-3) |
 | patrol upkeep, policing spend | ECO-4, PIR-15 |
 | static defence | current strength, maximum (MIL-5) |
@@ -199,3 +201,9 @@ the simulation to it.
 A scheduled transit, not a ship (INF-8): from and to planets (the liege's and the
 vassal's), whether it is returning, and the copy of the facts it carries. Runs that have
 ended keep their slot with `alive = false` (ARC-2).
+
+### MOD-14 The Trade Authority `v1`
+
+Not a fealty tree and holds no planets (FAC-13): a treasury fed by dues, less what it
+spends on the network. Its opinion of each character is a field on the character
+(MOD-3).

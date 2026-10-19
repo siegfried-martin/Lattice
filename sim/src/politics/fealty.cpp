@@ -1,5 +1,8 @@
 #include "politics/fealty.hpp"
 
+#include "lattice/market.hpp"
+#include "politics/opinion.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <deque>
@@ -108,6 +111,80 @@ void make_trees(World& w) {
     const auto count = std::min<std::size_t>(
         leaves.size(), static_cast<std::size_t>(std::llround(w.config.gen.independent_share * static_cast<double>(w.planets.size()))));
     for (std::size_t i = 0; i < count; ++i) w.planets[at(leaves[i])].liege = kNone;
+    for (Planet& p : w.planets) p.tribute_rate = p.liege == kNone ? 0 : w.config.fealty.tribute_rate;
+}
+
+void pay_tribute(World& w, Id id, Observer*) {
+    Planet& p = w.planets[at(id)];
+    if (p.liege != kNone) {
+        const double base = p.income_month + (w.config.fealty.cascade ? p.tribute_month : 0);
+        const double tribute = p.tribute_rate * std::max(0.0, base);
+        Planet& liege = w.planets[at(p.liege)];
+        p.treasury -= tribute;
+        liege.treasury += tribute;
+        liege.income_today += tribute;  // income for the liege's credit limit (SYS-5)
+        liege.tribute_month += tribute;
+        p.tribute_paid = tribute;
+        w.ledger.tribute += tribute;
+    }
+    p.income_month = 0;
+    p.tribute_month = 0;
+}
+
+void adjust_tribute(World& w, Id id, Observer* observer) {
+    const Planet& liege = w.planets[at(id)];
+    const auto& f = w.config.fealty;
+    for (Id v : vassals(w, id)) {
+        Planet& vassal = w.planets[at(v)];
+        const double loyalty = opinion::get(w, vassal.governor, liege.governor);
+        if (liege.treasury < 0 && loyalty >= f.raise_opinion && vassal.tribute_rate < f.rate_max) {
+            vassal.tribute_rate = std::min(f.rate_max, vassal.tribute_rate + f.rate_step);
+            opinion::deed(w, vassal.governor, liege.governor, DeedKind::TributeRaised, observer);
+            ++w.ledger.tribute_changes;
+        } else if (loyalty < f.defect_opinion / 2 && vassal.tribute_rate > f.rate_min) {
+            vassal.tribute_rate = std::max(f.rate_min, vassal.tribute_rate - f.rate_step);
+            opinion::deed(w, vassal.governor, liege.governor, DeedKind::TributeLowered, observer);
+            ++w.ledger.tribute_changes;
+        }
+    }
+}
+
+void swear(World& w, Id id, Id liege) {
+    Planet& p = w.planets[at(id)];
+    p.liege = liege;
+    p.low_since = kNever;
+    p.tribute_rate = liege == kNone ? 0 : w.config.fealty.tribute_rate;
+}
+
+void check_defection(World& w, Id id, Observer* observer) {
+    Planet& p = w.planets[at(id)];
+    if (p.liege == kNone) return;
+    const auto& f = w.config.fealty;
+    const double loyalty = opinion::get(w, p.governor, w.planets[at(p.liege)].governor);
+    if (loyalty >= f.defect_opinion) {
+        p.low_since = kNever;
+        return;
+    }
+    if (p.low_since == kNever) p.low_since = w.now;
+    if (w.now - p.low_since < f.defect_weeks * 7 * kDay) return;
+
+    // The alternatives: a neighbouring root that thinks well of it, else independence
+    // when nothing nearby threatens it. Armies arrive in MS-5; until then nothing does.
+    const Id own_root = root_of(w, id);
+    Id rival = kNone;
+    double best = f.rival_opinion;
+    for (Id r = 0; r < static_cast<Id>(w.planets.size()); ++r) {
+        if (w.planets[at(r)].liege != kNone || r == own_root || r == id) continue;
+        if (w.derived.travel(id, r) > static_cast<double>(f.threat_days)) continue;
+        const double o = opinion::get(w, w.planets[at(r)].governor, p.governor);
+        if (o > best) best = o, rival = r;
+    }
+    const Id old = p.liege;
+    swear(w, id, rival);
+    ++w.ledger.defections;
+    if (observer) {
+        observer->log(w.now, "defection", id, "from " + std::to_string(old) + (rival == kNone ? " to independence" : " to root " + std::to_string(rival)));
+    }
 }
 
 }  // namespace lattice::fealty

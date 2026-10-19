@@ -252,6 +252,25 @@ void validate(const Config& c) {
     non_negative(c.space.meet_cooldown_hours, "space.meet_cooldown_hours");
     non_negative(c.fuel.burn, "fuel.burn");
     share(c.gen.independent_share, "gen.independent_share");
+    non_negative(c.gen.commanders_per_income, "gen.commanders_per_income");
+    share(c.rel.fade, "rel.fade");
+    require(c.rel.recent_deeds >= 0, "rel.recent_deeds can't be negative");
+    share(c.fealty.tribute_rate, "fealty.tribute_rate");
+    share(c.fealty.rate_step, "fealty.rate_step");
+    require(c.fealty.rate_min >= 0 && c.fealty.rate_max <= 1 && c.fealty.rate_min <= c.fealty.rate_max,
+            "fealty.rate_min and rate_max must be 0 <= min <= max <= 1");
+    require(c.fealty.defect_weeks >= 0, "fealty.defect_weeks can't be negative");
+    non_negative(c.budget.credit_risk, "budget.credit_risk");
+    require(c.budget.diminishing > 0 && c.budget.diminishing < 1, "budget.diminishing must be between 0 and 1");
+    non_negative(c.budget.debt_pressure, "budget.debt_pressure");
+    non_negative(c.value.defence, "value.defence");
+    positive(c.value.power_ref, "value.power_ref");
+    non_negative(c.value.patronage_months, "value.patronage_months");
+    non_negative(c.hire.range_days, "hire.range_days");
+    positive(c.hire.stipend_per_power, "hire.stipend_per_power");
+    non_negative(c.dues.access, "dues.access");
+    non_negative(c.dues.gate, "dues.gate");
+    share(c.dues.maintenance, "authority.maintenance");
 
     require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
     require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");

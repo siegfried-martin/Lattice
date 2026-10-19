@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <climits>
 
 namespace lattice {
 
@@ -11,6 +12,8 @@ inline constexpr Time kSecond = 1;
 inline constexpr Time kMinute = 60 * kSecond;
 inline constexpr Time kHour = 60 * kMinute;
 inline constexpr Time kDay = 24 * kHour;
+// "Not set" for a time that can be any value, before the start of the world included.
+inline constexpr Time kNever = INT64_MIN;
 
 // The day a time falls in, counting from day 0 at time 0.
 constexpr std::int64_t day_of(Time t) { return t / kDay; }
