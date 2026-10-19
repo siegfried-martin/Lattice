@@ -98,6 +98,8 @@ than that happiness would have raised it**.
 - **The population wants it:** it's the cheapest happiness there is. An unhappy
   population wants it more.
 - **The governor hates it:** the point of a happy population is productivity.
+- *(proposed, round 4)* **It's cheap to make** (PRD-7): what it costs is the risk of
+  dealing in it.
 - **It's bought from smugglers, untaxed,** so the treasury gets nothing, and the money
   leaves lawful space for the pirates who made it (PIR-6).
 - *(proposed)* Contraband demand saturates, so a planet doesn't reach the bottom too
@@ -118,8 +120,9 @@ top of it, and happiness itself can keep falling, raising the chance of rebellio
 ### PRD-7 Each planet makes three goods `v1`
 
 Each planet can make **three goods, at high, medium and low efficiency**. Output is
-population × labour share × efficiency × productivity; the planet owns it and it goes
-into the planet's market.
+population × labour share × productivity; the planet owns it and it goes into the
+planet's market. *(proposed, round 4)* Efficiency sets what each unit costs to make, not
+how many are made (below); before round 4 it multiplied output.
 
 - **Drawn partly regionally:** neighbouring planets tend to share strengths (a farming
   region, a water region). That's what makes long hauls pay and gives regions identity.
@@ -137,6 +140,25 @@ into the planet's market.
 *Why:* comparative advantage from geography. Opportunity comes from breadth and spatial
 separation, not chain length.
 
+*(proposed, round 4: built)* **Making goods costs money, and efficiency is that
+cost.** Every unit made costs the planet a share of the good's base price, for the
+materials and equipment it uses up: little at high efficiency, a lot at low. A slot
+makes as much per worker at any tier; the tier sets only what each unit costs.
+- **A slot works only when it pays:** on a day when the planet's own bid for the good
+  doesn't cover what a unit costs it, the slot makes nothing and its workers sit idle
+  (still eating, costing nothing).
+- **Prices find their floor at the cost of the cheapest producers,** not at a clamp: a
+  glut stops the dear producers first. Efficient planets export; a low-efficiency
+  planet makes a good only when it's scarce there, as an isolated world feeds itself,
+  dearly, when imports don't come.
+- **Contraband is cheap to make** (PRD-6): its cost is the risk of moving it.
+- **The cost is paid even in debt** (ECO-8), so a poor planet never stops growing its own
+  food for want of credit.
+- *Why:* production was free, so planets went on making goods that sold at a fifth of
+  their worth, and every market glutted at the price floor (round 3). A cost makes
+  efficiency readable ("this planet makes cheap water") and ties money to goods: money
+  is created when the population buys (ECO-1) and sunk when goods are made (ECO-5).
+
 ### PRD-8 Redundancy comes from geography `v1`
 
 At world build, every good has **at least two or three producers per culture region**.
@@ -149,7 +171,9 @@ faction can still lose a good by losing territory; that's the cost of losing it.
 ### PRD-9 Labour shifts toward what pays `v1`
 
 A planet splits its labour across its three goods and **shifts it slowly toward
-whichever pays best** (local price × efficiency). That's v1's role switching: already
+whichever pays best** (local price × efficiency). *(proposed, round 4)* What pays best is
+the margin a worker makes: local price less the cost of making a unit (PRD-7), × what a
+worker makes. That's v1's role switching: already
 damped, driven by price, and in both directions. When a good stays scarce, planets that
 can make it at medium or low efficiency shift toward it; when it gluts, they shift away.
 
@@ -188,7 +212,8 @@ Price-from-stock settles into a steady state in peacetime, which would flatten t
 information economy. **Events** stop that:
 
 - **supply shocks:** a drought drops a planet's food efficiency a tier for 30 days; a
-  bumper harvest raises a good a tier;
+  bumper harvest raises a good a tier; *(proposed, round 4)* a tier is a cost of making
+  the good (PRD-7), so a drought makes food dearer to grow, not scarcer to grow;
 - **demand shocks:** a festival raises luxury consumption for a few weeks;
 - **regional shocks:** a drought across a farming region, so long hauls from the next
   region suddenly pay.

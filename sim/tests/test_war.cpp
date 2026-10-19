@@ -249,15 +249,15 @@ TEST_CASE("security spending buys static defence, more at war (MIL-5)") {
     World w = new_world(quiet(), 67);
     const Front f = front(w);
     Planet& p = w.planets[at(f.a)];
-    p.income_avg = 4 * p.population * w.config.econ.wage;  // rich enough to guard itself in peace
+    p.net_avg = 4 * p.population * w.config.econ.wage;  // rich enough to guard itself in peace
     budget::weekly(w, f.a, nullptr);
     CHECK(p.security > 0);
-    // Bought in shares of income (SYS-5).
-    const double unit = w.config.value.security_share * p.income_avg * static_cast<double>(w.config.time.payment_days);
+    // Bought in shares of net income (SYS-5, OPN-39).
+    const double unit = w.config.value.security_share * p.net_avg * static_cast<double>(w.config.time.payment_days);
     CHECK(std::fmod(p.security / unit + 1e-9, 1.0) < 1e-6);
     advance(w, 30 * kDay);
     CHECK(p.defence == doctest::Approx(w.config.defence.per_spend * p.security));
-    p.income_avg = 4 * p.population * w.config.econ.wage;
+    p.net_avg = 4 * p.population * w.config.econ.wage;
     budget::weekly(w, f.a, nullptr);
     const double peace = p.security;
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
@@ -373,6 +373,7 @@ TEST_CASE("a besieged planet calls for help and its liege relieves it (MIL-11)")
 
 TEST_CASE("taking a root passes its wars to the faction's new root (MOD-5)") {
     World w = new_world(quiet(), 70);
+    w.config.dip.sue_threshold = 1e9;  // no peace in the meantime: the test is about who inherits the war
     const Front f = front(w);
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
     std::vector<Id> below = fealty::vassals(w, f.root_b);

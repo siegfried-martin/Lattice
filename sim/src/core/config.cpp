@@ -170,6 +170,7 @@ void validate(const Config& c) {
 
     non_negative(c.pop.growth_rate, "pop.growth_rate");
     share(c.pop.shrink_rate, "pop.shrink_rate");
+    positive(c.pop.full_excess, "pop.full_excess");
     non_negative(c.pop.growth_factor_min, "pop.growth_factor_min");
     require(c.pop.growth_factor_max >= c.pop.growth_factor_min, "pop.growth_factor_max must be at least pop.growth_factor_min");
     non_negative(c.rebel.scale, "rebel.scale");
@@ -192,9 +193,10 @@ void validate(const Config& c) {
     non_negative(c.happy.g_down, "happy.g_down");
     non_negative(c.happy.want, "happy.want");
 
-    positive(c.prod.efficiency_high, "prod.efficiency_high");
-    positive(c.prod.efficiency_medium, "prod.efficiency_medium");
-    positive(c.prod.efficiency_low, "prod.efficiency_low");
+    non_negative(c.prod.cost_high, "prod.cost_high");
+    non_negative(c.prod.cost_contraband, "prod.cost_contraband");
+    require(c.prod.cost_high <= c.prod.cost_medium && c.prod.cost_medium <= c.prod.cost_low,
+            "prod.cost_high, _medium and _low must rise in that order");
     non_negative(c.prod.labour_per_capita, "prod.labour_per_capita");
     share(c.prod.labour_shift, "prod.labour_shift");
 

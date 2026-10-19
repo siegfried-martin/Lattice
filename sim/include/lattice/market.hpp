@@ -19,21 +19,32 @@ inline double ask(const Config& c, const Planet& p, Good g) { return price(c, p,
 inline double bid(const Config& c, const Planet& p, Good g) { return price(c, p, g) * (1 - c.price.spread / 2); }
 
 // Money the planet earns (sales and tax, ECO-3): into the treasury and its income
-// counts (the credit limit's average, and the month's income that tribute is paid on).
+// counts (the credit limit's average, the budget's net average, and the month's income
+// that tribute is paid on).
 inline void receive(Planet& p, double money) {
     p.treasury += money;
     p.income_today += money;
+    p.net_today += money;
     p.income_month += money;
+}
+
+// Money the planet pays for goods, bought from traders or made (PRD-7): out of the
+// treasury and out of its net income, which the budget reads and tribute is paid on
+// (OPN-39, round 4). Gross income, which sizes war and the credit limit, keeps it.
+inline void pay(Planet& p, double money) {
+    p.treasury -= money;
+    p.net_today -= money;
+    p.income_month -= money;
 }
 
 // A planet whose treasury is below its credit limit (econ.credit_limit months of
 // income in the red) stops buying from traders.
 bool can_buy(const Config& c, const Planet& p);
 
-// The planet's own production at its current efficiency, events included (PRD-7,
-// SYS-4): prod.efficiency by tier, one tier up from high is x event.bumper_mult, one
-// tier down from low is low x (low / medium).
-double efficiency(const Config& c, const Planet& p, int slot);
+// What making one unit in a slot costs the treasury, events included (PRD-7, SYS-2,
+// SYS-4): the good's base price x prod.cost by tier; one tier up from high is high /
+// event.bumper_mult, one tier down from low is 1. Contraband is x prod.cost_contraband.
+double unit_cost(const Config& c, const Planet& p, int slot);
 
 // What a trade moved: goods, and money paid (buying) or received (selling), tax
 // included.

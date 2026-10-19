@@ -30,19 +30,22 @@ double price(const Config& c, const Planet& p, Good g) {
 }
 
 bool can_buy(const Config& c, const Planet& p) {
-    const double monthly_income = p.income_avg * static_cast<double>(c.time.payment_days);
+    const double monthly_income = std::max(0.0, p.income_avg) * static_cast<double>(c.time.payment_days);
     return p.treasury >= -c.econ.credit_limit * monthly_income;
 }
 
-double efficiency(const Config& c, const Planet& p, int slot) {
+double unit_cost(const Config& c, const Planet& p, int slot) {
     const auto s = static_cast<std::size_t>(slot);
-    const int tier = static_cast<int>(p.tiers[s]) + p.tier_shift[s];
+    const Good g = p.makes[s];
     const auto& e = c.prod;
-    if (tier <= -1) return e.efficiency_high * c.event.bumper_mult;
-    if (tier == kHigh) return e.efficiency_high;
-    if (tier == kMedium) return e.efficiency_medium;
-    if (tier == kLow) return e.efficiency_low;
-    return e.efficiency_low * e.efficiency_low / e.efficiency_medium;
+    if (g == kStims) return c.goods[g].base_price * e.cost_contraband;
+    const int tier = static_cast<int>(p.tiers[s]) + p.tier_shift[s];
+    double share = 1;  // below low
+    if (tier <= -1) share = e.cost_high / c.event.bumper_mult;
+    else if (tier == kHigh) share = e.cost_high;
+    else if (tier == kMedium) share = e.cost_medium;
+    else if (tier == kLow) share = e.cost_low;
+    return c.goods[g].base_price * share;
 }
 
 Fill buy(Planet& p, const Config& c, Good g, double max_qty, double budget, double max_unit) {
@@ -77,7 +80,7 @@ Fill sell(Planet& p, const Config& c, Good g, double qty, double min_unit) {
         if (unit < min_unit) break;
         const double q = std::min(chunk, qty - f.qty);
         p.stock[g] += q;
-        p.treasury -= q * unit;  // pays the bid and keeps the tax (ECO-3)
+        pay(p, q * unit);  // pays the bid and keeps the tax (ECO-3)
         f.qty += q;
         f.money += q * unit;
     }

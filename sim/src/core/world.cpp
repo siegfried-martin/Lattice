@@ -89,6 +89,7 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.money", -1, money);
     o.sample(t, "world.money_created", -1, w.ledger.money_created);
     o.sample(t, "world.money_sunk", -1, w.ledger.money_sunk);
+    o.sample(t, "world.production_cost", -1, w.ledger.production_cost);
     o.sample(t, "world.osmosis_volume", -1, w.ledger.osmosis_volume);
     o.sample(t, "world.osmosis_margin", -1, w.ledger.osmosis_margin);
     o.sample(t, "world.price_index", -1, index / (n * kLawfulGoodCount));

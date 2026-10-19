@@ -30,6 +30,7 @@ void init_state(World& w) {
         // The income the planet would have if its population spent its whole budget,
         // so the credit limit means something from the first day.
         p.income_avg = p.population * c.econ.wage * p.productivity;
+        p.net_avg = p.income_avg;
     }
 }
 
@@ -48,13 +49,19 @@ void planet_day(World& w, Id id) {
     Planet& p = w.planets[at(id)];
     const double n = p.population;
 
-    // SYS-2: output = N x labour_per_capita x share x efficiency x yield x P, owned by the
-    // planet.
+    // SYS-2: output = N x labour_per_capita x share x yield x P, owned by the planet, on
+    // days its own bid covers the unit cost; the treasury pays that cost, a sink, even in
+    // debt (PRD-7, ECO-5). A slot that doesn't cover it idles.
     for (int s = 0; s < 3; ++s) {
         const Good g = p.makes[at(s)];
-        const double out = n * c.prod.labour_per_capita * p.labour[at(s)] * market::efficiency(c, p, s) * c.goods[g].yield * p.productivity;
+        const double unit = market::unit_cost(c, p, s);
+        if (market::bid(c, p, g) < unit) continue;
+        const double out = n * c.prod.labour_per_capita * p.labour[at(s)] * c.goods[g].yield * p.productivity;
         p.stock[g] += out;
+        market::pay(p, out * unit);
         w.ledger.produced[g] += out;
+        w.ledger.production_cost += out * unit;
+        w.ledger.money_sunk += out * unit;
     }
 
     // SYS-1: purchasing power is new money (ECO-1); it becomes money only when goods are
@@ -132,17 +139,17 @@ void planet_day(World& w, Id id) {
         p.contraband_avg += (contraband / n - p.contraband_avg) / static_cast<double>(c.pop.contraband_window);
     }
 
-    // Growth follows the excess of the scarcest life-support good after buying, up to a
-    // full reserve's worth; any shortfall shrinks the population instead (PRD-2).
+    // Growth follows the excess of the scarcest life-support good after buying, full at
+    // pop.full_excess of a reserve; any shortfall shrinks the population instead (PRD-2).
     if (shortfall > 1e-9) {
         p.population -= n * c.pop.shrink_rate * std::min(shortfall, 1.0);
     } else {
-        double excess = 1;
+        double excess = c.pop.full_excess;
         for (Good g : kLifeSupport) {
             const double r = market::reserve(c, p, g);
             excess = std::min(excess, r > 0 ? (p.stock[g] - r) / r : 0);
         }
-        p.population += n * p.growth_factor * happiness::growth(c, p.happiness) * c.pop.growth_rate * std::max(0.0, excess);
+        p.population += n * p.growth_factor * happiness::growth(c, p.happiness) * c.pop.growth_rate * std::max(0.0, excess) / c.pop.full_excess;
     }
 
     // PRD-5: 1 at neutral, toward a ceiling and the poverty floor; contraband on top (PRD-6).
@@ -154,9 +161,11 @@ void planet_day(World& w, Id id) {
     if (p.siege == kNone) p.defence = std::min(max_defence, p.defence + c.defence.regen * max_defence);
     if (const Id node = w.gates.empty() ? kNone : gates::held_by(w, id); node != kNone) gates::regen(w, node);
 
-    // The income average, for the credit limit (SYS-3).
+    // The income averages: gross for the credit limit (SYS-3), net for the budget (SYS-5).
     p.income_avg += (p.income_today - p.income_avg) / static_cast<double>(c.time.payment_days);
     p.income_today = 0;
+    p.net_avg += (p.net_today - p.net_avg) / static_cast<double>(c.time.payment_days);
+    p.net_today = 0;
     p.deficit_days = p.treasury < 0 ? p.deficit_days + 1 : 0;
 }
 
@@ -164,13 +173,13 @@ void planet_labour(World& w, Id id) {
     const Config& c = w.config;
     Planet& p = w.planets[at(id)];
     if (p.pirate) return;  // its whole labour is on contraband (PIR-3)
-    // Score each good by what a unit of labour makes of it at the planet's own bid (bid x
-    // efficiency x yield), and move prod.labour_shift of all labour from the worst to the
-    // best.
+    // Score each good by the margin a unit of labour makes on it at the planet's own bid
+    // ((bid - cost) x yield, PRD-9), and move prod.labour_shift of all labour from the
+    // worst to the best.
     std::array<double, 3> score{};
     for (int s = 0; s < 3; ++s) {
         const Good g = p.makes[at(s)];
-        score[at(s)] = market::bid(c, p, g) * market::efficiency(c, p, s) * c.goods[g].yield;
+        score[at(s)] = (market::bid(c, p, g) - market::unit_cost(c, p, s)) * c.goods[g].yield;
     }
     int hi = 0, lo = 0;
     for (int s = 1; s < 3; ++s) {

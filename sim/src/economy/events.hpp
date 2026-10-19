@@ -13,7 +13,7 @@ void roll(World& world, Observer* observer);
 // Ends an event and undoes its effect.
 void end(World& world, Id event, Observer* observer);
 
-// Undoes (sign -1) or reapplies (+1) the efficiency shifts of the events covering a
+// Undoes (sign -1) or reapplies (+1) the tier shifts (production cost, PRD-7) of the events covering a
 // planet, around a change to what it makes (turning pirate, recapture), so an event
 // that ends later undoes its shift on the right slot.
 void reshift(World& world, Id planet, int sign);

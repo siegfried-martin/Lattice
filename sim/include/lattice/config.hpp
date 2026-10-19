@@ -78,7 +78,7 @@ struct Config {
         double wage = 40;            // purchasing power per thousand per day (ECO-1)
         double credit_limit = 2;     // months of income a planet may owe and still buy
         double op_base = 2000;       // operating cost per month (ECO-4)
-        double op_per_capita = 300;  // per thousand per month
+        double op_per_capita = 250;  // per thousand per month (300 until round 4)
 
         friend bool operator==(const Econ&, const Econ&) = default;
     } econ;
@@ -86,6 +86,7 @@ struct Config {
     struct Pop {
         double growth_rate = 0.0005;  // daily growth at full excess
         double shrink_rate = 0.002;   // daily shrink at total shortfall
+        double full_excess = 0.5;     // life-support stock over reserve, as a share of it, for full growth (1 until round 4)
         double growth_factor_min = 0.5;
         double growth_factor_max = 1.5;
         double contraband_penalty = 4;
@@ -118,10 +119,12 @@ struct Config {
     } happy;
 
     struct Prod {
-        double efficiency_high = 1.0;
-        double efficiency_medium = 0.6;
-        double efficiency_low = 0.3;
-        double labour_per_capita = 8;  // 3.5 until Phase A round 1: the world couldn't feed itself
+        // The cost of making a unit, x the good's base price, by tier (PRD-7, round 4).
+        double cost_high = 0.3;
+        double cost_medium = 0.5;
+        double cost_low = 0.8;
+        double cost_contraband = 0.1;  // cheap to make: its cost is the risk (PRD-6)
+        double labour_per_capita = 5;  // 8 in round 3, when the tiers' efficiency averaged 0.63
         double labour_shift = 0.05;
 
         friend bool operator==(const Prod&, const Prod&) = default;
@@ -143,7 +146,7 @@ struct Config {
 
     struct Osmosis {
         double range_days = 3;
-        double rate = 0.01;
+        double rate = 0.2;  // 0.01 until round 4 (SYS-6)
         double falloff = 2;
         double max_close = 0.5;
 
@@ -432,7 +435,7 @@ struct Config {
     } security;
 
     // Rebellion (ECO-13, SYS-16): a weekly chance, scale x (u(H)^power below neutral +
-    // w_debt x debt as a share of pirate.flip_debt months of costs).
+    // w_debt x debt as a share of pirate.flip_debt months of income).
     struct Rebel {
         double scale = 0.007;  // round 3: 0.01 flipped 9% of planets a year
         double power = 2;
@@ -442,7 +445,7 @@ struct Config {
     } rebel;
 
     struct Pirate {
-        double flip_debt = 3;         // debt, in months of costs, at which debt's share of rebellion is full
+        double flip_debt = 1;         // debt, in months of income, at which debt's share of rebellion is full (round 4; was 3 months of costs)
         double cost_mult = 0.3;       // a pirate planet's operating costs (ECO-14)
         bool turn_all = false;        // EXP-9: every broke commander turns pirate, not risk-weighted
         double salary = 0.6;          // pirate stipend / lawful stipend (PIR-5)
@@ -601,6 +604,7 @@ void for_each_field(C& c, F&& f) {
 
     f("pop.growth_rate", c.pop.growth_rate);
     f("pop.shrink_rate", c.pop.shrink_rate);
+    f("pop.full_excess", c.pop.full_excess);
     f("pop.growth_factor_min", c.pop.growth_factor_min);
     f("pop.growth_factor_max", c.pop.growth_factor_max);
     f("pop.contraband_penalty", c.pop.contraband_penalty);
@@ -622,9 +626,10 @@ void for_each_field(C& c, F&& f) {
     f("happy.g_down", c.happy.g_down);
     f("happy.want", c.happy.want);
 
-    f("prod.efficiency_high", c.prod.efficiency_high);
-    f("prod.efficiency_medium", c.prod.efficiency_medium);
-    f("prod.efficiency_low", c.prod.efficiency_low);
+    f("prod.cost_high", c.prod.cost_high);
+    f("prod.cost_medium", c.prod.cost_medium);
+    f("prod.cost_low", c.prod.cost_low);
+    f("prod.cost_contraband", c.prod.cost_contraband);
     f("prod.labour_per_capita", c.prod.labour_per_capita);
     f("prod.labour_shift", c.prod.labour_shift);
 

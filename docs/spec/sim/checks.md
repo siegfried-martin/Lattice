@@ -137,6 +137,10 @@ Osmosis and merchants narrow gaps; events keep reopening them; merchants still f
 profitable trades in peacetime cores. *Metric:* price dispersion across planets by good;
 mean merchant trip profit. *Tests:* TRD-13, PRD-11.
 
+*(proposed, round 4: built)* **Prices rest on costs, not the clamp:** at most 10% of planet-good
+samples at `price.min`, second half (CHK-14c; round 3: 11%, life support near the floor everywhere; round 4: under 0.01%).
+*Tests:* PRD-7, PRD-10.
+
 ### CHK-15 The merchant-kill test `v1`
 
 With raiders killing one faction's merchants on a route, that faction's wealth falls,

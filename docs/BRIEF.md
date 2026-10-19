@@ -219,7 +219,11 @@ The design of the full game is settled enough to build its simulation. In brief:
   from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
   goods at high, medium and low efficiency, partly by region; a luxury takes more labour
   than food, and fringe worlds grow more of their own; prices come from stock against a
-  reserve; droughts and festivals keep them moving (PRD-7 to PRD-11). Happiness is a
+  reserve; droughts and festivals keep them moving (PRD-7 to PRD-11). Making goods costs
+  money, more at low efficiency than high, so efficient planets export, dear producers
+  make a good only when it's scarce, and prices rest on what goods cost to make;
+  contraband is cheap to make. A governor budgets from what's left after paying for
+  goods (net income), while wars weigh a planet by everything it takes in. Happiness is a
   signed scale that settles toward what a population gets: each luxury with diminishing
   returns, hunger pulling it down. Productivity rises and falls with it toward a ceiling
   and a poverty floor, so poor planets stay poor without collapsing; an unhappy planet

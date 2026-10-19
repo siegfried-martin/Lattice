@@ -103,7 +103,10 @@ double rebellion_chance(const World& w, Id id) {
     const Planet& p = w.planets[at(id)];
     if (p.pirate) return 0;
     // Hunger acts through happiness (SYS-1).
-    const double debt = std::clamp(-p.treasury / (c.pirate.flip_debt * economy::monthly_costs(c, p)), 0.0, 1.0);
+    // Debt counts in months of income (round 4): costs no longer measure what a planet
+    // turns over once making goods costs money (PRD-7).
+    const double month = std::max(1e-9, p.income_avg * static_cast<double>(c.time.payment_days));
+    const double debt = std::clamp(-p.treasury / (c.pirate.flip_debt * month), 0.0, 1.0);
     return std::min(1.0, c.rebel.scale * (std::pow(happiness::misery(c, p.happiness), c.rebel.power) + c.rebel.w_debt * debt));
 }
 

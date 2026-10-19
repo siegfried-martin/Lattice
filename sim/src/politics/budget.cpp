@@ -106,7 +106,8 @@ void weekly(World& w, Id planet, Observer* observer) {
     const Id gov = p.governor;
     const Character& g = w.characters[at(gov)];
     const Config& c = w.config;
-    const double income = std::max(0.0, p.income_avg) * static_cast<double>(c.time.payment_days);
+    // Net income: what's left after paying for goods (OPN-39, round 4).
+    const double income = std::max(0.0, p.net_avg) * static_cast<double>(c.time.payment_days);
     const double d = std::pow(c.budget.diminishing, 1 - g.risk / 2);
     double money = p.treasury + c.budget.credit_risk * income * g.risk;
     const double pressure = p.treasury < 0 ? 1 + c.budget.debt_pressure * static_cast<double>(p.deficit_days) / c.time.payment_days : 1;

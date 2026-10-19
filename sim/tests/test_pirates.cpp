@@ -131,7 +131,7 @@ TEST_CASE("starvation makes a population unhappy, and rebellion grows likelier w
     const double miserable = pirates::rebellion_chance(w, p);
     CHECK(miserable > unhappy);
     CHECK(miserable <= c.rebel.scale);
-    planet.treasury = -0.5 * c.pirate.flip_debt * economy::monthly_costs(c, planet);
+    planet.treasury = -0.5 * c.pirate.flip_debt * planet.income_avg * static_cast<double>(c.time.payment_days);
     CHECK(pirates::rebellion_chance(w, p) == doctest::Approx(miserable + c.rebel.scale * c.rebel.w_debt * 0.5));
     // Weekly draws: over enough weeks, it happens.
     w.config.rebel.scale = 0.5;
