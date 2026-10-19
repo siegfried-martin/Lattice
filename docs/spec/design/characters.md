@@ -34,6 +34,18 @@ promoted to a character only when something lasting happens.
   from personality and position; a commander's from their governor's objective and their
   own ambition. Armies follow the same rule as a force (MIL-7).
 
+  *(proposed)* **Goals and decisions are separate, and a decision never replans a
+  goal.** A goal is what a character is trying to do: make this trade, take this
+  mission, join this siege. It's planned when the character lands, is idle or is told
+  something (an event), and it's the expensive part. A decision is a reaction on the
+  way, such as running from a pirate while making the trade. It's taken on the
+  open-space step (TIM-6), which finds the few ships close enough for something to
+  happen, and it's cheap. A decision changes what the ship is doing (flee, divert);
+  if it breaks the goal (cargo lost, a route now believed dangerous), it schedules the
+  goal to be replanned through the event queue rather than replanning on the spot.
+  *Why:* frequent decisions stay cheap and expensive goals stay rare, in the
+  simulation and in the rendered game, where nearby ships decide every frame.
+
 ### CHR-3 No classes `v1`
 
 There are no classes and no personality types dividing merchants from warriors. **The
@@ -115,6 +127,10 @@ job is to tie fleet size to income, not to punish waiting.
   another. The choice weighs skills, which missions have been paying, and risk tolerance
   (CHR-4).
 - **Reputation and fleet power unlock better missions,** which feeds income and skill.
+- *(proposed, war and fealty round)* **A governor's war objectives are missions too**
+  (MIL-2): defend here, join this siege. Their pay is what a commander expects from
+  kills and spoils (MIL-18, MIL-19), less what it expects to lose. Expected loss is
+  value, not personality, so risk tolerance still doesn't govern the choice (CHR-4).
 
 ### CHR-11 The ladder `v1`
 

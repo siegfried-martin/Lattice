@@ -1,6 +1,6 @@
 # Roadmap
 
-*Reset 2026-09-27; updated 2026-10-18.*
+*Reset 2026-09-27; updated 2026-10-19.*
 
 Done so far: the travel foundation (`WORLD_AND_TRAVEL.md`), a first combat prototype
 (`COMBAT.md`), and four rounds of design, now formalised as the spec (`docs/spec/`).
@@ -21,3 +21,11 @@ income. Round 4 made production cost money, with efficiency as that cost, and mo
 budgets and tribute to net income; its results and what still fails (merchants
 squeezed, so idle characters and pirates are too many) are in `sim/milestones.md`
 (MS-8).
+
+Next is designed but not built: a round on paying for war and fealty. Round 4 showed war
+costs a treasury almost nothing and patronage outweighs tribute, so the round adds
+bounties for kills paid by the root, spoils of capture, fleet loans between governors,
+commanders choosing their own objectives, tribute relief for poor vassals and reputation
+in stipends, tuned against target bands written first (CHK-26). The human is settling a
+question about character roles with the planning agent first (OPN-42). The economic
+round (starvation and the merchant squeeze) follows.

@@ -23,7 +23,7 @@ The planning agent should start a round from the **design** entries.
 | OPN-12 | Generation details: which starter hulls, which path a new character takes, where it appears | CHR-6, SYS-18 | Armed or unarmed first-tier hull at random, at a populous lawful planet |
 | OPN-13 | The player's fleet power formula | CHR-12 | — |
 | OPN-15 | How a governor weighs affordability, fleet power and opinion when hiring; how often; how many candidates | MIL-6, SYS-9 | SYS-9's weighted score |
-| OPN-16 | Escort pay timing and whether refusing a call to arms costs opinion | REL-9, REL-10 | Paid at trip end; refusal is a bad deed |
+| OPN-16 | Escort pay timing and whether refusing a call to arms costs opinion | REL-9, REL-10 | Paid at trip end; refusal is a bad deed. *(proposed, war and fealty round)* The call to arms is now a loan request (MIL-3), and refusing it is the bad deed |
 | OPN-17 | When an invasion launches and how its target is picked | MIL-9, SYS-13 | A budget option on believed value × chance of winning |
 | OPN-21 | Does Lattice access need neutral or positive Authority standing? | WLD-12 | Neutral |
 | OPN-22 | Do junction gates have only the Authority's key? | WLD-12 | Yes |
@@ -35,6 +35,9 @@ The planning agent should start a round from the **design** entries.
 | OPN-30 | Do planets need trade deals or loans? | ECO-9 | Only if the simulation shows the need |
 | OPN-31 | Do neutral planets sell armies passage? | WLD-13 | — |
 | OPN-34 | Does war between the largest factions need special treatment? | DIP-1 | No; it happens when the simulation produces it |
+| OPN-42 | Character roles: the human has a question about roles to settle with the planning agent, raised during the war and fealty design. It may change the commander rules (MIL-2, MIL-3) before they're built | CHR-1, MIL-2, MIL-3 | — |
+| OPN-41 | Should the war vote and invasions weigh what a war will cost in bounties (MIL-18)? | DIP-4, SYS-12, SYS-13 | Not yet: first see whether bounties draining the root bring factions to peace on their own (CHK-8) |
+| OPN-40 | What reputation is worth to an employer, now it raises a stipend (MIL-2): combat skill, prestige, or nothing? Without a worth, governors hire unknowns | REL-7, MIL-2, SYS-9 | The budget values a commander by the same reputation factor as its stipend, so reputation moves money without changing who is hired |
 | OPN-39 | Should a governor's budget read net income (receipts less what it pays merchants for imports) rather than gross receipts? A big importer's budget now overstates what it can afford | SYS-5 | *(proposed, round 4: built)* Yes for the budget and tribute, less the cost of making goods too; gross stays for war, capture value, credit and rebellion (SYS-5). Needs sign-off |
 | OPN-38 | Should output per head fall a little as a population grows (limited land and resources), so a shrunken planet recovers and a crowded one imports? | PRD-5, PRD-7 | Not yet: held in reserve if the poverty floor and the other forces aren't enough |
 | OPN-37 | What happens to a failing root with vassals: nothing, its vassals break away, or it turns pirate and frees them? | ECO-13 | Nothing (it stays as it is) |

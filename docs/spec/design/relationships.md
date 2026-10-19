@@ -51,6 +51,13 @@ Opinion changes only because something happened. Examples:
 | Vassal holds a dangerous border | Liege's of vassal, up |
 | A job done well under contract | Employer's of employee, up |
 | Attacking someone's ships or merchants | Victim's (and their governor's) of attacker, down |
+| *(proposed)* Vassal lends commanders its liege asked for (MIL-3) | Liege's of vassal, up |
+| *(proposed)* Vassal refuses a loan its liege asked for | Liege's of vassal, down (REL-10) |
+| *(proposed)* Vassal borrows its liege's commanders for relief | Liege's of vassal, down a little (favour spent) |
+| *(proposed)* Liege grants tribute relief (FAC-15) | Vassal's of liege, up |
+| *(proposed)* Liege refuses tribute relief to a vassal that qualifies | Vassal's of liege, down |
+| *(proposed)* Commander declines every objective its employer posts (MIL-2) | Employer's of commander, down a little |
+| *(proposed)* Root can't pay the bounties it owes (MIL-18) | Commander's of root, down |
 
 **Opinion drifts slowly back toward a resting point,** neutral by default, so old deeds
 fade and loyalty needs renewing. Grievances are bad deeds that haven't faded yet.
@@ -93,7 +100,8 @@ players is for play to decide.
 Reputation is separate from opinion: how well known and accomplished a character is,
 not how any one character feels about them. It grows with missions completed and fleet
 power, and it unlocks better missions (CHR-10), shortens landing waits (WLD-14) and
-weighs in choosing governors (FAC-9).
+weighs in choosing governors (FAC-9). *(proposed, war and fealty round)* It also raises
+a commander's stipend, on a curve that levels off (MIL-2).
 
 *See:* OPN-11 (how it's computed).
 
@@ -112,6 +120,9 @@ run, a mercenary task and a pirate hire are all **contracts** between characters
   contract starts with it and ends with it. Nobody is on retainer.
 - **The player is in the same system.** Swearing fealty is signing a contract; leaving is
   ending one.
+- *(proposed, war and fealty round)* **A loan** is a contract between two governors that
+  moves a service contract's employer for a duration (MIL-3). It ends on its own terms
+  (INF-16).
 
 *Why:* players mustn't feel locked in. Losing the benefits is enough to hold most
 contracts together.
@@ -127,6 +138,11 @@ benefit, not a penalty.
 
 Refusing a call to arms doesn't end a contract, so it can lower the liege's opinion
 (REL-3). Drop this if it makes the player feel locked in.
+
+*(proposed, war and fealty round)* The call to arms is now a loan request (MIL-3), and
+refusing it is this deed. The same holds for a liege refusing tribute relief a vassal
+qualifies for (FAC-15), and, as a smaller deed, for a commander declining every
+objective its employer posts (MIL-2). None of these ends a contract.
 
 *See:* OPN-16.
 

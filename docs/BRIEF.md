@@ -200,7 +200,9 @@ The design of the full game is settled enough to build its simulation. In brief:
   protection, patronage, intelligence and trade; the vassal pays tribute and serves in
   its wars. A conquering governor keeps a planet (installing a new governor under
   themselves) or grants it down the tree. Vassals defect after sustained low opinion when
-  there's somewhere better to go (FAC-5 to FAC-11).
+  there's somewhere better to go (FAC-5 to FAC-11). *(proposed)* Tribute is meant to be
+  high; a starving or poor vassal can ask for less, and refusing costs the liege its
+  loyalty. Patronage is for rebuilding conquered planets (FAC-7, FAC-15).
 - **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing or
   war-weary faction sues for peace and pays tribute; the winner holds out for what it
   hoped to take. Money piled up in peace votes for war. A faction is at war a little more
@@ -213,6 +215,18 @@ The design of the full game is settled enough to build its simulation. In brief:
   but the captor, which cuts the planets it serves off from the Lattice until it's
   retaken or peace lifts it (MIL-17). Combat away from the player is auto-resolved
   (MIL-13).
+- **Paying for war** *(proposed, not built yet)*: war and fleets are meant to be
+  expensive, and paid for by whoever wants the war. The faction's root pays commanders a
+  bounty for every enemy ship they destroy, from the tribute it collects, so a long war
+  drains it; a captured planet's treasury yields spoils, split by fleet strength and days
+  spent in the siege. Commanders choose their own work: a governor posts objectives
+  (defend here, join this siege) and its commanders take them or not, weighing kills,
+  spoils, their own losses and the stipend they'd lose if their employer fell. Governors
+  lend each other commanders for a while, the borrower paying the stipend: a liege asks a
+  vassal and pays a fee, a vassal under attack asks its liege and spends favour. A
+  famous commander earns more. Messages never wait for a reply: every request has a
+  deadline, no answer means no, and a fleet arriving is the answer (MIL-2, MIL-3,
+  MIL-18, MIL-19, INF-16).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
   to ECO-5). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
@@ -293,8 +307,10 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
 - **Now:** building the headless simulation in C++, milestone by milestone, then tuning
   it for stability and testing each mechanic's worth. The skeleton and toolchain are
   done, and every v1 system is built (world generation, the economy, characters,
-  movement, information, trade, politics, war, piracy, suspicion and spies); next is
-  tuning at full scale.
+  movement, information, trade, politics, war, piracy, suspicion and spies). Tuning at
+  full scale has had four rounds; the next is designed: paying for war (bounties,
+  spoils, fleet loans, commanders choosing their objectives) and tribute relief, with
+  the economy's starvation and merchant squeeze after it.
 - **Next:** connecting the simulation to the rendered game.
 
 ## Glossary

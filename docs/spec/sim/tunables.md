@@ -147,10 +147,16 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `spend.reserve_months` | Running costs kept back by the cautious | 3 × (1 − risk) |
 | `hire.range_days`, `hire.stipend_per_power` | Hiring reach, stipend per combat power per month | 5, 300 |
 | `hire.w_power`, `hire.w_opinion`, `hire.w_culture` | Hiring weights | 1, 0.05, 0.5 |
+| `hire.rep_mult`, `hire.rep_half` | A stipend rises by up to `rep_mult` with reputation, half of it at `rep_half` (MIL-2) *(proposed, war and fealty round)* | 1, 10 |
+| `loan.fee_months` | A liege borrowing a vassal's commanders pays the vassal this many months of their stipends (MIL-3) *(proposed, war and fealty round)* | 1 |
+| `loan.relief_fee` | A vassal borrowing its liege's commanders for relief pays this many months of their stipends on top (MIL-11) *(proposed, war and fealty round)* | 0 |
+| `loan.max_days` | Longest a loan runs if its purpose doesn't end it first (MIL-3) *(proposed, war and fealty round)* | 60 |
+| `relief.shortfall`, `relief.income_per_head`, `relief.capture_months` | Need tests for asking tribute relief: life-support shortfall at least this; net income per thousand a month below this; captured within this many months (FAC-15) *(proposed, war and fealty round)* | 0.1, 200, 6 |
+| `relief.rate`, `relief.clear_weeks` | The tribute rate granted on relief, and the weeks passing no test before it ends (FAC-15) *(proposed, war and fealty round)* | 0.05, 8 |
 | `rel.fade` | Weekly share of opinion lost toward rest | 0.03 |
 | `rel.culture_rest` | Rest shift from culture share | 20 |
 | `rel.recent_deeds` | Deeds kept per relationship for the UI (REL-12) *(proposed, MS-4)* | 3 |
-| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)* |
+| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)*. *(proposed, war and fealty round)* Call answered and call refused apply to loan requests (MIL-3); relief used −5, relief granted +10, relief refused −15, objective declined −3, bounty unpaid −10 |
 | `fealty.cascade` | Tribute cascades (FAC-6) | true |
 | `fealty.tribute_rate` | Starting tribute rate | 0.15 |
 | `fealty.rate_step`, `fealty.rate_min`, `fealty.rate_max` | How far a liege moves a tribute rate at once, and its bounds (FAC-12) *(proposed, MS-4)* | 0.05, 0, 0.5 |
@@ -189,6 +195,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `value.protect` | Keep or grant: protection cost per day of travel from the keeper *(proposed, MS-5)* | 0.1 |
 | `capture.happiness_drop`, `capture.stock_loss`, `capture.pop_loss` | Capture effects (FAC-10): happiness lost (round 3: subtracted, was a share), stock and population shares lost | 0.4, 0.5, 0.05 |
 | `capture.hold_days` | A conquering army that chooses to hold the planet garrisons it this long (SYS-13) *(proposed, round 2; a choice from round 3)* | 30 |
+| `bounty.share` | The root pays this share of an enemy ship's price to the commander whose fleet destroyed it (MIL-18) *(proposed, war and fealty round)* | 0.5 |
+| `spoils.per_prosperity` | A captured planet yields this × population × productivity from its treasury, split by power × days in the siege (MIL-19). About half a month of a typical planet's gross income *(proposed, war and fealty round)* | 400 |
 
 ## Information, piracy, suspicion (INF, PIR, SYS-15 to SYS-17, SYS-19)
 
