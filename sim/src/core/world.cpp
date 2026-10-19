@@ -163,6 +163,21 @@ void sample_metrics(const World& w, Observer& o) {
     for (const Army& a : w.armies) armies += a.alive;
     for (const Planet& pl : w.planets) besieged += pl.siege != kNone, defence += pl.defence;
     o.sample(t, "world.wars_now", -1, static_cast<double>(at_war));
+    // Lawful roots with a war on, for each faction's share of time at war (CHK-8).
+    std::int64_t roots_at_war = 0;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const Planet& pl = w.planets[at(p)];
+        roots_at_war += pl.liege == kNone && !pl.pirate && !diplomacy::enemies(w, p).empty();
+    }
+    o.sample(t, "world.roots_at_war", -1, static_cast<double>(roots_at_war));
+    // Blockades (MIL-17).
+    std::int64_t blockaded = 0;
+    for (const Gate& g : w.gates) blockaded += g.captor != kNone;
+    o.sample(t, "world.blockaded", -1, static_cast<double>(blockaded));
+    o.sample(t, "world.gate_attacks", -1, static_cast<double>(w.ledger.gate_attacks));
+    o.sample(t, "world.blockades", -1, static_cast<double>(w.ledger.blockades));
+    o.sample(t, "world.retakes", -1, static_cast<double>(w.ledger.retakes));
+    o.sample(t, "world.lifts", -1, static_cast<double>(w.ledger.lifts));
     o.sample(t, "world.armies", -1, static_cast<double>(armies));
     o.sample(t, "world.besieged", -1, static_cast<double>(besieged));
     o.sample(t, "world.static_defence", -1, defence);
@@ -201,6 +216,7 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.fringe_pirate_planets", -1, static_cast<double>(fringe_pirates));
     o.sample(t, "world.pirates", -1, static_cast<double>(pirates));
     o.sample(t, "world.flips", -1, static_cast<double>(w.ledger.flips));
+    o.sample(t, "world.secessions", -1, static_cast<double>(w.ledger.secessions));
     o.sample(t, "world.recaptures", -1, static_cast<double>(w.ledger.recaptures));
     o.sample(t, "world.turned_pirate", -1, static_cast<double>(w.ledger.turned_pirate));
     o.sample(t, "world.pirate_raids", -1, static_cast<double>(w.ledger.pirate_raids));
@@ -310,7 +326,7 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             governor::weekly(w, record, observer);
             break;
         case EventKind::ArmyMuster:
-            armies::muster_deadline(w, record, observer);
+            armies::muster_deadline(w, record, static_cast<std::uint32_t>(e.a), observer);
             break;
         case EventKind::ArmyArrive:
             armies::on_arrive(w, record, static_cast<std::uint32_t>(e.a), observer);
@@ -375,6 +391,7 @@ World new_world(const Config& config, std::uint64_t seed) {
 
     gen::generate(world);
     world.risk.assign(world.map.sectors.size(), {});
+    world.gates.assign(world.map.nodes.size(), {});
     economy::init_state(world);
     rebuild_derived(world);
     chars::populate(world);

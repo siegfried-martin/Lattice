@@ -155,7 +155,8 @@ salary (SYS-9).
 Stocks start at their reserve targets, treasuries at `gen.start_treasury_months` of
 costs, and opinions at their resting points. A run first simulates `gen.warmup_days`
 with war declarations disabled, so markets and labour settle, and measurement starts
-after it.
+after it. *(proposed)* Rebellions still happen, and a secession's war with them (ECO-13):
+that war is no vote.
 
 *As built:* labour starts split equally across a planet's three goods, happiness at
 `gen.start_happiness`, and each planet's income average at what its population would

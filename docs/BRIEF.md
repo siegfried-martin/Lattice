@@ -201,11 +201,16 @@ The design of the full game is settled enough to build its simulation. In brief:
   its wars. A conquering governor keeps a planet (installing a new governor under
   themselves) or grants it down the tree. Vassals defect after sustained low opinion when
   there's somewhere better to go (FAC-5 to FAC-11).
-- **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing faction
-  sues for peace and pays tribute (DIP-1 to DIP-3).
+- **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing or
+  war-weary faction sues for peace and pays tribute; the winner holds out for what it
+  hoped to take. Money piled up in peace votes for war. A faction is at war a little more
+  than half the time, in wars of one to three game months (DIP-1 to DIP-4).
 - **War:** armies with telegraphed intent cross open space from the nearest gate that
   lets them out; sieges grind down a planet's defences while couriers race to bring help
-  (MIL-7 to MIL-11). Combat away from the player is auto-resolved (MIL-13).
+  (MIL-7 to MIL-11). Armies can also capture an enemy's gate: a blockade, shut to all
+  but the captor, which cuts the planets it serves off from the Lattice until it's
+  retaken or peace lifts it (MIL-17). Combat away from the player is auto-resolved
+  (MIL-13).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
   to ECO-5). The v1 goods are food, water, oxygen, three luxuries and one contraband
@@ -217,7 +222,9 @@ The design of the full game is settled enough to build its simulation. In brief:
   single trips. Merchants hire escorts by weighing route risk against cargo value. A slow
   osmosis keeps markets from becoming deserts (TRD-3 to TRD-13).
 - **Piracy:** one anarchic pirate faction on the fringe, unable to use the Lattice. Broke
-  commanders turn pirate; loot sells only at pirate planets, which make contraband. One
+  commanders turn pirate; loot sells only at pirate planets, which make contraband. A
+  planet fails on a long deficit or long hunger; with no vassals it turns pirate, with
+  vassals it secedes and is attacked by its old faction (ECO-13). One
   pirate relation both shields you from pirates and raises lawful suspicion, so smuggling
   is a real risk (PIR-1 to PIR-13).
 - **Information moves at the speed of ships.** Every character has its own dated facts;

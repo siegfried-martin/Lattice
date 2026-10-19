@@ -48,6 +48,7 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |
 | `pop.growth_factor_min`, `_max` | Governor growth factor range (PRD-3) | 0.5, 1.5 |
 | `pop.happiness_drain` | Daily drain | 0.01 |
+| `pop.starve_happiness` | Daily happiness lost at total life-support shortfall (PRD-2) *(proposed, round 2)* | 0.03 |
 | `pop.p_base`, `pop.p_happy` | Productivity = base + happy × H | 0.6, 0.6 |
 | `pop.contraband_penalty` | Productivity lost per unit of recent contraband per thousand | 4 |
 | `pop.contraband_window` | Days in the contraband average | 30 |
@@ -155,20 +156,26 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `dip.neighbour_days` | Lattice days within which factions border | 3 |
 | `dip.w_idle`, `dip.w_targets`, `dip.w_strength`, `dip.w_peace`, `dip.w_wars`, `dip.w_losses` | War vote weights *(proposed; Phase A round 1, from 0.2, 0.3, 1, 0.5, 1.5, 0.5)* | 0.1, 0.05, 0.1, 0.5, 1.5, 0.5 |
 | `dip.border_days`, `dip.declare_threshold` | War vote reach and threshold *(threshold proposed; Phase A round 1, from 1)* | 5, 1.5 |
-| `dip.s_planets`, `dip.s_power`, `dip.s_treasury`, `dip.s_wars`, `dip.sue_threshold` | Suing-for-peace score *(proposed, MS-5)* | 3, 2, 1, 1, 1 |
+| `dip.w_treasury`, `dip.reserve_months`, `dip.treasury_cap` | Money beyond `reserve_months` of operating costs votes for war, up to `treasury_cap` (DIP-4) *(proposed, round 2)* | 0.3, 6, 3 |
+| `dip.s_planets`, `dip.s_power`, `dip.s_treasury`, `dip.s_months`, `dip.sue_threshold` | Suing-for-peace score; `s_months` is weariness a month at war *(proposed; round 2 replaced `s_wars` 1)* | 3, 2, 1, 0.4, 1 |
+| `dip.min_war_days` | No offer is heard before this (DIP-3) *(proposed, round 2)* | 30 |
+| `dip.hope_share`, `dip.hope_halflife_months` | The winner's hope: this share of the loser's income near its border, by power share, halving this often (DIP-3) *(proposed, round 2)* | 0.5, 2 |
 | `dip.tribute_rate`, `dip.ceasefire_days` | Ceasefire tribute and length (DIP-2) | 0.1, 90 |
 | `army.muster_days`, `army.detour_ratio` | Muster timeout, detour budget | 14, 0.15 |
 | `combat.lethality` | Power lost per round per enemy power | 0.05 |
 | `combat.noise` | Randomness per round | 0.3 |
 | `combat.retreat_base`, `combat.retreat_risk` | Retreat when own ÷ enemy falls below `base − risk × this` | 0.6, 0.4 |
 | `combat.retreat_loss`, `combat.cargo_destroyed` | Retreat losses, cargo destroyed | 0.2, 0.3 |
-| `defence.per_spend` | Static defence per credit of security spend per month *(proposed, MS-5)* | 0.005 |
+| `defence.per_spend` | Static defence per credit of security spend per month *(proposed; round 2, from 0.005)* | 0.01 |
 | `defence.regen` | Share of the maximum static defence rebuilt a day, when not besieged *(proposed, MS-5)* | 0.05 |
+| `value.blockade_months`, `value.retake_months` | Blockading an enemy's gate, and retaking one's own, are worth this many months of the income of the planets it serves (MIL-17) *(proposed, round 2)* | 8, 8 |
+| `blockade.enabled`, `blockade.defence_share`, `blockade.hold_days` | Gate attacks on or off; a gate's static defence against its holder's; how long the captor's army garrisons it (MIL-17) *(proposed, round 2)* | true, 0.7, 30 |
 | `value.war_mult`, `value.border_mult` | Defence is worth `1 + war_mult` at war, `+ border_mult` with an enemy planet within `dip.border_days` *(proposed, MS-5)* | 2, 1 |
 | `value.security_unit` | Static defence is bought in units of this much a month *(proposed, MS-5)* | 1,000 |
-| `value.invade_months`, `value.gate_months`, `value.aftermath_months` | A planet taken is worth this many months of its income, more for a gate holder, less rebuilding *(proposed, MS-5)* | 12, 6, 2 |
+| `value.invade_months`, `value.gate_months`, `value.aftermath_months` | A planet taken is worth this many months of its income, more for a gate holder, less rebuilding *(proposed; round 2 raised aftermath from 2)* | 12, 6, 8 |
 | `value.protect` | Keep or grant: protection cost per day of travel from the keeper *(proposed, MS-5)* | 0.1 |
 | `capture.happiness_loss`, `capture.stock_loss`, `capture.pop_loss` | Capture effects (FAC-10) | 0.4, 0.5, 0.05 |
+| `capture.hold_days` | The conquering army garrisons the planet this long (SYS-13) *(proposed, round 2)* | 30 |
 
 ## Information, piracy, suspicion (INF, PIR, SYS-15 to SYS-17, SYS-19)
 
@@ -185,7 +192,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `raid.enabled`, `raid.share`, `raid.days`, `raid.standoff` | Raiding at war: on (EXP-1 switches it off), the weekly chance a spare commander is sent, days held, distance short of the enemy planet in sector widths *(proposed, MS-5)* | true, 0.3, 10, 0.15 |
 | `escort.rate` | What an escort asks per combat power per day of the trip *(proposed, MS-5)* | 20 |
 | `security.risk_post`, `security.days`, `security.pay` | A planet whose sector's believed risk passes this posts a patrol of this many days, at this pay a day *(proposed, MS-5)* | 0.5, 10, 200 |
-| `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet turns | 60, 3 |
+| `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet fails (ECO-13) | 60, 3 |
+| `rebel.happiness`, `rebel.shortfall`, `rebel.days` | A planet below this happiness, with a shortfall above this, for this many days in a row fails (ECO-13) *(proposed, round 2: a shortfall of 0 flipped 31% of planets a year, mostly war-cut ones on the network)* | 0.15, 0.5, 90 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
 | `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of with chance equal to its risk tolerance | false |
 | `pirate.range_days` | How far pirates go raiding, in days of open space at the reference speed *(proposed, MS-6)* | 20 |

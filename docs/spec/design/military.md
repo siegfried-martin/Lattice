@@ -131,6 +131,39 @@ or grant (FAC-8), gets a new governor (FAC-9), loses prosperity (FAC-10), and it
 flip with it (WLD-13). A pirate planet that's captured returns to its old production
 (PIR-3).
 
+### MIL-17 Gate attacks and blockades `v1` `proposed`
+
+An army at war can attack an enemy's **gate** (a group's interchange) instead of a
+planet. It's a cheaper objective than an invasion: it cuts the enemy's trade and
+reinforcement without taking territory.
+
+- **Defence:** the gate has static defences of its own, a share (`blockade.defence_share`)
+  of what its holder's security spending buys (MIL-5), so it's a little easier to take
+  than the planet. Any force garrisoned at the gate fights too. The attack resolves in
+  siege rounds like a planet's (MIL-10).
+- **Under attack, the gate is still the holder's:** its faction can get on and off there.
+  The holder knows at once and calls for help as for a siege (MIL-11). Relief comes
+  along the Lattice, so reinforcing a gate is fast.
+- **Captured, it's a blockade:** a discrete state, not a gradual one, so everyone can tell
+  whether they may use the gate. A blockaded gate is shut to everyone except the
+  captor's faction, whose armies can use it as a forward exit (WLD-13). The holder's
+  faction loses its way on and off the Lattice there.
+- **Holding it:** a blockade has no static defences. The captor may leave a garrison for
+  a while; a blockaded gate with nobody holding it is retaken by any force of the
+  holder's faction that arrives. A garrisoned one is retaken by beating the garrison.
+- **It ends** when the gate is retaken, when the two factions are no longer at war, or
+  when the holder planet falls to the captor's faction (then it's the captor's gate
+  anyway).
+- **News:** a blockade is a fact (INF-2) that travels like any other. Merchants and fleets
+  plan routes around blockaded gates they know of. One that doesn't know finds out on
+  arriving at the gate along the Lattice, and replans from there.
+- **Through traffic** on the road keeps moving; only getting on and off at the gate is
+  shut. *(later)* Cutting a road.
+- Pirates can't attack gates (PIR-2).
+
+*Why:* wars should cost the enemy's economy without every war changing who owns the map.
+Discrete states make a blockade easy to track and to see.
+
 ## Combat away from the player
 
 ### MIL-13 Off-screen combat is auto-resolved `v1`

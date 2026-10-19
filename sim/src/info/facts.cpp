@@ -83,6 +83,7 @@ void merge_into(Facts& dst, const Facts& src) {
     merge_list(dst.dips, src.dips, dip_key);
     merge_list(dst.sightings, src.sightings, sighting_key);
     merge_list(dst.pirates, src.pirates, [](const PirateFact& f) { return f.planet; });
+    merge_list(dst.gates, src.gates, [](const GateFact& f) { return f.node; });
 }
 
 void observe_risk(const World& w, Facts& facts, Id sector) {

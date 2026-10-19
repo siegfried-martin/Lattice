@@ -80,6 +80,7 @@ struct Config {
         double growth_factor_min = 0.5;
         double growth_factor_max = 1.5;
         double happiness_drain = 0.01;
+        double starve_happiness = 0.03;  // daily happiness lost at total shortfall (PRD-2)
         double p_base = 0.6;
         double p_happy = 0.6;
         double contraband_penalty = 4;
@@ -309,7 +310,9 @@ struct Config {
         double security_unit = 1000;  // static defence is bought in units of this much a month
         double invade_months = 12;    // a planet taken is worth this many months of its income
         double gate_months = 6;       // more for one that holds gates (WLD-5)
-        double aftermath_months = 2;  // rebuilding after capture costs this many months of its income
+        double aftermath_months = 8;  // rebuilding after capture costs this many months of its income (round 2: 2)
+        double blockade_months = 8;   // blockading a gate is worth this many months of its group's income (MIL-17)
+        double retake_months = 8;     // and retaking one's own, this many
         double protect = 0.1;         // keep or grant: protection cost per day of travel from the keeper
 
         friend bool operator==(const Value&, const Value&) = default;
@@ -321,8 +324,17 @@ struct Config {
         // Phase A round 1: 0.2, 0.3, 1 and a threshold of 1 had every faction at war all the time.
         double w_idle = 0.1, w_targets = 0.05, w_strength = 0.1, w_peace = 0.5, w_wars = 1.5, w_losses = 0.5;
         double declare_threshold = 1.5;
-        double s_planets = 3, s_power = 2, s_treasury = 1, s_wars = 1;
+        // Money beyond reserve_months of costs votes for war, up to treasury_cap (DIP-4).
+        double w_treasury = 0.3, reserve_months = 6, treasury_cap = 3;
+        // Suing (DIP-3): losses, a treasury in the red, and weariness a month at war. The
+        // number of wars isn't a term of its own; several wars make each go worse.
+        double s_planets = 3, s_power = 2, s_treasury = 1, s_months = 0.4;
         double sue_threshold = 1;
+        // The winner hears no offer before min_war_days; after, it wants what it hoped
+        // to take (hope_share of the enemy's income near its border, by its share of the
+        // two sides' power), a hope that halves every hope_halflife_months.
+        std::int64_t min_war_days = 30;
+        double hope_share = 0.5, hope_halflife_months = 2;
         double tribute_rate = 0.1;  // ceasefire tribute per month, x severity x the loser's income
         std::int64_t ceasefire_days = 90;
 
@@ -348,8 +360,17 @@ struct Config {
         friend bool operator==(const Combat&, const Combat&) = default;
     } combat;
 
+    // Gate attacks and blockades (MIL-17).
+    struct Blockade {
+        bool enabled = true;
+        double defence_share = 0.7;   // a gate's static defence against its holder's
+        std::int64_t hold_days = 30;  // how long a captor's army garrisons the gate
+
+        friend bool operator==(const Blockade&, const Blockade&) = default;
+    } blockade;
+
     struct Defence {
-        double per_spend = 0.005;  // static defence power per credit of monthly security spend
+        double per_spend = 0.01;   // static defence power per credit of monthly security spend (round 2: 0.005)
         double regen = 0.05;       // share of its maximum restored a day, when not besieged
 
         friend bool operator==(const Defence&, const Defence&) = default;
@@ -385,6 +406,15 @@ struct Config {
 
         friend bool operator==(const Security&, const Security&) = default;
     } security;
+
+    // Rebellion (ECO-13): a planet unhappy and starving for `days` in a row rebels.
+    struct Rebel {
+        double happiness = 0.15;  // below this
+        double shortfall = 0.5;   // and a life-support shortfall above this
+        std::int64_t days = 90;
+
+        friend bool operator==(const Rebel&, const Rebel&) = default;
+    } rebel;
 
     struct Pirate {
         std::int64_t flip_days = 60;  // days in deficit before a planet turns (SYS-16)
@@ -451,6 +481,7 @@ struct Config {
         double happiness_loss = 0.4;
         double stock_loss = 0.5;
         double pop_loss = 0.05;
+        std::int64_t hold_days = 30;  // the conquering army garrisons the planet this long (SYS-13)
 
         friend bool operator==(const Capture&, const Capture&) = default;
     } capture;
@@ -544,6 +575,7 @@ void for_each_field(C& c, F&& f) {
     f("pop.growth_factor_min", c.pop.growth_factor_min);
     f("pop.growth_factor_max", c.pop.growth_factor_max);
     f("pop.happiness_drain", c.pop.happiness_drain);
+    f("pop.starve_happiness", c.pop.starve_happiness);
     f("pop.p_base", c.pop.p_base);
     f("pop.p_happy", c.pop.p_happy);
     f("pop.contraband_penalty", c.pop.contraband_penalty);
@@ -656,6 +688,9 @@ void for_each_field(C& c, F&& f) {
     f("security.risk_post", c.security.risk_post);
     f("security.days", c.security.days);
     f("security.pay", c.security.pay);
+    f("rebel.happiness", c.rebel.happiness);
+    f("rebel.shortfall", c.rebel.shortfall);
+    f("rebel.days", c.rebel.days);
     f("pirate.flip_days", c.pirate.flip_days);
     f("pirate.flip_debt", c.pirate.flip_debt);
     f("pirate.cost_mult", c.pirate.cost_mult);
@@ -731,6 +766,8 @@ void for_each_field(C& c, F&& f) {
     f("value.border_mult", c.value.border_mult);
     f("value.security_unit", c.value.security_unit);
     f("value.invade_months", c.value.invade_months);
+    f("value.blockade_months", c.value.blockade_months);
+    f("value.retake_months", c.value.retake_months);
     f("value.gate_months", c.value.gate_months);
     f("value.aftermath_months", c.value.aftermath_months);
     f("value.protect", c.value.protect);
@@ -744,11 +781,17 @@ void for_each_field(C& c, F&& f) {
     f("dip.w_wars", c.dip.w_wars);
     f("dip.w_losses", c.dip.w_losses);
     f("dip.declare_threshold", c.dip.declare_threshold);
+    f("dip.w_treasury", c.dip.w_treasury);
+    f("dip.reserve_months", c.dip.reserve_months);
+    f("dip.treasury_cap", c.dip.treasury_cap);
     f("dip.s_planets", c.dip.s_planets);
     f("dip.s_power", c.dip.s_power);
     f("dip.s_treasury", c.dip.s_treasury);
-    f("dip.s_wars", c.dip.s_wars);
+    f("dip.s_months", c.dip.s_months);
     f("dip.sue_threshold", c.dip.sue_threshold);
+    f("dip.min_war_days", c.dip.min_war_days);
+    f("dip.hope_share", c.dip.hope_share);
+    f("dip.hope_halflife_months", c.dip.hope_halflife_months);
     f("dip.tribute_rate", c.dip.tribute_rate);
     f("dip.ceasefire_days", c.dip.ceasefire_days);
 
@@ -765,8 +808,12 @@ void for_each_field(C& c, F&& f) {
 
     f("defence.per_spend", c.defence.per_spend);
     f("defence.regen", c.defence.regen);
+    f("blockade.enabled", c.blockade.enabled);
+    f("blockade.defence_share", c.blockade.defence_share);
+    f("blockade.hold_days", c.blockade.hold_days);
 
     f("capture.happiness_loss", c.capture.happiness_loss);
+    f("capture.hold_days", c.capture.hold_days);
     f("capture.stock_loss", c.capture.stock_loss);
     f("capture.pop_loss", c.capture.pop_loss);
 

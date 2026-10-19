@@ -21,6 +21,7 @@
 #include "politics/governor.hpp"
 #include "war/armies.hpp"
 #include "war/combat.hpp"
+#include "war/diplomacy.hpp"
 #include "war/encounters.hpp"
 
 using namespace lattice;
@@ -49,6 +50,14 @@ Id liege_planet(const World& w) {
     return kNone;
 }
 
+// A sworn planet with no vassals.
+Id leaf_planet(const World& w) {
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (fealty::vassals(w, p).empty() && w.planets[at(p)].liege != kNone) return p;
+    }
+    return kNone;
+}
+
 Id armed(World& w, Id planet, int ships_n, int tier) {
     const Id id = chars::spawn(w, planet);
     Character& c = w.characters[at(id)];
@@ -58,16 +67,15 @@ Id armed(World& w, Id planet, int ships_n, int tier) {
 
 }  // namespace
 
-TEST_CASE("a planet long in deficit turns pirate (ECO-13, PIR-3)") {
+TEST_CASE("a planet with no vassals long in deficit turns pirate (ECO-13, PIR-3)") {
     World w = new_world(quiet(), 91);
-    const Id p = liege_planet(w);
+    const Id p = leaf_planet(w);
     REQUIRE(p != kNone);
-    const std::vector<Id> below = fealty::vassals(w, p);
     Planet& planet = w.planets[at(p)];
     planet.deficit_days = w.config.pirate.flip_days;
     planet.treasury = -10 * economy::monthly_costs(w.config, planet);
     const double lawful_costs = economy::monthly_costs(w.config, planet);
-    pirates::check_flip(w, p, nullptr);
+    pirates::check_rebellion(w, p, nullptr);
     REQUIRE(planet.pirate);
     CHECK(planet.liege == kNone);
     CHECK(planet.treasury == 0);                       // its debt is forgotten
@@ -77,12 +85,49 @@ TEST_CASE("a planet long in deficit turns pirate (ECO-13, PIR-3)") {
     CHECK(market::reserve(w.config, planet, kStims) > 0);  // a pirate market holds contraband
     CHECK(w.characters[at(planet.governor)].pirate);
     CHECK(chars::faction_of(w, w.characters[at(planet.governor)]) == kPirates);
-    for (Id v : below) CHECK(w.planets[at(v)].liege == kNone);  // its vassals become roots
     // No dues for a pirate planet (ECO-14).
     const double before = planet.treasury, dues = w.ledger.dues;
     governor::monthly(w, p, nullptr);
     CHECK(w.ledger.dues == dues);
     CHECK(planet.treasury <= before);
+}
+
+TEST_CASE("a failing planet with vassals secedes with them, at war with its old faction (ECO-13)") {
+    World w = new_world(quiet(), 91);
+    const Id p = liege_planet(w);
+    REQUIRE(p != kNone);
+    const std::vector<Id> below = fealty::vassals(w, p);
+    const Id old_root = fealty::root_of(w, p);
+    Planet& planet = w.planets[at(p)];
+    planet.deficit_days = w.config.pirate.flip_days;
+    planet.treasury = -10 * economy::monthly_costs(w.config, planet);
+    pirates::check_rebellion(w, p, nullptr);
+    CHECK(!planet.pirate);
+    CHECK(planet.liege == kNone);
+    for (Id v : below) CHECK(fealty::root_of(w, v) == p);  // its branch goes with it
+    CHECK(diplomacy::at_war(w, p, old_root));
+    CHECK(w.ledger.secessions == 1);
+}
+
+TEST_CASE("starvation makes a population unhappy, and unhappy and starving long enough, it rebels (PRD-2, ECO-13)") {
+    World w = new_world(quiet(), 92);
+    const Id p = leaf_planet(w);
+    REQUIRE(p != kNone);
+    Planet& planet = w.planets[at(p)];
+    planet.happiness = 1;
+    for (Good g : kLifeSupport) planet.stock[g] = 0;
+    planet.productivity = 0;  // nothing made today, and nothing to buy with
+    const double before = planet.happiness;
+    economy::planet_day(w, p);
+    CHECK(planet.happiness < before - w.config.pop.happiness_drain);
+    planet.happiness = 0;
+    planet.unrest_days = w.config.rebel.days - 1;
+    for (Good g : kLifeSupport) planet.stock[g] = 0;
+    planet.productivity = 0;
+    economy::planet_day(w, p);
+    CHECK(planet.unrest_days == w.config.rebel.days);
+    pirates::check_rebellion(w, p, nullptr);
+    CHECK(planet.pirate);
 }
 
 TEST_CASE("starting pirate planets sit on the fringe with pirate commanders (GEN-8, GEN-9)") {

@@ -25,6 +25,9 @@ struct Step {
     std::int32_t vertex;
     LegKind via;
 };
-std::vector<Step> path_avoiding(const World& world, Id a, Id b, const std::vector<bool>& closed);
+// a and b are vertices: planets, then Lattice nodes. With board_at_start false the
+// traveller is in open space at a, so it can't get on the Lattice there, but it can fly
+// off even if a's gate is shut.
+std::vector<Step> path_avoiding(const World& world, Id a, Id b, const std::vector<bool>& closed, bool board_at_start = true);
 
 }  // namespace lattice::travel

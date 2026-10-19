@@ -172,6 +172,10 @@ void validate(const Config& c) {
     non_negative(c.pop.growth_factor_min, "pop.growth_factor_min");
     require(c.pop.growth_factor_max >= c.pop.growth_factor_min, "pop.growth_factor_max must be at least pop.growth_factor_min");
     non_negative(c.pop.happiness_drain, "pop.happiness_drain");
+    non_negative(c.pop.starve_happiness, "pop.starve_happiness");
+    share(c.rebel.happiness, "rebel.happiness");
+    share(c.rebel.shortfall, "rebel.shortfall");
+    positive(static_cast<double>(c.rebel.days), "rebel.days");
     non_negative(c.pop.p_base, "pop.p_base");
     non_negative(c.pop.p_happy, "pop.p_happy");
     non_negative(c.pop.contraband_penalty, "pop.contraband_penalty");
@@ -281,6 +285,13 @@ void validate(const Config& c) {
     non_negative(c.dip.neighbour_days, "dip.neighbour_days");
     non_negative(c.dip.border_days, "dip.border_days");
     non_negative(c.dip.tribute_rate, "dip.tribute_rate");
+    non_negative(c.dip.w_treasury, "dip.w_treasury");
+    positive(c.dip.reserve_months, "dip.reserve_months");
+    non_negative(c.dip.treasury_cap, "dip.treasury_cap");
+    non_negative(c.dip.s_months, "dip.s_months");
+    non_negative(static_cast<double>(c.dip.min_war_days), "dip.min_war_days");
+    non_negative(c.dip.hope_share, "dip.hope_share");
+    positive(c.dip.hope_halflife_months, "dip.hope_halflife_months");
     positive(static_cast<double>(c.dip.ceasefire_days), "dip.ceasefire_days");
     positive(static_cast<double>(c.army.muster_days), "army.muster_days");
     non_negative(c.army.detour_ratio, "army.detour_ratio");
@@ -292,7 +303,12 @@ void validate(const Config& c) {
     share(c.combat.pod_death_p, "pod.death_p");
     non_negative(c.defence.per_spend, "defence.per_spend");
     share(c.defence.regen, "defence.regen");
+    non_negative(c.value.blockade_months, "value.blockade_months");
+    non_negative(c.value.retake_months, "value.retake_months");
+    non_negative(c.blockade.defence_share, "blockade.defence_share");
+    non_negative(static_cast<double>(c.blockade.hold_days), "blockade.hold_days");
     share(c.capture.happiness_loss, "capture.happiness_loss");
+    non_negative(static_cast<double>(c.capture.hold_days), "capture.hold_days");
     share(c.capture.stock_loss, "capture.stock_loss");
     share(c.capture.pop_loss, "capture.pop_loss");
     share(c.space.engage_p, "space.engage_p");

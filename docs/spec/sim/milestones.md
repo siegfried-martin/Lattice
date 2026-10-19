@@ -207,6 +207,38 @@ and tuning until the checks pass (`checks.md`).
   - fringe planets grow slower than the network (CHK-11).
 - **Coupled:** raising operating costs fixes money growth but sets off flips and wars.
   The next round needs a view on which outcomes are intended.
+- **Round 2** (design changes agreed with the human, then tuning; v1 size, 8 seeds, 5
+  years):
+  - design: war pacing (weariness, the winner's hope, money votes for war), hunger and
+    rebellion (pirate or secession), and gate blockades (DIP-3, DIP-4, ECO-13, MIL-17);
+  - tuning: `value.aftermath_months` 2 → 8, `defence.per_spend` 0.005 → 0.01,
+    `value.blockade_months` 8, `rebel.shortfall` 0.5 and `rebel.days` 90, and the
+    conqueror garrisoning its prize (`capture.hold_days` 30);
+  - bug caught: in scoring gates, a flag shadowed the army's attack power, so every gate
+    looked unwinnable.
+
+  | | Round 1 | Round 2 |
+  |---|---|---|
+  | Population, end over start | 116% | 95% |
+  | Planets changing hands a year | 26% | 22% |
+  | Each faction's time at war | n/a | 62% |
+  | Median war | 7 days | 71 days |
+  | War declarations per faction a year | 2.8 | 2.9 |
+  | Blockades per faction a year | n/a | 3.7 |
+  | Pirate flips a year | 1.6% | 5.9% |
+  | Pirate-planet time on the fringe | 47% | 93% |
+  | Pirates, share of characters | 0.6% | 1.6% |
+  | Money supply growth a year | 1.39 | 1.34 |
+- **Still failing after round 2:**
+  - money growth (CHK-7). It's structural: a planet keeps what its own population pays
+    for its own goods, about 79% of that spending; operating costs take about 21% and
+    the budget spends about 1%, because defence units are fixed amounts (1,000 credits)
+    against incomes near 1.4 million a month. Higher operating costs push poor planets
+    into failure while rich ones keep piling up;
+  - planets changing hands (CHK-6, 22% against at most 20%) and pirate flips (CHK-9,
+    5.9% against at most 5%), each passing on a quarter of seeds;
+  - fringe growth (CHK-11, 0.40), price dispersion (CHK-14, 0.67), and smuggling, which
+    runs in three-year runs but fades to almost nothing over five (CHK-10, CHK-24).
 
 ### MS-9 Phase B `v1`
 

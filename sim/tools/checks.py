@@ -32,7 +32,26 @@ def load(run_dir):
     planets = list(csv.DictReader(open(run_dir / "planets.csv", newline="")))
     log = (run_dir / "run.log").read_text() if (run_dir / "run.log").exists() else ""
     m = re.search(r"([\d.]+) days/s", log)
-    return {"series": series, "planets": planets, "days_per_s": float(m.group(1)) if m else float("nan")}
+    return {"series": series, "planets": planets, "days_per_s": float(m.group(1)) if m else float("nan"),
+            "wars": war_lengths(run_dir / "events.csv")}
+
+
+def war_lengths(path):
+    """Days from each declaration to its ceasefire, for the wars that ended (CHK-8c)."""
+    if not path.exists():
+        return []
+    started, lengths = {}, []
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            kind = row["kind"] or ""
+            if not kind.startswith("war.") or row["detail"] is None:
+                continue
+            pair = tuple(sorted((int(row["id"]), int(row["detail"].split()[1]))))
+            if kind == "war.declared":
+                started.setdefault(pair, float(row["day"]))
+            elif kind == "war.ceasefire" and pair in started:
+                lengths.append(float(row["day"]) - started.pop(pair))
+    return lengths
 
 
 def world(run, name):
@@ -94,8 +113,13 @@ def fringe_ratio(run):
 
 
 def war_share(run):
-    v = values(run, "world.wars_now")
-    return sum(1 for x in v if x > 0) / len(v)
+    """Each faction's share of time at war: lawful roots at war over lawful roots."""
+    at_war, roots = values(run, "world.roots_at_war"), values(run, "world.roots")
+    return statistics.fmean(a / r for a, r in zip(at_war, roots) if r > 0)
+
+
+def war_length(run):
+    return statistics.median(run["wars"]) if run["wars"] else 0.0
 
 
 def deaths_per_battle(run):
@@ -131,11 +155,14 @@ CHECKS = [
     ("CHK-3", "Authority dues, monthly variation (cv)", lambda r: cv([b - a for a, b in zip(values(r, "world.dues"), values(r, "world.dues")[3:])][::3] or [1]), None, 0.5),
     ("CHK-4", "pirate planets on the fringe, share of pirate-planet time", lambda r: (sum(values(r, "world.fringe_pirate_planets")) / max(1e-9, sum(values(r, "world.pirate_planets")))) if sum(values(r, "world.pirate_planets")) else 1.0, 0.5, None),
     ("CHK-6", "planets changing hands a year, share of planets", captures_share, 0.01, 0.2),
+    ("CHK-6b", "blockades a year per faction", lambda r: per_year(r, "world.blockades") / max(1, statistics.fmean(values(r, "world.roots"))), 0.5, None),
     ("CHK-7", "money supply growth a year", lambda r: growth(r, "world.money_total"), 0.8, 1.25),
     ("CHK-7b", "price index, end over start", lambda r: values(r, "world.price_index")[-1] / values(r, "world.price_index")[0], 0.67, 1.5),
-    ("CHK-8", "share of time with a war on", war_share, 0.2, 0.8),
-    ("CHK-8b", "war declarations a year per faction", lambda r: per_year(r, "world.wars") / max(1, statistics.fmean(values(r, "world.roots"))), 0.05, 1),
+    ("CHK-8", "share of time each faction is at war", war_share, 0.5, 0.8),
+    ("CHK-8c", "war length in days, median", war_length, 30, 90),
+    ("CHK-8b", "war declarations a year per faction", lambda r: per_year(r, "world.wars") / max(1, statistics.fmean(values(r, "world.roots"))), 2, 5),
     ("CHK-9", "pirate flips a year, share of planets", lambda r: per_year(r, "world.flips") / max(1, len(r["planets"])), None, 0.05),
+    ("CHK-9b", "secessions a year, share of planets", lambda r: per_year(r, "world.secessions") / max(1, len(r["planets"])), None, 0.05),
     ("CHK-10", "contraband reaching lawful populations a year", lambda r: per_year(r, "world.smuggled"), 1, None),
     ("CHK-11", "fringe population growth over on-network growth", fringe_ratio, 0.5, None),
     ("CHK-12", "world population, end over start", lambda r: values(r, "world.population")[-1] / values(r, "world.population")[0], 0.7, 1.5),

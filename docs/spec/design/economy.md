@@ -169,6 +169,20 @@ compete with cargo. Buying a missile must never mean dropping cargo.
 A planet whose income can't cover its operating costs drifts toward piracy, and
 eventually renounces its faction and the Authority to join the pirate faction (PIR-3).
 
+*(proposed)* **Failure has two causes and two outcomes.** A planet fails when it has
+been in deficit long enough, or when its population has been hungry and miserable long
+enough (PRD-2); isolation from the Lattice shows up as hunger before it shows up in the
+treasury. A failing planet **rebels**:
+
+- **with no vassals, it turns pirate** (PIR-3);
+- **with vassals, it secedes** as an independent faction, taking its branch, and its old
+  faction **declares war on it** at once. A small rebel faction against its old root is
+  meant to be unlikely to last.
+- *(open)* A failing root with vassals has no one to rebel against (OPN-37).
+
+Nothing at world generation decides where piracy lives: planets far from the Lattice
+go hungry first, so they rebel first.
+
 - *(proposed)* **Damped like defection:** a treasury buffer, plus a deficit that must
   persist for a while before a governor turns, keeps it an individual or regional event
   rather than a map-wide wave when a war cuts a trade route.

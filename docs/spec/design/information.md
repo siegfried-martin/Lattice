@@ -14,7 +14,7 @@ NPCs. The player's map shows what they've seen or been told.
 
 Every character, governors included, holds a set of **facts**: prices and stock at
 markets, sightings of fleets and armies, per-sector risk, army intents, the state between
-factions. **Each fact records when it was observed.** Characters decide on what they
+factions, and *(proposed)* which gates are blockaded (MIL-17). **Each fact records when it was observed.** Characters decide on what they
 believe, which may be stale. **"The planet's information" is its governor's
 information.**
 

@@ -23,6 +23,7 @@
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
 #include "war/encounters.hpp"
+#include "war/gates.hpp"
 #include "war/risk.hpp"
 #include "war/threats.hpp"
 
@@ -41,6 +42,8 @@ Config quiet() {
     c.dip.declare_threshold = 1e9;  // no wars but the ones a test declares
     c.value.invade_months = 0;      // and no invasions but the ones it raises
     c.value.gate_months = 0;
+    c.value.blockade_months = 0;    // nor gate attacks
+    c.value.retake_months = 0;
     return c;
 }
 
@@ -104,14 +107,73 @@ TEST_CASE("war, ceasefire and peace between roots (DIP-1, DIP-2)") {
     CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Peace);
 }
 
-TEST_CASE("no war is declared during the warm-up (GEN-10)") {
+TEST_CASE("a beaten faction's offer waits for dip.min_war_days; weariness ends a quiet war (DIP-3)") {
+    Config c = quiet();
+    c.raid.enabled = false;
+    c.dip.hope_share = 0;  // the winner takes any offer it hears
+    World w = new_world(c, 66);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+
+    SUBCASE("losses make it sue, but not before the winner could have arrived") {
+        diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+        diplomacy::record_loss(w, f.root_a, f.root_b, 3, 0);  // a rout
+        advance(w, 14 * kDay);
+        CHECK(diplomacy::at_war(w, f.root_a, f.root_b));
+        advance(w, (c.dip.min_war_days + 7) * kDay);
+        CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Ceasefire);
+    }
+    SUBCASE("with no fighting at all, weariness sues after about 1 / dip.s_months months") {
+        diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+        const double months = c.dip.sue_threshold / c.dip.s_months;
+        advance(w, static_cast<Time>(months * 30 * 0.8) * kDay);
+        CHECK(diplomacy::at_war(w, f.root_a, f.root_b));
+        advance(w, static_cast<Time>(months * 30 * 0.4) * kDay);
+        CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Ceasefire);
+    }
+}
+
+TEST_CASE("the winner holds out for what it hoped to take, a hope that fades (DIP-3)") {
+    Config c = quiet();
+    c.raid.enabled = false;
+    c.dip.min_war_days = 0;
+    c.dip.s_months = 0;
+    c.dip.hope_share = 10;
+    c.dip.hope_halflife_months = 0.5;
+    World w = new_world(c, 67);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    // Enough to sue, with a small offer.
+    const double start = static_cast<double>(fealty::faction_planets(w, f.root_a).size());
+    diplomacy::record_loss(w, f.root_a, f.root_b, 0.4 * start, 0);
+    advance(w, 21 * kDay);
+    CHECK(diplomacy::at_war(w, f.root_a, f.root_b));  // the hope is worth more than the offer
+    advance(w, 365 * kDay);
+    CHECK(!diplomacy::at_war(w, f.root_a, f.root_b));  // until it fades
+}
+
+TEST_CASE("money piled up past the reserve votes for war (DIP-4)") {
+    Config c = quiet();
+    c.dip.declare_threshold = 1.5;
+    c.gen.warmup_days = 0;
+    c.dip.w_treasury = 100;
+    World w = new_world(c, 68);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    for (Id p : fealty::faction_planets(w, f.root_a)) w.planets[at(p)].treasury = 1e12;
+    advance(w, 8 * kDay);
+    CHECK(diplomacy::at_war(w, f.root_a, f.root_b));
+}
+
+TEST_CASE("no war is voted during the warm-up (GEN-10)") {
     Config c = quiet();
     c.dip.declare_threshold = -1e9;  // everyone wants war
     World w = new_world(c, 62);
     advance(w, (c.gen.warmup_days - 1) * kDay);
-    CHECK(w.ledger.wars == 0);
+    CHECK(w.ledger.wars == w.ledger.secessions);  // a rebellion's war is no vote (ECO-13)
     advance(w, 14 * kDay);
-    CHECK(w.ledger.wars > 0);
+    CHECK(w.ledger.wars > w.ledger.secessions);
 }
 
 TEST_CASE("war stops osmosis between the factions (TRD-6)") {
@@ -210,9 +272,14 @@ TEST_CASE("an invasion besieges, wins and captures (SYS-13, FAC-8, FAC-9, FAC-10
     const double pop = w.planets[at(f.b)].population;
     const Id army = armies::commission(w, f.a, f.b, false, nullptr);
     REQUIRE(army != kNone);
-    advance(w, 60 * kDay);
+    for (int d = 0; d < 60 && w.ledger.captures == 0; ++d) advance(w, kDay);
     CHECK(w.ledger.sieges >= 1);
     REQUIRE(w.ledger.captures == 1);
+    // The army holds its prize a while (SYS-13).
+    CHECK(w.armies[at(army)].alive);
+    CHECK(w.armies[at(army)].action == ArmyAction::Garrison);
+    CHECK(w.armies[at(army)].planet == f.b);
+    advance(w, (w.config.capture.hold_days + 30) * kDay);
     CHECK(fealty::root_of(w, f.b) == f.root_a);
     CHECK(w.planets[at(f.b)].governor != old_gov);
     CHECK(w.characters[at(old_gov)].governs == kNone);
@@ -510,4 +577,150 @@ TEST_CASE("a faction merchant avoids an enemy only once it has heard of the war 
     info::learn_state(w.characters[at(merchant)].facts, f.root_a, f.root_b, DipState::War, w.now);
     const merchant::Plan aware = merchant::best_trip(w, w.characters[at(merchant)], f.root_a);
     CHECK(!touches_enemy(aware));
+}
+
+namespace {
+
+// The interchange of root_b's faction nearest planet a, with no defence.
+Id open_gate(World& w, const Front& f) {
+    Id best = kNone;
+    double days = 1e9;
+    for (Id n = 0; n < static_cast<Id>(w.map.nodes.size()); ++n) {
+        const Id h = gates::holder(w, n);
+        if (h == kNone || fealty::root_of(w, h) != f.root_b) continue;
+        if (w.derived.travel(f.a, h) < days) days = w.derived.travel(f.a, h), best = n;
+    }
+    if (best != kNone) {
+        w.planets[at(gates::holder(w, best))].security = 0;
+        w.gates[at(best)].defence = 0;
+    }
+    return best;
+}
+
+// Runs until the gate is blockaded, or a deadline.
+bool until_blockaded(World& w, Id node, int days) {
+    for (int d = 0; d < days && w.gates[at(node)].captor == kNone; ++d) advance(w, kDay);
+    return w.gates[at(node)].captor != kNone;
+}
+
+}  // namespace
+
+TEST_CASE("an army takes an undefended enemy gate: a blockade, shut to all but the captor's faction (MIL-17)") {
+    World w = new_world(quiet(), 69);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    const Id node = open_gate(w, f);
+    REQUIRE(node != kNone);
+    const Id holder = gates::holder(w, node);
+    commander(w, f.a, 6, 2);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    REQUIRE(armies::commission(w, f.a, holder, false, nullptr, node) != kNone);
+    REQUIRE(until_blockaded(w, node, 60));
+    CHECK(w.ledger.gate_attacks >= 1);
+    CHECK(w.ledger.blockades == 1);
+    CHECK(gates::captor_faction(w, node) == f.root_a);
+    CHECK(gates::shut_to(w, node, f.root_b));
+    CHECK(gates::shut_to(w, node, kNone));  // to everyone else too
+    CHECK(!gates::shut_to(w, node, f.root_a));
+    // The holder knows at once (it's beside its gate).
+    const GateFact* known = gates::find(w.characters[at(w.planets[at(holder)].governor)].facts, node);
+    REQUIRE(known);
+    CHECK(known->captor == f.a);
+
+    // A world with a blockade saves and loads the same.
+    const std::vector<std::uint8_t> bytes = save_world(w);
+    World back = load_world(bytes);
+    CHECK(save_world(back) == bytes);
+}
+
+TEST_CASE("a traveller who hasn't heard of a blockade finds out at the gate and goes another way (MIL-17)") {
+    World w = new_world(quiet(), 69);
+    const Front f = front(w);
+    const Id node = open_gate(w, f);
+    REQUIRE(node != kNone);
+    const Id holder = gates::holder(w, node);
+    // Somewhere whose reference route to the holder gets off the Lattice at the gate.
+    Id from = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && from == kNone; ++p) {
+        const std::vector<Leg> legs = move::route_legs(w, p, holder);
+        for (std::size_t i = 0; i + 1 < legs.size(); ++i) {
+            if (legs[i].kind == LegKind::Lattice && legs[i].to_node == node && legs[i + 1].kind != LegKind::Lattice) from = p;
+        }
+    }
+    REQUIRE(from != kNone);
+    w.gates[at(node)].captor = f.a;  // blockaded by root_a's faction
+    w.gates[at(node)].since = w.now;
+    const Id id = chars::spawn(w, from);
+    Character& c = w.characters[at(id)];
+    c.ships = {ships::variant(w.map, c.culture, ShipClass::Courier, 1)};
+    c.wealth = 1e6;
+    // Unaware, it plans through the gate; told, it plans around it.
+    const std::vector<Leg> naive = move::plan(w, chars::faction_of(w, c), from, holder, &c.facts);
+    Facts told = c.facts;
+    gates::observe(w, told, node);
+    const std::vector<Leg> around = move::plan(w, chars::faction_of(w, c), from, holder, &told);
+    auto exits_at = [&](const std::vector<Leg>& legs) {
+        for (std::size_t i = 0; i + 1 < legs.size(); ++i) {
+            if (legs[i].kind == LegKind::Lattice && legs[i].to_node == node && legs[i + 1].kind != LegKind::Lattice) return true;
+        }
+        return false;
+    };
+    CHECK(exits_at(naive));
+    CHECK(!exits_at(around));
+
+    c.activity = Activity::Exploring;
+    REQUIRE(move::travel_to(w, id, holder));
+    for (int d = 0; d < 120 && w.characters[at(id)].planet != holder; ++d) advance(w, kDay);
+    CHECK(w.characters[at(id)].planet == holder);
+    const GateFact* known = gates::find(w.characters[at(id)].facts, node);
+    REQUIRE(known);
+    CHECK(known->captor == f.a);
+}
+
+TEST_CASE("an unheld blockade is retaken by the holder's faction; a ceasefire lifts one (MIL-17)") {
+    World w = new_world(quiet(), 69);
+    const Front f = front(w);
+    const Id node = open_gate(w, f);
+    REQUIRE(node != kNone);
+    const Id holder = gates::holder(w, node);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+
+    SUBCASE("retaken") {
+        w.gates[at(node)].captor = f.a;
+        w.gates[at(node)].since = w.now;
+        commander(w, holder, 2, 1);
+        REQUIRE(armies::commission(w, holder, holder, false, nullptr, node) != kNone);
+        for (int d = 0; d < 30 && w.gates[at(node)].captor != kNone; ++d) advance(w, kDay);
+        CHECK(w.gates[at(node)].captor == kNone);
+        CHECK(w.ledger.retakes == 1);
+    }
+    SUBCASE("lifted") {
+        w.gates[at(node)].captor = f.a;
+        w.gates[at(node)].since = w.now;
+        diplomacy::make_ceasefire(w, f.root_b, f.root_a, 0, nullptr);
+        advance(w, 8 * kDay);
+        CHECK(w.gates[at(node)].captor == kNone);
+        CHECK(w.ledger.lifts == 1);
+    }
+}
+
+TEST_CASE("a blockade stops osmosis along the Lattice to the planets the gate serves (MIL-17, TRD-6)") {
+    World w = new_world(quiet(), 69);
+    const Front f = front(w);
+    const Id node = open_gate(w, f);
+    REQUIRE(node != kNone);
+    const Id holder = gates::holder(w, node);
+    Id partner = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && partner == kNone; ++p) {
+        if (p != holder && fealty::root_of(w, p) == f.root_b && w.derived.route(holder, p).lattice > 0) partner = p;
+    }
+    REQUIRE(partner != kNone);
+    w.derived.osmosis_pairs = {{std::min(holder, partner), std::max(holder, partner), 1, 1}};
+    for (int g = 0; g < kLawfulGoodCount; ++g) {
+        w.planets[at(holder)].stock[at(g)] *= 3;
+        w.planets[at(partner)].stock[at(g)] *= 0.2;
+    }
+    CHECK(osmosis::run(w) > 0);
+    w.gates[at(node)].captor = f.a;
+    CHECK(osmosis::run(w) == 0);
 }

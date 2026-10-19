@@ -9,6 +9,7 @@
 #include "politics/fealty.hpp"
 #include "info/facts.hpp"
 #include "war/diplomacy.hpp"
+#include "war/gates.hpp"
 #include "war/risk.hpp"
 
 namespace lattice::move {
@@ -74,11 +75,12 @@ std::vector<Leg> route_legs(const World& w, Id a, Id b) {
     return build(w, steps);
 }
 
-std::vector<Leg> plan(const World& w, Id faction, Id a, Id b) {
-    std::vector<Leg> legs = route_legs(w, a, b);
+namespace {
+
+// The gates shut to a traveller of this faction (WLD-12, MIL-17).
+std::vector<bool> shut_gates(const World& w, Id faction, const Facts* facts) {
     const std::vector<Id> enemies = diplomacy::enemies(w, faction);
     std::vector<bool> closed(w.map.nodes.size(), false);
-    bool any = false;
     for (Id n = 0; n < static_cast<Id>(w.map.nodes.size()); ++n) {
         const LatticeNode& node = w.map.nodes[at(n)];
         // The Authority refuses full pirates at every gate (WLD-12, PIR-2); junctions have
@@ -89,13 +91,23 @@ std::vector<Leg> plan(const World& w, Id faction, Id a, Id b) {
             const Id holder = w.map.groups[at(node.group)].holder;
             const Id holder_root = fealty::root_of(w, holder);
             // A pirate planet's gates are shut with the Authority's key (WLD-12, proposed);
-            // an enemy's with its own.
+            // an enemy's with its own, unless the traveller's faction holds it (MIL-17).
+            const Id captor = gates::captor_faction(w, n);
+            if (captor != kNone && captor == faction) continue;
             closed[at(n)] = w.planets[at(holder)].pirate ||
-                            std::find(enemies.begin(), enemies.end(), holder_root) != enemies.end();
+                            std::find(enemies.begin(), enemies.end(), holder_root) != enemies.end() ||
+                            (facts ? gates::believed_shut(w, *facts, n, faction) : gates::shut_to(w, n, faction));
         }
-        any = any || closed[at(n)];
     }
-    if (!any) return legs;
+    return closed;
+}
+
+}  // namespace
+
+std::vector<Leg> plan(const World& w, Id faction, Id a, Id b, const Facts* facts) {
+    std::vector<Leg> legs = route_legs(w, a, b);
+    const std::vector<bool> closed = shut_gates(w, faction, facts);
+    if (std::none_of(closed.begin(), closed.end(), [](bool x) { return x; })) return legs;
     // Does the reference route get on or off at a shut gate?
     bool blocked = faction == kPirates && std::any_of(legs.begin(), legs.end(), [](const Leg& l) { return l.kind == LegKind::Lattice; });
     for (std::size_t i = 0; i < legs.size(); ++i) {
@@ -105,6 +117,14 @@ std::vector<Leg> plan(const World& w, Id faction, Id a, Id b) {
     }
     if (!blocked) return legs;
     return build(w, travel::path_avoiding(w, a, b, closed));
+}
+
+std::vector<Leg> plan_between(const World& w, Id faction, std::int32_t a, std::int32_t b, const Facts* facts,
+                              bool board_at_start) {
+    std::vector<bool> closed = shut_gates(w, faction, facts);
+    const auto np = static_cast<std::int32_t>(w.planets.size());
+    if (b >= np) closed[at(b - np)] = false;
+    return build(w, travel::path_avoiding(w, a, b, closed, board_at_start));
 }
 
 Time leg_time(const World& w, const Leg& l, double speed) {
@@ -183,7 +203,7 @@ bool start_route(World& w, Id id, std::vector<Leg> route) {
 bool travel_to(World& w, Id id, Id dest) {
     const Character& c = w.characters[at(id)];
     if (c.planet == kNone || c.planet == dest) return false;
-    return start_route(w, id, plan(w, chars::faction_of(w, c), c.planet, dest));
+    return start_route(w, id, plan(w, chars::faction_of(w, c), c.planet, dest, &c.facts));
 }
 
 void pause(World& w, Id id) {
@@ -231,6 +251,27 @@ void on_arrive(World& w, Id id, std::uint32_t seq, Observer* observer) {
     const Leg& done = c.route[at(c.leg)];
     info::observe_risk(w, c.facts, risk::sector_at(w.map, done.x1, done.y1));
     if (c.leg + 1 < static_cast<std::int32_t>(c.route.size())) {
+        // At a gate it meant to get on or off at: is it blockaded (MIL-17)? Then it knows,
+        // and goes another way.
+        const Leg& next = c.route[at(c.leg + 1)];
+        const bool off = done.kind == LegKind::Lattice && next.kind != LegKind::Lattice;
+        const bool on = done.kind != LegKind::Lattice && next.kind == LegKind::Lattice;
+        const Id faction = chars::faction_of(w, c);
+        if (done.to_node != kNone && (on || off) && gates::shut_to(w, done.to_node, faction)) {
+            const Id node = done.to_node;
+            gates::observe(w, c.facts, node);
+            const Id dest = c.route.back().to_planet;
+            const auto np = static_cast<std::int32_t>(w.planets.size());
+            std::vector<Leg> again = dest == kNone ? std::vector<Leg>{}
+                                                   : plan_between(w, faction, np + node, dest, &c.facts, off);
+            if (!again.empty()) {
+                c.route = std::move(again);
+                c.leg = 0;
+                ++c.travel_seq;
+                start_leg(w, id);
+                return;
+            }
+        }
         ++c.leg;
         start_leg(w, id);
         return;

@@ -18,9 +18,11 @@ Each check names the metric (ARC-8) and the rules it tests.
   - checks that need role transitions (CHK-16), mission delays by depth (CHK-22), escort
     choices against risk (CHK-21), or experiment runs (CHK-15);
   - CHK-2 and CHK-5, which need defections and reliefs broken down further.
-- **Two metrics added:** CHK-8b, war declarations per faction per year, because "any war
+- **Metrics added:** CHK-8b, war declarations per faction per year, because "any war
   in the world" is nearly always true with many factions; and CHK-17, characters at end
-  over start.
+  over start. Round 2 made CHK-8 each faction's share of time at war, and added CHK-8c
+  (median war length), CHK-6b (blockades) and CHK-9b (secessions). CHK-8b's band moved
+  from 0.05–1 to 2–5 a year with DIP-4's pacing.
 
 ## Politics
 
@@ -57,7 +59,8 @@ before capture, by courier coverage and scouting. *Tests:* MIL-11, INF-12.
 ### CHK-6 Defence numbers aren't frozen or a free-for-all `v1`
 
 Too low and everyone conquers everyone; too high and the map freezes. *Metric:* planets
-changing hands per year. *Tests:* MIL-5, MIL-10.
+changing hands per year. *(proposed, round 2)* Also blockades a year per faction, at
+least 0.5: blockading is a normal part of war (MIL-17). *Tests:* MIL-5, MIL-10, MIL-17.
 
 ## Economy
 
@@ -70,7 +73,9 @@ ECO-5.
 ### CHK-8 Peace and war cycle `v1`
 
 Treasuries fill in peace and drain in war, and factions do go back to war. *Metric:*
-treasury trend by diplomatic state; time spent at war. *Tests:* ECO-7, DIP-3, DIP-4.
+treasury trend by diplomatic state; each faction's share of time at war, and the median
+war's length. *(proposed bands)* At war 0.5 to 0.8 of the time; median war 30 to 90 days
+(DIP-4's pacing). *Tests:* ECO-7, DIP-3, DIP-4.
 
 ### CHK-9 Collapse is individual and concentrated `v1`
 
@@ -78,7 +83,8 @@ Rebellion pressure comes from margin, not planet size. One disrupted route doesn
 off a map-wide wave. Repeated collapse concentrates at overstretched factions; if whole
 factions spiral, rulers value their planets too cheaply. *Metric:* pirate flips by
 planet size, clustering in time and space, repeat flips per planet, faction war count at
-the time. *Tests:* ECO-13, ECO-15.
+the time. *(proposed, round 2)* Secessions count as collapse too, with the same band as
+flips (at most 5% of planets a year). *Tests:* ECO-13, ECO-15.
 
 ### CHK-10 Contraband tension holds `v1`
 

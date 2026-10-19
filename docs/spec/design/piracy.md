@@ -27,7 +27,8 @@ self-sustaining piracy is there.
 ### PIR-3 How pirate planets work `v1`
 
 - **A planet turns pirate through economic failure** (ECO-13), joining the pirate faction.
-  Its vassals become independent roots.
+  *(proposed)* Only a planet with no vassals turns pirate; one with vassals secedes
+  instead (ECO-13).
 - **It produces only contraband** (PRD-1), with its whole labour on it, and **switches
   back to its old production when it's recaptured**.
 - **All its life support comes from missions and raids,** so a starving pirate planet

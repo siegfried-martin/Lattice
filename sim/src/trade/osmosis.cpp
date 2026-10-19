@@ -5,6 +5,7 @@
 
 #include "lattice/market.hpp"
 #include "war/diplomacy.hpp"
+#include "war/gates.hpp"
 
 namespace lattice::osmosis {
 
@@ -38,8 +39,15 @@ std::vector<Derived::Pair> pairs(const World& w) {
 double run(World& w) {
     const Config& c = w.config;
     double moved = 0;
+    // A blockaded gate cuts its group off from trade along the Lattice (MIL-17).
+    auto cut = [&](Id p) {
+        const Id g = w.planets[at(p)].group;
+        const Id node = g == kNone ? kNone : w.map.groups[at(g)].node;
+        return node != kNone && !w.gates.empty() && w.gates[at(node)].captor != kNone;
+    };
     for (const Derived::Pair& pair : w.derived.osmosis_pairs) {
         if (diplomacy::hostile_planets(w, pair.a, pair.b)) continue;  // war stops osmosis (TRD-6), as do the pirates
+        if ((cut(pair.a) || cut(pair.b)) && w.derived.route(pair.a, pair.b).lattice > 0) continue;
         for (int gi = 0; gi < kLawfulGoodCount; ++gi) {
             const auto g = static_cast<Good>(gi);
             Planet* src = &w.planets[at(pair.a)];

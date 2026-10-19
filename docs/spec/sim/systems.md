@@ -29,6 +29,7 @@ buy_l      = lux_total split by each luxury's share of luxury stock, limited by 
 variety    = number of luxuries with buy_l ≥ lux.variety_min × N
 H         += Σ_l buy_l × good.happiness[l] / N + lux.variety_bonus[variety]
              + contraband_bought × good.happiness[contraband] / N − pop.happiness_drain
+             − pop.starve_happiness × min(shortfall, 1)                 (proposed, round 2)
 H          = clamp(H, 0, 1)
 C          = EMA over pop.contraband_window days of contraband bought / N
 P          = (pop.p_base + pop.p_happy × H) × max(0, 1 − pop.contraband_penalty × C)
@@ -416,6 +417,7 @@ vote        = (dip.w_idle × idle combat power under them
              + dip.w_targets × believed wealth of target planets within dip.border_days
              + dip.w_strength × (believed own strength / believed target strength − 1)
              + dip.w_peace × prosperity growth since the last war
+             + dip.w_treasury × clamp(treasury months / dip.reserve_months − 1, 0, dip.treasury_cap)
              − dip.w_wars × wars ongoing − dip.w_losses × recent losses)
              × (0.5 + risk tolerance)
 declare if Σ weight × vote / Σ weight > dip.declare_threshold
@@ -425,11 +427,15 @@ declare if Σ weight × vote / Σ weight > dip.declare_threshold
 
 ```
 war_score  = − dip.s_planets × planets lost share − dip.s_power × fleet power lost share
-             − dip.s_treasury × treasury trend − dip.s_wars × (wars − 1)
+             − dip.s_treasury × treasury trend − dip.s_months × months at war
 if war_score < −dip.sue_threshold: offer tribute = dip.tribute_rate × severity × income
                                    per month, for dip.ceasefire_days
-winner accepts if offer × months > believed value of continuing
-             (expected planets taken × planet value − monthly war cost × months)
+no offer is heard before dip.min_war_days
+winner accepts if offer ≥ max(taken, hope)
+  taken = planets taken a month × the loser's average planet income × value.invade_months ÷ 12
+  hope  = dip.hope_share × hoped × winner's share of the two sides' power
+          × 0.5 ^ (months at war ÷ dip.hope_halflife_months)
+  hoped = the loser's monthly income within dip.border_days of the winner, at the declaration
 ```
 
 Declarations, acceptances and ceasefire ends are facts that travel by courier (DIP-5).
@@ -450,15 +456,18 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   - targets = the enemy's income within `dip.border_days` ÷ the governor's own income;
   - strength = faction power (commanders and static defence) ÷ the target's, − 1;
   - peace = faction income ÷ its income when the last war with this target ended, − 1;
+  - treasury months = the governor's treasury ÷ its monthly operating costs;
   - wars = wars now;
   - losses = planets lost in them.
   Strength and wealth are read from the world, not beliefs, until facts carry them.
 - **Suing** *(proposed)*:
   - The score uses the shares of planets and power lost since the war began, the
-    treasury below zero against monthly income, and the wars at once.
+    treasury below zero against monthly income, and months at war.
   - The offer is `dip.tribute_rate` × min(severity, 3) × income a month.
-  - The winner accepts when the offer covers what it has been taking: planets taken per
-    month × the loser's average planet income × `value.invade_months` ÷ 12.
+  - The winner accepts by the formula above. Power is read from the world.
+  - *Phase A round 2:* before it, the score also counted wars at once (`dip.s_wars`) and
+    the winner valued only what it had taken. A faction in three wars sued at once, and
+    with nothing taken yet any offer was accepted, so the median war lasted 7 days.
 - **A ceasefire** stands down armies sent between the two. When it ends, peace records
   each side's income for the next vote.
 - **Roots changing:**
@@ -539,6 +548,45 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   - Keep or grant runs from the commissioner. The keeper chooses the new governor from
     the army and its own commanders.
   - Its security spending restarts at zero, so a fresh conquest is weakly held.
+  - *(proposed, round 2)* The conquering army garrisons it for `capture.hold_days`, then
+    goes home. Without it, a planet could change hands 19 times in three years.
+
+*As built (round 2): gate attacks and blockades* (MIL-17) *(proposed)*:
+- **State:** every Lattice node has a gate record: static defence, the attack it's under,
+  its captor (the planet whose army took it; its faction holds the blockade), when, and
+  the army garrisoning it. The holder's day rebuilds the defence toward
+  `blockade.defence_share` × `defence.per_spend` × the holder's security spending, unless
+  attacked or blockaded.
+- **Commissioning:** the invasion option also scores gates within `dip.border_days`:
+  - an enemy's open gate: value = P(win) × the monthly income of the planets it serves ×
+    `value.blockade_months`, with D its static defence plus any of its faction's armies
+    garrisoning it;
+  - its own faction's gate blockaded by an enemy, as its governor has heard: value with
+    `value.retake_months`, D the captor's garrison.
+  The best of planets and gates is the one unit. The army's target is the gate's holder,
+  for sightings and warnings, and its objective the gate.
+- **Moving:** armies and characters plan around gates blockaded by another faction as
+  their facts say (an army by its commissioner's facts); a blockade by their own
+  faction opens the gate to them, even an enemy's. One that arrives on or off the
+  Lattice at a gate blockaded against it learns it and replans from there: along the
+  Lattice if it was riding it, through open space if it was about to board.
+- **The attack:** any of the holder's faction's armies garrisoning the gate fight first,
+  a battle at the gate. Then daily rounds against the gate's static defence, as for a
+  planet. The holder calls for help an hour in: it answers first, with its own
+  commanders, then the call goes up the tree. Relief that finds the gate under attack
+  fights the besiegers; one that finds it untouched garrisons it for `army.muster_days`.
+- **Capture:** static defence at zero is a blockade. The army garrisons the gate for
+  `blockade.hold_days`, then goes home. The captor's army and commissioner, and everyone
+  at the planets the gate serves, learn it at once; others by sharing and couriers.
+- **Retaking:** an army of the holder's faction arriving at a blockaded gate retakes it at
+  once if nobody holds it, or fights the garrison and retakes it by winning.
+- **Lifting:** the holder's weekly check lifts a blockade once the captor's faction and the
+  holder are no longer hostile (peace, a ceasefire, the holder now the captor's own), or
+  the captor turned pirate.
+- **Trade:** osmosis between a planet the blockaded gate serves and any partner its
+  reference route reaches along the Lattice stops.
+- **Not yet:** merchants don't weigh a blockade's detour when picking a destination,
+  only on the way.
 
 ### SYS-14 Combat resolution `v1`
 
@@ -621,10 +669,16 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 
 *Implements:* PIR-1 to PIR-13, ECO-13. *Cadence:* events and daily.
 
-- **A planet turns pirate** when it has been in deficit for `pirate.flip_days` and its
-  treasury is below `−pirate.flip_debt` × monthly costs. It leaves its faction (vassals
-  become roots), its labour moves wholly to contraband, its costs drop to
-  `pirate.cost_mult`, dues stop.
+- **A planet fails** when it has been in deficit for `pirate.flip_days` and its
+  treasury is below `−pirate.flip_debt` × monthly costs, or *(proposed, round 2)* when
+  its happiness has been below `rebel.happiness` with a life-support shortfall above
+  `rebel.shortfall` for `rebel.days` in a row. Checked weekly, warm-up included.
+- **A failing planet with no vassals turns pirate.** It leaves its faction, its labour
+  moves wholly to contraband, its costs drop to `pirate.cost_mult`, dues stop.
+- *(proposed, round 2)* **A failing planet with vassals secedes:** it becomes a root with
+  its branch, forgets any relations from an earlier time as a root, stops paying
+  tribute, and its old root declares war on it. A failing root with vassals does
+  nothing (OPN-37).
 - **A commander goes broke** when wealth stays below zero for `char.broke_days`. Then,
   if it knows a pirate planet: with probability `pirate.turn_p(risk)` it travels there
   (running costs suspended), renounces and is hired at `pirate.salary`; otherwise it

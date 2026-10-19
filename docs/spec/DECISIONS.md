@@ -5,6 +5,31 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · Phase A round 2, design changes
+
+Agreed with the human in conversation, written straight into the spec as `proposed`.
+
+- **War pacing:** the number of wars is no longer a suing term; weariness a month at war
+  is. The winner hears no offer before `dip.min_war_days`, and holds out for what it
+  hoped to take, a hope that fades. Money beyond a reserve votes for war. Target: each
+  faction at war a little more than half the time, wars of one to three months (DIP-3,
+  DIP-4, SYS-12, CHK-8).
+- **Rebellion:** hunger drains happiness (PRD-2). A planet fails on a long deficit or on
+  long hunger and misery; with no vassals it turns pirate, with vassals it secedes and
+  its old faction declares war (ECO-13, PIR-3, SYS-16). Rebellions continue through the
+  warm-up (GEN-10). A failing root with vassals is open (OPN-37). World generation stays
+  as it is: where piracy lives should come from the mechanics.
+- **Blockades:** an army at war can attack an enemy's gate, defended at a share of its
+  holder's static defence. Captured, it's a discrete blockade, shut to all but the
+  captor's faction, which can exit there. Unheld, it's retaken by any force of the
+  holder's faction; it lifts with peace. Blockades are facts; travellers route around
+  known ones and find out at the gate otherwise (MIL-17, WLD-12, WLD-13, INF-2, SYS-13,
+  CHK-6).
+- **Capture:** the conquering army garrisons its prize for `capture.hold_days` (SYS-13).
+- **Round 2 tuning:** `value.aftermath_months` 2 → 8, `defence.per_spend` 0.005 → 0.01,
+  `value.blockade_months` 8, `rebel.shortfall` 0.5, `rebel.days` 90; CHK-8b's band 2 to 5
+  (MS-8's note).
+
 ### 2026-10-18 · MS-8, the harness and Phase A round 1
 
 - **Tools:** experiments, checks with proposed bands, and an HTML report, using only

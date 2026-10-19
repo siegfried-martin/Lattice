@@ -172,6 +172,7 @@ struct Planet {
     double income_avg = 0;    // daily income, averaged over a payment period
     double income_today = 0;  // since the planet's last day
     std::int64_t deficit_days = 0;  // consecutive days with a negative treasury (ECO-13)
+    std::int64_t unrest_days = 0;   // consecutive days unhappy and starving (ECO-13)
 
     // Politics (FAC-1, FAC-2).
     Id governor = kNone;  // character
@@ -201,7 +202,7 @@ void fields(Ar& ar, P& p) {
     ar(p.sector, p.region, p.system, p.group, p.moon_of, p.x, p.y, p.fringe, p.makes, p.tiers, p.fuel_price);
     ar(p.population, p.happiness, p.productivity, p.growth_factor, p.contraband_avg);
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
-    ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
+    ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days, p.unrest_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
     ar(p.security, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
@@ -301,6 +302,17 @@ void fields(Ar& ar, F& f) {
     ar(f.army, f.time, f.x, f.y, f.target, f.faction, f.power);
 }
 
+// Whether a gate is blockaded, and by whom, as last heard (MIL-17).
+struct GateFact {
+    Id node = kNone;
+    Time time = 0;
+    Id captor = kNone;  // the planet whose army took it; none: open
+};
+template <class Ar, record_of<GateFact> F>
+void fields(Ar& ar, F& f) {
+    ar(f.node, f.time, f.captor);
+}
+
 // A character's information. Each list is sorted by its subject, so sharing is a merge of
 // sorted lists keeping the newer of each (INF-4).
 struct Facts {
@@ -309,10 +321,11 @@ struct Facts {
     std::vector<DipFact> dips{};
     std::vector<Sighting> sightings{};
     std::vector<PirateFact> pirates{};
+    std::vector<GateFact> gates{};
 };
 template <class Ar, record_of<Facts> F>
 void fields(Ar& ar, F& f) {
-    ar(f.prices, f.risks, f.dips, f.sightings, f.pirates);
+    ar(f.prices, f.risks, f.dips, f.sightings, f.pirates, f.gates);
 }
 
 // ---- Character (MOD-3) ----
@@ -566,7 +579,7 @@ struct Ledger {
     double loot = 0, escort_pay = 0;
     std::int64_t raids = 0, escorts = 0, sightings = 0, warnings = 0, garrisons = 0, patrols = 0;
     // Piracy (MS-6).
-    std::int64_t flips = 0, recaptures = 0, turned_pirate = 0, pirate_raids = 0, authority_contracts = 0;
+    std::int64_t flips = 0, recaptures = 0, turned_pirate = 0, pirate_raids = 0, authority_contracts = 0, secessions = 0;
     std::int64_t offers = 0, smuggled_runs = 0, legal_runs = 0, inspections = 0, caught = 0;
     double smuggled = 0, confiscated = 0, policing = 0, smuggler_profit = 0;
     // Spies (MS-7).
@@ -575,6 +588,8 @@ struct Ledger {
     double security = 0, ceasefire_tribute = 0, power_destroyed = 0;
     std::array<double, kGoodCount> destroyed{};  // goods lost in capture and battle
     std::int64_t wars = 0, ceasefires = 0, battles = 0, sieges = 0, captures = 0, reliefs = 0, deaths = 0, pods = 0;
+    // Blockades (MIL-17).
+    std::int64_t gate_attacks = 0, blockades = 0, retakes = 0, lifts = 0;
 };
 template <class Ar, record_of<Ledger> L>
 void fields(Ar& ar, L& l) {
@@ -584,11 +599,12 @@ void fields(Ar& ar, L& l) {
     ar(l.tribute, l.patronage, l.stipends, l.salaries, l.dues, l.maintenance, l.defections, l.hires, l.fires,
        l.tribute_changes);
     ar(l.loot, l.escort_pay, l.raids, l.escorts, l.sightings, l.warnings, l.garrisons, l.patrols);
-    ar(l.flips, l.recaptures, l.turned_pirate, l.pirate_raids, l.authority_contracts);
+    ar(l.flips, l.recaptures, l.turned_pirate, l.pirate_raids, l.authority_contracts, l.secessions);
     ar(l.offers, l.smuggled_runs, l.legal_runs, l.inspections, l.caught, l.smuggled, l.confiscated, l.policing, l.smuggler_profit);
     ar(l.spies_hired, l.spy_visits, l.musters_seen, l.spies_caught, l.spy_pay);
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,
        l.reliefs, l.deaths, l.pods);
+    ar(l.gate_attacks, l.blockades, l.retakes, l.lifts);
 }
 
 // ---- Diplomacy (MOD-5, DIP-1 to DIP-3) ----
@@ -610,11 +626,12 @@ struct Relation {
     // The war ledger (DIP-3): per side (a, b), since the war began.
     std::array<double, 2> planets_lost{}, power_lost{};
     std::array<double, 2> planets_at_start{}, power_at_start{};
+    std::array<double, 2> hoped{};  // each side's monthly income of enemy planets near its border, at the declaration
 };
 template <class Ar, record_of<Relation> R>
 void fields(Ar& ar, R& r) {
     ar(r.a, r.b, r.state, r.since, r.peace_since, r.peace_income, r.payer, r.payee, r.amount, r.until);
-    ar(r.planets_lost, r.power_lost, r.planets_at_start, r.power_at_start);
+    ar(r.planets_lost, r.power_lost, r.planets_at_start, r.power_at_start, r.hoped);
 }
 
 // ---- Armies, battles and sieges (MOD-6, MOD-7) ----
@@ -625,7 +642,8 @@ enum class ArmyAction : std::uint8_t { Muster = 0, Move = 1, Besiege = 2, Retrea
 struct Army {
     Id commissioner = kNone;  // the governor (character) who raised it (MIL-9)
     Id home = kNone;          // its planet: the muster point
-    Id target = kNone;        // the planet it's to take: its intent (MIL-7)
+    Id target = kNone;        // the planet it's to take: its intent (MIL-7); a gate's holder
+    Id target_node = kNone;   // the gate it's to take or retake (MIL-17)
     bool relief = false;      // sent to break a siege (MIL-11)
     std::vector<Id> members{};
     std::vector<Id> called{};  // commanders on their way to join
@@ -633,6 +651,7 @@ struct Army {
     Time formed = 0;
     // Moving as one, at the slowest member's speed (MIL-8).
     Id planet = kNone;  // where it is, when not moving
+    Id node = kNone;    // or the gate it's at
     std::vector<Leg> route{};
     std::int32_t leg = 0;
     std::uint32_t travel_seq = 0;
@@ -641,8 +660,8 @@ struct Army {
 };
 template <class Ar, record_of<Army> A>
 void fields(Ar& ar, A& a) {
-    ar(a.commissioner, a.home, a.target, a.relief, a.members, a.called, a.action, a.formed);
-    ar(a.planet, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive);
+    ar(a.commissioner, a.home, a.target, a.target_node, a.relief, a.members, a.called, a.action, a.formed);
+    ar(a.planet, a.node, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive);
 }
 
 // A fight, resolved in hourly rounds (SYS-14). Side 0 attacks.
@@ -668,7 +687,8 @@ void fields(Ar& ar, B& b) {
 
 // MOD-7: once no defending ships remain, daily rounds against the static defence.
 struct Siege {
-    Id planet = kNone;
+    Id planet = kNone;  // the planet, or the holder of the gate
+    Id node = kNone;    // the gate under attack, for a gate (MIL-17)
     Id army = kNone;
     Time start = 0;
     bool called = false;  // the call for help has gone out (MIL-11)
@@ -677,7 +697,22 @@ struct Siege {
 };
 template <class Ar, record_of<Siege> S>
 void fields(Ar& ar, S& s) {
-    ar(s.planet, s.army, s.start, s.called, s.relieved, s.alive);
+    ar(s.planet, s.node, s.army, s.start, s.called, s.relieved, s.alive);
+}
+
+// ---- Gates (MIL-17) ----
+
+// One per Lattice node; only interchanges are ever attacked.
+struct Gate {
+    double defence = 0;    // static defence now, in combat power
+    Id siege = kNone;      // the attack it's under
+    Id captor = kNone;     // blockaded by this planet's army (its faction holds it); none: open
+    Time since = kNever;   // when it was captured
+    Id garrison = kNone;   // the captor's army holding it
+};
+template <class Ar, record_of<Gate> G>
+void fields(Ar& ar, G& g) {
+    ar(g.defence, g.siege, g.captor, g.since, g.garrison);
 }
 
 // ---- Risk (SYS-19, TRD-16) ----

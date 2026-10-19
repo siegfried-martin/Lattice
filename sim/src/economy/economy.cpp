@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "lattice/market.hpp"
+#include "war/gates.hpp"
 
 namespace lattice::economy {
 
@@ -130,7 +131,9 @@ void planet_day(World& w, Id id) {
         const double contraband = p.contraband_today;
         p.contraband_today = 0;
         joy += contraband * c.goods[kStims].happiness / n;
-        p.happiness = std::clamp(p.happiness + joy + c.lux.variety_bonus[at(variety)] - c.pop.happiness_drain, 0.0, 1.0);
+        // Hunger hurts (PRD-2).
+        const double hunger = c.pop.starve_happiness * std::min(shortfall, 1.0);
+        p.happiness = std::clamp(p.happiness + joy + c.lux.variety_bonus[at(variety)] - c.pop.happiness_drain - hunger, 0.0, 1.0);
         p.contraband_avg += (contraband / n - p.contraband_avg) / static_cast<double>(c.pop.contraband_window);
     }
 
@@ -154,11 +157,14 @@ void planet_day(World& w, Id id) {
     // a cut in spending lowers it at once.
     const double max_defence = c.defence.per_spend * p.security;
     if (p.siege == kNone) p.defence = std::min(max_defence, p.defence + c.defence.regen * max_defence);
+    if (const Id node = w.gates.empty() ? kNone : gates::held_by(w, id); node != kNone) gates::regen(w, node);
 
     // The income average, for the credit limit (SYS-3).
     p.income_avg += (p.income_today - p.income_avg) / static_cast<double>(c.time.payment_days);
     p.income_today = 0;
     p.deficit_days = p.treasury < 0 ? p.deficit_days + 1 : 0;
+    const bool unrest = !p.pirate && p.happiness < c.rebel.happiness && shortfall > std::max(c.rebel.shortfall, 1e-9);
+    p.unrest_days = unrest ? p.unrest_days + 1 : 0;
 }
 
 void planet_labour(World& w, Id id) {

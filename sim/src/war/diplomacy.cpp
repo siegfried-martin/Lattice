@@ -6,6 +6,7 @@
 
 #include "chars/contracts.hpp"
 #include "chars/ships.hpp"
+#include "economy/economy.hpp"
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
 
@@ -72,6 +73,22 @@ std::vector<std::int64_t> branch_sizes(const World& w) {
     return size;
 }
 
+// The monthly income of target's planets within dip.border_days of any of root's: what a
+// war with it could take (DIP-4).
+double border_income(const World& w, Id root, Id target) {
+    const std::vector<Id> mine = fealty::faction_planets(w, root), theirs = fealty::faction_planets(w, target);
+    double total = 0;
+    for (Id q : theirs) {
+        for (Id p : mine) {
+            if (w.derived.travel(p, q) <= w.config.dip.border_days) {
+                total += planet_income(w, q);
+                break;
+            }
+        }
+    }
+    return total;
+}
+
 // SYS-12's war vote of root's faction against target, from each governor's own position.
 // *(proposed)* Strength and wealth are read from the world, not from beliefs, until
 // facts carry them.
@@ -98,9 +115,12 @@ double war_vote(const World& w, Id root, Id target) {
             if (w.derived.travel(p, q) <= d.border_days) near += planet_income(w, q);
         }
         const double idle = sworn_power(w, planet.governor, true) / w.config.value.power_ref;
+        // Money piled up past a reserve wants spending (DIP-4).
+        const double months = planet.treasury / std::max(1.0, economy::monthly_costs(w.config, planet));
+        const double hoard = std::clamp(months / d.reserve_months - 1, 0.0, d.treasury_cap);
         const double vote = (d.w_idle * idle + d.w_targets * near / std::max(1.0, planet_income(w, p)) +
-                             d.w_strength * (power_own / power_target - 1) + d.w_peace * peace - d.w_wars * wars -
-                             d.w_losses * losses) *
+                             d.w_strength * (power_own / power_target - 1) + d.w_peace * peace +
+                             d.w_treasury * hoard - d.w_wars * wars - d.w_losses * losses) *
                             (0.5 + g.risk);
         const auto weight = static_cast<double>(size[at(p)]);
         total += weight * vote;
@@ -168,6 +188,7 @@ void declare_war(World& w, Id a, Id b, Observer* observer) {
     r.planets_at_start = {static_cast<double>(fealty::faction_planets(w, r.a).size()),
                           static_cast<double>(fealty::faction_planets(w, r.b).size())};
     r.power_at_start = {faction_power(w, r.a), faction_power(w, r.b)};
+    r.hoped = {border_income(w, r.a, r.b), border_income(w, r.b, r.a)};
     announce(w, r);
     ++w.ledger.wars;
     if (observer) observer->log(w.now, "war.declared", a, "on " + std::to_string(b));
@@ -204,29 +225,32 @@ void root_weekly(World& w, Id root, Observer* observer) {
         }
     }
 
-    // Suing for peace (DIP-3), from the root's own losses.
+    // Suing for peace (DIP-3), from the root's own losses and weariness.
     for (Id enemy : enemies(w, root)) {
         const Relation& r = *find(w, root, enemy);
-        const std::size_t me = at(side_of(r, root));
+        const std::size_t me = at(side_of(r, root)), them = 1 - me;
         const double planets = r.planets_at_start[me] > 0 ? r.planets_lost[me] / r.planets_at_start[me] : 0;
         const double power = r.power_at_start[me] > 0 ? r.power_lost[me] / r.power_at_start[me] : 0;
         const double income = std::max(1.0, faction_income(w, root));
         const double treasury = std::min(0.0, w.planets[at(root)].treasury) / income;
-        const double wars = static_cast<double>(enemies(w, root).size());
-        const double score = -d.s_planets * planets - d.s_power * power + d.s_treasury * treasury - d.s_wars * (wars - 1);
+        const double months = static_cast<double>(w.now - r.since) / (30.0 * kDay);
+        const double score = -d.s_planets * planets - d.s_power * power + d.s_treasury * treasury - d.s_months * months;
         if (score >= -d.sue_threshold) continue;
-        // The offer, and the winner's view of carrying on: what it has been taking per
-        // month against what the war costs it.
+        // The winner hears no offer until its armies could have reached the front.
+        if (w.now - r.since < d.min_war_days * kDay) continue;
         const double offer = d.tribute_rate * std::min(-score, 3.0) * income;
-        const double months = std::max(1.0, static_cast<double>(w.now - r.since) / (30.0 * kDay));
+        // The winner's view of carrying on: what it has been taking a month, or, if more,
+        // what it hoped to take, by its share of the two sides' power, fading as the war
+        // drags on.
         const std::vector<Id> mine = fealty::faction_planets(w, root);
         double avg = 0;
         for (Id p : mine) avg += planet_income(w, p);
         avg = mine.empty() ? 0 : avg / static_cast<double>(mine.size());
-        const double gain = r.planets_lost[me] / months * avg * w.config.value.invade_months / 12;
-        if (offer >= gain) {
-            make_ceasefire(w, root, enemy, offer, observer);
-        }
+        const double taken = r.planets_lost[me] / std::max(1.0, months) * avg * w.config.value.invade_months / 12;
+        const double own = faction_power(w, enemy), other = faction_power(w, root);
+        const double share = own + other > 0 ? own / (own + other) : 0.5;
+        const double hope = d.hope_share * r.hoped[them] * share * std::pow(0.5, months / d.hope_halflife_months);
+        if (offer >= std::max(taken, hope)) make_ceasefire(w, root, enemy, offer, observer);
     }
 
     // The war vote against each neighbour at peace (DIP-4); none during the warm-up, so
