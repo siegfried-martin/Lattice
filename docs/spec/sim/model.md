@@ -116,6 +116,11 @@ tree (cache per tick). Between each pair of neighbouring roots:
 When a root changes (defection, capture of the root's planet), relations carry over to
 the new root *(proposed)*: the breakaway starts at peace with everyone except the pirates.
 
+*As built (MS-5):* relations are records between two root planets; a pair with no
+record is at peace. A record also keeps when the last war ended and each side's income
+then (for the war vote), and each side's planets and power at the war's start (for
+suing).
+
 ### MOD-6 Army `v1`
 
 | Field | Notes |
@@ -125,6 +130,7 @@ the new root *(proposed)*: the breakaway starts at peace with everyone except th
 | intent | target planet (MIL-7) |
 | action | muster, move, besiege, retreat, disband |
 | location | as a character's, moving at the slowest member's speed |
+| called | commanders on their way to the muster; also its home planet, whether it is a relief, its battle and siege (MS-5) |
 
 ### MOD-7 Siege and battle `v1`
 
@@ -132,6 +138,11 @@ the new root *(proposed)*: the breakaway starts at peace with everyone except th
 |---|---|
 | **Battle** | location, sides (character IDs per side), start time, rounds fought, losses so far (MIL-13) |
 | **Siege** | planet, attacking army, start time, remaining static defence, defenders present (MIL-10) |
+
+*As built (MS-5):* a battle keeps each side's characters, armies, damage carried over
+and power lost, and whether side 1 has the planet's static defence. The static defence is
+kept on the planet with its security spending (MOD-2). A siege keeps whether its call
+for help has gone out and whether it was relieved.
 
 ### MOD-8 Fact `v1`
 

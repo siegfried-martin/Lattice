@@ -295,6 +295,27 @@ void check_references(const World& w) {
         require(in(mi.poster, nc) && in(mi.at, np) && in(mi.target, np) && opt(mi.taker, nc), "mission");
         facts_ok(mi.packet);
     }
+    for (const Planet& p : w.planets) require(opt(p.siege, w.sieges.size()), "planet siege");
+    for (const Character& c : w.characters) require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()), "character war");
+    for (const Relation& r : w.relations) {
+        require(in(r.a, np) && in(r.b, np) && opt(r.payer, np) && opt(r.payee, np) && static_cast<int>(r.state) <= 2, "relation");
+    }
+    for (const Army& a : w.armies) {
+        require(in(a.commissioner, nc) && in(a.home, np) && opt(a.target, np) && opt(a.planet, np) &&
+                    opt(a.battle, w.battles.size()) && opt(a.siege, w.sieges.size()),
+                "army");
+        for (Id member : a.members) require(in(member, nc), "army member");
+        for (Id member : a.called) require(in(member, nc), "army called");
+        for (const Leg& l : a.route) require(opt(l.to_planet, np) && opt(l.to_node, m.nodes.size()), "army route");
+        require(a.route.empty() || in(a.leg, a.route.size()), "army leg");
+    }
+    for (const Battle& b : w.battles) {
+        require(opt(b.planet, np) && opt(b.armies[0], w.armies.size()) && opt(b.armies[1], w.armies.size()), "battle");
+        for (const auto& side : b.sides) {
+            for (Id c : side) require(in(c, nc), "battle side");
+        }
+    }
+    for (const Siege& s : w.sieges) require(in(s.planet, np) && in(s.army, w.armies.size()), "siege");
     for (const CourierRun& r : w.courier_runs) {
         require(in(r.from, np) && in(r.to, np), "courier run");
         facts_ok(r.packet);
@@ -314,6 +335,11 @@ void check_references(const World& w) {
             case EventKind::CharArrive: require(in(e.record, nc), "character event"); break;
             case EventKind::CourierArrive: require(in(e.record, w.courier_runs.size()), "courier event"); break;
             case EventKind::MissionExpire: require(in(e.record, w.missions.size()), "mission event"); break;
+            case EventKind::ArmyMuster:
+            case EventKind::ArmyArrive: require(in(e.record, w.armies.size()), "army event"); break;
+            case EventKind::BattleRound: require(in(e.record, w.battles.size()), "battle event"); break;
+            case EventKind::SiegeRound: require(in(e.record, w.sieges.size()), "siege event"); break;
+            case EventKind::CallForHelp: require(in(e.record, w.sieges.size()) && in(e.a, np), "call event"); break;
             default: require(false, "event kind");
         }
     }
@@ -323,7 +349,7 @@ void check_references(const World& w) {
 template <class Ar, class W>
 void world_fields(Ar& ar, W& w) {
     ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.characters, w.contracts,
-       w.missions, w.courier_runs, w.authority, w.ledger);
+       w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.authority, w.ledger);
 }
 
 }  // namespace

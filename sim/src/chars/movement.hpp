@@ -16,6 +16,15 @@ bool travel_to(World& world, Id character, Id dest);
 // The legs of the reference route from planet a to planet b.
 std::vector<Leg> route_legs(const World& world, Id a, Id b);
 
+// The legs a traveller of a faction (or none) takes from a to b: the reference route,
+// unless it would enter or leave the Lattice at a gate held by a faction at war with
+// the traveller's, which both keys shut to it (WLD-12, DIP-6); then a route that
+// gets on and off elsewhere and crosses the rest in open space (WLD-13).
+std::vector<Leg> plan(const World& world, Id faction, Id a, Id b);
+
+// How long a leg takes a fleet with this open-space speed.
+Time leg_time(const World& world, const Leg& leg, double speed);
+
 // Estimates along the reference route for this character's fleet.
 double trip_days(const World& world, const Character& c, Id from, Id to);
 double fuel_cost(const World& world, const Character& c, Id from, Id to);

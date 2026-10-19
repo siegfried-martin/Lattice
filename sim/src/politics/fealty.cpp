@@ -2,6 +2,7 @@
 
 #include "lattice/market.hpp"
 #include "politics/opinion.hpp"
+#include "war/diplomacy.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -181,6 +182,7 @@ void check_defection(World& w, Id id, Observer* observer) {
     }
     const Id old = p.liege;
     swear(w, id, rival);
+    if (rival == kNone) diplomacy::forget(w, id);  // a new root starts at peace (MOD-5)
     ++w.ledger.defections;
     if (observer) {
         observer->log(w.now, "defection", id, "from " + std::to_string(old) + (rival == kNone ? " to independence" : " to root " + std::to_string(rival)));

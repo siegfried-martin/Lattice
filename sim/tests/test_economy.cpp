@@ -248,7 +248,8 @@ TEST_CASE("money and goods add up over a year (CHK-7)") {
     CHECK(total_money(w) - money0 == doctest::Approx(expected).epsilon(1e-9));
     for (int g = 0; g < kLawfulGoodCount; ++g) {
         const double stock = goods(g);
-        CHECK(stock - stock0[at(g)] == doctest::Approx(w.ledger.produced[at(g)] - w.ledger.consumed[at(g)]).epsilon(1e-9));
+        const auto& l = w.ledger;
+        CHECK(stock - stock0[at(g)] == doctest::Approx(l.produced[at(g)] - l.consumed[at(g)] - l.destroyed[at(g)]).epsilon(1e-9));
     }
     CHECK(w.ledger.osmosis_volume > 0);
 }

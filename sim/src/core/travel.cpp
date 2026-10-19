@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace lattice::travel {
 
@@ -77,6 +78,58 @@ Routes planet_routes(const World& w) {
         }
         for (std::size_t dst = 0; dst < np; ++dst) out.days[src * np + dst] = best[dst];
     }
+    return out;
+}
+
+std::vector<Step> path_avoiding(const World& w, Id a, Id b, const std::vector<bool>& closed) {
+    const auto& c = w.config.travel;
+    const std::size_t np = w.planets.size(), nn = w.map.nodes.size(), n = np + nn;
+    auto pos = [&](std::size_t v) {
+        return v < np ? std::pair{w.planets[v].x, w.planets[v].y} : std::pair{w.map.nodes[v - np].x, w.map.nodes[v - np].y};
+    };
+    auto shut = [&](std::size_t v) { return v >= np && closed[v - np]; };
+    std::vector<std::vector<std::pair<std::size_t, LegKind>>> links(n);
+    for (const LatticeEdge& e : w.map.edges) {
+        links[np + at(e.a)].emplace_back(np + at(e.b), LegKind::Lattice);
+        links[np + at(e.b)].emplace_back(np + at(e.a), LegKind::Lattice);
+    }
+    for (const HopLane& h : w.map.hop_lanes) {
+        links[at(h.a)].emplace_back(at(h.b), LegKind::Hop);
+        links[at(h.b)].emplace_back(at(h.a), LegKind::Hop);
+    }
+    std::vector<double> best(n, std::numeric_limits<double>::max());
+    std::vector<std::int32_t> pred(n, -1);
+    std::vector<LegKind> via(n, LegKind::Space);
+    std::vector<bool> done(n, false);
+    best[at(a)] = 0;
+    for (std::size_t step = 0; step < n; ++step) {
+        std::size_t u = n;
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!done[i] && (u == n || best[i] < best[u])) u = i;
+        }
+        if (u == n || best[u] == std::numeric_limits<double>::max()) break;
+        done[u] = true;
+        const auto [ux, uy] = pos(u);
+        for (std::size_t v = 0; v < n; ++v) {
+            if (done[v] || shut(u) || shut(v)) continue;  // no getting on or off at a shut gate
+            const auto [vx, vy] = pos(v);
+            const double t = best[u] + std::hypot(ux - vx, uy - vy) / c.space_speed;
+            if (t < best[v]) best[v] = t, pred[v] = static_cast<std::int32_t>(u), via[v] = LegKind::Space;
+        }
+        for (auto [v, kind] : links[u]) {
+            if (done[v]) continue;
+            const auto [vx, vy] = pos(v);
+            const double t = best[u] + (kind == LegKind::Hop ? c.hop_days : std::hypot(ux - vx, uy - vy) / c.lattice_speed);
+            if (t < best[v]) best[v] = t, pred[v] = static_cast<std::int32_t>(u), via[v] = kind;
+        }
+    }
+    if (pred[at(b)] < 0 && a != b) return {};
+    std::vector<Step> out{{b, via[at(b)]}};
+    while (out.back().vertex != a) {
+        const std::int32_t p = pred[at(out.back().vertex)];
+        out.push_back({p, via[at(p)]});
+    }
+    std::reverse(out.begin(), out.end());
     return out;
 }
 

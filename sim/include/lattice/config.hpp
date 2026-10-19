@@ -301,9 +301,63 @@ struct Config {
         double defence = 0.01;        // a value.power_ref fleet is worth this share of monthly income
         double power_ref = 10;
         double patronage_months = 12; // patronage is worth this many months of the tribute it saves
+        double war_mult = 2;          // defence is worth this much more at war
+        double border_mult = 1;       // and this much more with an enemy planet within dip.border_days
+        double security_unit = 1000;  // static defence is bought in units of this much a month
+        double invade_months = 12;    // a planet taken is worth this many months of its income
+        double gate_months = 6;       // more for one that holds gates (WLD-5)
+        double aftermath_months = 2;  // rebuilding after capture costs this many months of its income
+        double protect = 0.1;         // keep or grant: protection cost per day of travel from the keeper
 
         friend bool operator==(const Value&, const Value&) = default;
     } value;
+
+    struct Dip {
+        double neighbour_days = 3;  // factions this close border each other (DIP-1)
+        double border_days = 5;     // a governor's war vote counts enemy planets this close
+        double w_idle = 0.2, w_targets = 0.3, w_strength = 1, w_peace = 0.5, w_wars = 1.5, w_losses = 0.5;
+        double declare_threshold = 1;
+        double s_planets = 3, s_power = 2, s_treasury = 1, s_wars = 1;
+        double sue_threshold = 1;
+        double tribute_rate = 0.1;  // ceasefire tribute per month, x severity x the loser's income
+        std::int64_t ceasefire_days = 90;
+
+        friend bool operator==(const Dip&, const Dip&) = default;
+    } dip;
+
+    struct ArmyParams {
+        std::int64_t muster_days = 14;
+        double detour_ratio = 0.15;
+
+        friend bool operator==(const ArmyParams&, const ArmyParams&) = default;
+    } army;
+
+    struct Combat {
+        double lethality = 0.05;     // power lost per round per enemy power
+        double noise = 0.3;
+        double retreat_base = 0.6;   // retreat when own / enemy falls below base - risk x this
+        double retreat_risk = 0.4;
+        double retreat_loss = 0.2;
+        double cargo_destroyed = 0.3;
+        double pod_death_p = 0.05;
+
+        friend bool operator==(const Combat&, const Combat&) = default;
+    } combat;
+
+    struct Defence {
+        double per_spend = 0.005;  // static defence power per credit of monthly security spend
+        double regen = 0.05;       // share of its maximum restored a day, when not besieged
+
+        friend bool operator==(const Defence&, const Defence&) = default;
+    } defence;
+
+    struct Capture {
+        double happiness_loss = 0.4;
+        double stock_loss = 0.5;
+        double pop_loss = 0.05;
+
+        friend bool operator==(const Capture&, const Capture&) = default;
+    } capture;
 
     struct Hire {
         double range_days = 5;
@@ -521,6 +575,49 @@ void for_each_field(C& c, F&& f) {
     f("value.defence", c.value.defence);
     f("value.power_ref", c.value.power_ref);
     f("value.patronage_months", c.value.patronage_months);
+
+    f("value.war_mult", c.value.war_mult);
+    f("value.border_mult", c.value.border_mult);
+    f("value.security_unit", c.value.security_unit);
+    f("value.invade_months", c.value.invade_months);
+    f("value.gate_months", c.value.gate_months);
+    f("value.aftermath_months", c.value.aftermath_months);
+    f("value.protect", c.value.protect);
+
+    f("dip.neighbour_days", c.dip.neighbour_days);
+    f("dip.border_days", c.dip.border_days);
+    f("dip.w_idle", c.dip.w_idle);
+    f("dip.w_targets", c.dip.w_targets);
+    f("dip.w_strength", c.dip.w_strength);
+    f("dip.w_peace", c.dip.w_peace);
+    f("dip.w_wars", c.dip.w_wars);
+    f("dip.w_losses", c.dip.w_losses);
+    f("dip.declare_threshold", c.dip.declare_threshold);
+    f("dip.s_planets", c.dip.s_planets);
+    f("dip.s_power", c.dip.s_power);
+    f("dip.s_treasury", c.dip.s_treasury);
+    f("dip.s_wars", c.dip.s_wars);
+    f("dip.sue_threshold", c.dip.sue_threshold);
+    f("dip.tribute_rate", c.dip.tribute_rate);
+    f("dip.ceasefire_days", c.dip.ceasefire_days);
+
+    f("army.muster_days", c.army.muster_days);
+    f("army.detour_ratio", c.army.detour_ratio);
+
+    f("combat.lethality", c.combat.lethality);
+    f("combat.noise", c.combat.noise);
+    f("combat.retreat_base", c.combat.retreat_base);
+    f("combat.retreat_risk", c.combat.retreat_risk);
+    f("combat.retreat_loss", c.combat.retreat_loss);
+    f("combat.cargo_destroyed", c.combat.cargo_destroyed);
+    f("pod.death_p", c.combat.pod_death_p);
+
+    f("defence.per_spend", c.defence.per_spend);
+    f("defence.regen", c.defence.regen);
+
+    f("capture.happiness_loss", c.capture.happiness_loss);
+    f("capture.stock_loss", c.capture.stock_loss);
+    f("capture.pop_loss", c.capture.pop_loss);
 
     f("hire.range_days", c.hire.range_days);
     f("hire.stipend_per_power", c.hire.stipend_per_power);

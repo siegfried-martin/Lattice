@@ -52,8 +52,7 @@ sharing (SYS-15), independent and faction merchants (SYS-7), missions and career
   when broke. Automated couriers carry facts down and up the fealty trees.
 - **Moved in:** fealty trees (GEN-8) and governors (part of GEN-9) came forward from
   MS-4, because faction merchants, sharing and couriers need them.
-- **Moved out:** escorts move to MS-6, where routes first carry risk; sightings move to
-  MS-5, where armies are what they're for.
+- **Moved out:** escorts and sightings move to MS-5, where risk and armies first exist.
 - **Speed:** a v1-size world with 2,000 characters runs a year in about 7 s.
 - **Found:** merchants move more life support than the planets make (goods change hands
   more than once) but can't fix MS-2's structural shortage: populations still shrink
@@ -90,6 +89,27 @@ Authority and dues (SYS-20).
 Diplomacy (SYS-12), combat resolution (SYS-14), escorts, armies, invasions, sieges,
 calls for help, relief and capture with keep-or-grant (SYS-13), scouts, planetary
 defence and security missions, risk (SYS-19).
+
+*Part 1 built 2026-10-18.*
+- **What runs:**
+  - diplomacy: the war vote, suing for peace, ceasefire tribute, and what war changes
+    (osmosis, faction trade, gates);
+  - battles in rounds, with pods;
+  - static defence bought through the budget;
+  - invasions as a budget option, with muster, siege, calls for help and relief;
+  - capture with keep-or-grant and a new governor.
+- **Tests caught two bugs:**
+  - a merchant re-planning the same doomed trip within one instant;
+  - leftover cargo relabelled as a new good.
+  A sanitizer run caught a contract ended twice.
+- **Seen:**
+  - In development worlds, conquest is fast: under the starting values one or two
+    factions remain after two to three years, and populations collapse as before.
+  - A v1 world keeps five factions after three years, with reliefs breaking about one
+    siege in seven.
+  - CHK-1 and CHK-6 are for Phase A.
+- **Part 2:** raids, risk, escorts, threat scouting with sightings, security missions,
+  and declarations travelling by courier.
 
 ### MS-6 Piracy and suspicion `v1`
 

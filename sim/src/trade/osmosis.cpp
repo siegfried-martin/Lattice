@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "lattice/market.hpp"
+#include "war/diplomacy.hpp"
 
 namespace lattice::osmosis {
 
@@ -38,6 +39,7 @@ double run(World& w) {
     const Config& c = w.config;
     double moved = 0;
     for (const Derived::Pair& pair : w.derived.osmosis_pairs) {
+        if (diplomacy::planets_at_war(w, pair.a, pair.b)) continue;  // war stops osmosis (TRD-6)
         for (int gi = 0; gi < kLawfulGoodCount; ++gi) {
             const auto g = static_cast<Good>(gi);
             Planet* src = &w.planets[at(pair.a)];

@@ -180,6 +180,11 @@ struct Planet {
     double tribute_month = 0;    // tribute received since its last payment
     double tribute_paid = 0;     // its last payment's tribute, as its liege saw it
     Time low_since = kNever;     // its governor's opinion of the liege below fealty.defect_opinion since
+
+    // Defence (MIL-5).
+    double security = 0;     // monthly spend on static defence and patrols (ECO-4): a sink
+    double defence = 0;      // static defence now, in combat power
+    Id siege = kNone;        // the siege it's under
 };
 template <class Ar, record_of<Planet> P>
 void fields(Ar& ar, P& p) {
@@ -188,6 +193,7 @@ void fields(Ar& ar, P& p) {
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
     ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
+    ar(p.security, p.defence, p.siege);
 }
 
 // ---- Relationships (REL-2, REL-3, SYS-10) ----
@@ -273,7 +279,9 @@ enum class Activity : std::uint8_t {
     Exploring = 3,  // moving to look at another market (TRD-4)
     Mission = 4,    // on a mission (SYS-8)
     Serving = 5,    // a sworn commander at its post (MIL-2)
+    Army = 6,       // with an army, mustering or moving with it (MIL-7)
 };
+inline constexpr int kActivityCount = 7;
 
 // The kinds of mission and skill (CHR-10). Append only.
 enum class MissionKind : std::uint8_t { Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5 };
@@ -335,6 +343,8 @@ struct Character {
     Time broke_since = kNever;  // below zero since (PIR-4); kNever when solvent
     std::uint32_t wake_seq = 0;  // only the latest scheduled decision runs
     Time salary_checked = -kDay * 365;  // last weighed a merchant salary (SYS-9)
+    Id army = kNone;    // the army it serves in
+    Id battle = kNone;  // the battle it's fighting
 };
 template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
@@ -343,7 +353,7 @@ void fields(Ar& ar, C& c) {
     ar(c.activity, c.opinions, c.authority_opinion, c.governs, c.contracts, c.mission, c.skills, c.reputation,
        c.missions_done);
     ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
-    ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked);
+    ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -447,6 +457,10 @@ struct Ledger {
     // Politics (MS-4).
     double tribute = 0, patronage = 0, stipends = 0, salaries = 0, dues = 0, maintenance = 0;
     std::int64_t defections = 0, hires = 0, fires = 0, tribute_changes = 0;
+    // War (MS-5).
+    double security = 0, ceasefire_tribute = 0, power_destroyed = 0;
+    std::array<double, kGoodCount> destroyed{};  // goods lost in capture and battle
+    std::int64_t wars = 0, ceasefires = 0, battles = 0, sieges = 0, captures = 0, reliefs = 0, deaths = 0, pods = 0;
 };
 template <class Ar, record_of<Ledger> L>
 void fields(Ar& ar, L& l) {
@@ -455,6 +469,94 @@ void fields(Ar& ar, L& l) {
     ar(l.detections, l.meetings_shared, l.missions_posted, l.missions_done, l.missions_expired);
     ar(l.tribute, l.patronage, l.stipends, l.salaries, l.dues, l.maintenance, l.defections, l.hires, l.fires,
        l.tribute_changes);
+    ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,
+       l.reliefs, l.deaths, l.pods);
+}
+
+// ---- Diplomacy (MOD-5, DIP-1 to DIP-3) ----
+
+// Append only.
+enum class DipState : std::uint8_t { Peace = 0, War = 1, Ceasefire = 2 };
+
+// Between two roots, a < b. Pairs with no record are at peace.
+struct Relation {
+    Id a = kNone, b = kNone;
+    DipState state = DipState::Peace;
+    Time since = 0;
+    Time peace_since = 0;           // when the last war ended
+    std::array<double, 2> peace_income{};  // each root's faction income then, for the war vote
+    // A ceasefire's tribute (DIP-2).
+    Id payer = kNone, payee = kNone;
+    double amount = 0;  // per month
+    Time until = 0;
+    // The war ledger (DIP-3): per side (a, b), since the war began.
+    std::array<double, 2> planets_lost{}, power_lost{};
+    std::array<double, 2> planets_at_start{}, power_at_start{};
+};
+template <class Ar, record_of<Relation> R>
+void fields(Ar& ar, R& r) {
+    ar(r.a, r.b, r.state, r.since, r.peace_since, r.peace_income, r.payer, r.payee, r.amount, r.until);
+    ar(r.planets_lost, r.power_lost, r.planets_at_start, r.power_at_start);
+}
+
+// ---- Armies, battles and sieges (MOD-6, MOD-7) ----
+
+// Append only.
+enum class ArmyAction : std::uint8_t { Muster = 0, Move = 1, Besiege = 2, Retreat = 3, Disband = 4 };
+
+struct Army {
+    Id commissioner = kNone;  // the governor (character) who raised it (MIL-9)
+    Id home = kNone;          // its planet: the muster point
+    Id target = kNone;        // the planet it's to take: its intent (MIL-7)
+    bool relief = false;      // sent to break a siege (MIL-11)
+    std::vector<Id> members{};
+    std::vector<Id> called{};  // commanders on their way to join
+    ArmyAction action = ArmyAction::Muster;
+    Time formed = 0;
+    // Moving as one, at the slowest member's speed (MIL-8).
+    Id planet = kNone;  // where it is, when not moving
+    std::vector<Leg> route{};
+    std::int32_t leg = 0;
+    std::uint32_t travel_seq = 0;
+    Id battle = kNone, siege = kNone;
+    bool alive = true;
+};
+template <class Ar, record_of<Army> A>
+void fields(Ar& ar, A& a) {
+    ar(a.commissioner, a.home, a.target, a.relief, a.members, a.called, a.action, a.formed);
+    ar(a.planet, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive);
+}
+
+// A fight, resolved in hourly rounds (SYS-14). Side 0 attacks.
+struct Battle {
+    Id planet = kNone;  // where (a planet for sieges and their reliefs)
+    double x = 0, y = 0;
+    std::array<std::vector<Id>, 2> sides{};  // characters
+    std::array<Id, 2> armies{kNone, kNone};
+    std::array<double, 2> damage{};  // damage not yet enough to take a ship
+    std::array<double, 2> lost{};    // combat power lost so far
+    bool planet_side = false;        // side 1 has the planet's static defence
+    Time start = 0;
+    std::int64_t rounds = 0;
+    bool alive = true;
+};
+template <class Ar, record_of<Battle> B>
+void fields(Ar& ar, B& b) {
+    ar(b.planet, b.x, b.y, b.sides, b.armies, b.damage, b.lost, b.planet_side, b.start, b.rounds, b.alive);
+}
+
+// MOD-7: once no defending ships remain, daily rounds against the static defence.
+struct Siege {
+    Id planet = kNone;
+    Id army = kNone;
+    Time start = 0;
+    bool called = false;  // the call for help has gone out (MIL-11)
+    bool relieved = false;
+    bool alive = true;
+};
+template <class Ar, record_of<Siege> S>
+void fields(Ar& ar, S& s) {
+    ar(s.planet, s.army, s.start, s.called, s.relieved, s.alive);
 }
 
 // ---- The Trade Authority (FAC-13, FAC-14, SYS-20) ----

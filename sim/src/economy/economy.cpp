@@ -133,6 +133,11 @@ void planet_day(World& w, Id id) {
     p.productivity = (c.pop.p_base + c.pop.p_happy * p.happiness) *
                      std::max(0.0, 1 - c.pop.contraband_penalty * p.contraband_avg);
 
+    // Static defence (MIL-5) rebuilds toward what security spending buys, unless besieged;
+    // a cut in spending lowers it at once.
+    const double max_defence = c.defence.per_spend * p.security;
+    if (p.siege == kNone) p.defence = std::min(max_defence, p.defence + c.defence.regen * max_defence);
+
     // The income average, for the credit limit (SYS-3).
     p.income_avg += (p.income_today - p.income_avg) / static_cast<double>(c.time.payment_days);
     p.income_today = 0;

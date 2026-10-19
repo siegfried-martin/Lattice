@@ -152,16 +152,21 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | Key | Meaning | Start |
 |---|---|---|
 | `dip.neighbour_days` | Lattice days within which factions border | 3 |
-| `dip.w_idle`, `dip.w_targets`, `dip.w_strength`, `dip.w_peace`, `dip.w_wars`, `dip.w_losses` | War vote weights | set in MS-5 |
-| `dip.border_days`, `dip.declare_threshold` | War vote reach and threshold | 5, set in MS-5 |
-| `dip.s_*`, `dip.sue_threshold` | Suing-for-peace score | set in MS-5 |
+| `dip.w_idle`, `dip.w_targets`, `dip.w_strength`, `dip.w_peace`, `dip.w_wars`, `dip.w_losses` | War vote weights *(proposed, MS-5)* | 0.2, 0.3, 1, 0.5, 1.5, 0.5 |
+| `dip.border_days`, `dip.declare_threshold` | War vote reach and threshold *(threshold proposed, MS-5)* | 5, 1 |
+| `dip.s_planets`, `dip.s_power`, `dip.s_treasury`, `dip.s_wars`, `dip.sue_threshold` | Suing-for-peace score *(proposed, MS-5)* | 3, 2, 1, 1, 1 |
 | `dip.tribute_rate`, `dip.ceasefire_days` | Ceasefire tribute and length (DIP-2) | 0.1, 90 |
 | `army.muster_days`, `army.detour_ratio` | Muster timeout, detour budget | 14, 0.15 |
 | `combat.lethality` | Power lost per round per enemy power | 0.05 |
 | `combat.noise` | Randomness per round | 0.3 |
-| `combat.retreat_ratio(risk)` | Retreat when own ÷ enemy below | 0.6 − 0.4 × risk |
+| `combat.retreat_base`, `combat.retreat_risk` | Retreat when own ÷ enemy falls below `base − risk × this` | 0.6, 0.4 |
 | `combat.retreat_loss`, `combat.cargo_destroyed` | Retreat losses, cargo destroyed | 0.2, 0.3 |
-| `defence.per_spend` | Static defence per credit of security spend per month | set in MS-5 |
+| `defence.per_spend` | Static defence per credit of security spend per month *(proposed, MS-5)* | 0.005 |
+| `defence.regen` | Share of the maximum static defence rebuilt a day, when not besieged *(proposed, MS-5)* | 0.05 |
+| `value.war_mult`, `value.border_mult` | Defence is worth `1 + war_mult` at war, `+ border_mult` with an enemy planet within `dip.border_days` *(proposed, MS-5)* | 2, 1 |
+| `value.security_unit` | Static defence is bought in units of this much a month *(proposed, MS-5)* | 1,000 |
+| `value.invade_months`, `value.gate_months`, `value.aftermath_months` | A planet taken is worth this many months of its income, more for a gate holder, less rebuilding *(proposed, MS-5)* | 12, 6, 2 |
+| `value.protect` | Keep or grant: protection cost per day of travel from the keeper *(proposed, MS-5)* | 0.1 |
 | `capture.happiness_loss`, `capture.stock_loss`, `capture.pop_loss` | Capture effects (FAC-10) | 0.4, 0.5, 0.05 |
 
 ## Information, piracy, suspicion (INF, PIR, SYS-15 to SYS-17, SYS-19)

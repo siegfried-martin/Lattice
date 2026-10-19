@@ -9,6 +9,8 @@
 #include "economy/economy.hpp"
 #include "politics/fealty.hpp"
 #include "politics/opinion.hpp"
+#include "war/armies.hpp"
+#include "war/diplomacy.hpp"
 
 namespace lattice::budget {
 
@@ -73,6 +75,18 @@ void weekly(World& w, Id planet, Observer* observer) {
     double money = p.treasury + c.budget.credit_risk * income * g.risk;
     const double pressure = p.treasury < 0 ? 1 + c.budget.debt_pressure * static_cast<double>(p.deficit_days) / c.time.payment_days : 1;
 
+    // Defence is worth more at war, and more again with an enemy planet near (MIL-5).
+    const Id root = fealty::root_of(w, planet);
+    const std::vector<Id> enemies = diplomacy::enemies(w, root);
+    bool border = false;
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()) && !enemies.empty() && !border; ++q) {
+        if (std::find(enemies.begin(), enemies.end(), fealty::root_of(w, q)) != enemies.end() &&
+            w.derived.travel(planet, q) <= c.dip.border_days) {
+            border = true;
+        }
+    }
+    const double threat = 1 + (enemies.empty() ? 0 : c.value.war_mult) + (border ? c.value.border_mult : 0);
+
     // Defence: the commanders it has first (no churn), then the best candidates.
     const std::vector<Id> current = sworn(w, gov);
     std::vector<Id> people = current;
@@ -80,8 +94,21 @@ void weekly(World& w, Id planet, Observer* observer) {
     Option defence;
     for (Id id : people) {
         const double power = ships::fleet(w, w.characters[at(id)]).combat;
-        defence.units.push_back({stipend(w, w.characters[at(id)]) * pressure, c.value.defence * income * power / c.value.power_ref});
+        defence.units.push_back(
+            {stipend(w, w.characters[at(id)]) * pressure, threat * c.value.defence * income * power / c.value.power_ref});
     }
+
+    // Static defence (MIL-5), bought in units of value.security_unit a month.
+    Option security;
+    const double unit_power = c.defence.per_spend * c.value.security_unit;
+    for (int k = 0; k < 64; ++k) {
+        security.units.push_back({c.value.security_unit * pressure, threat * c.value.defence * income * unit_power / c.value.power_ref});
+    }
+
+    // An invasion, at war (SYS-13): one unit for the best target.
+    Option invasion;
+    const armies::Plan plan = armies::best_invasion(w, planet);
+    if (plan.target != kNone) invasion.units.push_back({plan.cost * pressure, plan.value});
 
     // Patronage to vassals in the red: each unit a month of their operating costs, worth
     // the tribute it keeps flowing, more for vassals in favour (FAC-7).
@@ -98,7 +125,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     }
 
     // Fund the best value per cost first.
-    std::vector<Option*> options{&defence};
+    std::vector<Option*> options{&defence, &security, &invasion};
     for (Option& o : patronage) options.push_back(&o);
     for (;;) {
         Option* best = nullptr;
@@ -140,6 +167,9 @@ void weekly(World& w, Id planet, Observer* observer) {
         chars::wake(w, id, w.now);
         if (observer) observer->log(w.now, "commander.hired", id, "by " + std::to_string(planet));
     }
+
+    w.planets[at(planet)].security = static_cast<double>(security.funded) * c.value.security_unit;
+    if (invasion.funded > 0) armies::commission(w, planet, plan.target, false, observer);
 
     // Patronage: paid now, a good deed once per grant.
     for (std::size_t i = 0; i < vassals.size(); ++i) {

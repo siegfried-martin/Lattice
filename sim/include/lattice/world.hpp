@@ -80,6 +80,10 @@ struct World {
     std::vector<Contract> contracts;
     std::vector<Mission> missions;
     std::vector<CourierRun> courier_runs;
+    std::vector<Relation> relations;
+    std::vector<Army> armies;
+    std::vector<Battle> battles;
+    std::vector<Siege> sieges;
     Authority authority;
     Ledger ledger;
 
