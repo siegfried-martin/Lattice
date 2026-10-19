@@ -177,6 +177,37 @@ only adds the role and what it can learn behind enemy lines.
 v1-size worlds, the parallel experiment harness (many worlds across cores), plotting,
 and tuning until the checks pass (`checks.md`).
 
+*In progress (2026-10-18).*
+- **Built:**
+  - the harness (`sim/tools/experiment.py`: seeds and config variants across cores);
+  - the checks (`sim/tools/checks.py`, with proposed bands);
+  - an HTML report with charts (`sim/tools/report.py`).
+  The tools use only the standard library.
+- **Bugs caught:**
+  - a fealty cycle: a planet that defected to its besieger was captured anyway, so its
+    keeper ended up beneath it, and the war vote looped forever;
+  - a partly written CSV broke the checks script.
+- **Round 1** (v1 size, 8 seeds, 5 years), against the baseline:
+  - `prod.labour_per_capita` 3.5 → 8: the world couldn't feed itself;
+  - war-vote weights cut (strength 1 → 0.1, targets 0.3 → 0.05, idle 0.2 → 0.1,
+    threshold 1 → 1.5): the unbounded strength ratio had every faction declaring on
+    every smaller neighbour.
+
+  | | Baseline | Round 1 |
+  |---|---|---|
+  | Population, end over start | 7% | 116% |
+  | Planets changing hands a year | 139% | 26% |
+  | War declarations per faction a year | 19 | 2.8 |
+  | Pirate flips a year | 12% | 1.6% |
+- **Still failing:**
+  - money grows about 40% a year (CHK-7);
+  - some war is on most of the time (CHK-8);
+  - pirates and smugglers are now scarce, because they came from collapse (CHK-10,
+    CHK-23, CHK-24);
+  - fringe planets grow slower than the network (CHK-11).
+- **Coupled:** raising operating costs fixes money growth but sets off flips and wars.
+  The next round needs a view on which outcomes are intended.
+
 ### MS-9 Phase B `v1`
 
 The experiments (`experiments.md`), and the spec changes that follow from them.

@@ -50,6 +50,9 @@ Read `docs/VISION.md` first. It is the intent everything else serves.
 - `make sim-test` builds and runs the tests; `make sim-release` builds the runner,
   `sim/build/release/lattice-run --help`. The default config is a development world;
   `--config sim/configs/v1.toml` runs a v1-size one.
+- Phase A: `sim/tools/experiment.py` runs seeds and variants in parallel,
+  `sim/tools/checks.py` scores them against `checks.md`, `sim/tools/report.py` draws them.
+  Keep runs out of the repo (`runs/` is ignored).
 - Keep it deterministic (ARC-5, ARC-6): iterate only vectors or `std::map`, draw random
   numbers from the system's own stream, and schedule through the event queue.
 - A new record field or event kind changes the save layout: add it to the record's

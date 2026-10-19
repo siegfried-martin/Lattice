@@ -5,6 +5,18 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-8, the harness and Phase A round 1
+
+- **Tools:** experiments, checks with proposed bands, and an HTML report, using only
+  Python's standard library (ARC-8, CHK).
+- **Fealty:** swearing into one's own branch is refused, and a siege ends without
+  capture once the planet is no longer hostile (FAC-2, SYS-13).
+- **Round 1** (tuning, not design):
+  - `prod.labour_per_capita` 3.5 → 8;
+  - war-vote weights w_strength 1 → 0.1, w_targets 0.3 → 0.05, w_idle 0.2 → 0.1;
+  - `dip.declare_threshold` 1 → 1.5.
+  Population now holds and conquest slows (MS-8's note).
+
 ### 2026-10-18 · MS-7, spies
 
 - **Hiring:** spies are a budget option at war, hired from idle independent traders on a

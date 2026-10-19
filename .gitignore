@@ -5,3 +5,4 @@ gdext/build/
 bin/*.so
 bin/*.dll
 bin/*.pdb
+/runs/

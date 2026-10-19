@@ -543,6 +543,8 @@ void siege_round(World& w, Id id, Observer* observer) {
     Siege& s = w.sieges[at(id)];
     if (!s.alive) return;
     Army& a = w.armies[at(s.army)];
+    // Peace, or the planet came over to the attacker's side (a defection): no capture.
+    if (a.alive && a.target != kNone && !diplomacy::hostile_planets(w, a.home, s.planet)) a.target = kNone;
     if (!a.alive || a.members.empty() || a.target == kNone) {
         end_siege(w, id);
         if (a.alive) retreat(w, s.army, observer);

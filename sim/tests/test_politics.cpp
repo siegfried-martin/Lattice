@@ -241,3 +241,16 @@ TEST_CASE("sworn commanders are paid monthly and serve at home (MIL-2)") {
         if (ch.planet != kNone) CHECK(ch.planet == w.characters[at(k.employer)].governs);
     }
 }
+
+TEST_CASE("swearing into one's own branch is refused: trees never cycle (FAC-2)") {
+    World w = new_world(quiet(), 52);
+    Id parent = kNone, child = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const std::vector<Id> below = fealty::vassals(w, p);
+        if (!below.empty()) parent = p, child = below[0];
+    }
+    REQUIRE(parent != kNone);
+    const Id before = w.planets[at(parent)].liege;
+    fealty::swear(w, parent, child);
+    CHECK(w.planets[at(parent)].liege == before);
+}

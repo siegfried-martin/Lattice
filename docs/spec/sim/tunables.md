@@ -56,7 +56,7 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `lux.variety_min` | Share of full use that counts toward variety | 0.2 |
 | `lux.variety_bonus[n]` | Daily bonus for n luxuries | 0, 0, 0.003, 0.006 |
 | `prod.efficiency[tier]` | Output multiplier by tier | high 1.0, medium 0.6, low 0.3 |
-| `prod.labour_per_capita` | Output per thousand at share 1, efficiency 1, P 1 | 3.5 |
+| `prod.labour_per_capita` | Output per thousand at share 1, efficiency 1, P 1 *(Phase A round 1; was 3.5)* | 8 |
 | `prod.labour_shift` | Share of labour moved per week | 0.05 |
 | `event.drought_p`, `event.drought_days` | Drought chance per producer per day, length | 0.0005, 30 |
 | `event.bumper_p`, `event.bumper_days`, `event.bumper_mult` | Bumper harvest | 0.0005, 15, 1.3 |
@@ -153,8 +153,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | Key | Meaning | Start |
 |---|---|---|
 | `dip.neighbour_days` | Lattice days within which factions border | 3 |
-| `dip.w_idle`, `dip.w_targets`, `dip.w_strength`, `dip.w_peace`, `dip.w_wars`, `dip.w_losses` | War vote weights *(proposed, MS-5)* | 0.2, 0.3, 1, 0.5, 1.5, 0.5 |
-| `dip.border_days`, `dip.declare_threshold` | War vote reach and threshold *(threshold proposed, MS-5)* | 5, 1 |
+| `dip.w_idle`, `dip.w_targets`, `dip.w_strength`, `dip.w_peace`, `dip.w_wars`, `dip.w_losses` | War vote weights *(proposed; Phase A round 1, from 0.2, 0.3, 1, 0.5, 1.5, 0.5)* | 0.1, 0.05, 0.1, 0.5, 1.5, 0.5 |
+| `dip.border_days`, `dip.declare_threshold` | War vote reach and threshold *(threshold proposed; Phase A round 1, from 1)* | 5, 1.5 |
 | `dip.s_planets`, `dip.s_power`, `dip.s_treasury`, `dip.s_wars`, `dip.sue_threshold` | Suing-for-peace score *(proposed, MS-5)* | 3, 2, 1, 1, 1 |
 | `dip.tribute_rate`, `dip.ceasefire_days` | Ceasefire tribute and length (DIP-2) | 0.1, 90 |
 | `army.muster_days`, `army.detour_ratio` | Muster timeout, detour budget | 14, 0.15 |

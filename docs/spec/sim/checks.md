@@ -7,6 +7,21 @@ the review rounds. Phase A is done when every check passes across many seeds at 
 
 Each check names the metric (ARC-8) and the rules it tests.
 
+*As built (MS-8):*
+- **The tools:**
+  - `sim/tools/checks.py` reduces each run to one number per check and holds it to a
+    band, across seeds.
+  - `sim/tools/experiment.py` runs groups of seeds and config variants in parallel.
+  - `sim/tools/report.py` writes an HTML page with the table and charts.
+- **The bands are proposed** and live in `checks.py`, with the measure for each check.
+- **What isn't measured yet:**
+  - checks that need role transitions (CHK-16), mission delays by depth (CHK-22), escort
+    choices against risk (CHK-21), or experiment runs (CHK-15);
+  - CHK-2 and CHK-5, which need defections and reliefs broken down further.
+- **Two metrics added:** CHK-8b, war declarations per faction per year, because "any war
+  in the world" is nearly always true with many factions; and CHK-17, characters at end
+  over start.
+
 ## Politics
 
 ### CHK-1 Faction count stays in a band `v1`
