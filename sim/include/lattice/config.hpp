@@ -133,6 +133,7 @@ struct Config {
     struct Fuel {
         double base = 2;
         double fringe = 1.0;       // extra price at the farthest point from a seat
+        double burn = 1;           // per sector width on the Lattice, per ship
         double fringe_mult = 1.5;  // multiplier for planets off the network
 
         friend bool operator==(const Fuel&, const Fuel&) = default;
@@ -147,6 +148,113 @@ struct Config {
 
         friend bool operator==(const Travel&, const Travel&) = default;
     } travel;
+
+    struct Char {
+        std::int64_t target = 500;  // dev 500, v1 2,000
+        std::int64_t spawn_per_day = 3;
+        double start_wealth = 2000;
+        double start_armed_p = 0.5;
+        std::int64_t broke_days = 14;
+
+        friend bool operator==(const Char&, const Char&) = default;
+    } chars;
+
+    // Preset ships (MOD-1, CHR-12, CHR-13): tier-1 stats per class, scaled per tier and
+    // varied per culture. Content to be designed (OPN-35); these make the classes differ.
+    struct ShipClassParams {
+        double combat = 0;
+        double cargo = 0;  // tons
+        double speed = 0;  // sector widths per day in open space
+        double price = 0;
+
+        friend bool operator==(const ShipClassParams&, const ShipClassParams&) = default;
+    };
+    struct Ship {
+        std::array<ShipClassParams, 4> classes = {{
+            {0, 60, 0.3, 8000},       // courier
+            {2, 20, 0.25, 10000},     // scout
+            {0.5, 400, 0.12, 20000},  // freighter
+            {5, 30, 0.18, 30000},     // gunship
+        }};
+        double tier_combat = 1.8;  // per tier above 1
+        double tier_cargo = 2.0;
+        double tier_speed = 1.05;
+        double tier_price = 2.5;
+        double culture_spread = 0.15;  // each culture's variant is within +- this
+        double resale = 0.5;           // share of the price a sold ship returns
+
+        friend bool operator==(const Ship&, const Ship&) = default;
+    } ship;
+
+    struct Fleet {
+        std::array<double, 3> run_cost = {5, 15, 40};  // per ship per day, by tier (SYS-21)
+        double munitions_per_power = 100;
+        std::int64_t max_ships = 4;
+
+        friend bool operator==(const Fleet&, const Fleet&) = default;
+    } fleet;
+
+    struct Merchant {
+        std::int64_t candidates = 12;
+        double min_score = 50;
+        double loss_rate = 0.1;
+        double threat_ref = 5;
+        double info_value = 300;   // per month
+        double salary = 600;       // per month, offered by every root (MS-4: the budget sets it)
+        double per_planet = 1;     // salaried merchants a root wants per faction planet
+        double stale_days = 30;    // older prices send an explorer to look again
+        double dock_hours = 6;     // time spent at each stop (TRD-12)
+
+        friend bool operator==(const Merchant&, const Merchant&) = default;
+    } merchant;
+
+    struct MissionParams {
+        double pay_growth = 0.05;
+        std::int64_t expiry_days = 30;
+        double courier_pay = 150;  // per day of the expected trip
+        double scout_pay = 300;
+
+        friend bool operator==(const MissionParams&, const MissionParams&) = default;
+    } mission;
+
+    struct Skill {
+        double gain = 1;
+        double max = 20;
+        double bonus = 0.02;
+
+        friend bool operator==(const Skill&, const Skill&) = default;
+    } skill;
+
+    struct Spend {
+        double threshold_base = 2;  // wealth over the next ship's price before buying:
+        double threshold_risk = 1;  // base - risk x this
+        double reserve_months = 3;  // running costs the cautious keep back: this x (1 - risk)
+
+        friend bool operator==(const Spend&, const Spend&) = default;
+    } spend;
+
+    struct Courier {
+        std::int64_t interval_days = 7;
+        double run_cost = 50;
+        double mission_share = 0.25;  // runs posted as missions instead of automated
+
+        friend bool operator==(const Courier&, const Courier&) = default;
+    } courier;
+
+    struct Scout {
+        double min_combat = 1;
+        double stale_days = 60;  // a root scouts outside markets it hasn't heard of for this long
+        std::int64_t threat_days = 7;
+
+        friend bool operator==(const Scout&, const Scout&) = default;
+    } scout;
+
+    struct Space {
+        double detect_range = 0.25;     // sector widths (the rendered 4 km)
+        double meet_cooldown_hours = 6;  // a character merges facts in open space at most this often
+
+        friend bool operator==(const Space&, const Space&) = default;
+    } space;
 
     struct Gen {
         std::int64_t width = 6;  // sectors
@@ -168,6 +276,7 @@ struct Config {
         double start_happiness = 0.5;
         double weight_spread = 0.5;  // region production weights in 1 +- this
         double favour_mult = 3;      // weight of each region's favoured good
+        double independent_share = 0.1;  // planets that start as their own roots (GEN-8)
 
         friend bool operator==(const Gen&, const Gen&) = default;
     } gen;
@@ -250,10 +359,70 @@ void for_each_field(C& c, F&& f) {
     f("fuel.base", c.fuel.base);
     f("fuel.fringe", c.fuel.fringe);
     f("fuel.fringe_mult", c.fuel.fringe_mult);
+    f("fuel.burn", c.fuel.burn);
 
     f("travel.lattice_speed", c.travel.lattice_speed);
     f("travel.space_speed", c.travel.space_speed);
     f("travel.hop_days", c.travel.hop_days);
+
+    f("char.target", c.chars.target);
+    f("char.spawn_per_day", c.chars.spawn_per_day);
+    f("char.start_wealth", c.chars.start_wealth);
+    f("char.start_armed_p", c.chars.start_armed_p);
+    f("char.broke_days", c.chars.broke_days);
+
+    constexpr const char* classes[] = {"courier", "scout", "freighter", "gunship"};
+    for (std::size_t i = 0; i < c.ship.classes.size(); ++i) {
+        const std::string prefix = std::string("ship.") + classes[i] + ".";
+        f(prefix + "combat", c.ship.classes[i].combat);
+        f(prefix + "cargo", c.ship.classes[i].cargo);
+        f(prefix + "speed", c.ship.classes[i].speed);
+        f(prefix + "price", c.ship.classes[i].price);
+    }
+    f("ship.tier_combat", c.ship.tier_combat);
+    f("ship.tier_cargo", c.ship.tier_cargo);
+    f("ship.tier_speed", c.ship.tier_speed);
+    f("ship.tier_price", c.ship.tier_price);
+    f("ship.culture_spread", c.ship.culture_spread);
+    f("ship.resale", c.ship.resale);
+
+    f("fleet.run_cost", c.fleet.run_cost);
+    f("fleet.munitions_per_power", c.fleet.munitions_per_power);
+    f("fleet.max_ships", c.fleet.max_ships);
+
+    f("merchant.candidates", c.merchant.candidates);
+    f("merchant.min_score", c.merchant.min_score);
+    f("merchant.loss_rate", c.merchant.loss_rate);
+    f("merchant.threat_ref", c.merchant.threat_ref);
+    f("merchant.info_value", c.merchant.info_value);
+    f("merchant.salary", c.merchant.salary);
+    f("merchant.per_planet", c.merchant.per_planet);
+    f("merchant.stale_days", c.merchant.stale_days);
+    f("merchant.dock_hours", c.merchant.dock_hours);
+
+    f("mission.pay_growth", c.mission.pay_growth);
+    f("mission.expiry_days", c.mission.expiry_days);
+    f("mission.courier_pay", c.mission.courier_pay);
+    f("mission.scout_pay", c.mission.scout_pay);
+
+    f("skill.gain", c.skill.gain);
+    f("skill.max", c.skill.max);
+    f("skill.bonus", c.skill.bonus);
+
+    f("spend.threshold_base", c.spend.threshold_base);
+    f("spend.threshold_risk", c.spend.threshold_risk);
+    f("spend.reserve_months", c.spend.reserve_months);
+
+    f("courier.interval_days", c.courier.interval_days);
+    f("courier.run_cost", c.courier.run_cost);
+    f("courier.mission_share", c.courier.mission_share);
+
+    f("scout.min_combat", c.scout.min_combat);
+    f("scout.stale_days", c.scout.stale_days);
+    f("scout.threat_days", c.scout.threat_days);
+
+    f("space.detect_range", c.space.detect_range);
+    f("space.meet_cooldown_hours", c.space.meet_cooldown_hours);
 
     f("gen.width", c.gen.width);
     f("gen.height", c.gen.height);
@@ -274,6 +443,7 @@ void for_each_field(C& c, F&& f) {
     f("gen.start_happiness", c.gen.start_happiness);
     f("gen.weight_spread", c.gen.weight_spread);
     f("gen.favour_mult", c.gen.favour_mult);
+    f("gen.independent_share", c.gen.independent_share);
 }
 
 class ConfigError : public std::runtime_error {

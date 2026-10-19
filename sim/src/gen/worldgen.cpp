@@ -1,5 +1,8 @@
 #include "gen/worldgen.hpp"
 
+#include "chars/ships.hpp"
+#include "politics/fealty.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <deque>
@@ -421,13 +424,14 @@ void make_hop_lanes(World& w) {
 
 // ---- GEN-7, GEN-8: seats of power and fuel prices ----
 
-// High-population planets on the network, far apart, in different regions where
+// High-population gate holders on the network, far apart, in different regions where
 // possible: score = population share x distance share from the seats already chosen.
 void choose_seats(World& w) {
     std::vector<Id> candidates;
-    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
-        if (!w.planets[at(p)].fringe) candidates.push_back(p);
+    for (const Group& g : w.map.groups) {
+        if (g.node != kNone) candidates.push_back(g.holder);
     }
+    std::sort(candidates.begin(), candidates.end());
     if (candidates.empty()) return;
     const auto count = std::min<std::size_t>(candidates.size(), static_cast<std::size_t>(w.config.gen.seats));
     auto& seats = w.map.seats;
@@ -541,6 +545,8 @@ void generate(World& w) {
     make_hop_lanes(w);
     choose_seats(w);
     set_fuel_prices(w);
+    ships::make_catalogue(w);
+    fealty::make_trees(w);
 }
 
 }  // namespace lattice::gen

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "lattice/fields.hpp"
@@ -99,6 +100,27 @@ void fields(Ar& ar, H& h) {
     ar(h.a, h.b, h.length);
 }
 
+// A preset ship (MOD-1, CHR-13). Each culture has every class at tiers 1 to 3.
+// Append only.
+enum class ShipClass : std::uint8_t { Courier = 0, Scout = 1, Freighter = 2, Gunship = 3 };
+inline constexpr int kShipClassCount = 4;
+inline constexpr int kTierCount = 3;
+
+struct ShipVariant {
+    Id culture = kNone;
+    ShipClass cls = ShipClass::Courier;
+    std::int8_t tier = 1;     // 1 to 3
+    double combat = 0;        // combat power (CHR-12)
+    double cargo = 0;         // trade power: tons of cargo
+    double speed = 0;         // open space, sector widths per day
+    double price = 0;
+    bool lattice_drive = true;
+};
+template <class Ar, record_of<ShipVariant> V>
+void fields(Ar& ar, V& v) {
+    ar(v.culture, v.cls, v.tier, v.combat, v.cargo, v.speed, v.price, v.lattice_drive);
+}
+
 struct Map {
     std::int32_t width = 0, height = 0;
     std::vector<Sector> sectors;  // index = row * width + col
@@ -109,10 +131,12 @@ struct Map {
     std::vector<LatticeEdge> edges;
     std::vector<HopLane> hop_lanes;
     std::vector<Id> seats;  // seats of power (GEN-8): planets
+    std::vector<ShipVariant> variants;  // index: (culture x classes + class) x tiers + tier - 1
 };
 template <class Ar, record_of<Map> M>
 void fields(Ar& ar, M& m) {
-    ar(m.width, m.height, m.sectors, m.regions, m.systems, m.groups, m.nodes, m.edges, m.hop_lanes, m.seats);
+    ar(m.width, m.height, m.sectors, m.regions, m.systems, m.groups, m.nodes, m.edges, m.hop_lanes, m.seats,
+       m.variants);
 }
 
 // ---- Planet (MOD-2) ----
@@ -146,6 +170,11 @@ struct Planet {
     double income_avg = 0;    // daily income, averaged over a payment period
     double income_today = 0;  // since the planet's last day
     std::int64_t deficit_days = 0;  // consecutive days with a negative treasury (ECO-13)
+
+    // Politics (FAC-1, FAC-2).
+    Id governor = kNone;  // character
+    Id liege = kNone;     // the planet whose governor this one's governor is sworn to; none for a root
+    std::vector<Id> missions{};  // mission board (MOD-9): open missions posted here
 };
 template <class Ar, record_of<Planet> P>
 void fields(Ar& ar, P& p) {
@@ -153,6 +182,191 @@ void fields(Ar& ar, P& p) {
     ar(p.population, p.happiness, p.productivity, p.growth_factor, p.contraband_avg);
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
     ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
+    ar(p.governor, p.liege, p.missions);
+}
+
+// ---- Facts (MOD-8, INF-2) ----
+
+// What a character believes about one market: every lawful good's price and stock when
+// it was observed. Landing at a market observes all of them at once (INF-3).
+struct PriceFact {
+    Id planet = kNone;
+    Time time = 0;
+    std::array<double, kLawfulGoodCount> price{};
+    std::array<double, kLawfulGoodCount> stock{};
+};
+template <class Ar, record_of<PriceFact> F>
+void fields(Ar& ar, F& f) {
+    ar(f.planet, f.time, f.price, f.stock);
+}
+
+// A character's information. Sorted by planet, so sharing is a merge of two sorted
+// lists keeping the newer of each (INF-4).
+struct Facts {
+    std::vector<PriceFact> prices{};
+};
+template <class Ar, record_of<Facts> F>
+void fields(Ar& ar, F& f) {
+    ar(f.prices);
+}
+
+// ---- Character (MOD-3) ----
+
+// One leg of a journey (TIM-4 to TIM-6). Append only.
+enum class LegKind : std::uint8_t { Space = 0, Lattice = 1, Hop = 2 };
+
+struct Leg {
+    LegKind kind = LegKind::Space;
+    double x0 = 0, y0 = 0, x1 = 0, y1 = 0;  // straight-line ends (the Lattice's are drawn by node)
+    Time depart = 0, arrive = 0;           // depart is set when the leg starts
+    Id to_planet = kNone;                  // where it ends: a planet, or
+    Id to_node = kNone;                    // a Lattice node
+    double lattice_length = 0;             // for fuel (SYS-21)
+};
+template <class Ar, record_of<Leg> L>
+void fields(Ar& ar, L& l) {
+    ar(l.kind, l.x0, l.y0, l.x1, l.y1, l.depart, l.arrive, l.to_planet, l.to_node, l.lattice_length);
+}
+
+// What a character is doing now (CHR-2's short-term action). Append only.
+enum class Activity : std::uint8_t {
+    Idle = 0,
+    Governing = 1,  // a governor stays at its planet
+    Trading = 2,    // on a trip (SYS-7)
+    Exploring = 3,  // moving to look at another market (TRD-4)
+    Mission = 4,    // on a mission (SYS-8)
+};
+
+// The kinds of mission and skill (CHR-10). Append only.
+enum class MissionKind : std::uint8_t { Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5 };
+inline constexpr int kSkillCount = 6;
+
+// One stop of a merchant's planned trip: sell what's aboard, then buy `buy` (or
+// nothing) for the next stop.
+struct TripStop {
+    Id planet = kNone;
+    Good buy = kGoodCount;  // kGoodCount: buy nothing
+};
+template <class Ar, record_of<TripStop> T>
+void fields(Ar& ar, T& t) {
+    ar(t.planet, t.buy);
+}
+
+struct Character {
+    std::string name;
+    Id culture = kNone;
+    bool alive = true;
+    double risk = 0.5;  // risk tolerance, 0-1 (CHR-4)
+    double wealth = 0;  // credits (CHR-8)
+    std::vector<Id> ships{};  // variants; the first is the flagship
+    Time born = 0;
+
+    // Where it is. At a planet, or travelling a route of legs.
+    Id planet = kNone;       // the planet it's at, or none while travelling
+    Id last_planet = kNone;  // where it last landed (and refuelled)
+    std::vector<Leg> route{};
+    std::int32_t leg = 0;    // the leg in progress
+    std::uint32_t travel_seq = 0;  // bumped on every new route, to drop stale arrivals
+
+    // Work.
+    Activity activity = Activity::Idle;
+    Id governs = kNone;                    // the planet it governs (FAC-1)
+    std::vector<Id> contracts{};           // MOD-4
+    Id mission = kNone;                    // the mission it's on
+    std::array<double, kSkillCount> skills{};  // by MissionKind (CHR-10)
+    double reputation = 0;                 // REL-7
+    std::int64_t missions_done = 0;
+
+    // Trade.
+    Good cargo_good = kGoodCount;  // kGoodCount: empty
+    double cargo_qty = 0;
+    double cargo_cost = 0;         // what it paid, for the trip's profit
+    std::vector<TripStop> trip{};  // remaining stops
+    double trip_profit = 0;        // so far on this trip
+    Time trip_start = 0;
+
+    // Spending (SYS-8): what has paid recently, as running averages per day.
+    double earned_cargo = 0;   // trade and courier work
+    double earned_combat = 0;  // scout, escort and command work
+
+    Facts facts;
+    Time last_meet = -kDay;  // last fact merge in open space (SYS-15)
+    Time idle_since = 0;
+    Time broke_since = -1;   // below zero since (PIR-4); -1 when solvent
+    std::uint32_t wake_seq = 0;  // only the latest scheduled decision runs
+    Time salary_checked = -kDay * 365;  // last weighed a merchant salary (SYS-9)
+};
+template <class Ar, record_of<Character> C>
+void fields(Ar& ar, C& c) {
+    ar(c.name, c.culture, c.alive, c.risk, c.wealth, c.ships, c.born);
+    ar(c.planet, c.last_planet, c.route, c.leg, c.travel_seq);
+    ar(c.activity, c.governs, c.contracts, c.mission, c.skills, c.reputation, c.missions_done);
+    ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
+    ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked);
+}
+
+// ---- Contract (MOD-4, REL-8) ----
+
+// Append only.
+enum class ContractKind : std::uint8_t {
+    Fealty = 0, Service = 1, MerchantSalary = 2, Escort = 3, Courier = 4, Scout = 5, Security = 6, Mercenary = 7,
+    PirateHire = 8,
+};
+
+struct Contract {
+    ContractKind kind = ContractKind::Courier;
+    Id employer = kNone, employee = kNone;  // characters
+    double pay = 0;      // per period, or on completion when period is 0
+    Time period = 0;
+    Id mission = kNone;  // the mission it carries out
+    Time start = 0;
+    bool alive = true;
+};
+template <class Ar, record_of<Contract> C>
+void fields(Ar& ar, C& c) {
+    ar(c.kind, c.employer, c.employee, c.pay, c.period, c.mission, c.start, c.alive);
+}
+
+// ---- Mission (MOD-9) ----
+
+enum class MissionLevel : std::uint8_t { Planet = 0, Faction = 1 };
+// Append only.
+enum class MissionState : std::uint8_t { Open = 0, Taken = 1, Done = 2, Expired = 3 };
+
+struct Mission {
+    MissionKind kind = MissionKind::Courier;
+    MissionLevel level = MissionLevel::Planet;
+    Id poster = kNone;  // governor (character)
+    Id at = kNone;      // planet where it's posted
+    Id target = kNone;  // planet
+    double base_pay = 0;
+    double min_combat = 0, min_cargo = 0;  // requirements
+    Time posted = 0, expires = 0;
+    MissionState state = MissionState::Open;
+    Id taker = kNone;
+    double pay = 0;     // agreed when taken (it grows while open)
+    bool outbound = true;  // a round trip's first half
+    Facts packet{};     // what a courier or scout carries
+};
+template <class Ar, record_of<Mission> M>
+void fields(Ar& ar, M& m) {
+    ar(m.kind, m.level, m.poster, m.at, m.target, m.base_pay, m.min_combat, m.min_cargo, m.posted, m.expires);
+    ar(m.state, m.taker, m.pay, m.outbound, m.packet);
+}
+
+// ---- An automated courier run (INF-8, SYS-15) ----
+
+// A scheduled transit on the Lattice, not a simulated ship: the facts both ways are
+// what it carries.
+struct CourierRun {
+    Id from = kNone, to = kNone;  // planets: the liege's and the vassal's
+    bool returning = false;
+    bool alive = true;
+    Facts packet{};
+};
+template <class Ar, record_of<CourierRun> R>
+void fields(Ar& ar, R& r) {
+    ar(r.from, r.to, r.returning, r.alive, r.packet);
 }
 
 // ---- World event (MOD-10, SYS-4) ----
@@ -181,10 +395,20 @@ struct Ledger {
     double osmosis_margin = 0;  // part of money_sunk
     std::array<double, kGoodCount> produced{};
     std::array<double, kGoodCount> consumed{};
+    double money_spawned = 0;  // new characters' starting wealth (SYS-18)
+    // Sinks by kind, each also counted in money_sunk.
+    double running_costs = 0, fuel = 0, ships_bought = 0, courier_runs = 0;
+    std::array<double, kGoodCount> traded{};  // goods bought by characters at markets
+    double trade_profit = 0;   // merchants' realised trip profit
+    std::int64_t trips = 0;
+    std::int64_t detections = 0, meetings_shared = 0;
+    std::int64_t missions_posted = 0, missions_done = 0, missions_expired = 0;
 };
 template <class Ar, record_of<Ledger> L>
 void fields(Ar& ar, L& l) {
     ar(l.money_created, l.money_sunk, l.osmosis_volume, l.osmosis_margin, l.produced, l.consumed);
+    ar(l.money_spawned, l.running_costs, l.fuel, l.ships_bought, l.courier_runs, l.traded, l.trade_profit, l.trips);
+    ar(l.detections, l.meetings_shared, l.missions_posted, l.missions_done, l.missions_expired);
 }
 
 }  // namespace lattice

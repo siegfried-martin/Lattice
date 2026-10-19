@@ -1,11 +1,19 @@
 #include "lattice/world.hpp"
 
 #include <cassert>
+#include <utility>
 #include <cmath>
 #include <numeric>
 #include <string>
 
+#include "chars/characters.hpp"
+#include "chars/missions.hpp"
+#include "chars/movement.hpp"
+#include "chars/ships.hpp"
 #include "core/travel.hpp"
+#include "info/facts.hpp"
+#include "politics/fealty.hpp"
+#include "trade/merchants.hpp"
 #include "economy/economy.hpp"
 #include "economy/events.hpp"
 #include "lattice/market.hpp"
@@ -76,6 +84,43 @@ void sample_metrics(const World& w, Observer& o) {
     std::int64_t active = 0;
     for (const WorldEvent& e : w.world_events) active += e.alive;
     o.sample(t, "world.events_active", -1, static_cast<double>(active));
+
+    // Characters (CHK-16 to CHK-18).
+    std::array<std::int64_t, 5> by_activity{};
+    std::int64_t alive = 0, faction_merchants = 0, ships = 0;
+    double wealth = 0, cargo = 0;
+    for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
+        const Character& ch = w.characters[at(id)];
+        if (!ch.alive) continue;
+        ++alive;
+        wealth += ch.wealth;
+        ++by_activity[static_cast<std::size_t>(ch.activity)];
+        faction_merchants += merchant::employer_root(w, id) != kNone;
+        const ships::Fleet f = ships::fleet(w, ch);
+        ships += f.count;
+        cargo += f.cargo;
+    }
+    o.sample(t, "world.characters", -1, static_cast<double>(alive));
+    o.sample(t, "world.char_wealth", -1, wealth);
+    o.sample(t, "world.money_total", -1, money + wealth);
+    o.sample(t, "world.money_spawned", -1, w.ledger.money_spawned);
+    o.sample(t, "world.ships", -1, static_cast<double>(ships));
+    o.sample(t, "world.cargo_capacity", -1, cargo);
+    o.sample(t, "world.chars_idle", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Idle)]));
+    o.sample(t, "world.chars_trading", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Trading)]));
+    o.sample(t, "world.chars_exploring", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Exploring)]));
+    o.sample(t, "world.chars_mission", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Mission)]));
+    o.sample(t, "world.faction_merchants", -1, static_cast<double>(faction_merchants));
+    o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
+    o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);
+    o.sample(t, "world.running_costs", -1, w.ledger.running_costs);
+    o.sample(t, "world.fuel", -1, w.ledger.fuel);
+    o.sample(t, "world.ships_bought", -1, w.ledger.ships_bought);
+    o.sample(t, "world.courier_runs", -1, w.ledger.courier_runs);
+    o.sample(t, "world.missions_posted", -1, static_cast<double>(w.ledger.missions_posted));
+    o.sample(t, "world.missions_done", -1, static_cast<double>(w.ledger.missions_done));
+    o.sample(t, "world.missions_expired", -1, static_cast<double>(w.ledger.missions_expired));
+    o.sample(t, "world.meetings_shared", -1, static_cast<double>(w.ledger.meetings_shared));
     for (int g = 0; g < kLawfulGoodCount; ++g) {
         const double mean = price_sum[at(g)] / n;
         const double var = std::max(0.0, price_sq[at(g)] / n - mean * mean);
@@ -83,6 +128,7 @@ void sample_metrics(const World& w, Observer& o) {
         o.sample(t, "good.stock", g, stock[at(g)]);
         o.sample(t, "good.produced", g, w.ledger.produced[at(g)]);
         o.sample(t, "good.consumed", g, w.ledger.consumed[at(g)]);
+        o.sample(t, "good.traded", g, w.ledger.traded[at(g)]);
     }
 }
 
@@ -92,6 +138,7 @@ void on_daily_tick(World& w, Observer* observer) {
     if (observer) sample_metrics(w, *observer);
     events::roll(w, observer);
     osmosis::run(w);
+    chars::daily(w, observer);
 }
 
 void on_debug_ping(World& w, const Event& e) {
@@ -118,9 +165,31 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             break;
         case EventKind::PlanetPayment:
             economy::planet_payment(w, record);
+            if (w.planets[at(record)].liege == kNone) merchant::pay_salaries(w, record, observer);
             break;
         case EventKind::WorldEventEnd:
             events::end(w, record, observer);
+            break;
+        case EventKind::CharDecide:
+            chars::decide(w, record, static_cast<std::uint32_t>(e.a), observer);
+            break;
+        case EventKind::CharArrive:
+            move::on_arrive(w, record, static_cast<std::uint32_t>(e.a), observer);
+            break;
+        case EventKind::KinematicStep:
+            move::kinematic_step(w, observer);
+            break;
+        case EventKind::CourierDue:
+            info::courier_due(w, record, observer);
+            break;
+        case EventKind::CourierArrive:
+            info::courier_arrive(w, record, observer);
+            break;
+        case EventKind::MissionExpire:
+            missions::expire(w, record, observer);
+            break;
+        case EventKind::RootWeekly:
+            missions::root_weekly(w, record, observer);
             break;
     }
 }
@@ -131,7 +200,22 @@ void rebuild_derived(World& w) {
     Derived& d = w.derived;
     d = Derived{};
     d.planet_count = w.planets.size();
-    d.travel_days = travel::planet_times(w);
+    travel::Routes routes = travel::planet_routes(w);
+    d.travel_days = std::move(routes.days);
+    d.route_pred = std::move(routes.pred);
+    d.route_via = std::move(routes.via);
+    d.route_sums.assign(d.planet_count * d.planet_count, {});
+    for (Id a = 0; a < static_cast<Id>(d.planet_count); ++a) {
+        for (Id b = 0; b < static_cast<Id>(d.planet_count); ++b) {
+            if (a == b) continue;
+            Derived::RouteSum& s = d.route_sums[at(a) * d.planet_count + at(b)];
+            for (const Leg& l : move::route_legs(w, a, b)) {
+                if (l.kind == LegKind::Space) s.space += std::hypot(l.x1 - l.x0, l.y1 - l.y0);
+                if (l.kind == LegKind::Lattice) s.lattice += l.lattice_length;
+                if (l.kind == LegKind::Hop) ++s.hops;
+            }
+        }
+    }
     d.osmosis_pairs = osmosis::pairs(w);
     d.region_planets.assign(w.map.regions.size(), {});
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) d.region_planets[at(w.planets[at(p)].region)].push_back(p);
@@ -147,9 +231,14 @@ World new_world(const Config& config, std::uint64_t seed) {
     gen::generate(world);
     economy::init_state(world);
     rebuild_derived(world);
+    chars::populate(world);
 
     world.events.push({.time = 0, .phase = Phase::Cadence, .kind = EventKind::DailyTick, .period = kDay});
     economy::schedule(world);
+    const Time step = config.time.space_step_minutes * kMinute;
+    world.events.push({.time = step, .phase = Phase::Kinematic, .kind = EventKind::KinematicStep, .period = step});
+    info::schedule_couriers(world);
+    missions::schedule(world);
 
     world.ping_fires.assign(static_cast<std::size_t>(config.debug.pings), 0);
     for (std::int64_t i = 0; i < config.debug.pings; ++i) {

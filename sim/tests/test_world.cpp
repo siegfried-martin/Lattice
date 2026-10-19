@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "helpers.hpp"
 #include "lattice/save.hpp"
 #include "lattice/world.hpp"
 
@@ -20,7 +21,7 @@ struct Recorder : Observer {
 };
 
 Config with_pings(std::int64_t n) {
-    Config c;
+    Config c = test::small();
     c.debug.pings = n;
     return c;
 }
@@ -28,7 +29,7 @@ Config with_pings(std::int64_t n) {
 }  // namespace
 
 TEST_CASE("advance runs events in [now, now + dt) (TIM-2)") {
-    World w = new_world(Config{}, 1);
+    World w = new_world(test::small(), 1);
     Recorder r;
     advance(w, kDay, &r);
     CHECK(w.now == kDay);
@@ -42,7 +43,7 @@ TEST_CASE("advance runs events in [now, now + dt) (TIM-2)") {
 }
 
 TEST_CASE("a year has 365 daily ticks and every planet has 365 days") {
-    World w = new_world(Config{}, 1);
+    World w = new_world(test::small(), 1);
     Recorder r;
     advance(w, 365 * kDay, &r);
     CHECK(r.samples.size() == 365);

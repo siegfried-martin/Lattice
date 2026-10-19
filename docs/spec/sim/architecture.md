@@ -133,7 +133,9 @@ sim/                    C++ core (static library), runner and tests
   src/core/             the clock, queue, config, saves and world loop
   src/<area>/           one directory per area of systems (SYS): gen/ (world
                         generation), economy/ (SYS-1 to SYS-5), trade/ (osmosis,
-                        merchants); internal headers live beside their sources
+                        merchants), chars/ (characters, ships, movement, contracts,
+                        missions), info/ (facts, couriers), politics/ (fealty);
+                        internal headers live beside their sources
   configs/              ready-made configs, such as v1.toml (the v1 world size)
   runner/               headless CLI, lattice-run
   tests/                doctest

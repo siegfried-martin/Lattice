@@ -273,8 +273,8 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
   (factions, economy, trade, characters) formalised as the spec.
 - **Now:** building the headless simulation in C++, milestone by milestone, then tuning
   it for stability and testing each mechanic's worth. The skeleton and toolchain are
-  done, and world generation and the economy are built; next are characters, movement,
-  information and trade.
+  done, and world generation, the economy, characters, movement, information and trade
+  are built; next is politics.
 - **Next:** connecting the simulation to the rendered game.
 
 ## Glossary

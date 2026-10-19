@@ -210,6 +210,49 @@ void validate(const Config& c) {
     positive(c.travel.space_speed, "travel.space_speed");
     non_negative(c.travel.hop_days, "travel.hop_days");
 
+    require(c.chars.target >= 0 && c.chars.target <= 1'000'000, "char.target must be 0 to 1,000,000");
+    require(c.chars.spawn_per_day >= 0, "char.spawn_per_day can't be negative");
+    non_negative(c.chars.start_wealth, "char.start_wealth");
+    share(c.chars.start_armed_p, "char.start_armed_p");
+    require(c.chars.broke_days >= 0, "char.broke_days can't be negative");
+    for (const auto& k : c.ship.classes) {
+        require(k.combat >= 0 && k.cargo >= 0, "ship combat and cargo can't be negative");
+        require(k.speed > 0 && k.price > 0, "ship speed and price must be above 0");
+    }
+    positive(c.ship.tier_combat, "ship.tier_combat");
+    positive(c.ship.tier_cargo, "ship.tier_cargo");
+    positive(c.ship.tier_speed, "ship.tier_speed");
+    positive(c.ship.tier_price, "ship.tier_price");
+    require(c.ship.culture_spread >= 0 && c.ship.culture_spread < 1, "ship.culture_spread must be 0 to 1");
+    share(c.ship.resale, "ship.resale");
+    for (double r : c.fleet.run_cost) non_negative(r, "fleet.run_cost");
+    non_negative(c.fleet.munitions_per_power, "fleet.munitions_per_power");
+    require(c.fleet.max_ships >= 1, "fleet.max_ships must be at least 1");
+    require(c.merchant.candidates >= 1, "merchant.candidates must be at least 1");
+    non_negative(c.merchant.info_value, "merchant.info_value");
+    non_negative(c.merchant.salary, "merchant.salary");
+    non_negative(c.merchant.per_planet, "merchant.per_planet");
+    positive(c.merchant.stale_days, "merchant.stale_days");
+    non_negative(c.merchant.dock_hours, "merchant.dock_hours");
+    non_negative(c.mission.pay_growth, "mission.pay_growth");
+    positive(static_cast<double>(c.mission.expiry_days), "mission.expiry_days");
+    non_negative(c.mission.courier_pay, "mission.courier_pay");
+    non_negative(c.mission.scout_pay, "mission.scout_pay");
+    non_negative(c.skill.gain, "skill.gain");
+    non_negative(c.skill.max, "skill.max");
+    non_negative(c.skill.bonus, "skill.bonus");
+    non_negative(c.spend.threshold_base, "spend.threshold_base");
+    non_negative(c.spend.reserve_months, "spend.reserve_months");
+    positive(static_cast<double>(c.courier.interval_days), "courier.interval_days");
+    non_negative(c.courier.run_cost, "courier.run_cost");
+    share(c.courier.mission_share, "courier.mission_share");
+    non_negative(c.scout.min_combat, "scout.min_combat");
+    positive(c.scout.stale_days, "scout.stale_days");
+    positive(c.space.detect_range, "space.detect_range");
+    non_negative(c.space.meet_cooldown_hours, "space.meet_cooldown_hours");
+    non_negative(c.fuel.burn, "fuel.burn");
+    share(c.gen.independent_share, "gen.independent_share");
+
     require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
     require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");
     require(c.gen.planets >= 2 && c.gen.planets <= 10'000, "gen.planets must be 2 to 10,000");

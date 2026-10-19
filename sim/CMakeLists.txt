@@ -32,6 +32,14 @@ add_library(lattice_core STATIC
     src/core/save.cpp
     src/core/travel.cpp
     src/core/world.cpp
+    src/chars/characters.cpp
+    src/chars/contracts.cpp
+    src/chars/missions.cpp
+    src/chars/movement.cpp
+    src/chars/ships.cpp
+    src/info/facts.cpp
+    src/politics/fealty.cpp
+    src/trade/merchants.cpp
     src/economy/economy.cpp
     src/economy/events.cpp
     src/economy/market.cpp
@@ -60,6 +68,7 @@ if(LATTICE_BUILD_TESTS)
         tests/test_world.cpp
         tests/test_worldgen.cpp
         tests/test_economy.cpp
+        tests/test_characters.cpp
     )
     set_target_properties(lattice-tests PROPERTIES CXX_EXTENSIONS OFF)
     target_include_directories(lattice-tests SYSTEM PRIVATE third_party/doctest)
