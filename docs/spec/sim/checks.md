@@ -7,6 +7,23 @@ the review rounds. Phase A is done when every check passes across many seeds at 
 
 Each check names the metric (ARC-8) and the rules it tests.
 
+*As built (MS-8):*
+- **The tools:**
+  - `sim/tools/checks.py` reduces each run to one number per check and holds it to a
+    band, across seeds.
+  - `sim/tools/experiment.py` runs groups of seeds and config variants in parallel.
+  - `sim/tools/report.py` writes an HTML page with the table and charts.
+- **The bands are proposed** and live in `checks.py`, with the measure for each check.
+- **What isn't measured yet:**
+  - checks that need role transitions (CHK-16), mission delays by depth (CHK-22), escort
+    choices against risk (CHK-21), or experiment runs (CHK-15);
+  - CHK-2 and CHK-5, which need defections and reliefs broken down further.
+- **Metrics added:** CHK-8b, war declarations per faction per year, because "any war
+  in the world" is nearly always true with many factions; and CHK-17, characters at end
+  over start. Round 2 made CHK-8 each faction's share of time at war, and added CHK-8c
+  (median war length), CHK-6b (blockades) and CHK-9b (secessions). CHK-8b's band moved
+  from 0.05–1 to 2–5 a year with DIP-4's pacing.
+
 ## Politics
 
 ### CHK-1 Faction count stays in a band `v1`
@@ -42,7 +59,13 @@ before capture, by courier coverage and scouting. *Tests:* MIL-11, INF-12.
 ### CHK-6 Defence numbers aren't frozen or a free-for-all `v1`
 
 Too low and everyone conquers everyone; too high and the map freezes. *Metric:* planets
-changing hands per year. *Tests:* MIL-5, MIL-10.
+changing hands per year. *(proposed, round 2)* Also blockades a year per faction, at
+least 0.5: blockading is a normal part of war (MIL-17). *(proposed, round 3)* Border
+planets change hands often in war, so the band is 5% to 40% a year; and the
+most-traded planet changes hands at most twice a year (before round 2's garrisoning,
+one planet changed hands 19 times in three years). *As built:* CHK-6c counts each
+planet's `planet.captured` events and takes the largest, per year.
+*Tests:* MIL-5, MIL-10, MIL-12, MIL-17.
 
 ## Economy
 
@@ -52,10 +75,21 @@ No runaway inflation or deflation over long runs, in peace and in war. *Metric:*
 money (treasuries + character wealth) and mean price index per month. *Tests:* ECO-1,
 ECO-5.
 
+*(proposed, round 3)* **Reserves level off rather than compound.** Deep treasuries are
+intended, especially at wealthy core planets and capitals: with no loans, cash is a
+faction's only buffer against war and losses. What fails is endless growth. *Metric:*
+total money growth over the second half of a run at most 1.1 a year, and the median
+planet's treasury in months of costs no more than 1.5 times higher at the end than at
+the halfway point. *As built:* CHK-7 is the yearly growth from the halfway sample to the
+last, band 0.8 to 1.1; CHK-7c reads months of costs as treasury ÷ (`econ.op_base` +
+`econ.op_per_capita` × population), ignoring pirate planets' lower costs.
+
 ### CHK-8 Peace and war cycle `v1`
 
 Treasuries fill in peace and drain in war, and factions do go back to war. *Metric:*
-treasury trend by diplomatic state; time spent at war. *Tests:* ECO-7, DIP-3, DIP-4.
+treasury trend by diplomatic state; each faction's share of time at war, and the median
+war's length. *(proposed bands)* At war 0.5 to 0.8 of the time; median war 30 to 90 days
+(DIP-4's pacing). *Tests:* ECO-7, DIP-3, DIP-4.
 
 ### CHK-9 Collapse is individual and concentrated `v1`
 
@@ -63,7 +97,8 @@ Rebellion pressure comes from margin, not planet size. One disrupted route doesn
 off a map-wide wave. Repeated collapse concentrates at overstretched factions; if whole
 factions spiral, rulers value their planets too cheaply. *Metric:* pirate flips by
 planet size, clustering in time and space, repeat flips per planet, faction war count at
-the time. *Tests:* ECO-13, ECO-15.
+the time. *(proposed, round 2)* Secessions count as collapse too, with the same band as
+flips (at most 5% of planets a year). *Tests:* ECO-13, ECO-15.
 
 ### CHK-10 Contraband tension holds `v1`
 
@@ -83,6 +118,14 @@ Populations reach a size their production and imports can feed, without oscillat
 dying off; a blockade shrinks a planet slowly. *Metric:* population per planet; its
 variance after warm-up. *Tests:* PRD-2.
 
+*(proposed, round 3)* **Happiness spreads out rather than piling at the ends:** at most
+20% of planet-days have happiness's productivity effect within 5% of its floor or
+ceiling, and the fringe's median happiness is below the network's but not at the floor.
+*As built:* over the second half's samples, CHK-12c is the share with u(H) ≥ 0.95
+(SYS-1), CHK-12d the fringe median less the network median (at most 0), CHK-12e u of the
+fringe median when it's below neutral (at most 0.95).
+*Tests:* PRD-4, PRD-5.
+
 ### CHK-13 Labour doesn't oscillate `v1`
 
 Labour shares settle, and shift when trade is disrupted, without a cobweb cycle.
@@ -93,6 +136,10 @@ Labour shares settle, and shift when trade is disrupted, without a cobweb cycle.
 Osmosis and merchants narrow gaps; events keep reopening them; merchants still find
 profitable trades in peacetime cores. *Metric:* price dispersion across planets by good;
 mean merchant trip profit. *Tests:* TRD-13, PRD-11.
+
+*(proposed, round 4: built)* **Prices rest on costs, not the clamp:** at most 10% of planet-good
+samples at `price.min`, second half (CHK-14c; round 3: 11%, life support near the floor everywhere; round 4: under 0.01%).
+*Tests:* PRD-7, PRD-10.
 
 ### CHK-15 The merchant-kill test `v1`
 
@@ -153,6 +200,23 @@ commanders against top-up. *Tests:* PIR-4, PIR-8.
 
 NPC smugglers carry a meaningful share of contraband. *Metric:* contraband volume by
 carrier. *Tests:* PIR-13.
+
+### CHK-26 War and fealty money are where they're meant to be `v1` `proposed`
+
+War and fleets are expensive, tribute is high, and patronage is rare (MIL-18, FAC-6,
+FAC-7). Measured per faction, as shares of the faction's net income (SYS-5), split by
+diplomatic state. *(proposed bands, placeholders until the runs say otherwise)*
+
+| | Peace | War |
+|---|---|---|
+| Tribute paid up, median vassal, share of its own net income | 20% to 30% | 20% to 30% |
+| Military: stipends + security + bounties + loan fees | 10% to 20% | 40% to 60%, with the root's treasury falling month on month |
+| Patronage | under 5% | under 5% |
+
+*Metric:* monthly flows from the ledger per faction, by its state that month. *Tests:*
+MIL-2, MIL-18, FAC-6, FAC-7, FAC-15, ECO-7. *Found in round 4:* military spending of
+every kind was about 4% of the money created, tribute 3% to 6%, and patronage 1.3 to 2.7
+times tribute.
 
 ## Performance
 

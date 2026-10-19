@@ -90,12 +90,29 @@ efficiency at random (PRD-7). Then repair: every good must have at least
 `gen.min_producers` producers per region at medium or better (PRD-8); swap draws until it
 holds. Contraband is never drawn for a lawful planet.
 
+*(proposed, round 3: built)* **Luxuries are regional:**
+- Each of the six regional luxuries has `gen.lux_home_regions` home regions, spread so
+  every region is home to about two. A region's weight for a luxury it isn't home to
+  is × `gen.lux_away`; for one it is, × `gen.favour_mult`.
+- The two fringe luxuries have weight × `gen.lux_away` on network planets, and fringe
+  planets weight them × `gen.fringe_lux_mult`.
+- *(proposed, round 3)* **Fringe planets weight life support × `gen.fringe_ls_mult`:**
+  far from trade, settlements grow their own. With a fringe luxury weight of 5 and life
+  support at 1, most fringe planets made one life-support good or none, no merchant
+  reached them, and they lost about 90% of their people in three years.
+- The repair guarantees life support in every region, each regional luxury across its
+  home regions together, and each fringe luxury across the fringe as a whole.
+
 *As built:* a region's weights are `1 ± gen.weight_spread` per lawful good, with one
-favoured good × `gen.favour_mult`. The repair takes a medium-or-better slot from a good
-that has more producers than it needs: it either swaps tiers with the short good where
-the planet already makes it at low, or replaces that slot's good. Neither creates a new
-shortfall, so the repair always ends, and it always succeeds when the region has at
-least 3 × `gen.min_producers` planets.
+favoured life-support good × `gen.favour_mult` (before round 3 the favoured good could be
+any lawful good). The repair works through a list of needs, each a good and a set of
+planets (a region, a luxury's home regions, or the fringe). It takes a medium-or-better
+slot from a good that every need it counts toward has more than enough of: it either
+swaps tiers with the short good where the planet already makes it at low, or replaces
+that slot's good. Neither creates a new shortfall, so the repair always ends. On a
+development world (three regions) a luxury's guarantee can't hold per home region: a
+region of seven fringe planets has fourteen medium-or-better slots against eighteen
+needs, which is why it holds across the home regions together.
 
 ### GEN-7 Fuel prices `v1`
 
@@ -119,6 +136,17 @@ of planets independent (their own roots), and start a few fringe planets as pira
 planets (`gen.pirate_planets`) so the pirate faction exists from the first tick. All
 factions start at peace.
 
+*As built (MS-3, ahead of MS-4 because merchants and couriers need factions):*
+- Seats are gate holders.
+- A breadth-first search over the Lattice from the seats' interchanges gives each
+  interchange the next one toward its seat. A group's holder swears to the holder there;
+  the group's other planets swear to their holder. An off-network group's holder swears
+  to the holder of the nearest on-network group.
+- Independents are drawn from planets with no vassals, so trees stay whole.
+- *(MS-6)* Pirate planets: `gen.pirate_planets` fringe planets with no vassals, each turned
+  pirate with `pirate.commanders` pirate commanders (one gunship each). They are seeded
+  after the lawful commanders and before the bottom rung, inside `char.target`.
+
 ### GEN-9 Starting characters `v1` `proposed`
 
 - A governor for every planet (CHR-7), with reputation scaled by tree height.
@@ -130,12 +158,22 @@ factions start at peace.
 
 Risk tolerance for all from `char.risk_dist`.
 
+*As built (MS-4):* each governor starts with commanders sworn to it: characters with one
+first-tier gunship each, enough that their combat power reaches
+`gen.commanders_per_income` × the planet's monthly income, at the full stipend.
+
+*As built (MS-3):* governors and the bottom rung, placed by population. A governor's risk
+tolerance sets its planet's growth factor (PRD-3). Commanders, faction merchants and
+pirates wait for their milestones; faction merchants are hired from the bottom rung by
+salary (SYS-9).
+
 ### GEN-10 Starting state and warm-up `v1` `proposed`
 
 Stocks start at their reserve targets, treasuries at `gen.start_treasury_months` of
 costs, and opinions at their resting points. A run first simulates `gen.warmup_days`
 with war declarations disabled, so markets and labour settle, and measurement starts
-after it.
+after it. *(proposed)* Rebellions still happen, and a secession's war with them (ECO-13):
+that war is no vote.
 
 *As built:* labour starts split equally across a planet's three goods, happiness at
 `gen.start_happiness`, and each planet's income average at what its population would

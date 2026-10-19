@@ -25,6 +25,19 @@ enum class EventKind : std::uint16_t {
     PlanetLabour = 3,  // a planet's weekly labour shift (SYS-2)
     PlanetPayment = 4, // a planet's monthly operating costs (SYS-5)
     WorldEventEnd = 5, // a world event ends (SYS-4); record is the event
+    CharDecide = 6,    // a character decides what to do (TIM-3); a = its wake sequence
+    CharArrive = 7,    // a character's leg ends; a = its travel sequence
+    KinematicStep = 8, // the open-space step (TIM-6)
+    CourierDue = 9,    // a liege's courier run to this vassal planet is due (SYS-15)
+    CourierArrive = 10,  // an automated courier run arrives; record is the run
+    MissionExpire = 11,  // record is the mission
+    GovernorWeekly = 12,  // a governor's weekly decisions (SYS-5, SYS-11, SYS-12); record is the planet
+    ArmyMuster = 13,   // an army's muster deadline (SYS-13); record is the army
+    ArmyArrive = 14,   // an army's leg ends; a = its travel sequence
+    BattleRound = 15,  // hourly (SYS-14); record is the battle
+    SiegeRound = 16,   // daily; record is the siege
+    CallForHelp = 17,  // a call for help reaches a liege; record is the siege, a the liege's planet
+    ThreatWarning = 18,  // a warning of an army reaches a liege; record is the army, a the liege, b the planet
 };
 
 // One entry in the scheduled-event queue (MOD-11).

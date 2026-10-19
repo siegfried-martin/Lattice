@@ -264,14 +264,105 @@ void check_references(const World& w) {
         require(e.good < kGoodCount && opt(e.region, m.regions.size()), "world event");
         for (Id p : e.planets) require(in(p, np), "world event planet");
     }
+    const auto nc = w.characters.size();
+    auto facts_ok = [&](const Facts& f) {
+        for (const PriceFact& pf : f.prices) require(in(pf.planet, np), "fact");
+        for (const RiskFact& rf : f.risks) require(in(rf.sector, m.sectors.size()), "risk fact");
+        for (const DipFact& df : f.dips) require(in(df.a, np) && in(df.b, np) && df.state <= 2, "war fact");
+        for (const PirateFact& pf : f.pirates) require(in(pf.planet, np), "pirate fact");
+        for (const GateFact& gf : f.gates) require(in(gf.node, m.nodes.size()) && opt(gf.captor, np), "gate fact");
+        for (const Sighting& s : f.sightings) {
+            require(in(s.army, w.armies.size()) && opt(s.target, np) && opt(s.faction, np), "sighting");
+        }
+    };
+    for (const ShipVariant& v : m.variants) require(in(v.culture, m.regions.size()), "ship variant");
+    for (const Planet& p : w.planets) {
+        require(opt(p.governor, nc) && opt(p.liege, np), "planet politics");
+        for (Id mi : p.missions) require(in(mi, w.missions.size()), "mission board");
+    }
+    for (const Character& c : w.characters) {
+        require(in(c.culture, m.regions.size()) && opt(c.planet, np) && opt(c.last_planet, np) && opt(c.governs, np) &&
+                    opt(c.mission, w.missions.size()) && c.cargo_good <= kGoodCount,
+                "character");
+        for (Id v : c.ships) require(in(v, m.variants.size()), "character ship");
+        for (const Opinion& o : c.opinions) {
+            require(in(o.of, nc), "opinion");
+            for (const Deed& d : o.recent) require(static_cast<int>(d.kind) < kDeedKindCount, "deed");
+        }
+        for (Id k : c.contracts) require(in(k, w.contracts.size()), "character contract");
+        for (const TripStop& t : c.trip) require(in(t.planet, np) && t.buy <= kGoodCount, "trip");
+        for (const Leg& l : c.route) require(opt(l.to_planet, np) && opt(l.to_node, m.nodes.size()), "route");
+        require(c.route.empty() || in(c.leg, c.route.size()), "route leg");
+        facts_ok(c.facts);
+    }
+    for (const Contract& k : w.contracts) {
+        require(in(k.employer, nc) && in(k.employee, nc) && opt(k.mission, w.missions.size()), "contract");
+    }
+    for (const Mission& mi : w.missions) {
+        require(in(mi.poster, nc) && in(mi.at, np) && in(mi.target, np) && opt(mi.taker, nc), "mission");
+        facts_ok(mi.packet);
+    }
+    for (const Planet& p : w.planets) require(opt(p.siege, w.sieges.size()), "planet siege");
+    for (const Character& c : w.characters) {
+        require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()) && opt(c.escort, nc) && opt(c.escorting, nc) &&
+                    opt(c.renounce_to, np) && opt(c.offer, w.missions.size()),
+                "character war");
+        for (const Suspicion& s : c.suspicion) require(s.faction == kAuthority || in(s.faction, np), "suspicion");
+    }
+    for (const Planet& p : w.planets) require(opt(p.warned_army, w.armies.size()), "planet warning");
+    require(w.risk.size() == m.sectors.size(), "sector risk");
+    for (const Relation& r : w.relations) {
+        require(in(r.a, np) && in(r.b, np) && opt(r.payer, np) && opt(r.payee, np) && static_cast<int>(r.state) <= 2, "relation");
+    }
+    for (const Army& a : w.armies) {
+        require(in(a.commissioner, nc) && in(a.home, np) && opt(a.target, np) && opt(a.planet, np) &&
+                    opt(a.target_node, m.nodes.size()) && opt(a.node, m.nodes.size()) &&
+                    opt(a.battle, w.battles.size()) && opt(a.siege, w.sieges.size()),
+                "army");
+        for (Id member : a.members) require(in(member, nc), "army member");
+        for (Id member : a.called) require(in(member, nc), "army called");
+        for (const Leg& l : a.route) require(opt(l.to_planet, np) && opt(l.to_node, m.nodes.size()), "army route");
+        require(a.route.empty() || in(a.leg, a.route.size()), "army leg");
+    }
+    for (const Battle& b : w.battles) {
+        require(opt(b.planet, np) && opt(b.armies[0], w.armies.size()) && opt(b.armies[1], w.armies.size()) && b.loot_good <= kGoodCount,
+                "battle");
+        for (const auto& side : b.sides) {
+            for (Id c : side) require(in(c, nc), "battle side");
+        }
+    }
+    for (const Siege& s : w.sieges) {
+        require(in(s.planet, np) && opt(s.node, m.nodes.size()) && in(s.army, w.armies.size()), "siege");
+    }
+    require(w.gates.size() == m.nodes.size(), "gates");
+    for (const Gate& g : w.gates) {
+        require(opt(g.siege, w.sieges.size()) && opt(g.captor, np) && opt(g.garrison, w.armies.size()), "gate");
+    }
+    for (const CourierRun& r : w.courier_runs) {
+        require(in(r.from, np) && in(r.to, np), "courier run");
+        facts_ok(r.packet);
+    }
     for (const Event& e : w.events.raw()) {
         switch (e.kind) {
-            case EventKind::DailyTick: break;
+            case EventKind::DailyTick:
+            case EventKind::KinematicStep: break;
             case EventKind::DebugPing: require(in(e.record, w.ping_fires.size()), "ping event"); break;
             case EventKind::PlanetDay:
             case EventKind::PlanetLabour:
-            case EventKind::PlanetPayment: require(in(e.record, np), "planet event"); break;
+            case EventKind::PlanetPayment:
+            case EventKind::CourierDue:
+            case EventKind::GovernorWeekly: require(in(e.record, np), "planet event"); break;
             case EventKind::WorldEventEnd: require(in(e.record, w.world_events.size()), "world event end"); break;
+            case EventKind::CharDecide:
+            case EventKind::CharArrive: require(in(e.record, nc), "character event"); break;
+            case EventKind::CourierArrive: require(in(e.record, w.courier_runs.size()), "courier event"); break;
+            case EventKind::MissionExpire: require(in(e.record, w.missions.size()), "mission event"); break;
+            case EventKind::ArmyMuster:
+            case EventKind::ArmyArrive: require(in(e.record, w.armies.size()), "army event"); break;
+            case EventKind::BattleRound: require(in(e.record, w.battles.size()), "battle event"); break;
+            case EventKind::SiegeRound: require(in(e.record, w.sieges.size()), "siege event"); break;
+            case EventKind::CallForHelp: require(in(e.record, w.sieges.size()) && in(e.a, np), "call event"); break;
+            case EventKind::ThreatWarning: require(in(e.record, w.armies.size()) && in(e.a, np) && in(e.b, np), "warning event"); break;
             default: require(false, "event kind");
         }
     }
@@ -280,7 +371,8 @@ void check_references(const World& w) {
 // The world after its config, in save order. Derived values aren't saved.
 template <class Ar, class W>
 void world_fields(Ar& ar, W& w) {
-    ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.ledger);
+    ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.characters, w.contracts,
+       w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.gates, w.risk, w.authority, w.ledger);
 }
 
 }  // namespace

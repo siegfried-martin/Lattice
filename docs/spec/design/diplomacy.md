@@ -28,9 +28,14 @@ several wars at once is a common reason, but it isn't hardcoded: several wars ju
 each one go worse.
 
 - *(proposed)* "Doing poorly" is judged from the root's own beliefs: planets and fleets
-  lost, the treasury draining, the number of wars at once.
+  lost, the treasury draining, and **weariness**, which grows with every month at war.
+  The number of wars isn't a term of its own.
 - *(proposed)* The winner accepts when the tribute offered is worth more than its
-  believed value of continuing.
+  believed value of continuing: what it has been taking, or what it hoped to take when
+  the war began, whichever is more. That hope fades as the war drags on without
+  results.
+- *(proposed)* The winner hears no offer until its armies could have reached the front
+  (`dip.min_war_days`), so a war is fought before it's settled.
 
 ### DIP-4 Declaring war `v1` `proposed`
 
@@ -41,12 +46,17 @@ governor's vote comes from what they know and feel:
 
 - **for war:** idle commanders wanting campaigns (that's how commanders win planets), rich
   enemy planets near their own border, believed strength over the target, prosperity
-  built up during peace;
+  built up during peace, and *(proposed)* money piled up beyond a reserve, which a war
+  spends;
 - **against:** wars already being fought, recent losses;
 - scaled by the governor's risk tolerance (CHR-4).
 
 Border governors have the most at stake both ways: they gain most from a war and are hit
 first.
+
+*(proposed)* **Pacing:** with several neighbours each, a faction is at war a little more
+than half the time, and a war lasts one to three game months (one to three real hours,
+WLD-15). CHK-8 holds the simulation to it.
 
 *See:* OPN-1.
 

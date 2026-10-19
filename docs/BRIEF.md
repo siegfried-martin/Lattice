@@ -200,24 +200,57 @@ The design of the full game is settled enough to build its simulation. In brief:
   protection, patronage, intelligence and trade; the vassal pays tribute and serves in
   its wars. A conquering governor keeps a planet (installing a new governor under
   themselves) or grants it down the tree. Vassals defect after sustained low opinion when
-  there's somewhere better to go (FAC-5 to FAC-11).
-- **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing faction
-  sues for peace and pays tribute (DIP-1 to DIP-3).
+  there's somewhere better to go (FAC-5 to FAC-11). *(proposed)* Tribute is meant to be
+  high; a starving or poor vassal can ask for less, and refusing costs the liege its
+  loyalty. Patronage is for rebuilding conquered planets (FAC-7, FAC-15).
+- **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing or
+  war-weary faction sues for peace and pays tribute; the winner holds out for what it
+  hoped to take. Money piled up in peace votes for war. A faction is at war a little more
+  than half the time, in wars of one to three game months (DIP-1 to DIP-4).
 - **War:** armies with telegraphed intent cross open space from the nearest gate that
   lets them out; sieges grind down a planet's defences while couriers race to bring help
-  (MIL-7 to MIL-11). Combat away from the player is auto-resolved (MIL-13).
+  (MIL-7 to MIL-11). A conqueror holds its prize only when it fears losing it more than
+  it needs its army home (MIL-12). Planets buy defence as a share of income, more at war
+  and more again from a deep treasury (MIL-5). Armies can also capture an enemy's gate: a blockade, shut to all
+  but the captor, which cuts the planets it serves off from the Lattice until it's
+  retaken or peace lifts it (MIL-17). Combat away from the player is auto-resolved
+  (MIL-13).
+- **Paying for war** *(proposed, not built yet)*: war and fleets are meant to be
+  expensive, and paid for by whoever wants the war. The faction's root pays commanders a
+  bounty for every enemy ship they destroy, from the tribute it collects, so a long war
+  drains it; a captured planet's treasury yields spoils, split by fleet strength and days
+  spent in the siege. Commanders choose their own work: a governor posts objectives
+  (defend here, join this siege) and its commanders take them or not, weighing kills,
+  spoils, their own losses and the stipend they'd lose if their employer fell. Governors
+  lend each other commanders for a while, the borrower paying the stipend: a liege asks a
+  vassal and pays a fee, a vassal under attack asks its liege and spends favour. A
+  famous commander earns more. Messages never wait for a reply: every request has a
+  deadline, no answer means no, and a fleet arriving is the answer (MIL-2, MIL-3,
+  MIL-18, MIL-19, INF-16).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
-  to ECO-5). The v1 goods are food, water, oxygen, three luxuries and one contraband
-  (PRD-1). Each planet makes three goods at high, medium and low efficiency, partly by
-  region; prices come from stock against a reserve; droughts and festivals keep them
-  moving (PRD-7 to PRD-11). Fuel is a fixed local price in v1 (ECO-11).
+  to ECO-5). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
+  from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
+  goods at high, medium and low efficiency, partly by region; a luxury takes more labour
+  than food, and fringe worlds grow more of their own; prices come from stock against a
+  reserve; droughts and festivals keep them moving (PRD-7 to PRD-11). Making goods costs
+  money, more at low efficiency than high, so efficient planets export, dear producers
+  make a good only when it's scarce, and prices rest on what goods cost to make;
+  contraband is cheap to make. A governor budgets from what's left after paying for
+  goods (net income), while wars weigh a planet by everything it takes in. Happiness is a
+  signed scale that settles toward what a population gets: each luxury with diminishing
+  returns, hunger pulling it down. Productivity rises and falls with it toward a ceiling
+  and a poverty floor, so poor planets stay poor without collapsing; an unhappy planet
+  pays more for luxuries (PRD-4, PRD-5). Fuel is a fixed local price in v1 (ECO-11).
 - **Trade:** merchants are characters. A faction root pays merchants a salary for its
   information network, in return for trips that start and end at home; independents run
   single trips. Merchants hire escorts by weighing route risk against cargo value. A slow
   osmosis keeps markets from becoming deserts (TRD-3 to TRD-13).
 - **Piracy:** one anarchic pirate faction on the fringe, unable to use the Lattice. Broke
-  commanders turn pirate; loot sells only at pirate planets, which make contraband. One
+  commanders turn pirate; loot sells only at pirate planets, which make contraband. A
+  planet may fail any week, likelier the unhappier and deeper in debt it is; with no
+  vassals it turns pirate, with vassals it secedes and is attacked by its old faction
+  (ECO-13). One
   pirate relation both shields you from pirates and raises lawful suspicion, so smuggling
   is a real risk (PIR-1 to PIR-13).
 - **Information moves at the speed of ships.** Every character has its own dated facts;
@@ -273,8 +306,11 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
   (factions, economy, trade, characters) formalised as the spec.
 - **Now:** building the headless simulation in C++, milestone by milestone, then tuning
   it for stability and testing each mechanic's worth. The skeleton and toolchain are
-  done, and world generation and the economy are built; next are characters, movement,
-  information and trade.
+  done, and every v1 system is built (world generation, the economy, characters,
+  movement, information, trade, politics, war, piracy, suspicion and spies). Tuning at
+  full scale has had four rounds; the next is designed: paying for war (bounties,
+  spoils, fleet loans, commanders choosing their objectives) and tribute relief, with
+  the economy's starvation and merchant squeeze after it.
 - **Next:** connecting the simulation to the rendered game.
 
 ## Glossary

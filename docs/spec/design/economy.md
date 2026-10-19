@@ -58,16 +58,23 @@ margin, not size; flat costs would make small planets always go pirate and big o
 ### ECO-5 Sinks `v1`
 
 The economy needs sinks or money piles up. **Operating costs are the baseline sink,** in
-peace and war alike; **war is the amplifier**, raising patrol costs and destroying fleets
+peace and war alike; *(proposed, round 4)* **the cost of making goods** (PRD-7) is the
+other, and the one that scales with trade: money is created as goods are bought and sunk
+as they're made; **war is the amplifier**, raising patrol costs and destroying fleets
 that must be replaced; **raids are a small sink of their own** (MIL-15).
 
 | True sinks (paid to nobody) | Circulates (moves money, removes none) |
 |---|---|
 | Planet operating costs and patrol and policing upkeep | Tribute, patronage, ceasefire tribute |
+| *(proposed, round 4)* The cost of making goods (PRD-7) | |
 | Fleet running costs, fuel (ECO-11) | Stipends and merchant salaries |
 | Munitions refills, recruited ships, equipment (ECO-6) | Trade between characters and the state |
 | Authority dues spent on network maintenance | Pirate hire pay and loot sales |
 | Raid losses; the osmosis margin (TRD-13) | Contraband sales (lawful population to smuggler to pirate planet) |
+| | *(proposed)* Bounties (root to commander, MIL-18), spoils (captured planet to its captors, MIL-19), loan fees (MIL-3) |
+
+*(proposed, war and fealty round)* Bounties and spoils move money, but they end in ships
+bought to replace those lost, which is a sink: treasury to commander to shipyard.
 
 Destroying goods isn't a money sink: the money that paid for them has already moved on
 (REJ-21).
@@ -87,6 +94,9 @@ grow rich refilling the fleets fighting there. When these come into the economy
 In peace, ships, weapons and munitions accumulate and treasuries fill, which makes war
 attractive. War consumes them, treasuries drain through stipends, and peace starts to
 look better. This is an outcome to check for, not a rule.
+
+*(proposed, war and fealty round)* Round 4 couldn't produce it: a war cost a treasury
+almost nothing. Bounties paid by the root (MIL-18) are what drains it now.
 
 *See:* DIP-4, CHK-8.
 
@@ -168,6 +178,22 @@ compete with cargo. Buying a missile must never mean dropping cargo.
 
 A planet whose income can't cover its operating costs drifts toward piracy, and
 eventually renounces its faction and the Authority to join the pirate faction (PIR-3).
+
+*(proposed)* **Failure has two causes and two outcomes.** A planet fails when it has
+been in deficit long enough, or when its population has been hungry and miserable long
+enough (PRD-2); isolation from the Lattice shows up as hunger before it shows up in the
+treasury. *(proposed, round 3)* Failure is **a chance each week, not a deadline:** it
+grows as happiness goes further below neutral and as debt deepens, under one scale factor
+for tuning. A failing planet **rebels**:
+
+- **with no vassals, it turns pirate** (PIR-3);
+- **with vassals, it secedes** as an independent faction, taking its branch, and its old
+  faction **declares war on it** at once. A small rebel faction against its old root is
+  meant to be unlikely to last.
+- *(open)* A failing root with vassals has no one to rebel against (OPN-37).
+
+Nothing at world generation decides where piracy lives: planets far from the Lattice
+go hungry first, so they rebel first.
 
 - *(proposed)* **Damped like defection:** a treasury buffer, plus a deficit that must
   persist for a while before a governor turns, keeps it an individual or regional event

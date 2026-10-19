@@ -44,6 +44,22 @@ void apply(World& w, const WorldEvent& e, int sign) {
     }
 }
 
+}  // namespace
+
+void reshift(World& w, Id planet, int sign) {
+    Planet& p = w.planets[at(planet)];
+    for (const WorldEvent& e : w.world_events) {
+        if (!e.alive || e.kind == WorldEventKind::Festival) continue;
+        if (std::find(e.planets.begin(), e.planets.end(), planet) == e.planets.end()) continue;
+        const int s = slot_of(p, e.good);
+        if (s < 0) continue;
+        const int shift = e.kind == WorldEventKind::Bumper ? -1 : 1;
+        p.tier_shift[at(s)] = static_cast<std::int8_t>(p.tier_shift[at(s)] + sign * shift);
+    }
+}
+
+namespace {
+
 const char* kind_name(WorldEventKind k) {
     switch (k) {
         case WorldEventKind::Drought: return "drought";

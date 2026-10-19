@@ -12,15 +12,15 @@ Generated once (GEN) and never changed by the simulation.
 | Record | Fields |
 |---|---|
 | **Sector** | hex coordinates, centre, culture region, its system (at most one); neighbours are computed |
-| **Region** | culture (its index), seed sector, production weights per lawful good, population scale |
+| **Region** | culture (its index), seed sector, production weights per lawful good, the regional luxuries it's home to *(round 3)*, population scale |
 | **System** | sector, centre, fringe flag, planets and moons |
 | **Group** | system, member planets, holder planet (WLD-5), interchange node (if on the network) |
 | **Lattice node** | interchange or junction, position, the group an interchange serves, edges |
 | **Lattice edge** | two nodes, length (sets transit time) |
 | **Hop lane** | two planets, length |
 | **Seats of power** | the planets chosen as seats (GEN-8) |
-| **Ship variant** | name, culture, class, tier, combat power, trade power (cargo), speed in open space, Lattice Drive (yes/no), price |
-| **Good** | kind (life support, luxury, contraband), base price, reserve days, price exponent, consumption per capita, happiness value |
+| **Ship variant** | culture, class (courier, scout, freighter, gunship), tier 1–3, combat power, trade power (cargo, tons), speed in open space, Lattice Drive (yes/no), price; every culture has every class at every tier (MS-3). Names wait for the content round (OPN-35) |
+| **Good** | kind (life support, luxury, contraband), base price, reserve days, price exponent, consumption per capita, yield *(round 3; the happiness value went, `happy.*` replaces it)* |
 
 Goods are a fixed list in code (food, water, oxygen; wine, spice, silk; stims, the
 names flavour); their numbers are config (`good.<name>.*`), not stored records.
@@ -37,23 +37,26 @@ after loading.
 | culture | static (WLD-16): its region |
 | fringe | static: off the network (WLD-6) |
 | governor | character ID (FAC-1) |
-| population, happiness | PRD-2, PRD-4 |
+| population, happiness | PRD-2, PRD-4; *(round 3)* happiness is signed, 0 neutral (SYS-1) |
 | prosperity | derived index, stored for capture effects (FAC-10, SYS-13) |
 | stock per good | the market |
-| goods made | three goods, each with base efficiency tier (high, medium, low) |
+| goods made | three goods, each with base efficiency tier (high, medium, low); *(round 4)* the tier sets the cost of making it (SYS-2) |
 | efficiency modifiers | tier shift per good made, and festivals running, from active events (PRD-11) |
 | labour share per good made | PRD-9 |
 | productivity, contraband average | SYS-1 |
 | treasury | may be negative (ECO-8) |
-| income average, income today | for the credit limit (SYS-3) |
+| income average, income today | gross, for the credit limit (SYS-3); *(round 4)* and net of goods paid for, for the budget (SYS-5) |
 | tax rate | ECO-3 |
 | tribute rate | set by its liege (FAC-6) |
+| income this month, tribute received this month, last tribute paid | for tribute (FAC-6) and patronage (SYS-5); *(round 4)* the month's income is net |
+| low since | when its governor's opinion of the liege fell below the defection threshold (FAC-11) |
 | growth factor | from governor's risk tolerance (PRD-3) |
 | patrol upkeep, policing spend | ECO-4, PIR-15 |
 | static defence | current strength, maximum (MIL-5) |
 | fuel price | fixed at world build (ECO-11) |
-| pirate | flag, plus the goods-made set to restore on recapture (PIR-3) |
-| deficit days | days in deficit, for turning pirate (ECO-13) |
+| liege | the planet whose governor this one's is sworn to, or none for a root; fealty is kept per planet because governor and planet are one to one (FAC-1) |
+| pirate | flag, plus the goods-made set to restore on recapture (PIR-3); *as built*, also the tiers, and the contraband its population bought today |
+| deficit days | days in deficit, for the budget's debt pressure (SYS-5); *(round 3)* no longer a rebellion counter, and the unrest counter is gone (SYS-16) |
 | mission board | list of mission IDs posted here |
 
 ### MOD-3 Character `v1`
@@ -70,10 +73,17 @@ after loading.
 | contracts | contract IDs held (REL-8) |
 | opinions | sparse map: other character ID → opinion value, plus recent deeds for the UI (REL-2) |
 | facts | the character's information (MOD-8) |
-| pirate status | none, full pirate (PIR-11) |
-| suspicion | per faction root, plus Authority (INF-14) |
+| pirate status | none, full pirate (PIR-11); *as built*, also the pirate planet it's heading to when turning (PIR-4) and its last fight in open space |
+| suspicion | per faction root, plus Authority (INF-14); *as built*, a sorted list of (faction, value, last updated), fading lazily; and a pirate run offered on contact (PIR-13) |
 | goal, action | current long-term goal and short-term action (CHR-2) |
 | broke since | for running out of money (PIR-4) |
+
+*As built (MS-3)*, also: the planet it's at, the planet where it last landed (and
+refuelled), its route and current leg, what it governs, its mission, cargo (one good,
+quantity, cost), its trip's remaining stops and profit so far, running averages of cargo
+and combat earnings (SYS-8), missions completed, when it last shared in open space, and
+when it last weighed a salary. Opinions, suspicion and pirate status arrive with their
+systems.
 
 The pirate faction's shared opinion of each character (PIR-9) and the Authority's
 opinion (FAC-14) are stored as two fields on the character.
@@ -85,6 +95,7 @@ opinion (FAC-14) are stored as two fields on the character.
 | kind | fealty (governor to governor), service (commander to governor), merchant salary, escort, courier, scout, security, mercenary task, pirate hire |
 | parties | employer, employee |
 | pay | amount and schedule (per period, or on completion) |
+| mission | the mission a one-job contract carries out |
 | terms | trip, target or region, deadline |
 | start time | |
 
@@ -100,10 +111,15 @@ tree (cache per tick). Between each pair of neighbouring roots:
 | state | war, peace, ceasefire (DIP-1) |
 | since | start time |
 | ceasefire terms | payer, payee, amount per period, end time (DIP-2) |
-| war ledger | planets and fleet power lost by each side since the war began, for suing for peace (DIP-3) |
+| war ledger | planets and fleet power lost by each side since the war began, and the enemy income near each side's border at the declaration, for suing for peace (DIP-3) |
 
 When a root changes (defection, capture of the root's planet), relations carry over to
 the new root *(proposed)*: the breakaway starts at peace with everyone except the pirates.
+
+*As built (MS-5):* relations are records between two root planets; a pair with no
+record is at peace. A record also keeps when the last war ended and each side's income
+then (for the war vote), and each side's planets and power at the war's start (for
+suing).
 
 ### MOD-6 Army `v1`
 
@@ -111,9 +127,10 @@ the new root *(proposed)*: the breakaway starts at peace with everyone except th
 |---|---|
 | commissioner | governor ID (MIL-9) |
 | members | commander IDs |
-| intent | target planet (MIL-7) |
+| intent | target planet (MIL-7), or a gate (MIL-17) with its holder as the target |
 | action | muster, move, besiege, retreat, disband |
 | location | as a character's, moving at the slowest member's speed |
+| called | commanders on their way to the muster; also its home planet, whether it is a relief, its battle and siege (MS-5) |
 
 ### MOD-7 Siege and battle `v1`
 
@@ -121,10 +138,20 @@ the new root *(proposed)*: the breakaway starts at peace with everyone except th
 |---|---|
 | **Battle** | location, sides (character IDs per side), start time, rounds fought, losses so far (MIL-13) |
 | **Siege** | planet, attacking army, start time, remaining static defence, defenders present (MIL-10) |
+| **Gate** *(proposed, round 2)* | per Lattice node: static defence, the attack it's under, captor, since, garrison (MIL-17) |
+
+*As built (MS-5):* a battle keeps each side's characters, armies, damage carried over
+and power lost, and whether side 1 has the planet's static defence. The static defence is
+kept on the planet with its security spending (MOD-2). A siege keeps whether its call
+for help has gone out and whether it was relieved.
 
 ### MOD-8 Fact `v1`
 
-A fact is `(subject, value, observed time)`. Subjects in v1:
+A fact is `(subject, value, observed time)`. *(Round 2: also each gate's captor, MIL-17.)*
+*As built (MS-5):* prices per market, risk
+per sector, the state between two roots, and the latest sighting of each army (position,
+target, faction, power), and whether a planet is a pirate planet (MS-6). Each is a sorted
+list merged newest-wins. Subjects in v1:
 
 | Subject | Value |
 |---|---|
@@ -145,7 +172,7 @@ little. Sharing is a merge of two sorted vectors keeping the newer of each key (
 
 | Field | Notes |
 |---|---|
-| kind | courier, scout, security, smuggling, legal goods, trade delivery |
+| kind | courier, scout, security, smuggling, legal goods, trade delivery; *as built*, a pirate run also names its good and quantity |
 | level | planet or faction (INF-10) |
 | poster | governor ID (or pirate planet) |
 | at | planet where it's posted |
@@ -153,6 +180,8 @@ little. Sharing is a merge of two sorted vectors keeping the newer of each key (
 | pay | grows the longer it sits (CHR-10) |
 | requirements | minimum combat or trade power, faction membership |
 | posted, expires | times |
+| state, taker, agreed pay, leg | open, taken, done or expired; the pay is fixed when taken; outbound or returning |
+| packet | the facts a courier or scout carries |
 
 ### MOD-10 World event `v1`
 
@@ -178,7 +207,24 @@ Ordered by time, then phase, then sequence number (TIM-2).
 ### MOD-12 World ledger `v1`
 
 Cumulative world totals kept for the checks (CHK-7): money created (population spending,
-ECO-1), money sunk (operating costs, the osmosis margin and later every other sink),
+ECO-1), money sunk (operating costs, *(round 4)* the cost of making goods, the osmosis margin and every other sink),
 goods produced and consumed per good, osmosis volume and margin. The total of all money
 held always equals the starting total plus money created minus money sunk; a test holds
 the simulation to it.
+
+### MOD-13 Automated courier run `v1`
+
+A scheduled transit, not a ship (INF-8): from and to planets (the liege's and the
+vassal's), whether it is returning, and the copy of the facts it carries. Runs that have
+ended keep their slot with `alive = false` (ARC-2).
+
+### MOD-14 The Trade Authority `v1`
+
+Not a fealty tree and holds no planets (FAC-13): a treasury fed by dues, less what it
+spends on the network. Its opinion of each character is a field on the character
+(MOD-3).
+
+### MOD-15 Sector risk `v1`
+
+Per sector (SYS-19): the risk now, and what feeds today's update: raids, hostile
+ship-days and patrol days. The truth that characters' risk facts approximate.

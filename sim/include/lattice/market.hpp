@@ -7,8 +7,9 @@
 namespace lattice::market {
 
 // The reserve target: good.reserve_days of the planet's own consumption. Luxuries use
-// their share of lux.consumption at a fill of 1. Lawful markets hold no contraband
-// (PIR-14), so its reserve there is 0.
+// happy.need, raised by up to happy.want as happiness falls below neutral (SYS-3).
+// Lawful markets hold no contraband
+// (PIR-14), so its reserve there is 0; pirate markets do.
 double reserve(const Config& c, const Planet& p, Good g);
 
 // base x clamp((reserve / stock)^k, price.min, price.max); a market with no reserve
@@ -17,13 +18,50 @@ double price(const Config& c, const Planet& p, Good g);
 inline double ask(const Config& c, const Planet& p, Good g) { return price(c, p, g) * (1 + c.price.spread / 2); }
 inline double bid(const Config& c, const Planet& p, Good g) { return price(c, p, g) * (1 - c.price.spread / 2); }
 
+// Money the planet earns (sales and tax, ECO-3): into the treasury and its income
+// counts (the credit limit's average, the budget's net average, and the month's income
+// that tribute is paid on).
+inline void receive(Planet& p, double money) {
+    p.treasury += money;
+    p.income_today += money;
+    p.net_today += money;
+    p.income_month += money;
+}
+
+// Money the planet pays for goods, bought from traders or made (PRD-7): out of the
+// treasury and out of its net income, which the budget reads and tribute is paid on
+// (OPN-39, round 4). Gross income, which sizes war and the credit limit, keeps it.
+inline void pay(Planet& p, double money) {
+    p.treasury -= money;
+    p.net_today -= money;
+    p.income_month -= money;
+}
+
 // A planet whose treasury is below its credit limit (econ.credit_limit months of
 // income in the red) stops buying from traders.
 bool can_buy(const Config& c, const Planet& p);
 
-// The planet's own production at its current efficiency, events included (PRD-7,
-// SYS-4): prod.efficiency by tier, one tier up from high is x event.bumper_mult, one
-// tier down from low is low x (low / medium).
-double efficiency(const Config& c, const Planet& p, int slot);
+// What making one unit in a slot costs the treasury, events included (PRD-7, SYS-2,
+// SYS-4): the good's base price x prod.cost by tier; one tier up from high is high /
+// event.bumper_mult, one tier down from low is 1. Contraband is x prod.cost_contraband.
+double unit_cost(const Config& c, const Planet& p, int slot);
+
+// What a trade moved: goods, and money paid (buying) or received (selling), tax
+// included.
+struct Fill {
+    double qty = 0;
+    double money = 0;
+};
+
+// A trader buys from the planet's stock, in chunks of price.chunk x reserve so the
+// price walks (SYS-3): at most max_qty, spending at most budget, and only while a
+// chunk costs no more than max_unit per unit, tax included. The planet's treasury takes
+// the money. quote_buy works the same on a copy and changes nothing.
+Fill buy(Planet& planet, const Config& c, Good g, double max_qty, double budget, double max_unit);
+Fill quote_buy(Planet planet, const Config& c, Good g, double max_qty, double budget, double max_unit);
+
+// A trader sells to the planet: up to qty, while a chunk brings at least min_unit per
+// unit after tax and the planet is within its credit limit.
+Fill sell(Planet& planet, const Config& c, Good g, double qty, double min_unit);
 
 }  // namespace lattice::market

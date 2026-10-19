@@ -1,16 +1,35 @@
 #include "lattice/world.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <utility>
 #include <cmath>
 #include <numeric>
 #include <string>
 
+#include "chars/characters.hpp"
+#include "chars/missions.hpp"
+#include "chars/movement.hpp"
+#include "chars/ships.hpp"
 #include "core/travel.hpp"
+#include "info/facts.hpp"
+#include "politics/fealty.hpp"
+#include "pirates/pirates.hpp"
+#include "politics/authority.hpp"
+#include "politics/governor.hpp"
+#include "politics/opinion.hpp"
+#include "trade/merchants.hpp"
 #include "economy/economy.hpp"
 #include "economy/events.hpp"
 #include "lattice/market.hpp"
 #include "gen/worldgen.hpp"
 #include "trade/osmosis.hpp"
+#include "war/armies.hpp"
+#include "war/combat.hpp"
+#include "war/diplomacy.hpp"
+#include "war/encounters.hpp"
+#include "war/risk.hpp"
+#include "war/threats.hpp"
 
 namespace lattice {
 
@@ -70,12 +89,172 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.money", -1, money);
     o.sample(t, "world.money_created", -1, w.ledger.money_created);
     o.sample(t, "world.money_sunk", -1, w.ledger.money_sunk);
+    o.sample(t, "world.production_cost", -1, w.ledger.production_cost);
     o.sample(t, "world.osmosis_volume", -1, w.ledger.osmosis_volume);
     o.sample(t, "world.osmosis_margin", -1, w.ledger.osmosis_margin);
     o.sample(t, "world.price_index", -1, index / (n * kLawfulGoodCount));
     std::int64_t active = 0;
     for (const WorldEvent& e : w.world_events) active += e.alive;
     o.sample(t, "world.events_active", -1, static_cast<double>(active));
+
+    // Characters (CHK-16 to CHK-18).
+    std::array<std::int64_t, kActivityCount> by_activity{};
+    std::int64_t alive = 0, faction_merchants = 0, ships = 0;
+    double wealth = 0, cargo = 0;
+    for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
+        const Character& ch = w.characters[at(id)];
+        if (!ch.alive) continue;
+        ++alive;
+        wealth += ch.wealth;
+        ++by_activity[static_cast<std::size_t>(ch.activity)];
+        faction_merchants += merchant::employer_root(w, id) != kNone;
+        const ships::Fleet f = ships::fleet(w, ch);
+        ships += f.count;
+        cargo += f.cargo;
+    }
+    o.sample(t, "world.characters", -1, static_cast<double>(alive));
+    o.sample(t, "world.char_wealth", -1, wealth);
+    o.sample(t, "world.money_total", -1, money + wealth + w.authority.treasury);
+    o.sample(t, "world.money_spawned", -1, w.ledger.money_spawned);
+    o.sample(t, "world.ships", -1, static_cast<double>(ships));
+    o.sample(t, "world.cargo_capacity", -1, cargo);
+    o.sample(t, "world.chars_idle", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Idle)]));
+    o.sample(t, "world.chars_trading", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Trading)]));
+    o.sample(t, "world.chars_exploring", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Exploring)]));
+    o.sample(t, "world.chars_mission", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Mission)]));
+    o.sample(t, "world.faction_merchants", -1, static_cast<double>(faction_merchants));
+    o.sample(t, "world.chars_serving", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Serving)]));
+    o.sample(t, "world.chars_army", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Army)]));
+
+    // Politics (CHK-1, CHK-3).
+    std::int64_t roots = 0, factions = 0, sworn = 0;
+    double loyalty = 0;
+    std::vector<std::int64_t> size(w.planets.size(), 0);
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) ++size[at(fealty::root_of(w, p))];
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const Planet& pl = w.planets[at(p)];
+        if (pl.liege == kNone) {
+            if (pl.pirate) continue;  // the pirate faction is not a root (PIR-1)
+            ++roots;
+            factions += size[at(p)] >= 2;
+        } else {
+            ++sworn;
+            loyalty += opinion::get(w, pl.governor, w.planets[at(pl.liege)].governor);
+        }
+    }
+    std::int64_t commanders = 0;
+    for (const Contract& k : w.contracts) commanders += k.alive && k.kind == ContractKind::Service;
+    o.sample(t, "world.roots", -1, static_cast<double>(roots));
+    o.sample(t, "world.factions", -1, static_cast<double>(factions));
+    o.sample(t, "world.loyalty", -1, sworn ? loyalty / static_cast<double>(sworn) : 0);
+    o.sample(t, "world.commanders", -1, static_cast<double>(commanders));
+    o.sample(t, "world.defections", -1, static_cast<double>(w.ledger.defections));
+    o.sample(t, "world.tribute", -1, w.ledger.tribute);
+    o.sample(t, "world.patronage", -1, w.ledger.patronage);
+    o.sample(t, "world.stipends", -1, w.ledger.stipends);
+    o.sample(t, "world.salaries", -1, w.ledger.salaries);
+    o.sample(t, "world.dues", -1, w.ledger.dues);
+    o.sample(t, "world.authority_treasury", -1, w.authority.treasury);
+    o.sample(t, "world.hires", -1, static_cast<double>(w.ledger.hires));
+
+    // War (CHK-5, CHK-6, CHK-8, CHK-20).
+    std::int64_t at_war = 0, armies = 0, besieged = 0;
+    double defence = 0;
+    for (const Relation& r : w.relations) at_war += diplomacy::state(w, r.a, r.b) == DipState::War;
+    for (const Army& a : w.armies) armies += a.alive;
+    for (const Planet& pl : w.planets) besieged += pl.siege != kNone, defence += pl.defence;
+    o.sample(t, "world.wars_now", -1, static_cast<double>(at_war));
+    // Lawful roots with a war on, for each faction's share of time at war (CHK-8).
+    std::int64_t roots_at_war = 0;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const Planet& pl = w.planets[at(p)];
+        roots_at_war += pl.liege == kNone && !pl.pirate && !diplomacy::enemies(w, p).empty();
+    }
+    o.sample(t, "world.roots_at_war", -1, static_cast<double>(roots_at_war));
+    // Blockades (MIL-17).
+    std::int64_t blockaded = 0;
+    for (const Gate& g : w.gates) blockaded += g.captor != kNone;
+    o.sample(t, "world.blockaded", -1, static_cast<double>(blockaded));
+    o.sample(t, "world.gate_attacks", -1, static_cast<double>(w.ledger.gate_attacks));
+    o.sample(t, "world.blockades", -1, static_cast<double>(w.ledger.blockades));
+    o.sample(t, "world.retakes", -1, static_cast<double>(w.ledger.retakes));
+    o.sample(t, "world.lifts", -1, static_cast<double>(w.ledger.lifts));
+    o.sample(t, "world.armies", -1, static_cast<double>(armies));
+    o.sample(t, "world.besieged", -1, static_cast<double>(besieged));
+    o.sample(t, "world.static_defence", -1, defence);
+    o.sample(t, "world.security", -1, w.ledger.security);
+    o.sample(t, "world.wars", -1, static_cast<double>(w.ledger.wars));
+    o.sample(t, "world.ceasefires", -1, static_cast<double>(w.ledger.ceasefires));
+    o.sample(t, "world.battles", -1, static_cast<double>(w.ledger.battles));
+    o.sample(t, "world.sieges", -1, static_cast<double>(w.ledger.sieges));
+    o.sample(t, "world.captures", -1, static_cast<double>(w.ledger.captures));
+    o.sample(t, "world.reliefs", -1, static_cast<double>(w.ledger.reliefs));
+    o.sample(t, "world.deaths", -1, static_cast<double>(w.ledger.deaths));
+    o.sample(t, "world.power_destroyed", -1, w.ledger.power_destroyed);
+    o.sample(t, "world.raids", -1, static_cast<double>(w.ledger.raids));
+    o.sample(t, "world.escorts", -1, static_cast<double>(w.ledger.escorts));
+    o.sample(t, "world.escort_pay", -1, w.ledger.escort_pay);
+    o.sample(t, "world.loot", -1, w.ledger.loot);
+    o.sample(t, "world.sightings", -1, static_cast<double>(w.ledger.sightings));
+    o.sample(t, "world.warnings", -1, static_cast<double>(w.ledger.warnings));
+    o.sample(t, "world.garrisons", -1, static_cast<double>(w.ledger.garrisons));
+    o.sample(t, "world.patrols", -1, static_cast<double>(w.ledger.patrols));
+    // Risk (SYS-19, CHK-4): per sector, and its spread.
+    double risk_sum = 0, risk_max = 0;
+    for (std::size_t s = 0; s < w.risk.size(); ++s) {
+        risk_sum += w.risk[s].risk;
+        risk_max = std::max(risk_max, w.risk[s].risk);
+        if (w.risk[s].risk > 0) o.sample(t, "sector.risk", static_cast<std::int64_t>(s), w.risk[s].risk);
+    }
+    o.sample(t, "world.mean_risk", -1, w.risk.empty() ? 0 : risk_sum / static_cast<double>(w.risk.size()));
+    o.sample(t, "world.max_risk", -1, risk_max);
+
+    // Piracy (CHK-4, CHK-9, CHK-23).
+    std::int64_t pirate_planets = 0, fringe_pirates = 0, pirates = 0;
+    for (const Planet& pl : w.planets) pirate_planets += pl.pirate, fringe_pirates += pl.pirate && pl.fringe;
+    for (const Character& ch : w.characters) pirates += ch.alive && ch.pirate;
+    o.sample(t, "world.pirate_planets", -1, static_cast<double>(pirate_planets));
+    o.sample(t, "world.fringe_pirate_planets", -1, static_cast<double>(fringe_pirates));
+    o.sample(t, "world.pirates", -1, static_cast<double>(pirates));
+    o.sample(t, "world.flips", -1, static_cast<double>(w.ledger.flips));
+    o.sample(t, "world.secessions", -1, static_cast<double>(w.ledger.secessions));
+    o.sample(t, "world.holds", -1, static_cast<double>(w.ledger.holds));
+    o.sample(t, "world.recaptures", -1, static_cast<double>(w.ledger.recaptures));
+    o.sample(t, "world.turned_pirate", -1, static_cast<double>(w.ledger.turned_pirate));
+    o.sample(t, "world.pirate_raids", -1, static_cast<double>(w.ledger.pirate_raids));
+    o.sample(t, "world.authority_contracts", -1, static_cast<double>(w.ledger.authority_contracts));
+    // Smuggling and policing (CHK-10, CHK-24).
+    double policing = 0, contraband = 0;
+    for (const Planet& pl : w.planets) policing += pl.policing, contraband += pl.pirate ? 0 : pl.contraband_avg * pl.population;
+    o.sample(t, "world.policing_spend", -1, policing);
+    o.sample(t, "world.lawful_contraband", -1, contraband);
+    o.sample(t, "world.offers", -1, static_cast<double>(w.ledger.offers));
+    o.sample(t, "world.smuggled_runs", -1, static_cast<double>(w.ledger.smuggled_runs));
+    o.sample(t, "world.legal_runs", -1, static_cast<double>(w.ledger.legal_runs));
+    o.sample(t, "world.smuggled", -1, w.ledger.smuggled);
+    o.sample(t, "world.smuggler_profit", -1, w.ledger.smuggler_profit);
+    o.sample(t, "world.inspections", -1, static_cast<double>(w.ledger.inspections));
+    o.sample(t, "world.caught", -1, static_cast<double>(w.ledger.caught));
+    o.sample(t, "world.confiscated", -1, w.ledger.confiscated);
+    // Spies (EXP-4).
+    std::int64_t spies_now = 0;
+    for (const Contract& k : w.contracts) spies_now += k.alive && k.kind == ContractKind::Spy;
+    o.sample(t, "world.spies", -1, static_cast<double>(spies_now));
+    o.sample(t, "world.spies_hired", -1, static_cast<double>(w.ledger.spies_hired));
+    o.sample(t, "world.spy_visits", -1, static_cast<double>(w.ledger.spy_visits));
+    o.sample(t, "world.musters_seen", -1, static_cast<double>(w.ledger.musters_seen));
+    o.sample(t, "world.spies_caught", -1, static_cast<double>(w.ledger.spies_caught));
+    o.sample(t, "world.fires", -1, static_cast<double>(w.ledger.fires));
+    o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
+    o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);
+    o.sample(t, "world.running_costs", -1, w.ledger.running_costs);
+    o.sample(t, "world.fuel", -1, w.ledger.fuel);
+    o.sample(t, "world.ships_bought", -1, w.ledger.ships_bought);
+    o.sample(t, "world.courier_runs", -1, w.ledger.courier_runs);
+    o.sample(t, "world.missions_posted", -1, static_cast<double>(w.ledger.missions_posted));
+    o.sample(t, "world.missions_done", -1, static_cast<double>(w.ledger.missions_done));
+    o.sample(t, "world.missions_expired", -1, static_cast<double>(w.ledger.missions_expired));
+    o.sample(t, "world.meetings_shared", -1, static_cast<double>(w.ledger.meetings_shared));
     for (int g = 0; g < kLawfulGoodCount; ++g) {
         const double mean = price_sum[at(g)] / n;
         const double var = std::max(0.0, price_sq[at(g)] / n - mean * mean);
@@ -83,6 +262,7 @@ void sample_metrics(const World& w, Observer& o) {
         o.sample(t, "good.stock", g, stock[at(g)]);
         o.sample(t, "good.produced", g, w.ledger.produced[at(g)]);
         o.sample(t, "good.consumed", g, w.ledger.consumed[at(g)]);
+        o.sample(t, "good.traded", g, w.ledger.traded[at(g)]);
     }
 }
 
@@ -92,6 +272,9 @@ void on_daily_tick(World& w, Observer* observer) {
     if (observer) sample_metrics(w, *observer);
     events::roll(w, observer);
     osmosis::run(w);
+    chars::daily(w, observer);
+    risk::daily(w);
+    if (day_of(w.now) % 7 == 0) authority::weekly(w, observer);
 }
 
 void on_debug_ping(World& w, const Event& e) {
@@ -118,9 +301,49 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             break;
         case EventKind::PlanetPayment:
             economy::planet_payment(w, record);
+            governor::monthly(w, record, observer);
             break;
         case EventKind::WorldEventEnd:
             events::end(w, record, observer);
+            break;
+        case EventKind::CharDecide:
+            chars::decide(w, record, static_cast<std::uint32_t>(e.a), observer);
+            break;
+        case EventKind::CharArrive:
+            move::on_arrive(w, record, static_cast<std::uint32_t>(e.a), observer);
+            break;
+        case EventKind::KinematicStep:
+            encounters::step(w, observer);
+            break;
+        case EventKind::CourierDue:
+            info::courier_due(w, record, observer);
+            break;
+        case EventKind::CourierArrive:
+            info::courier_arrive(w, record, observer);
+            break;
+        case EventKind::MissionExpire:
+            missions::expire(w, record, observer);
+            break;
+        case EventKind::GovernorWeekly:
+            governor::weekly(w, record, observer);
+            break;
+        case EventKind::ArmyMuster:
+            armies::muster_deadline(w, record, static_cast<std::uint32_t>(e.a), observer);
+            break;
+        case EventKind::ArmyArrive:
+            armies::on_arrive(w, record, static_cast<std::uint32_t>(e.a), observer);
+            break;
+        case EventKind::BattleRound:
+            combat::round(w, record, observer);
+            break;
+        case EventKind::SiegeRound:
+            armies::siege_round(w, record, observer);
+            break;
+        case EventKind::CallForHelp:
+            armies::call_for_help(w, record, static_cast<Id>(e.a), observer);
+            break;
+        case EventKind::ThreatWarning:
+            threats::warning(w, record, static_cast<Id>(e.a), static_cast<Id>(e.b), observer);
             break;
     }
 }
@@ -131,7 +354,31 @@ void rebuild_derived(World& w) {
     Derived& d = w.derived;
     d = Derived{};
     d.planet_count = w.planets.size();
-    d.travel_days = travel::planet_times(w);
+    travel::Routes routes = travel::planet_routes(w);
+    d.travel_days = std::move(routes.days);
+    d.route_pred = std::move(routes.pred);
+    d.route_via = std::move(routes.via);
+    d.route_sums.assign(d.planet_count * d.planet_count, {});
+    d.route_risk_sectors.assign(d.planet_count * d.planet_count, {});
+    for (Id a = 0; a < static_cast<Id>(d.planet_count); ++a) {
+        for (Id b = 0; b < static_cast<Id>(d.planet_count); ++b) {
+            if (a == b) continue;
+            const std::size_t k = at(a) * d.planet_count + at(b);
+            Derived::RouteSum& s = d.route_sums[k];
+            std::vector<Id>& sectors = d.route_risk_sectors[k];
+            for (const Leg& l : move::route_legs(w, a, b)) {
+                if (l.kind == LegKind::Space) {
+                    s.space += std::hypot(l.x1 - l.x0, l.y1 - l.y0);
+                    sectors.push_back(risk::sector_at(w.map, l.x0, l.y0));
+                    sectors.push_back(risk::sector_at(w.map, l.x1, l.y1));
+                }
+                if (l.kind == LegKind::Lattice) s.lattice += l.lattice_length;
+                if (l.kind == LegKind::Hop) ++s.hops;
+            }
+            std::sort(sectors.begin(), sectors.end());
+            sectors.erase(std::unique(sectors.begin(), sectors.end()), sectors.end());
+        }
+    }
     d.osmosis_pairs = osmosis::pairs(w);
     d.region_planets.assign(w.map.regions.size(), {});
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) d.region_planets[at(w.planets[at(p)].region)].push_back(p);
@@ -145,11 +392,18 @@ World new_world(const Config& config, std::uint64_t seed) {
     world.rng = RngStreams::from_seed(seed);
 
     gen::generate(world);
+    world.risk.assign(world.map.sectors.size(), {});
+    world.gates.assign(world.map.nodes.size(), {});
     economy::init_state(world);
     rebuild_derived(world);
+    chars::populate(world);
 
     world.events.push({.time = 0, .phase = Phase::Cadence, .kind = EventKind::DailyTick, .period = kDay});
     economy::schedule(world);
+    const Time step = config.time.space_step_minutes * kMinute;
+    world.events.push({.time = step, .phase = Phase::Kinematic, .kind = EventKind::KinematicStep, .period = step});
+    info::schedule_couriers(world);
+    governor::schedule(world);
 
     world.ping_fires.assign(static_cast<std::size_t>(config.debug.pings), 0);
     for (std::int64_t i = 0; i < config.debug.pings; ++i) {

@@ -53,7 +53,9 @@ away.
 **The vassal owes:**
 - **tribute:** a share of its income passed up to its liege (FAC-6);
 - **military service:** its commanders join when the liege raises an army, with the liege
-  paying their stipends while they serve (MIL-3);
+  paying their stipends while they serve (MIL-3); *(proposed, war and fealty round)* by
+  lending their service contracts when the liege asks, for a fee, refusing at a cost in
+  favour;
 - **the liege's wars:** a vassal is at war when its faction is, which cuts its trade with
   the enemy and exposes its merchants. Border planets pay most of this cost.
 
@@ -71,8 +73,31 @@ merchants (TRD-3) and fund wars.
   vassals as well as its own income, so the root's share of a planet shrinks with depth.
   Without a cascade, granting a planet gives away all its income and lieges would rarely
   grant.
+- *(proposed, war and fealty round)* **Tribute is meant to be high.** It's what pays the
+  root's bounties (MIL-18). The target is 20% to 30% of a vassal's net income (CHK-26);
+  in round 4 it was 3% to 6% of the money created, and patronage paid down was 1.3 to
+  2.7 times the tribute paid up.
 
 *See:* OPN-7, ECO-9.
+
+### FAC-15 Asking for tribute relief `v1` `proposed`
+
+A poor or starving vassal can **ask its liege for a lower tribute rate.** It may ask
+only when it meets a **fixed need test**, set in config, that anyone can check:
+- its population is short of life support (`relief.shortfall`);
+- its net income per head is below `relief.income_per_head`; or
+- it was captured within `relief.capture_months`.
+
+The liege decides through its budget (ECO-8), weighing the tribute it gives up against
+the vassal's loyalty and later recovery. **Granting** sets the rate to `relief.rate` and
+is a good deed; **refusing** is a bad deed, so a refusal moves the vassal toward
+defection (FAC-11). **Relief ends** when the vassal has passed no test for
+`relief.clear_weeks`, and the rate returns to where it was.
+
+- **Why the need is fixed:** if any vassal could ask, every vassal would, and a refusal
+  would be a cost the liege couldn't avoid. A fixed test makes asking a real claim.
+- It is how developing planets get subsidised: a liege pays for a vassal's growth in
+  tribute it doesn't collect, not in money it hands over (FAC-7).
 
 ### FAC-7 Patronage `v1`
 
@@ -86,6 +111,10 @@ tribute. Its main use is rebuilding a newly conquered planet whose economy is wr
 - A liege can invest by paying money, or by setting a low tribute rate for a while (a
   grace period).
 - The liege's opinion of each vassal (favor) decides who gets patronage.
+- *(proposed, war and fealty round)* **Patronage is for rebuilding captured planets,**
+  not for bailing out any vassal in debt. A poor vassal asks for tribute relief instead
+  (FAC-15). In round 4 the budget paid patronage to every vassal in the red, and more
+  money flowed down the tree than up it.
 
 ## Conquest
 

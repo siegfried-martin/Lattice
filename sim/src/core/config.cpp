@@ -1,6 +1,7 @@
 #include "lattice/config.hpp"
 
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <set>
 #include <sstream>
@@ -153,7 +154,7 @@ void validate(const Config& c) {
         require(g.reserve_days > 0, name + ".reserve_days must be above 0");
         require(g.k > 0, name + ".k must be above 0");
         require(g.consumption >= 0, name + ".consumption can't be negative");
-        require(g.happiness >= 0, name + ".happiness can't be negative");
+        require(g.yield > 0, name + ".yield must be above 0");
     }
 
     positive(c.price.min, "price.min");
@@ -169,21 +170,33 @@ void validate(const Config& c) {
 
     non_negative(c.pop.growth_rate, "pop.growth_rate");
     share(c.pop.shrink_rate, "pop.shrink_rate");
+    positive(c.pop.full_excess, "pop.full_excess");
     non_negative(c.pop.growth_factor_min, "pop.growth_factor_min");
     require(c.pop.growth_factor_max >= c.pop.growth_factor_min, "pop.growth_factor_max must be at least pop.growth_factor_min");
-    non_negative(c.pop.happiness_drain, "pop.happiness_drain");
-    non_negative(c.pop.p_base, "pop.p_base");
-    non_negative(c.pop.p_happy, "pop.p_happy");
+    non_negative(c.rebel.scale, "rebel.scale");
+    positive(c.rebel.power, "rebel.power");
+    non_negative(c.rebel.w_debt, "rebel.w_debt");
     non_negative(c.pop.contraband_penalty, "pop.contraband_penalty");
     positive(static_cast<double>(c.pop.contraband_window), "pop.contraband_window");
 
-    non_negative(c.lux.consumption, "lux.consumption");
     positive(c.lux.max_fill, "lux.max_fill");
-    non_negative(c.lux.variety_min, "lux.variety_min");
+    positive(c.happy.need, "happy.need");
+    non_negative(c.happy.sated, "happy.sated");
+    non_negative(c.happy.lux, "happy.lux");
+    non_negative(c.happy.contraband, "happy.contraband");
+    non_negative(c.happy.hunger, "happy.hunger");
+    require(c.happy.settle_days >= 1, "happy.settle_days must be at least 1");
+    positive(c.happy.scale, "happy.scale");
+    non_negative(c.happy.p_up, "happy.p_up");
+    require(c.happy.p_down >= 0 && c.happy.p_down < 1, "happy.p_down must be 0 to below 1");
+    non_negative(c.happy.g_up, "happy.g_up");
+    non_negative(c.happy.g_down, "happy.g_down");
+    non_negative(c.happy.want, "happy.want");
 
-    positive(c.prod.efficiency_high, "prod.efficiency_high");
-    positive(c.prod.efficiency_medium, "prod.efficiency_medium");
-    positive(c.prod.efficiency_low, "prod.efficiency_low");
+    non_negative(c.prod.cost_high, "prod.cost_high");
+    non_negative(c.prod.cost_contraband, "prod.cost_contraband");
+    require(c.prod.cost_high <= c.prod.cost_medium && c.prod.cost_medium <= c.prod.cost_low,
+            "prod.cost_high, _medium and _low must rise in that order");
     non_negative(c.prod.labour_per_capita, "prod.labour_per_capita");
     share(c.prod.labour_shift, "prod.labour_shift");
 
@@ -210,6 +223,146 @@ void validate(const Config& c) {
     positive(c.travel.space_speed, "travel.space_speed");
     non_negative(c.travel.hop_days, "travel.hop_days");
 
+    require(c.chars.target >= 0 && c.chars.target <= 1'000'000, "char.target must be 0 to 1,000,000");
+    require(c.chars.spawn_per_day >= 0, "char.spawn_per_day can't be negative");
+    non_negative(c.chars.start_wealth, "char.start_wealth");
+    share(c.chars.start_armed_p, "char.start_armed_p");
+    require(c.chars.broke_days >= 0, "char.broke_days can't be negative");
+    for (const auto& k : c.ship.classes) {
+        require(k.combat >= 0 && k.cargo >= 0, "ship combat and cargo can't be negative");
+        require(k.speed > 0 && k.price > 0, "ship speed and price must be above 0");
+    }
+    positive(c.ship.tier_combat, "ship.tier_combat");
+    positive(c.ship.tier_cargo, "ship.tier_cargo");
+    positive(c.ship.tier_speed, "ship.tier_speed");
+    positive(c.ship.tier_price, "ship.tier_price");
+    require(c.ship.culture_spread >= 0 && c.ship.culture_spread < 1, "ship.culture_spread must be 0 to 1");
+    share(c.ship.resale, "ship.resale");
+    for (double r : c.fleet.run_cost) non_negative(r, "fleet.run_cost");
+    non_negative(c.fleet.munitions_per_power, "fleet.munitions_per_power");
+    require(c.fleet.max_ships >= 1, "fleet.max_ships must be at least 1");
+    require(c.merchant.candidates >= 1, "merchant.candidates must be at least 1");
+    non_negative(c.merchant.info_value, "merchant.info_value");
+    non_negative(c.merchant.salary, "merchant.salary");
+    non_negative(c.merchant.per_planet, "merchant.per_planet");
+    positive(c.merchant.stale_days, "merchant.stale_days");
+    non_negative(c.merchant.dock_hours, "merchant.dock_hours");
+    non_negative(c.mission.pay_growth, "mission.pay_growth");
+    positive(static_cast<double>(c.mission.expiry_days), "mission.expiry_days");
+    non_negative(c.mission.courier_pay, "mission.courier_pay");
+    non_negative(c.mission.scout_pay, "mission.scout_pay");
+    non_negative(c.skill.gain, "skill.gain");
+    non_negative(c.skill.max, "skill.max");
+    non_negative(c.skill.bonus, "skill.bonus");
+    non_negative(c.spend.threshold_base, "spend.threshold_base");
+    non_negative(c.spend.reserve_months, "spend.reserve_months");
+    positive(static_cast<double>(c.courier.interval_days), "courier.interval_days");
+    non_negative(c.courier.run_cost, "courier.run_cost");
+    share(c.courier.mission_share, "courier.mission_share");
+    non_negative(c.scout.min_combat, "scout.min_combat");
+    positive(c.scout.stale_days, "scout.stale_days");
+    positive(c.space.detect_range, "space.detect_range");
+    non_negative(c.space.meet_cooldown_hours, "space.meet_cooldown_hours");
+    non_negative(c.fuel.burn, "fuel.burn");
+    share(c.gen.independent_share, "gen.independent_share");
+    non_negative(c.gen.commanders_per_income, "gen.commanders_per_income");
+    share(c.rel.fade, "rel.fade");
+    require(c.rel.recent_deeds >= 0, "rel.recent_deeds can't be negative");
+    share(c.fealty.tribute_rate, "fealty.tribute_rate");
+    share(c.fealty.rate_step, "fealty.rate_step");
+    require(c.fealty.rate_min >= 0 && c.fealty.rate_max <= 1 && c.fealty.rate_min <= c.fealty.rate_max,
+            "fealty.rate_min and rate_max must be 0 <= min <= max <= 1");
+    require(c.fealty.defect_weeks >= 0, "fealty.defect_weeks can't be negative");
+    non_negative(c.budget.credit_risk, "budget.credit_risk");
+    require(c.budget.diminishing > 0 && c.budget.diminishing < 1, "budget.diminishing must be between 0 and 1");
+    non_negative(c.budget.debt_pressure, "budget.debt_pressure");
+    non_negative(c.value.defence, "value.defence");
+    positive(c.value.power_ref, "value.power_ref");
+    non_negative(c.value.patronage_months, "value.patronage_months");
+    non_negative(c.hire.range_days, "hire.range_days");
+    positive(c.hire.stipend_per_power, "hire.stipend_per_power");
+    non_negative(c.dues.access, "dues.access");
+    non_negative(c.dues.gate, "dues.gate");
+    share(c.dues.maintenance, "authority.maintenance");
+    non_negative(c.value.war_mult, "value.war_mult");
+    non_negative(c.value.border_mult, "value.border_mult");
+    positive(c.value.security_unit, "value.security_unit");
+    non_negative(c.value.invade_months, "value.invade_months");
+    non_negative(c.value.gate_months, "value.gate_months");
+    non_negative(c.value.aftermath_months, "value.aftermath_months");
+    non_negative(c.value.protect, "value.protect");
+    non_negative(c.dip.neighbour_days, "dip.neighbour_days");
+    non_negative(c.dip.border_days, "dip.border_days");
+    non_negative(c.dip.tribute_rate, "dip.tribute_rate");
+    non_negative(c.dip.w_treasury, "dip.w_treasury");
+    positive(c.budget.reserve_months, "budget.reserve_months");
+    non_negative(c.budget.hoard, "budget.hoard");
+    non_negative(c.budget.hoard_cap, "budget.hoard_cap");
+    positive(c.value.security_share, "value.security_share");
+    non_negative(c.value.security_ratio, "value.security_ratio");
+    non_negative(c.dip.s_months, "dip.s_months");
+    non_negative(static_cast<double>(c.dip.min_war_days), "dip.min_war_days");
+    non_negative(c.dip.hope_share, "dip.hope_share");
+    positive(c.dip.hope_halflife_months, "dip.hope_halflife_months");
+    positive(static_cast<double>(c.dip.ceasefire_days), "dip.ceasefire_days");
+    positive(static_cast<double>(c.army.muster_days), "army.muster_days");
+    non_negative(c.army.detour_ratio, "army.detour_ratio");
+    non_negative(c.combat.lethality, "combat.lethality");
+    require(c.combat.noise >= 0 && c.combat.noise < 1, "combat.noise must be 0 to 1");
+    non_negative(c.combat.retreat_base, "combat.retreat_base");
+    share(c.combat.retreat_loss, "combat.retreat_loss");
+    share(c.combat.cargo_destroyed, "combat.cargo_destroyed");
+    share(c.combat.pod_death_p, "pod.death_p");
+    non_negative(c.defence.per_spend, "defence.per_spend");
+    share(c.defence.regen, "defence.regen");
+    non_negative(c.value.blockade_months, "value.blockade_months");
+    non_negative(c.value.retake_months, "value.retake_months");
+    non_negative(c.blockade.defence_share, "blockade.defence_share");
+    non_negative(static_cast<double>(c.blockade.hold_days), "blockade.hold_days");
+    non_negative(c.capture.happiness_drop, "capture.happiness_drop");
+    non_negative(static_cast<double>(c.capture.hold_days), "capture.hold_days");
+    share(c.capture.stock_loss, "capture.stock_loss");
+    share(c.capture.pop_loss, "capture.pop_loss");
+    share(c.space.engage_p, "space.engage_p");
+    share(c.space.evade, "space.evade");
+    non_negative(c.space.engage_cooldown_hours, "space.engage_cooldown_hours");
+    positive(c.risk.window, "risk.window");
+    non_negative(c.risk.presence, "risk.presence");
+    non_negative(c.risk.clear, "risk.clear");
+    share(c.raid.share, "raid.share");
+    positive(static_cast<double>(c.raid.days), "raid.days");
+    non_negative(c.raid.standoff, "raid.standoff");
+    non_negative(c.escort.rate, "escort.rate");
+    non_negative(c.security.risk_post, "security.risk_post");
+    positive(static_cast<double>(c.security.days), "security.days");
+    non_negative(c.security.pay, "security.pay");
+    positive(c.pirate.flip_debt, "pirate.flip_debt");
+    non_negative(c.pirate.cost_mult, "pirate.cost_mult");
+    non_negative(c.pirate.salary, "pirate.salary");
+    non_negative(c.pirate.range_days, "pirate.range_days");
+    require(c.pirate.commanders >= 0, "pirate.commanders can't be negative");
+    non_negative(c.pirate.contraband_price, "pirate.contraband_price");
+    non_negative(c.pirate.demand_cap, "pirate.demand_cap");
+    share(c.pirel.fade, "pirel.fade");
+    non_negative(c.authority.risk_post, "authority.risk_post");
+    positive(static_cast<double>(c.authority.clear_days), "authority.clear_days");
+    non_negative(c.authority.pay, "authority.pay");
+    require(c.authority.contracts >= 0, "authority.contracts can't be negative");
+    require(c.gen.pirate_planets >= 0, "gen.pirate_planets can't be negative");
+    non_negative(c.pirate.legal_bonus, "pirate.legal_bonus");
+    share(c.sus.inspect_base, "sus.inspect_base");
+    non_negative(c.sus.war, "sus.war");
+    non_negative(c.sus.police_per_unit, "sus.police_per_unit");
+    share(c.sus.find_base, "sus.find_base");
+    positive(c.sus.scale, "sus.scale");
+    share(c.sus.fade, "sus.fade");
+    non_negative(c.sus.police_effect, "sus.police_effect");
+    non_negative(c.sus.no_trade, "sus.no_trade");
+    non_negative(c.sus.muster, "sus.muster");
+    non_negative(c.spy.salary, "spy.salary");
+    non_negative(c.spy.range_days, "spy.range_days");
+    non_negative(c.spy.value, "spy.value");
+
     require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
     require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");
     require(c.gen.planets >= 2 && c.gen.planets <= 10'000, "gen.planets must be 2 to 10,000");
@@ -226,9 +379,13 @@ void validate(const Config& c) {
     non_negative(c.gen.pop_spread, "gen.pop_spread");
     non_negative(c.gen.region_pop_spread, "gen.region_pop_spread");
     positive(c.gen.moon_pop, "gen.moon_pop");
-    share(c.gen.start_happiness, "gen.start_happiness");
+    require(std::isfinite(c.gen.start_happiness), "gen.start_happiness must be a number");
     require(c.gen.weight_spread >= 0 && c.gen.weight_spread < 1, "gen.weight_spread must be 0 to 1");
     positive(c.gen.favour_mult, "gen.favour_mult");
+    require(c.gen.lux_home_regions >= 1, "gen.lux_home_regions must be at least 1");
+    positive(c.gen.lux_away, "gen.lux_away");
+    positive(c.gen.fringe_lux_mult, "gen.fringe_lux_mult");
+    positive(c.gen.fringe_ls_mult, "gen.fringe_ls_mult");
 }
 
 std::string to_toml(const Config& config) {

@@ -32,6 +32,31 @@ add_library(lattice_core STATIC
     src/core/save.cpp
     src/core/travel.cpp
     src/core/world.cpp
+    src/chars/characters.cpp
+    src/chars/contracts.cpp
+    src/chars/missions.cpp
+    src/chars/movement.cpp
+    src/chars/ships.cpp
+    src/info/facts.cpp
+    src/pirates/pirates.cpp
+    src/pirates/smuggling.cpp
+    src/pirates/suspicion.cpp
+    src/politics/authority.cpp
+    src/politics/budget.cpp
+    src/politics/fealty.cpp
+    src/politics/governor.cpp
+    src/politics/opinion.cpp
+    src/trade/escorts.cpp
+    src/trade/merchants.cpp
+    src/war/armies.cpp
+    src/war/combat.cpp
+    src/war/diplomacy.cpp
+    src/war/encounters.cpp
+    src/war/gates.cpp
+    src/war/raids.cpp
+    src/war/risk.cpp
+    src/war/spies.cpp
+    src/war/threats.cpp
     src/economy/economy.cpp
     src/economy/events.cpp
     src/economy/market.cpp
@@ -60,6 +85,11 @@ if(LATTICE_BUILD_TESTS)
         tests/test_world.cpp
         tests/test_worldgen.cpp
         tests/test_economy.cpp
+        tests/test_characters.cpp
+        tests/test_politics.cpp
+        tests/test_war.cpp
+        tests/test_pirates.cpp
+        tests/test_spies.cpp
     )
     set_target_properties(lattice-tests PROPERTIES CXX_EXTENSIONS OFF)
     target_include_directories(lattice-tests SYSTEM PRIVATE third_party/doctest)

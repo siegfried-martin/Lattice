@@ -5,6 +5,313 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-19 · War and fealty money, design
+
+Agreed with the human in conversation, written into the spec as `proposed`; not built.
+Placeholders for the targets, to be tuned when something isn't working.
+
+- **A target before tuning:** CHK-26's bands for tribute, military spending and
+  patronage as shares of net income, in peace and war. Round 4 measured military
+  spending at about 4% of money created and patronage above tribute (MS-8).
+- **Bounties for kills,** paid monthly by the root at `bounty.share` 0.5 of each enemy
+  ship's price; for kills, not participation (MIL-18, SYS-14).
+- **Spoils of capture:** `spoils.per_prosperity` × N × P from the captured planet's
+  treasury, split by combat power × days in the siege (MIL-19, SYS-13).
+- **Fleet loans:** serving another governor is a loan of the service contract for a
+  duration. A liege borrowing pays the stipends plus `loan.fee_months`; a vassal
+  borrowing for relief pays the stipends and spends favour, with `loan.relief_fee` 0.
+  What's lent is the employer, never the ships (MIL-3, MIL-11, REL-8; REJ-12 stands).
+- **Commanders choose their objectives** as missions, by expected kills, spoils, losses
+  and the stipend at stake if their employer falls; declining every one is a small bad
+  deed. No forced missions. Armies are whoever joins by the deadline (MIL-2, MIL-9,
+  CHR-10, SYS-9, SYS-13).
+- **Tribute is meant to be high;** a vassal meeting a fixed need test can ask for
+  relief, granted or refused at a cost in opinion, ending when the need clears
+  (FAC-6, FAC-15, SYS-11). **Patronage** is narrowed to rebuilding captured planets
+  (FAC-7, SYS-5).
+- **Reputation raises a stipend,** up to double on a levelling curve (`hire.rep_mult`,
+  `hire.rep_half`) (MIL-2, REL-7); what it's worth to an employer is OPN-40.
+- **Messages go one way:** contracts end on their own terms, requests carry a deadline
+  and a default, and the fleet is the reply (INF-16).
+- **Goals and decisions are separate;** a decision never replans a goal on the spot
+  (CHR-2).
+- **Deferred:** munitions (MIL-4) and the liege paying for a whole campaign, until
+  bounties show whether war is still too cheap; whether the war vote weighs bounty costs
+  (OPN-41); the economic levers (cheaper life support, growth to a capacity, luxuries
+  from what's left), discussed for a later round (MS-8).
+- **Open:** character roles (OPN-42), which the human is taking to the planning agent
+  and may change the commander rules before they're built.
+- **Not taken:** parallelising decisions on a GPU or threads (sweeps already use every
+  core; decisions are branchy and depend on each other; profile first, TIM-8).
+
+### 2026-10-18 · Phase A round 4, built and run
+
+The design below, built (MS-8, round 4), and what the runs needed. Proposed until the
+human signs off.
+
+- **Budgets and tribute read net income** (receipts less goods bought and the cost of
+  making them); war, capture value, credit and rebellion keep gross (SYS-5, SYS-11;
+  answers OPN-39). On gross, 55% to 80% of planets fell into debt. Net for everything
+  was tried and not taken: the war vote divides by a planet's own income, which can be
+  near zero net, and wars tripled.
+- **Rebellion counts debt in months of gross income** (`pirate.flip_debt` 1; was 3
+  months of operating costs) (SYS-16).
+- **Growth is full at half a reserve's surplus** (`pop.full_excess` 0.5): prices resting
+  on cost leave stocks only 15% to 40% over reserve (SYS-1).
+- **Osmosis carries most life support** (`osmosis.rate` 0.2, was 0.01): with no glut,
+  merchants carried 87% of it and war cut them off (SYS-6).
+- `econ.op_per_capita` 250 (was 300); `prod.labour_per_capita` 5.
+- **Found:** merchant profit per trip fell to a tenth; idle characters (23%) and pirates
+  (15% of characters) are over their bands. Next to design (MS-8).
+
+### 2026-10-18 · Phase A round 4, design changes
+
+Agreed with the human in conversation, written into the spec as `proposed`.
+
+- **Making goods costs money, and efficiency is that cost:** a share of base price per
+  unit by tier, with every tier making the same per worker. A slot idles when its bid
+  doesn't cover its cost, so prices rest on the cheapest producers' cost rather than
+  the clamp. Contraband is cheap to make; its cost is risk (PRD-6, PRD-7, SYS-2).
+- **Labour moves toward the best margin,** not the best price (PRD-9).
+- **The cost is a sink,** paid even in debt (ECO-5, ECO-8). Paying it as wages was
+  considered and not taken: wages are spent, which is new money again (ECO-1).
+- CHK-14c: at most 10% of prices at the clamp. The build plan is in MS-8.
+
+### 2026-10-18 · Phase A round 3, built and run
+
+The design below, built (MS-8, round 3), with what the runs found. Proposed until the
+human signs off.
+
+- **Luxuries take more labour than life support** (`good.yield`: regional 1/6, fringe
+  1/3). At a yield of 1 a luxury paid more per worker than food even at a glut, so
+  every luxury market sat at the price floor (PRD-7, SYS-2).
+- **A security unit is worth a fixed multiple of its cost** (× threat × reserves), so
+  the number bought doesn't grow with income; a rich planet buys bigger units. Valued
+  by income, the richest spent a third of their gross income on guns and dragged their
+  lieges into debt through patronage (MIL-5, SYS-5).
+- **Fringe planets weight life support × 3** (`gen.fringe_ls_mult`), and the fringe
+  luxuries × 2, not 5: most fringe planets otherwise lost 90% of their people (PRD-7,
+  GEN-6).
+- **A luxury's producer guarantee holds across its home regions together,** not per
+  home region: small worlds can't fit it per region (PRD-8, GEN-6).
+- **Contraband demand** reads the old `(1 − H)` as `(1 − s(H)) ÷ 2`, s the signed u: ½
+  at neutral, so content planets still buy some (SYS-16).
+- **Tuning:** `rebel.scale` 0.01 → 0.007, `defence.per_spend` 0.01 → 0.0015.
+- **Fixed:** an event's efficiency shift was left behind when a planet's goods changed
+  (turning pirate, recapture); it's now moved with them (SYS-4).
+
+### 2026-10-18 · Phase A round 3, design changes
+
+Agreed with the human in conversation, written into the spec as `proposed`.
+
+- **Happiness:** a signed scale with 0 neutral and no caps. It settles toward a target
+  set by luxuries (each with diminishing returns, so variety pays), contraband and
+  hunger, below neutral with no luxuries. A content population buys fewer luxuries
+  (PRD-4, SYS-1).
+- **Productivity and growth:** 1× at neutral, rising toward a ceiling and falling toward
+  a floor with diminishing returns. The floor lets a miserable planet just feed itself:
+  poverty is sticky, not a death spiral. Unhappiness slows growth (PRD-5, PRD-2, PRD-6).
+- **Eight luxuries,** six regional and two from the fringe, so luxuries are carried and
+  distant planets have something to sell (PRD-1, PRD-8, GEN-6). Names are placeholders
+  (OPN-35).
+- **One money supply per planet:** an unhappy planet raises its luxury reserves and so
+  pays merchants more (PRD-10, SYS-3).
+- **Rebellion** is a weekly chance from unhappiness and debt, under one scale factor
+  (ECO-13, SYS-16).
+- **Garrisoning a conquest** is a weighed choice, not fixed (MIL-12, SYS-13).
+- **Defence** is bought in proportion to income, and reserves beyond a cushion raise its
+  value; deep treasuries at wealthy core planets are intended (MIL-5, SYS-5, CHK-7).
+- **Checks:** border planets may change hands often (CHK-6 to 40% a year, the
+  most-traded planet at most twice a year); reserves must level off, not stop at a growth
+  cap (CHK-7); happiness must spread out (CHK-12).
+- Held in reserve: output per head falling with population (OPN-38).
+
+### 2026-10-18 · Phase A round 2, design changes
+
+Agreed with the human in conversation, written straight into the spec as `proposed`.
+
+- **War pacing:** the number of wars is no longer a suing term; weariness a month at war
+  is. The winner hears no offer before `dip.min_war_days`, and holds out for what it
+  hoped to take, a hope that fades. Money beyond a reserve votes for war. Target: each
+  faction at war a little more than half the time, wars of one to three months (DIP-3,
+  DIP-4, SYS-12, CHK-8).
+- **Rebellion:** hunger drains happiness (PRD-2). A planet fails on a long deficit or on
+  long hunger and misery; with no vassals it turns pirate, with vassals it secedes and
+  its old faction declares war (ECO-13, PIR-3, SYS-16). Rebellions continue through the
+  warm-up (GEN-10). A failing root with vassals is open (OPN-37). World generation stays
+  as it is: where piracy lives should come from the mechanics.
+- **Blockades:** an army at war can attack an enemy's gate, defended at a share of its
+  holder's static defence. Captured, it's a discrete blockade, shut to all but the
+  captor's faction, which can exit there. Unheld, it's retaken by any force of the
+  holder's faction; it lifts with peace. Blockades are facts; travellers route around
+  known ones and find out at the gate otherwise (MIL-17, WLD-12, WLD-13, INF-2, SYS-13,
+  CHK-6).
+- **Capture:** the conquering army garrisons its prize for `capture.hold_days` (SYS-13).
+- **Round 2 tuning:** `value.aftermath_months` 2 → 8, `defence.per_spend` 0.005 → 0.01,
+  `value.blockade_months` 8, `rebel.shortfall` 0.5, `rebel.days` 90; CHK-8b's band 2 to 5
+  (MS-8's note).
+
+### 2026-10-18 · MS-8, the harness and Phase A round 1
+
+- **Tools:** experiments, checks with proposed bands, and an HTML report, using only
+  Python's standard library (ARC-8, CHK).
+- **Fealty:** swearing into one's own branch is refused, and a siege ends without
+  capture once the planet is no longer hostile (FAC-2, SYS-13).
+- **Round 1** (tuning, not design):
+  - `prod.labour_per_capita` 3.5 → 8;
+  - war-vote weights w_strength 1 → 0.1, w_targets 0.3 → 0.05, w_idle 0.2 → 0.1;
+  - `dip.declare_threshold` 1 → 1.5.
+  Population now holds and conquest slows (MS-8's note).
+
+### 2026-10-18 · MS-7, spies
+
+- **Hiring:** spies are a budget option at war, hired from idle independent traders on a
+  secret contract that doesn't count as membership (INF-13, SYS-17).
+- **Rounds:** to the least recently seen enemy market in range. Cover trades lower
+  suspicion; a visit without one raises it.
+- **What they see:** armies forming or stationed there, recorded as sightings that reach
+  home and the threat check.
+- **Caught:** cover blown on inspection; the contract ends; the `caught` deed; an attack
+  by the planet's commanders.
+- **EXP-4:** `spy.enabled` turns spies off.
+
+### 2026-10-18 · MS-6 part 2, smuggling and suspicion
+
+- **Pirate runs:**
+  - posted weekly at havens from need and surplus;
+  - offered on contact to bold independents, which sets the relation to neutral;
+  - taken when free;
+  - no contract, so the runner isn't a full pirate (SYS-16, PIR-10, PIR-13).
+- **Smuggling** sells to the most populous known lawful market at a daily wish capped
+  by `pirate.demand_cap`, as untaxed population spending (PRD-6, PIR-6).
+- **Legal-goods runs** sell into the haven's market with a per-unit bonus (PIR-3).
+- **Suspicion:**
+  - held per root;
+  - raised by contraband aboard and a high pirate relation, lowered by genuine trade;
+  - inspections on landing at lawful planets, with intensity from policing and war;
+  - caught means confiscation, a new `caught` deed, and suspicion (INF-14, SYS-17).
+- **Policing** is a budget option valued by the productivity contraband costs (PIR-15).
+
+### 2026-10-18 · MS-6 part 1, pirates
+
+- **The pirate faction:**
+  - a faction id with no root;
+  - no diplomacy and no osmosis;
+  - full pirates are off the Lattice, and pirate planets' gates are shut to everyone
+    (PIR-1, PIR-2, WLD-12).
+- **Flips:**
+  - weekly by ECO-13's rule;
+  - the governor turns with the planet; its vassals go free;
+  - production goes to contraband;
+  - forgiven debt is money created;
+  - neighbours see it (PIR-3, ECO-13).
+- **Pirate planets:**
+  - their population buys contraband before luxuries;
+  - they keep every commander who joins and budget only static defence (proposed);
+  - capture restores production (PIR-3, MIL-12).
+- **Broke commanders** turn pirate by risk tolerance if they know a haven (PIR-4,
+  EXP-9's switch).
+- **Pirate raids** *(proposed)*: target lawful planets within `pirate.range_days` by
+  population; hunger raises the rate (PIR-3, SYS-16).
+- **Engagements:** a cooldown after any fight in open space (proposed).
+- **The Authority** posts clearing contracts paid from its treasury (FAC-14).
+- **Warm-up:** no invasions during it.
+
+### 2026-10-18 · MS-5 part 2, risk, raids, escorts and news
+
+- **Risk:**
+  - per sector, fed by raids and raiders' time in open space, cleared by patrols;
+  - beliefs are seen at leg ends and planets and shared (SYS-19, INF-6);
+  - merchants charge believed route risk on their cargo (SYS-7).
+- **Raids** *(proposed)*: spare commanders sortie toward the nearest believed-enemy
+  planet, engage enemy members in range, take loot up to capacity, and sell it at home
+  (MIL-15).
+- **Escorts:** hired at a stop from armed characters idle there, by the expected-loss
+  formula; they travel and fight with the merchant and are paid at the trip's end
+  (TRD-8 to TRD-10).
+- **Sorties:** out toward a planet without landing, held at a standoff, then home. They
+  serve raids, war scouting and patrols.
+- **Warnings and garrisons:**
+  - sightings record intent and power;
+  - a governor warns its liege of an army coming for it;
+  - relief can garrison before a siege (MIL-11, INF-12).
+- **Security missions** patrol a planet's own space when its believed risk is high
+  (MIL-5).
+- **DIP-5:** war and peace are facts. Governors, merchants, raiders and patrols act on
+  them; osmosis, gates and the vote use the truth.
+
+### 2026-10-18 · MS-5 part 1, war
+
+- **Correction:** escorts come with risk in MS-5, not MS-6 as MS-3's entry said; MS-5's
+  scope already lists them.
+- **Diplomacy:**
+  - weekly war vote and suing with first-guess weights;
+  - no declarations in the warm-up;
+  - relations between roots, forgotten by a new root and inherited by a captured root's
+    heir;
+  - declarations take effect at once until DIP-5 is built (SYS-12).
+- **Combat:** damage carries between rounds; zero-power ships go first; the strongest
+  fleet's risk tolerance sets the retreat point; pods land at the nearest planet not at
+  war with the pilot (SYS-14).
+- **Defence:**
+  - static defence is a budget option bought in units of monthly security spend;
+  - defence and invasions are worth more at war and on the border;
+  - static defence rebuilds daily when not besieged (MIL-5, SYS-5).
+- **Invasions:**
+  - a one-unit budget option on P(win) = A² ÷ (A² + D²);
+  - vassals answer by opinion;
+  - armies move as one around enemy gates;
+  - static defence is only damaged once the defending ships are gone;
+  - relief goes at P(win) of at least a third, or the call goes up the tree;
+  - keep or grant scores protection by travel days (SYS-13, FAC-8, FAC-9).
+- **Capture of a root:** its most populous vassal becomes the root, with the wars.
+- **Goods ledger:** capture losses and destroyed cargo are recorded. A merchant carries
+  one good at a time.
+
+### 2026-10-18 · MS-4, politics
+
+- **Opinion** fades lazily (the same as a weekly pass) and keeps the last
+  `rel.recent_deeds` deeds per relationship (SYS-10).
+- **Tribute** is paid at the vassal's monthly payment on its income since the last one,
+  cascading; the liege's tools are rules: raise on the loyal when in the red, lower for
+  the wavering, each a deed, with `deed.tribute_lowered` new (SYS-11, FAC-12).
+- **Defection** goes to the rival root that thinks best of the defector within
+  `fealty.threat_days`, else independence; a "not set" time is now `kNever`, not −1
+  (SYS-11).
+- **Budget:** commanders and patronage as unit options valued in money per month, with
+  the `value.*` heuristics; risk eases diminishing returns as
+  `budget.diminishing ^ (1 − risk ÷ 2)`; the existing commanders are funded first
+  (SYS-5, SYS-9). Every value is a first guess for Phase A.
+- **Commanders** serve at their governor's planet in peacetime; starting commanders are
+  one gunship each, up to `gen.commanders_per_income` × income (GEN-9).
+- **Dues** at each planet's monthly payment; the Authority keeps its surplus until it
+  can hire mercenaries (SYS-20).
+
+### 2026-10-18 · MS-3, characters, movement, information and trade
+
+- **Order:** fealty trees (GEN-8) and governors (GEN-9) are built in MS-3, ahead of MS-4,
+  because faction merchants, sharing and couriers need them. Escorts move to MS-6 (no
+  risk before pirates); sightings to MS-5.
+- **Ships:** every culture has four classes (courier, scout, freighter, gunship) at three
+  tiers, from per-class stats scaled per tier and varied per culture, as placeholders for
+  the content round (OPN-35).
+- **Movement:** journeys are routes of legs; open space is straight legs with known
+  times, interpolated by the kinematic step, which hashes only ships something could
+  happen to (TIM-5, TIM-6). Fuel is per Lattice transit, at the last landing's price.
+- **Facts** are per-market price records; members are governors and holders of standing
+  contracts; members share on landing at a faction planet and on meeting in open space
+  (INF-4, SYS-15).
+- **Merchants:** slice-by-slice leg sizing, cargo aboard sold first, docking time, a
+  faction merchant heads home when away, idle merchants explore stale markets (SYS-7).
+  Every root offers a fixed salary until the budget model exists (SYS-9).
+- **Missions:** courier missions are a share of the liege-to-vassal runs; roots post
+  trade scouting as planet-level missions open to anyone *(proposed)*; missions are round
+  trips paid on return; reputation is missions completed (SYS-8, REL-7).
+- **Spending:** a ship of the class that has paid (freighter or gunship), added or
+  replacing the cheapest one tier up; broke characters sell ships (SYS-8, PIR-4).
+- **Found, not acted on:** merchants can't fix the starting values' food shortage, and the
+  happiness loop is bistable (MS-3's note).
+
 ### 2026-10-18 · MS-2, world generation and the economy
 
 Choices made while building, all *(proposed)* where they go beyond a rule:
@@ -151,6 +458,9 @@ Ideas considered and dropped. Don't reintroduce one without a new reason.
 | REJ-37 | Trading standing for money | Money is never traded for opinion | REL-1 |
 | REJ-38 | A greed trait | Risk tolerance covers it | CHR-4 |
 | REJ-39 | Academy worlds training crew of their culture | Not needed; new characters start at low level | CHR-6; crew hiring stays open (OPN-36) |
+| REJ-40 | Bounties for taking part in a war action | Pays for turning up, not for fighting | Bounties for kills (MIL-18); spoils weighted by days in the siege (MIL-19) |
+| REJ-41 | Governors ordering their commanders onto missions | The one forced choice in a design where everyone chooses | Objectives as missions (MIL-2) |
+| REJ-42 | Acknowledgements and resent messages; couriers that nothing can stop, even a blockade | Protocol state for every character, or no fragility at all | One-way messages with deadlines and defaults (INF-16) |
 
 ## Retired IDs
 

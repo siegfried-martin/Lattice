@@ -10,6 +10,7 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Anarchy** | The pirate faction's structure: no hierarchy, no coordination, no infighting | PIR-1 |
 | **Army** | Forces gathered for a major operation, with an intent | MIL-7 |
 | **Bail out** | Leave the Lattice anywhere, without a boost; player only | WLD-10 |
+| **Bounty** | What the root pays a commander for an enemy ship its fleet destroyed; for kills, not taking part *(proposed)* | MIL-18 |
 | **Budget model** | The one decision routine every spender uses: believed value against full cost and what's available | ECO-8, SYS-5 |
 | **Ceasefire** | The state after a war: the loser pays tribute and no war can be declared | DIP-2 |
 | **Character** | The one kind of entity; every role is a character's | CHR-1 |
@@ -30,6 +31,7 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Fringe** | Planets off the Lattice network | WLD-6 |
 | **Full pirate** | A character who attacked a non-pirate unprovoked or took a pirate commander contract | PIR-11 |
 | **Gate holder** | The planet that holds its group's gates, fixed at world build | WLD-5 |
+| **Goal** | What a character is trying to do (a trade, a mission, a siege); planned on events, never replanned by a decision on the way *(proposed)* | CHR-2 |
 | **Governor** | The character who runs a planet | FAC-1 |
 | **Group** | Nearby planets sharing one entrance and one exit | WLD-4 |
 | **Growth factor** | A governor's scaling of population growth, from risk tolerance | PRD-3 |
@@ -41,8 +43,10 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Lattice** | The wormhole highway network, and the game's name | WLD-1 |
 | **Lattice Drive** | The equipment needed to enter the Lattice | WLD-8 |
 | **Liege** | The governor a vassal has sworn fealty to | FAC-2 |
+| **Loan** | A service contract lent from one governor to another for a duration; the borrower pays the stipend; never the ships *(proposed)* | MIL-3 |
 | **Loyalty** | A vassal's opinion of its liege | REL-2 |
 | **Mercenary** | A commander with no standing contract | REL-11 |
+| **Objective** | A governor's war aim posted as a mission (defend here, join this siege); commanders choose among them *(proposed)* | MIL-2 |
 | **Opinion** | One character's feeling about another, moved by deeds, fading to rest | REL-2 |
 | **Osmosis** | The slow background flow of goods between nearby markets | TRD-13 |
 | **Patronage** | A liege's upfront investment in a vassal planet | FAC-7 |
@@ -63,6 +67,7 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Security force** | A planet's static defences and procedurally generated patrols | MIL-5 |
 | **Siege** | Destroying a planet's defence fleet and static defences, which takes time | MIL-10 |
 | **Smuggler** | A character with a good pirate relation who isn't a full pirate | PIR-12 |
+| **Spoils** | Money taken from a captured planet's treasury, split by power × days in the siege *(proposed)* | MIL-19 |
 | **Spy** | An agent posing as a neutral trader deep in enemy territory | INF-13 |
 | **Standing** | The opinion of a planet's governor (planet) or a faction's root (faction) | REL-5 |
 | **State trader** | Every planet: the governor owns output and everyone trades with the state | ECO-2 |
@@ -70,5 +75,6 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Suspicion** | A per-faction meter that raises the chance of being inspected and caught | INF-14 |
 | **Trade Authority** | The neutral, fixed-rule faction that runs the Lattice | FAC-13 |
 | **Tribute** | The share of income a vassal pays its liege | FAC-6 |
+| **Tribute relief** | A lower tribute rate a vassal may ask for when it meets a fixed need test *(proposed)* | FAC-15 |
 | **Trip shape** | One of a faction merchant's three allowed trips: inside, out and back, triangle | TRD-3 |
 | **Vassal** | A governor sworn to a liege | FAC-2 |

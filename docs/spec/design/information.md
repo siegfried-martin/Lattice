@@ -14,7 +14,7 @@ NPCs. The player's map shows what they've seen or been told.
 
 Every character, governors included, holds a set of **facts**: prices and stock at
 markets, sightings of fleets and armies, per-sector risk, army intents, the state between
-factions. **Each fact records when it was observed.** Characters decide on what they
+factions, and *(proposed)* which gates are blockaded (MIL-17). **Each fact records when it was observed.** Characters decide on what they
 believe, which may be stale. **"The planet's information" is its governor's
 information.**
 
@@ -78,6 +78,32 @@ Information flows back up the same way.
 - **Most courier runs are automated:** scheduled transits on the Lattice rather than
   simulated ships, with some left as missions for NPCs and the player. Couriers travel
   the Lattice, where there's no combat (WLD-2), so automation loses nothing.
+
+### INF-16 Messages go one way `v1` `proposed`
+
+**No exchange waits for an acknowledgement.** A message is never lost on the Lattice,
+only late, and it can be stopped only where the Lattice can be: at a blockaded gate
+(MIL-17), or on an open-space leg to a planet off the network. Three rules keep every
+exchange working when a message is late or stopped:
+
+1. **Contracts end on their own terms.** Both sides hold the contract, so both know
+   when it ends. A lent commander goes home when its loan ends (MIL-3); the lender
+   learns it's back when it lands.
+2. **A request carries a deadline and a default.** "Lend me fleets, muster at X by day
+   T." No answer by T is a refusal. The sender never waits: at T it acts on what it has.
+3. **The fleet is the reply.** Accepting means the fleet sets out, and its arrival is
+   the acknowledgement. A reply sent by courier is a courtesy, never a condition.
+
+So a stale belief costs time or an opportunity, never a stuck state. Disagreement is
+fine: each side acts on its own facts (INF-2) and the contract settles itself.
+
+- *Consequence:* a blockade can make a loyal vassal look disloyal: its fleet is stuck
+  behind the gate, the deadline passes, and the liege records a refusal. That
+  misunderstanding is intended. If it proves too harsh, a fleet that arrives late can
+  turn the deed into a milder "answered late".
+- *Why not acknowledgements and resends:* they need protocol state that every character
+  tracks, and a design for every lost reply. Couriers that nothing could stop, even a
+  blockade, would remove the fragility that makes information interesting.
 
 ### INF-9 Scouts `v1`
 
