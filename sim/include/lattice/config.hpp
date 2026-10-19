@@ -41,18 +41,27 @@ struct Config {
         double reserve_days = 30;  // reserve target in days of consumption
         double k = 1.5;            // price exponent
         double consumption = 0;    // per thousand per day (life support, contraband)
-        double happiness = 0;      // per unit per thousand (luxuries, contraband)
+        double yield = 1;          // output per unit of labour, against life support's (SYS-2)
 
         friend bool operator==(const GoodParams&, const GoodParams&) = default;
     };
+    // Luxuries take their use from happy.need, and their happiness from happy.lux (SYS-1).
+    // A unit of luxury takes more labour than one of life support (round 3: at a yield
+    // of 1 luxuries glutted every market; at 1/3, still most). The fringe luxuries take
+    // less, so the fringe has something to sell.
     std::array<GoodParams, kGoodCount> goods = {{
-        {10, 30, 1.5, 1.0, 0},    // food
-        {10, 30, 1.5, 1.0, 0},    // water
-        {10, 30, 1.5, 1.0, 0},    // oxygen
-        {30, 15, 1.0, 0, 0.02},   // wine
-        {30, 15, 1.0, 0, 0.02},   // spice
-        {30, 15, 1.0, 0, 0.02},   // silk
-        {60, 15, 1.0, 0.2, 0.06}, // stims (contraband)
+        {10, 30, 1.5, 1.0, 1},       // food
+        {10, 30, 1.5, 1.0, 1},       // water
+        {10, 30, 1.5, 1.0, 1},       // oxygen
+        {30, 15, 1.0, 0, 1.0 / 6},   // wine
+        {30, 15, 1.0, 0, 1.0 / 6},   // spice
+        {30, 15, 1.0, 0, 1.0 / 6},   // silk
+        {30, 15, 1.0, 0, 1.0 / 6},   // tea
+        {30, 15, 1.0, 0, 1.0 / 6},   // perfume
+        {30, 15, 1.0, 0, 1.0 / 6},   // glassware
+        {30, 15, 1.0, 0, 1.0 / 3},   // crystal (fringe)
+        {30, 15, 1.0, 0, 1.0 / 3},   // amber (fringe)
+        {60, 15, 1.0, 0.2, 1},       // stims (contraband)
     }};
 
     struct Price {
@@ -79,10 +88,6 @@ struct Config {
         double shrink_rate = 0.002;   // daily shrink at total shortfall
         double growth_factor_min = 0.5;
         double growth_factor_max = 1.5;
-        double happiness_drain = 0.01;
-        double starve_happiness = 0.03;  // daily happiness lost at total shortfall (PRD-2)
-        double p_base = 0.6;
-        double p_happy = 0.6;
         double contraband_penalty = 4;
         std::int64_t contraband_window = 30;
 
@@ -90,13 +95,27 @@ struct Config {
     } pop;
 
     struct Lux {
-        double consumption = 0.5;  // luxury use per thousand at full fill
-        double max_fill = 1.5;
-        double variety_min = 0.2;  // share of a luxury's full use that counts for variety
-        std::array<double, 4> variety_bonus = {0, 0, 0.003, 0.006};  // by luxuries used
+        double max_fill = 1.5;  // stock against reserve beyond which use rises no further
 
         friend bool operator==(const Lux&, const Lux&) = default;
     } lux;
+
+    // Happiness (PRD-4, PRD-5, SYS-1): signed, 0 neutral, settling toward a target.
+    struct Happy {
+        double need = 0.1;         // each luxury's full use, per thousand per day
+        double sated = 1;          // how much a happy population cuts its luxury use
+        double base = -0.3;        // target with no luxuries
+        double lux = 0.25;         // target per luxury, x ln(1 + use / need)
+        double contraband = 0.5;   // the same for contraband (PRD-6)
+        double hunger = 1;         // target lost at total life-support shortfall
+        double settle_days = 30;   // days to close most of the gap to the target
+        double scale = 0.5;        // happiness at which effects are about 3/4 of full size
+        double p_up = 0.3, p_down = 0.2;  // productivity's ceiling and floor
+        double g_up = 0, g_down = 1;      // growth's boost when happy, its cut when unhappy
+        double want = 1;           // an unhappy planet's luxury reserves grow by up to this share
+
+        friend bool operator==(const Happy&, const Happy&) = default;
+    } happy;
 
     struct Prod {
         double efficiency_high = 1.0;
@@ -296,6 +315,9 @@ struct Config {
         double credit_risk = 1;     // months of income of credit, x risk tolerance (SYS-5)
         double diminishing = 0.6;   // each further unit of an option, at risk 0
         double debt_pressure = 0.1; // cost multiplier per month in the red
+        // Money beyond reserve_months of costs raises defence values by up to hoard x
+        // hoard_cap (MIL-5); the war vote's treasury term uses the same reserve (DIP-4).
+        double hoard = 1, reserve_months = 6, hoard_cap = 3;
 
         friend bool operator==(const Budget&, const Budget&) = default;
     } budget;
@@ -307,7 +329,9 @@ struct Config {
         double patronage_months = 12; // patronage is worth this many months of the tribute it saves
         double war_mult = 2;          // defence is worth this much more at war
         double border_mult = 1;       // and this much more with an enemy planet within dip.border_days
-        double security_unit = 1000;  // static defence is bought in units of this much a month
+        double security_unit = 1000;  // policing is bought in units of this much a month
+        double security_share = 0.02; // static defence in units of this share of monthly income (MIL-5)
+        double security_ratio = 2;    // each unit is worth this times its cost, x threat x hoard
         double invade_months = 12;    // a planet taken is worth this many months of its income
         double gate_months = 6;       // more for one that holds gates (WLD-5)
         double aftermath_months = 8;  // rebuilding after capture costs this many months of its income (round 2: 2)
@@ -324,8 +348,8 @@ struct Config {
         // Phase A round 1: 0.2, 0.3, 1 and a threshold of 1 had every faction at war all the time.
         double w_idle = 0.1, w_targets = 0.05, w_strength = 0.1, w_peace = 0.5, w_wars = 1.5, w_losses = 0.5;
         double declare_threshold = 1.5;
-        // Money beyond reserve_months of costs votes for war, up to treasury_cap (DIP-4).
-        double w_treasury = 0.3, reserve_months = 6, treasury_cap = 3;
+        // Money beyond budget.reserve_months of costs votes for war, up to budget.hoard_cap (DIP-4).
+        double w_treasury = 0.3;
         // Suing (DIP-3): losses, a treasury in the red, and weariness a month at war. The
         // number of wars isn't a term of its own; several wars make each go worse.
         double s_planets = 3, s_power = 2, s_treasury = 1, s_months = 0.4;
@@ -370,7 +394,7 @@ struct Config {
     } blockade;
 
     struct Defence {
-        double per_spend = 0.01;   // static defence power per credit of monthly security spend (round 2: 0.005)
+        double per_spend = 0.0015; // static defence power per credit of monthly security spend (round 3; round 2 0.01)
         double regen = 0.05;       // share of its maximum restored a day, when not besieged
 
         friend bool operator==(const Defence&, const Defence&) = default;
@@ -407,18 +431,18 @@ struct Config {
         friend bool operator==(const Security&, const Security&) = default;
     } security;
 
-    // Rebellion (ECO-13): a planet unhappy and starving for `days` in a row rebels.
+    // Rebellion (ECO-13, SYS-16): a weekly chance, scale x (u(H)^power below neutral +
+    // w_debt x debt as a share of pirate.flip_debt months of costs).
     struct Rebel {
-        double happiness = 0.15;  // below this
-        double shortfall = 0.5;   // and a life-support shortfall above this
-        std::int64_t days = 90;
+        double scale = 0.007;  // round 3: 0.01 flipped 9% of planets a year
+        double power = 2;
+        double w_debt = 1;
 
         friend bool operator==(const Rebel&, const Rebel&) = default;
     } rebel;
 
     struct Pirate {
-        std::int64_t flip_days = 60;  // days in deficit before a planet turns (SYS-16)
-        double flip_debt = 3;         // and a debt of this many months of costs
+        double flip_debt = 3;         // debt, in months of costs, at which debt's share of rebellion is full
         double cost_mult = 0.3;       // a pirate planet's operating costs (ECO-14)
         bool turn_all = false;        // EXP-9: every broke commander turns pirate, not risk-weighted
         double salary = 0.6;          // pirate stipend / lawful stipend (PIR-5)
@@ -478,7 +502,7 @@ struct Config {
     } authority;
 
     struct Capture {
-        double happiness_loss = 0.4;
+        double happiness_drop = 0.4;  // subtracted at capture (SYS-13)
         double stock_loss = 0.5;
         double pop_loss = 0.05;
         std::int64_t hold_days = 30;  // the conquering army garrisons the planet this long (SYS-13)
@@ -521,9 +545,14 @@ struct Config {
         double pop_spread = 0.8;       // log-normal sigma per planet
         double region_pop_spread = 0.3;  // log-normal sigma per region
         double moon_pop = 0.3;         // a moon's population against a planet's
-        double start_happiness = 0.5;
+        double start_happiness = 0;  // neutral (GEN-10)
         double weight_spread = 0.5;  // region production weights in 1 +- this
         double favour_mult = 3;      // weight of each region's favoured good
+        std::int64_t lux_home_regions = 2;  // home regions per regional luxury (GEN-6)
+        double lux_away = 0.1;       // a luxury's weight away from home
+        double fringe_lux_mult = 2;  // fringe planets' weight for the fringe luxuries (round 3: 5 starved them)
+        double fringe_ls_mult = 3;   // and for life support: far from trade, they grow their own
+                                     // (round 3: at 1, most fringe planets lost 90% of their people)
         double independent_share = 0.1;  // planets that start as their own roots (GEN-8)
         double commanders_per_income = 1e-5;  // starting combat power per credit of monthly income (GEN-9)
         std::int64_t pirate_planets = 2;      // fringe planets that start as pirate planets (GEN-8)
@@ -556,7 +585,7 @@ void for_each_field(C& c, F&& f) {
         f(prefix + "reserve_days", p.reserve_days);
         f(prefix + "k", p.k);
         if (kind_of(g) != GoodKind::Luxury) f(prefix + "consumption", p.consumption);
-        if (kind_of(g) != GoodKind::LifeSupport) f(prefix + "happiness", p.happiness);
+        f(prefix + "yield", p.yield);
     }
 
     f("price.min", c.price.min);
@@ -574,17 +603,24 @@ void for_each_field(C& c, F&& f) {
     f("pop.shrink_rate", c.pop.shrink_rate);
     f("pop.growth_factor_min", c.pop.growth_factor_min);
     f("pop.growth_factor_max", c.pop.growth_factor_max);
-    f("pop.happiness_drain", c.pop.happiness_drain);
-    f("pop.starve_happiness", c.pop.starve_happiness);
-    f("pop.p_base", c.pop.p_base);
-    f("pop.p_happy", c.pop.p_happy);
     f("pop.contraband_penalty", c.pop.contraband_penalty);
     f("pop.contraband_window", c.pop.contraband_window);
 
-    f("lux.consumption", c.lux.consumption);
     f("lux.max_fill", c.lux.max_fill);
-    f("lux.variety_min", c.lux.variety_min);
-    f("lux.variety_bonus", c.lux.variety_bonus);
+
+    f("happy.need", c.happy.need);
+    f("happy.sated", c.happy.sated);
+    f("happy.base", c.happy.base);
+    f("happy.lux", c.happy.lux);
+    f("happy.contraband", c.happy.contraband);
+    f("happy.hunger", c.happy.hunger);
+    f("happy.settle_days", c.happy.settle_days);
+    f("happy.scale", c.happy.scale);
+    f("happy.p_up", c.happy.p_up);
+    f("happy.p_down", c.happy.p_down);
+    f("happy.g_up", c.happy.g_up);
+    f("happy.g_down", c.happy.g_down);
+    f("happy.want", c.happy.want);
 
     f("prod.efficiency_high", c.prod.efficiency_high);
     f("prod.efficiency_medium", c.prod.efficiency_medium);
@@ -688,10 +724,9 @@ void for_each_field(C& c, F&& f) {
     f("security.risk_post", c.security.risk_post);
     f("security.days", c.security.days);
     f("security.pay", c.security.pay);
-    f("rebel.happiness", c.rebel.happiness);
-    f("rebel.shortfall", c.rebel.shortfall);
-    f("rebel.days", c.rebel.days);
-    f("pirate.flip_days", c.pirate.flip_days);
+    f("rebel.scale", c.rebel.scale);
+    f("rebel.power", c.rebel.power);
+    f("rebel.w_debt", c.rebel.w_debt);
     f("pirate.flip_debt", c.pirate.flip_debt);
     f("pirate.cost_mult", c.pirate.cost_mult);
     f("pirate.turn_all", c.pirate.turn_all);
@@ -757,6 +792,9 @@ void for_each_field(C& c, F&& f) {
     f("budget.credit_risk", c.budget.credit_risk);
     f("budget.diminishing", c.budget.diminishing);
     f("budget.debt_pressure", c.budget.debt_pressure);
+    f("budget.hoard", c.budget.hoard);
+    f("budget.reserve_months", c.budget.reserve_months);
+    f("budget.hoard_cap", c.budget.hoard_cap);
 
     f("value.defence", c.value.defence);
     f("value.power_ref", c.value.power_ref);
@@ -765,6 +803,8 @@ void for_each_field(C& c, F&& f) {
     f("value.war_mult", c.value.war_mult);
     f("value.border_mult", c.value.border_mult);
     f("value.security_unit", c.value.security_unit);
+    f("value.security_share", c.value.security_share);
+    f("value.security_ratio", c.value.security_ratio);
     f("value.invade_months", c.value.invade_months);
     f("value.blockade_months", c.value.blockade_months);
     f("value.retake_months", c.value.retake_months);
@@ -782,8 +822,6 @@ void for_each_field(C& c, F&& f) {
     f("dip.w_losses", c.dip.w_losses);
     f("dip.declare_threshold", c.dip.declare_threshold);
     f("dip.w_treasury", c.dip.w_treasury);
-    f("dip.reserve_months", c.dip.reserve_months);
-    f("dip.treasury_cap", c.dip.treasury_cap);
     f("dip.s_planets", c.dip.s_planets);
     f("dip.s_power", c.dip.s_power);
     f("dip.s_treasury", c.dip.s_treasury);
@@ -812,7 +850,7 @@ void for_each_field(C& c, F&& f) {
     f("blockade.defence_share", c.blockade.defence_share);
     f("blockade.hold_days", c.blockade.hold_days);
 
-    f("capture.happiness_loss", c.capture.happiness_loss);
+    f("capture.happiness_drop", c.capture.happiness_drop);
     f("capture.hold_days", c.capture.hold_days);
     f("capture.stock_loss", c.capture.stock_loss);
     f("capture.pop_loss", c.capture.pop_loss);
@@ -846,6 +884,10 @@ void for_each_field(C& c, F&& f) {
     f("gen.start_happiness", c.gen.start_happiness);
     f("gen.weight_spread", c.gen.weight_spread);
     f("gen.favour_mult", c.gen.favour_mult);
+    f("gen.lux_home_regions", c.gen.lux_home_regions);
+    f("gen.lux_away", c.gen.lux_away);
+    f("gen.fringe_lux_mult", c.gen.fringe_lux_mult);
+    f("gen.fringe_ls_mult", c.gen.fringe_ls_mult);
     f("gen.independent_share", c.gen.independent_share);
     f("gen.commanders_per_income", c.gen.commanders_per_income);
     f("gen.pirate_planets", c.gen.pirate_planets);

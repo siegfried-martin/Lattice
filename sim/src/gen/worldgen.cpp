@@ -1,6 +1,7 @@
 #include "gen/worldgen.hpp"
 
 #include "chars/ships.hpp"
+#include "lattice/happiness.hpp"
 #include "politics/fealty.hpp"
 
 #include <algorithm>
@@ -84,13 +85,33 @@ void make_regions(World& w) {
         if (!any) break;  // can't happen on a connected grid
     }
 
-    // Production weights (GEN-6): every lawful good near 1, one favoured good higher,
-    // so neighbouring planets tend to share strengths (PRD-7).
+    // Production weights (GEN-6): every lawful good near 1, one favoured life-support good
+    // higher, so neighbouring planets tend to share strengths (PRD-7).
     const auto& g = w.config.gen;
     for (Region& region : m.regions) {
         for (double& weight : region.weights) weight = 1 + g.weight_spread * rng.uniform(-1, 1);
-        region.weights[at(static_cast<Id>(rng.uniform_int(0, kLawfulGoodCount - 1)))] *= g.favour_mult;
+        region.weights[kLifeSupport[at(static_cast<Id>(rng.uniform_int(0, static_cast<std::int64_t>(kLifeSupport.size()) - 1)))]] *= g.favour_mult;
         region.pop_scale = std::exp(g.region_pop_spread * rng.normal());
+    }
+    // Luxuries are regional: each regional one has gen.lux_home_regions homes, given to
+    // the regions with the fewest so far so each is home to about as many; away from home
+    // a luxury's weight is x gen.lux_away. The fringe luxuries are x lux_away everywhere
+    // here; fringe planets raise them when they draw (assign_goods).
+    const auto homes = std::min<std::int64_t>(g.lux_home_regions, region_count);
+    std::vector<int> taken(at(region_count), 0);
+    for (Good lux : kRegionalLuxuries) {
+        std::vector<std::pair<double, Id>> order;
+        for (Id r = 0; r < region_count; ++r) order.emplace_back(taken[at(r)] + rng.uniform(0, 0.5), r);
+        std::sort(order.begin(), order.end());
+        for (std::int64_t k = 0; k < homes; ++k) {
+            const Id r = order[at(static_cast<Id>(k))].second;
+            m.regions[at(r)].home[lux] = true;
+            ++taken[at(r)];
+        }
+        for (Region& region : m.regions) region.weights[lux] *= region.home[lux] ? g.favour_mult : g.lux_away;
+    }
+    for (Region& region : m.regions) {
+        for (Good lux : kFringeLuxuries) region.weights[lux] *= g.lux_away;
     }
 }
 
@@ -110,7 +131,7 @@ Id add_planet(World& w, Id system, double x, double y, Id moon_of) {
     p.population = g.pop_median * w.map.regions[at(p.region)].pop_scale * std::exp(g.pop_spread * rng.normal()) *
                    (moon_of == kNone ? 1.0 : g.moon_pop);
     p.happiness = g.start_happiness;
-    p.productivity = w.config.pop.p_base + w.config.pop.p_happy * p.happiness;
+    p.productivity = happiness::productivity(w.config, p.happiness);
     // PRD-3: the governor's risk tolerance (CHR-4, char.risk_dist uniform 0-1) sets the
     // growth factor. There are no governors before MS-4, so the planet draws it.
     p.growth_factor = w.config.pop.growth_factor_min +
@@ -247,11 +268,22 @@ void choose_fringe(World& w) {
 
 // ---- GEN-6: what planets make ----
 
-int medium_or_better(const World& w, Id region, Good g) {
+// What PRD-8 guarantees: a good's producers in a set of planets, a region (life support),
+// a luxury's home regions together, or the whole fringe (the fringe luxuries).
+struct Need {
+    std::vector<Id> regions;  // none: the fringe
+    Good good = kFood;
+};
+
+bool in_set(const Need& n, const Planet& p) {
+    return n.regions.empty() ? p.fringe : std::find(n.regions.begin(), n.regions.end(), p.region) != n.regions.end();
+}
+
+int count_in(const World& w, const Need& n) {
     int count = 0;
     for (const Planet& p : w.planets) {
-        if (p.region != region) continue;
-        for (int s = 0; s < 3; ++s) count += p.makes[at(s)] == g && p.tiers[at(s)] != kLow;
+        if (!in_set(n, p)) continue;
+        for (int s = 0; s < 3; ++s) count += p.makes[at(s)] == n.good && p.tiers[at(s)] != kLow;
     }
     return count;
 }
@@ -260,6 +292,10 @@ void assign_goods(World& w) {
     Rng& rng = w.rng[Stream::WorldGen];
     for (Planet& p : w.planets) {
         auto weights = w.map.regions[at(p.region)].weights;
+        if (p.fringe) {
+            for (Good lux : kFringeLuxuries) weights[lux] *= w.config.gen.fringe_lux_mult / w.config.gen.lux_away;
+            for (Good g : kLifeSupport) weights[g] *= w.config.gen.fringe_ls_mult;
+        }
         for (int s = 0; s < 3; ++s) {
             const auto g = static_cast<Good>(rng.weighted(weights));
             p.makes[at(s)] = g;
@@ -269,22 +305,35 @@ void assign_goods(World& w) {
         rng.shuffle(p.tiers);
     }
 
-    // Repair (PRD-8): every lawful good needs gen.min_producers producers per region at
-    // medium or better. Each fix takes a medium-or-better slot from a good with more
-    // than enough, so it never creates a new shortfall and the loop ends. It can fail
-    // only if a region has fewer than 3 x min_producers planets.
+    // Repair (PRD-8): gen.min_producers producers at medium or better of each life-support
+    // good per region, of each regional luxury across its home regions, and of each fringe
+    // luxury across the fringe. Each fix takes a medium-or-better slot from a good that every
+    // need it counts toward has more than enough of, so it never creates a new shortfall
+    // and the loop ends. It can fail only if a set is too small.
     const int need = static_cast<int>(w.config.gen.min_producers);
-    for (Id r = 0; r < static_cast<Id>(w.map.regions.size()); ++r) {
-        for (;;) {
-            Good short_good = kGoodCount;
-            for (int g = 0; g < kLawfulGoodCount; ++g) {
-                if (medium_or_better(w, r, static_cast<Good>(g)) < need) {
-                    short_good = static_cast<Good>(g);
-                    break;
-                }
-            }
-            if (short_good == kGoodCount) break;
-
+    std::vector<Need> needs;
+    const auto regions = static_cast<Id>(w.map.regions.size());
+    for (Id r = 0; r < regions; ++r) {
+        for (Good g : kLifeSupport) needs.push_back({{r}, g});
+    }
+    for (Good g : kRegionalLuxuries) {
+        Need n{.regions = {}, .good = g};
+        for (Id r = 0; r < regions; ++r) {
+            if (w.map.regions[at(r)].home[g]) n.regions.push_back(r);
+        }
+        needs.push_back(n);
+    }
+    for (Good g : kFringeLuxuries) needs.push_back({{}, g});
+    // Whether a planet could give up a slot of good g without leaving a need short.
+    auto spare = [&](const Planet& p, Good g) {
+        for (const Need& n : needs) {
+            if (n.good == g && in_set(n, p) && count_in(w, n) <= need) return false;
+        }
+        return true;
+    };
+    for (const Need& short_need : needs) {
+        const Good short_good = short_need.good;
+        while (count_in(w, short_need) < need) {
             struct Fix {
                 Id planet;
                 int slot;          // the medium-or-better slot given up
@@ -293,7 +342,7 @@ void assign_goods(World& w) {
             std::vector<Fix> fixes;
             for (Id pi = 0; pi < static_cast<Id>(w.planets.size()); ++pi) {
                 const Planet& p = w.planets[at(pi)];
-                if (p.region != r) continue;
+                if (!in_set(short_need, p)) continue;
                 int has = -1;
                 for (int s = 0; s < 3; ++s) {
                     if (p.makes[at(s)] == short_good) has = s;
@@ -301,10 +350,10 @@ void assign_goods(World& w) {
                 if (has >= 0 && p.tiers[at(has)] != kLow) continue;
                 for (int s = 0; s < 3; ++s) {
                     if (s == has || p.tiers[at(s)] == kLow) continue;
-                    if (medium_or_better(w, r, p.makes[at(s)]) > need) fixes.push_back({pi, s, has});
+                    if (spare(p, p.makes[at(s)])) fixes.push_back({pi, s, has});
                 }
             }
-            if (fixes.empty()) break;  // region too small; checked in tests
+            if (fixes.empty()) break;  // the set is too small; checked in tests
             const Fix f = fixes[static_cast<std::size_t>(rng.uniform_int(0, static_cast<std::int64_t>(fixes.size()) - 1))];
             Planet& p = w.planets[at(f.planet)];
             if (f.low_slot >= 0) {

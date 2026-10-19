@@ -328,6 +328,32 @@ Id choose_governor(const World& w, Id keeper, const Army& army) {
     return best;
 }
 
+double capture_value(const World& w, Id t) {
+    const auto& v = w.config.value;
+    return income(w, t) * (v.invade_months + (governor::holds_gates(w, t) ? v.gate_months : 0) - v.aftermath_months);
+}
+
+bool worth_holding(const World& w, Id id, Id t) {
+    const Config& c = w.config;
+    const Army& a = w.armies[at(id)];
+    const double attack = power(w, a);
+    // The enemy power near the prize: commanders at home on enemy planets within
+    // dip.border_days (MIL-11's relief), as invasions see defence.
+    const Id root = fealty::root_of(w, a.home);
+    double enemy = 0;
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+        if (q == t || w.derived.travel(q, t) > c.dip.border_days) continue;
+        if (!diplomacy::hostile_planets(w, q, a.home)) continue;
+        if (fealty::root_of(w, q) == root) continue;
+        enemy += fleet_power(w, ready(w, q));
+    }
+    const double lose = win_chance(enemy, attack);
+    const double months = static_cast<double>(c.capture.hold_days) / static_cast<double>(c.time.payment_days);
+    const double exposed = c.value.defence * income(w, a.home) * attack / c.value.power_ref * budget::threat(w, a.home);
+    const double cost = (stipends(w, a.members) + exposed) * months;
+    return lose * capture_value(w, t) > cost;
+}
+
 void capture(World& w, Id siege, Observer* observer) {
     const Siege s = w.sieges[at(siege)];
     end_siege(w, siege);
@@ -336,8 +362,8 @@ void capture(World& w, Id siege, Observer* observer) {
     Planet& planet = w.planets[at(t)];
     const auto& cap = w.config.capture;
 
-    // FAC-10: capture costs prosperity.
-    planet.happiness *= 1 - cap.happiness_loss;
+    // FAC-10: capture costs prosperity: a shock, then recovery toward the target (SYS-1).
+    planet.happiness -= cap.happiness_drop;
     for (int g = 0; g < kGoodCount; ++g) {
         w.ledger.destroyed[at(g)] += planet.stock[at(g)] * cap.stock_loss;
         planet.stock[at(g)] *= 1 - cap.stock_loss;
@@ -410,12 +436,15 @@ void capture(World& w, Id siege, Observer* observer) {
         observer->log(w.now, "planet.captured", t,
                       "by army " + std::to_string(s.army) + " kept by " + std::to_string(keeper) + " governor " + std::to_string(chosen));
     }
-    // The army holds its prize for capture.hold_days while its defences rebuild (SYS-13).
+    // Holding the prize for capture.hold_days while its defences rebuild is a choice
+    // (MIL-12, SYS-13): worth it when the believed risk of losing it outweighs the
+    // stipends and the home left exposed.
     Army& held = w.armies[at(s.army)];
-    if (held.members.empty() || w.config.capture.hold_days <= 0) {
+    if (held.members.empty() || w.config.capture.hold_days <= 0 || !worth_holding(w, s.army, t)) {
         disband(w, s.army, observer);
         return;
     }
+    ++w.ledger.holds;
     held.siege = kNone;
     held.target = kNone;
     held.action = ArmyAction::Garrison;
@@ -495,7 +524,7 @@ Plan best_invasion(const World& w, Id planet) {
         if (w.planets[at(t)].siege != kNone) continue;
         const double defence = w.planets[at(t)].defence + fleet_power(w, ready(w, t));
         const double p = win_chance(attack, defence);
-        const double gain = income(w, t) * (v.invade_months + (governor::holds_gates(w, t) ? v.gate_months : 0) - v.aftermath_months);
+        const double gain = capture_value(w, t);
         const double days = w.derived.travel(planet, t) + 3 + 10;  // muster, travel, and the fight
         const double cost = std::max(1.0, pay * days / static_cast<double>(w.config.time.payment_days));
         const double value = p * gain;

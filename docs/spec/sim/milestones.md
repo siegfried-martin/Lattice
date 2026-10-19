@@ -239,6 +239,89 @@ and tuning until the checks pass (`checks.md`).
     5.9% against at most 5%), each passing on a quarter of seeds;
   - fringe growth (CHK-11, 0.40), price dispersion (CHK-14, 0.67), and smuggling, which
     runs in three-year runs but fades to almost nothing over five (CHK-10, CHK-24).
+- **Found after round 2:**
+  - **A poverty trap in the constants.** Purchasing power is `econ.wage` 40 × P a day per
+    thousand, with P from 0.6 (unhappy) to 1.2. Life support at reserve prices costs 30
+    (3 goods × 1.0 × 10). At P 0.6 a planet can't feed itself, so it starves and stays
+    unhappy: 55% of planet-samples sat at happiness 0 and 33% at 1.
+  - **A knife edge:** at full luxury use, daily joy (0.5 × 0.02) equals the drain (0.01).
+  - **A luxury glut:** about 90% of planets make one of the three luxuries, and luxury
+    prices sit at the floor (0.2 × base) nearly everywhere, fringe included.
+  - Under ECO-1, more luxury buying creates money rather than sinking it; luxury trade
+    moves money from consumers' treasuries to merchants and producers. The sinks are
+    military, fuel and ships.
+- **Round 3 plan** (agreed with the human 2026-10-18; spec written, not built), on
+  branch `feat/sim-round-3`, in this order:
+  1. **Happiness and productivity** (PRD-4, PRD-5, PRD-2, SYS-1): signed H with 0
+     neutral, settling toward a target, per-luxury log returns, consumption falling as
+     H rises, F(H) and G(H) through tanh with the productivity floor, capture as a drop
+     of `capture.happiness_drop`, `gen.start_happiness` 0. Contraband demand's
+     `(1 − H)` becomes u of unhappiness (SYS-16). Retire the old `pop.*` and `lux.*`
+     keys. Check Planet fields (happiness's meaning changes; the save version bumps).
+  2. **Eight luxuries** (PRD-1, PRD-8, GEN-6): six regional (wine, spice, silk, tea,
+     perfume, glassware: placeholders) and two fringe (crystal, amber: placeholders).
+     `Good` and `kLuxuries` grow; `goods` defaults, the market, osmosis, facts' price
+     arrays and the save follow. GEN-6's regional weights and repair rule as written.
+     Luxury reserves rise with unhappiness (`happy.want`, SYS-3).
+  3. **Rebellion as a weekly chance** (ECO-13, SYS-16): `rebel.scale`, `rebel.power`,
+     `rebel.w_debt` replace `rebel.happiness`, `rebel.shortfall`, `rebel.days` and the
+     deficit counter's role in failure (Planet.unrest_days goes).
+  4. **Garrisoning as a choice** (MIL-12, SYS-13): hold or go home at capture.
+  5. **Defence sized to income, and reserves** (MIL-5, SYS-5): `value.security_share`,
+     `budget.hoard`; move `dip.reserve_months` and `dip.treasury_cap` to `budget.*`.
+     Retune `defence.per_spend`.
+  6. **Checks** (`checks.py`): CHK-6 band 0.05 to 0.4 and CHK-6c (the most-traded
+     planet's captures a year, at most 2, from `planet.captured` events); CHK-7 as
+     second-half growth at most 1.1 and median treasury months levelling off; CHK-12c
+     (happiness at the ends at most 20% of planet-days; fringe median below the
+     network's, above the floor). The runner may need series for treasury months or F.
+  7. **Run round 3** (v1, 8 seeds, 5 years), compare with round 2, tune, report.
+- **Round 3, built** (`feat/sim-round-3`): steps 1 to 6 as planned, then tuning on 4 seeds
+  over 3 years, then the round 3 run (v1, 8 seeds, 5 years). What the runs found, and
+  what changed (DECISIONS):
+  - First run: luxuries glutted (made 10 times faster than used, every price at the
+    floor), so the network sat near the happiness ceiling and fringe planets starved.
+    Fixed by a per-good `good.yield` (regional luxuries 1/6, fringe 1/3) and fringe
+    planets weighting life support × 3 (`gen.fringe_ls_mult`).
+  - Rich planets overspent on security into debt (a unit's value grew as income
+    squared), and debt drove rebellions on happy network planets. Fixed by valuing a
+    unit at `value.security_ratio` × its cost × threat × reserves.
+  - `rebel.scale` 0.007.
+
+  | Measure | Round 2 | Round 3 |
+  |---|---|---|
+  | Each faction's time at war | 62% | 64% |
+  | Median war | 71 days | 66 days |
+  | Planets changing hands a year | 22% | 42% |
+  | Most-traded planet's captures a year | 1.9 | 2.3 |
+  | Conquests held by their army | all | about 30% |
+  | Blockades per faction a year | 3.7 | 1.9 |
+  | Pirate flips a year | 5.9% | 6.8% |
+  | Secessions a year | 0.8% | 2.0% |
+  | Pirate-planet time on the fringe | 93% | 68% |
+  | Money growth a year, second half | 1.17 | 1.05 |
+  | Median treasury months, end over halfway | 1.12 | 0.93 |
+  | Population, end over start | 95% | 126% |
+  | Happiness samples near either end | 67% | 5% |
+  | Median happiness, network and fringe | (0 to 1 scale) | +0.5 to +0.7; fringe −0.7 to +0.4 by world |
+  | Luxury prices, median over base | 0.2 (the floor) | 0.8 to 1.4; fringe 2.4 to 3.6 |
+  | Life-support prices, median over base | | 0.24 (near the floor) |
+  | Contraband reaching lawful populations a year | 0 | 465 |
+
+  16 of 31 checks pass on every seed (round 2 under the same checks: 17, its happiness
+  checks read on its 0-to-1 scale). Newly passing: CHK-8, CHK-12c, CHK-23. Newly
+  failing on some seeds: CHK-6 (0.42, band to 0.4), CHK-8b, CHK-12b, CHK-20b.
+- **Still failing after round 3:**
+  - Life support is overproduced: its prices sit near the floor everywhere, and price
+    dispersion (CHK-14, 1.16) comes from that floor against the cap at planets that
+    lack a good. Lowering `prod.labour_per_capita` eases it but starves the fringe.
+  - The fringe still shrinks against the network over five years (CHK-11, 0.33), and a
+    third of pirate-planet time is on the network (CHK-4, 68%): network planets that
+    rebel are mostly fresh conquests (the capture shock) or in debt.
+  - Flips (CHK-9, 6.8%), the most-traded planet (CHK-6c, 2.3), the price index (CHK-7b,
+    1.6, inflation in some worlds), smuggling runs (CHK-24, 0.4).
+  - Budgets read gross income (market receipts), not net of imports, so a big
+    importer's budget overstates what it can afford (OPN-39).
 
 ### MS-9 Phase B `v1`
 

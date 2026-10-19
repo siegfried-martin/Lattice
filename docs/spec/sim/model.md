@@ -12,7 +12,7 @@ Generated once (GEN) and never changed by the simulation.
 | Record | Fields |
 |---|---|
 | **Sector** | hex coordinates, centre, culture region, its system (at most one); neighbours are computed |
-| **Region** | culture (its index), seed sector, production weights per lawful good, population scale |
+| **Region** | culture (its index), seed sector, production weights per lawful good, the regional luxuries it's home to *(round 3)*, population scale |
 | **System** | sector, centre, fringe flag, planets and moons |
 | **Group** | system, member planets, holder planet (WLD-5), interchange node (if on the network) |
 | **Lattice node** | interchange or junction, position, the group an interchange serves, edges |
@@ -20,7 +20,7 @@ Generated once (GEN) and never changed by the simulation.
 | **Hop lane** | two planets, length |
 | **Seats of power** | the planets chosen as seats (GEN-8) |
 | **Ship variant** | culture, class (courier, scout, freighter, gunship), tier 1–3, combat power, trade power (cargo, tons), speed in open space, Lattice Drive (yes/no), price; every culture has every class at every tier (MS-3). Names wait for the content round (OPN-35) |
-| **Good** | kind (life support, luxury, contraband), base price, reserve days, price exponent, consumption per capita, happiness value |
+| **Good** | kind (life support, luxury, contraband), base price, reserve days, price exponent, consumption per capita, yield *(round 3; the happiness value went, `happy.*` replaces it)* |
 
 Goods are a fixed list in code (food, water, oxygen; wine, spice, silk; stims, the
 names flavour); their numbers are config (`good.<name>.*`), not stored records.
@@ -37,7 +37,7 @@ after loading.
 | culture | static (WLD-16): its region |
 | fringe | static: off the network (WLD-6) |
 | governor | character ID (FAC-1) |
-| population, happiness | PRD-2, PRD-4 |
+| population, happiness | PRD-2, PRD-4; *(round 3)* happiness is signed, 0 neutral (SYS-1) |
 | prosperity | derived index, stored for capture effects (FAC-10, SYS-13) |
 | stock per good | the market |
 | goods made | three goods, each with base efficiency tier (high, medium, low) |
@@ -56,7 +56,7 @@ after loading.
 | fuel price | fixed at world build (ECO-11) |
 | liege | the planet whose governor this one's is sworn to, or none for a root; fealty is kept per planet because governor and planet are one to one (FAC-1) |
 | pirate | flag, plus the goods-made set to restore on recapture (PIR-3); *as built*, also the tiers, and the contraband its population bought today |
-| deficit days | days in deficit, for turning pirate (ECO-13) |
+| deficit days | days in deficit, for the budget's debt pressure (SYS-5); *(round 3)* no longer a rebellion counter, and the unrest counter is gone (SYS-16) |
 | mission board | list of mission IDs posted here |
 
 ### MOD-3 Character `v1`

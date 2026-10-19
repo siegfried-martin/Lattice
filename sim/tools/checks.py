@@ -17,6 +17,7 @@ import math
 import re
 import statistics
 import sys
+import tomllib
 from collections import defaultdict
 from pathlib import Path
 
@@ -32,8 +33,21 @@ def load(run_dir):
     planets = list(csv.DictReader(open(run_dir / "planets.csv", newline="")))
     log = (run_dir / "run.log").read_text() if (run_dir / "run.log").exists() else ""
     m = re.search(r"([\d.]+) days/s", log)
+    config = tomllib.loads((run_dir / "config.toml").read_text()) if (run_dir / "config.toml").exists() else {}
     return {"series": series, "planets": planets, "days_per_s": float(m.group(1)) if m else float("nan"),
-            "wars": war_lengths(run_dir / "events.csv")}
+            "wars": war_lengths(run_dir / "events.csv"), "captured": captures_by_planet(run_dir / "events.csv"),
+            "config": config}
+
+
+def captures_by_planet(path):
+    """How many times each planet was captured (CHK-6c)."""
+    counts = defaultdict(int)
+    if path.exists():
+        with open(path, newline="") as f:
+            for row in csv.DictReader(f):
+                if row["kind"] == "planet.captured":
+                    counts[int(row["id"])] += 1
+    return counts
 
 
 def war_lengths(path):
@@ -127,6 +141,54 @@ def deaths_per_battle(run):
     return per_year(run, "world.deaths") / b if b > 0 else 0.0
 
 
+def second_half_growth(run, name):
+    """Yearly growth over the second half of the run (CHK-7: reserves level off)."""
+    points = last_half(world(run, name))
+    span = (points[-1][0] - points[0][0]) / 365
+    if span <= 0 or points[0][1] <= 0 or points[-1][1] <= 0:
+        return 0.0
+    return (points[-1][1] / points[0][1]) ** (1 / span)
+
+
+def treasury_months_ratio(run):
+    """The median planet's treasury in months of costs, at the end over halfway (CHK-7)."""
+    econ = run["config"].get("econ", {})
+    base, per = econ.get("op_base", 2000), econ.get("op_per_capita", 300)
+    treasury, pop = run["series"]["planet.treasury"], run["series"]["planet.population"]
+    def median_at(index):
+        months = []
+        for i, points in treasury.items():
+            if i in pop and len(points) > abs(index) and len(pop[i]) > abs(index):
+                months.append(points[index][1] / (base + per * pop[i][index][1]))
+        return statistics.median(months)
+    n = min(len(v) for v in treasury.values())
+    mid, end = median_at(n // 2), median_at(n - 1)
+    return end / mid if mid > 0 else float("nan")
+
+
+def u(run, h):
+    scale = run["config"].get("happy", {}).get("scale", 0.5)
+    return math.tanh(abs(h) / scale)
+
+
+def happiness_at_ends(run):
+    """Share of planet samples whose happiness effect is within 5% of its full size (CHK-12)."""
+    hs = [v for points in run["series"]["planet.happiness"].values() for _, v in last_half(points)]
+    return sum(u(run, h) >= 0.95 for h in hs) / len(hs)
+
+
+def median_happiness(run, fringe):
+    ids = {int(p["id"]) for p in run["planets"] if (p["fringe"] == "1") == fringe}
+    hs = [v for i, points in run["series"]["planet.happiness"].items() if i in ids for _, v in last_half(points)]
+    return statistics.median(hs)
+
+
+def fringe_floor(run):
+    """How far the fringe's median happiness is toward the floor: u below neutral, else 0."""
+    h = median_happiness(run, True)
+    return u(run, h) if h < 0 else 0.0
+
+
 def captures_share(run):
     return per_year(run, "world.captures") / max(1, len(run["planets"]))
 
@@ -154,9 +216,11 @@ CHECKS = [
     ("CHK-1", "factions with 2+ planets, fewest seen", lambda r: min(values(r, "world.factions")), 2, None),
     ("CHK-3", "Authority dues, monthly variation (cv)", lambda r: cv([b - a for a, b in zip(values(r, "world.dues"), values(r, "world.dues")[3:])][::3] or [1]), None, 0.5),
     ("CHK-4", "pirate planets on the fringe, share of pirate-planet time", lambda r: (sum(values(r, "world.fringe_pirate_planets")) / max(1e-9, sum(values(r, "world.pirate_planets")))) if sum(values(r, "world.pirate_planets")) else 1.0, 0.5, None),
-    ("CHK-6", "planets changing hands a year, share of planets", captures_share, 0.01, 0.2),
+    ("CHK-6", "planets changing hands a year, share of planets", captures_share, 0.05, 0.4),
+    ("CHK-6c", "most-traded planet's captures a year", lambda r: max(r["captured"].values(), default=0) / years(r), None, 2),
     ("CHK-6b", "blockades a year per faction", lambda r: per_year(r, "world.blockades") / max(1, statistics.fmean(values(r, "world.roots"))), 0.5, None),
-    ("CHK-7", "money supply growth a year", lambda r: growth(r, "world.money_total"), 0.8, 1.25),
+    ("CHK-7", "money supply growth a year, second half", lambda r: second_half_growth(r, "world.money_total"), 0.8, 1.1),
+    ("CHK-7c", "median treasury in months of costs, end over halfway", treasury_months_ratio, None, 1.5),
     ("CHK-7b", "price index, end over start", lambda r: values(r, "world.price_index")[-1] / values(r, "world.price_index")[0], 0.67, 1.5),
     ("CHK-8", "share of time each faction is at war", war_share, 0.5, 0.8),
     ("CHK-8c", "war length in days, median", war_length, 30, 90),
@@ -167,6 +231,9 @@ CHECKS = [
     ("CHK-11", "fringe population growth over on-network growth", fringe_ratio, 0.5, None),
     ("CHK-12", "world population, end over start", lambda r: values(r, "world.population")[-1] / values(r, "world.population")[0], 0.7, 1.5),
     ("CHK-12b", "world population, variation over the second half (cv)", lambda r: cv(last_half(values(r, "world.population"))), None, 0.1),
+    ("CHK-12c", "planet happiness at the ends, share of samples, second half", happiness_at_ends, None, 0.2),
+    ("CHK-12d", "fringe median happiness minus the network's", lambda r: median_happiness(r, True) - median_happiness(r, False), None, 0),
+    ("CHK-12e", "fringe median happiness, way to the floor (u)", fringe_floor, None, 0.95),
     ("CHK-13", "labour share change per sample, second half", labour_churn, None, 0.02),
     ("CHK-14", "price dispersion across planets (cv), second half", price_cv, 0.05, 0.6),
     ("CHK-14b", "merchant profit per trip", profit_per_trip, 0, None),

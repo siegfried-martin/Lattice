@@ -65,6 +65,30 @@ std::vector<Id> sworn(const World& w, Id governor) {
 
 }  // namespace
 
+double threat(const World& w, Id planet) {
+    const Config& c = w.config;
+    const Character& g = w.characters[at(w.planets[at(planet)].governor)];
+    const std::vector<Id> enemies = raids::believed_enemies(w, planet);
+    bool border = false;
+    for (const Sighting& s : g.facts.sightings) {
+        if (s.target == planet && s.time >= w.now - c.scout.threat_days * kDay) border = true;
+    }
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()) && !enemies.empty() && !border; ++q) {
+        if (std::find(enemies.begin(), enemies.end(), fealty::root_of(w, q)) != enemies.end() &&
+            w.derived.travel(planet, q) <= c.dip.border_days) {
+            border = true;
+        }
+    }
+    return 1 + (enemies.empty() ? 0 : c.value.war_mult) + (border ? c.value.border_mult : 0);
+}
+
+double hoard(const World& w, Id planet) {
+    const Config& c = w.config;
+    const Planet& p = w.planets[at(planet)];
+    const double months = p.treasury / std::max(1.0, economy::monthly_costs(c, p));
+    return 1 + c.budget.hoard * std::clamp(months / c.budget.reserve_months - 1, 0.0, c.budget.hoard_cap);
+}
+
 double stipend(const World& w, const Character& c) { return w.config.hire.stipend_per_power * ships::fleet(w, c).combat; }
 
 namespace {
@@ -87,20 +111,11 @@ void weekly(World& w, Id planet, Observer* observer) {
     double money = p.treasury + c.budget.credit_risk * income * g.risk;
     const double pressure = p.treasury < 0 ? 1 + c.budget.debt_pressure * static_cast<double>(p.deficit_days) / c.time.payment_days : 1;
 
-    // Defence is worth more at war, and more again with an enemy planet near or an enemy
-    // army seen coming (MIL-5), all as the governor believes (DIP-5).
     const std::vector<Id> enemies = raids::believed_enemies(w, planet);
-    bool border = false;
-    for (const Sighting& s : g.facts.sightings) {
-        if (s.target == planet && s.time >= w.now - c.scout.threat_days * kDay) border = true;
-    }
-    for (Id q = 0; q < static_cast<Id>(w.planets.size()) && !enemies.empty() && !border; ++q) {
-        if (std::find(enemies.begin(), enemies.end(), fealty::root_of(w, q)) != enemies.end() &&
-            w.derived.travel(planet, q) <= c.dip.border_days) {
-            border = true;
-        }
-    }
-    const double threat = 1 + (enemies.empty() ? 0 : c.value.war_mult) + (border ? c.value.border_mult : 0);
+    const double threat = budget::threat(w, planet);
+    // Money beyond a reserve makes defence worth more (MIL-5): deep treasuries drain into
+    // fleets and guns.
+    const double guard = threat * hoard(w, planet);
 
     // Defence: the commanders it has first (no churn), then the best candidates. A pirate
     // planet keeps whoever joins it (PIR-4: renounced commanders are hired) and hires no
@@ -114,14 +129,18 @@ void weekly(World& w, Id planet, Observer* observer) {
     for (Id id : people) {
         const double power = ships::fleet(w, w.characters[at(id)]).combat;
         defence.units.push_back(
-            {pay_at(w, planet, w.characters[at(id)]) * pressure, threat * c.value.defence * income * power / c.value.power_ref});
+            {pay_at(w, planet, w.characters[at(id)]) * pressure, guard * c.value.defence * income * power / c.value.power_ref});
     }
 
-    // Static defence (MIL-5), bought in units of value.security_unit a month.
+    // Static defence (MIL-5), bought in units of value.security_share of monthly income,
+    // so a rich planet's spending is on the scale of its wealth. Each unit is worth
+    // value.security_ratio times its cost, x threat x hoard: richer planets buy bigger
+    // units, not more of them (round 3: with value growing as income squared, the richest
+    // spent a third of their income on guns and fell into debt).
     Option security;
-    const double unit_power = c.defence.per_spend * c.value.security_unit;
-    for (int k = 0; k < 64; ++k) {
-        security.units.push_back({c.value.security_unit * pressure, threat * c.value.defence * income * unit_power / c.value.power_ref});
+    const double security_unit = c.value.security_share * income;
+    for (int k = 0; k < 64 && security_unit > 0; ++k) {
+        security.units.push_back({security_unit * pressure, guard * c.value.security_ratio * security_unit});
     }
 
     // Policing (PIR-15) *(proposed)*: units of value.security_unit a month, worth what the
@@ -208,7 +227,7 @@ void weekly(World& w, Id planet, Observer* observer) {
         if (observer) observer->log(w.now, "commander.hired", id, "by " + std::to_string(planet));
     }
 
-    w.planets[at(planet)].security = static_cast<double>(security.funded) * c.value.security_unit;
+    w.planets[at(planet)].security = static_cast<double>(security.funded) * security_unit;
     w.planets[at(planet)].policing = static_cast<double>(policing.funded) * c.value.security_unit;
     // Spies: keep the funded, let the rest go, hire funded candidates.
     const std::vector<Id> spies_now = spies::employed(w, gov);

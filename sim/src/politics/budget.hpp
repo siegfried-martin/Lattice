@@ -16,6 +16,15 @@ namespace lattice::budget {
 // Commanders not funded are let go; funded candidates get an offer.
 void weekly(World& world, Id planet, Observer* observer);
 
+// What defence is worth at a planet against peace (MIL-5): 1, + value.war_mult at war, +
+// value.border_mult with an enemy planet within dip.border_days or an enemy army seen
+// coming, all as its governor believes (DIP-5).
+double threat(const World& world, Id planet);
+
+// Defence values' multiplier for money beyond the reserve (MIL-5, SYS-5): 1 +
+// budget.hoard x clamp(treasury months / budget.reserve_months - 1, 0, budget.hoard_cap).
+double hoard(const World& world, Id planet);
+
 // The stipend a commander asks: hire.stipend_per_power x combat power, per month.
 double stipend(const World& world, const Character& c);
 

@@ -5,6 +5,7 @@
 
 #include "economy/economy.hpp"
 #include "economy/events.hpp"
+#include "lattice/happiness.hpp"
 #include "lattice/market.hpp"
 #include "helpers.hpp"
 #include "lattice/save.hpp"
@@ -117,7 +118,7 @@ TEST_CASE("the population's spending is new money paid to the treasury (ECO-1, E
     const double spent = w.ledger.money_created - created;
     CHECK(spent > 0);
     CHECK(p.treasury - before == doctest::Approx(spent));
-    CHECK(spent <= p.population * w.config.econ.wage * (w.config.pop.p_base + w.config.pop.p_happy) + 1e-6);
+    CHECK(spent <= p.population * w.config.econ.wage * (1 + w.config.happy.p_up) + 1e-6);
 }
 
 TEST_CASE("a short budget buys less life support, and that is a shortfall") {
@@ -131,21 +132,100 @@ TEST_CASE("a short budget buys less life support, and that is a shortfall") {
     CHECK(p.population < n);
 }
 
-TEST_CASE("luxuries raise happiness; without them it drains (PRD-4)") {
+TEST_CASE("happiness settles toward a target set by luxuries and hunger (PRD-4, SYS-1)") {
     World w = lab();
+    const Config& c = w.config;
     Planet& p = w.planets[0];
-    p.happiness = 0.5;
-    SUBCASE("full luxury stocks, money to spend") {
-        fill_to(w, p, 1.5);
-        economy::planet_day(w, 0);
-        CHECK(p.happiness > 0.5);
-    }
-    SUBCASE("no luxuries") {
+    p.happiness = 0;
+    SUBCASE("no luxuries: toward happy.base, a step of 1 / settle_days of the gap") {
         fill_to(w, p, 1);
         for (Good g : kLuxuries) p.stock[g] = 0;
         economy::planet_day(w, 0);
-        CHECK(p.happiness == doctest::Approx(0.5 - w.config.pop.happiness_drain));
+        CHECK(p.happiness == doctest::Approx(c.happy.base / c.happy.settle_days));
+        for (int i = 0; i < 400; ++i) {
+            fill_to(w, p, 1);
+            for (Good g : kLuxuries) p.stock[g] = 0;
+            economy::planet_day(w, 0);
+        }
+        CHECK(p.happiness == doctest::Approx(c.happy.base).epsilon(1e-3));  // settles; no drift to an end
     }
+    SUBCASE("full luxury stocks and money to spend: up") {
+        w.config.econ.wage = 1000;
+        fill_to(w, p, 1.5);
+        economy::planet_day(w, 0);
+        CHECK(p.happiness > 0);
+    }
+    SUBCASE("hunger pulls the target down") {
+        fill_to(w, p, 1);
+        for (Good g : kLuxuries) p.stock[g] = 0;
+        p.stock[kFood] = 0;
+        p.labour = {0, 0, 0};
+        economy::planet_day(w, 0);
+        CHECK(p.happiness < c.happy.base / c.happy.settle_days - 1e-9);
+    }
+}
+
+TEST_CASE("variety pays: the same luxury use spread over more luxuries is happier (PRD-4)") {
+    auto settle = [](int kinds) {
+        World w = lab();
+        w.config.econ.wage = 1000;
+        Planet& p = w.planets[0];
+        for (int i = 0; i < 300; ++i) {
+            fill_to(w, p, 1);
+            for (Good g : kLuxuries) p.stock[g] = 0;
+            // The same total stock, against reserve, over `kinds` luxuries.
+            for (int k = 0; k < kinds; ++k) p.stock[kLuxuries[at(k)]] = 1.5 * market::reserve(w.config, p, kLuxuries[at(k)]) * 2 / kinds;
+            p.labour = {1.0 / 3, 1.0 / 3, 1.0 / 3};
+            economy::planet_day(w, 0);
+        }
+        return p.happiness;
+    };
+    CHECK(settle(2) > settle(1));
+}
+
+TEST_CASE("a contented population uses fewer luxuries (PRD-4)") {
+    auto used = [](double h) {
+        World w = lab();
+        w.config.econ.wage = 1000;
+        Planet& p = w.planets[0];
+        fill_to(w, p, 1);
+        p.happiness = h;
+        const double before = w.ledger.consumed[kWine];
+        economy::planet_day(w, 0);
+        return w.ledger.consumed[kWine] - before;
+    };
+    CHECK(used(0.5) < used(0));
+}
+
+TEST_CASE("productivity: 1 at neutral, diminishing toward a ceiling and a floor (PRD-5)") {
+    const Config c;
+    CHECK(happiness::productivity(c, 0) == 1);
+    CHECK(happiness::productivity(c, 0.2) > 1);
+    CHECK(happiness::productivity(c, 5) <= 1 + c.happy.p_up);
+    CHECK(happiness::productivity(c, -5) >= 1 - c.happy.p_down);
+    // Diminishing: the first step from neutral counts most.
+    CHECK(happiness::productivity(c, 0.2) - 1 > happiness::productivity(c, 0.4) - happiness::productivity(c, 0.2));
+    CHECK(1 - happiness::productivity(c, -0.2) > happiness::productivity(c, -0.2) - happiness::productivity(c, -0.4));
+    // The poverty floor still buys life support at reserve prices.
+    double life = 0;
+    for (Good g : kLifeSupport) life += c.goods[g].consumption * c.goods[g].base_price;
+    CHECK(c.econ.wage * (1 - c.happy.p_down) >= life);
+    // Unhappiness cuts growth; happiness doesn't raise it to start.
+    CHECK(happiness::growth(c, -0.3) < 1);
+    CHECK(happiness::growth(c, 0.3) == 1);
+}
+
+TEST_CASE("an unhappy planet stocks more luxuries, so it bids more (PRD-10, SYS-3)") {
+    World w = lab();
+    const Config& c = w.config;
+    Planet& p = w.planets[0];
+    fill_to(w, p, 1);
+    p.happiness = 0;
+    const double reserve = market::reserve(c, p, kWine), bid = market::bid(c, p, kWine);
+    p.happiness = -0.5;
+    CHECK(market::reserve(c, p, kWine) > reserve);
+    CHECK(market::bid(c, p, kWine) > bid);
+    CHECK(market::reserve(c, p, kFood) == doctest::Approx(c.goods[kFood].reserve_days * p.population * c.goods[kFood].consumption));
 }
 
 TEST_CASE("labour moves toward what pays and stays a valid split (SYS-2, PRD-9)") {
@@ -261,8 +341,8 @@ TEST_CASE("500 days, wars included, stay finite and in range") {
     for (const Planet& p : w.planets) {
         CHECK(std::isfinite(p.population));
         CHECK(p.population > 0);
-        CHECK(p.happiness >= 0);
-        CHECK(p.happiness <= 1);
+        CHECK(std::isfinite(p.happiness));
+        CHECK(p.productivity <= 1 + c.happy.p_up + 1e-12);
         CHECK(std::isfinite(p.treasury));
         CHECK(p.labour[0] + p.labour[1] + p.labour[2] == doctest::Approx(1));
         for (int g = 0; g < kLawfulGoodCount; ++g) {

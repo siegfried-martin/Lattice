@@ -46,6 +46,12 @@ A planet has **static defences** (guns, missiles, torpedoes that fire at any opp
 ship in range) and a **security force**.
 
 - **Static defences** *(proposed)* scale with what the planet spends on security.
+- *(proposed, round 3)* **Defence is bought in proportion to income,** not in fixed
+  amounts, so a rich planet's spending is on the scale of its wealth. Money beyond a
+  reserve makes a governor value defence more: in war, deep treasuries drain into fleets
+  and guns. Ships destroyed and planets lost are where that money finally leaves. The
+  share of income spent depends on threat, reserves and the ruler's boldness, not on how
+  rich the planet is (round 3: valued by income, the richest overspent into debt).
 - **Routine patrols are procedurally generated**, not characters. The planet's patrol
   upkeep (ECO-4) is the budget line that sets how strong they are.
 - **Planets may post paid security missions** for the player and NPCs.
@@ -128,7 +134,10 @@ reinforcement travel (INF-12).
 
 When the attacker wins a siege, the planet joins the attacking governor's tree by keep
 or grant (FAC-8), gets a new governor (FAC-9), loses prosperity (FAC-10), and its gates
-flip with it (WLD-13). A pirate planet that's captured returns to its old production
+flip with it (WLD-13). *(proposed, round 3)* **Holding it is a choice:** the army's
+commissioner weighs garrisoning the prize (the stipends, and its own home left exposed)
+against the believed risk of losing it, and otherwise sends the army home. Border
+planets are expected to change hands often in a war, a few times, not dozens. A pirate planet that's captured returns to its old production
 (PIR-3).
 
 ### MIL-17 Gate attacks and blockades `v1` `proposed`

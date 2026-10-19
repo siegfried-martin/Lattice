@@ -9,6 +9,8 @@
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "economy/economy.hpp"
+#include "economy/events.hpp"
+#include "lattice/happiness.hpp"
 #include "lattice/market.hpp"
 #include "politics/budget.hpp"
 #include "politics/fealty.hpp"
@@ -46,6 +48,7 @@ void flip(World& w, Id id, Observer* observer) {
     fealty::swear(w, id, kNone);
     diplomacy::forget(w, id);
     p.pirate = true;
+    events::reshift(w, id, -1);
     p.lawful_makes = p.makes;
     p.lawful_tiers = p.tiers;
     // Its whole labour goes to contraband (PIR-3), in its first slot.
@@ -55,6 +58,7 @@ void flip(World& w, Id id, Observer* observer) {
         if (p.makes[at(s)] == kStims) p.makes[at(s)] = p.lawful_makes[0];
     }
     p.labour = {1, 0, 0};
+    events::reshift(w, id, 1);
     // Debt left behind is ignored (ECO-13): writing it off puts money back in the world.
     if (p.treasury < 0) {
         w.ledger.money_created -= p.treasury;
@@ -89,19 +93,23 @@ void secede(World& w, Id id, Observer* observer) {
     diplomacy::forget(w, id);     // anything left from an earlier time as a root
     p.tribute_rate = 0;
     p.deficit_days = 0;
-    p.unrest_days = 0;
     diplomacy::declare_war(w, old_root, id, observer);  // it won't be let go
     ++w.ledger.secessions;
     if (observer) observer->log(w.now, "planet.seceded", id, "from " + std::to_string(old_root));
 }
 
-void check_rebellion(World& w, Id id, Observer* observer) {
+double rebellion_chance(const World& w, Id id) {
+    const Config& c = w.config;
     const Planet& p = w.planets[at(id)];
-    if (p.pirate) return;
-    const bool broke = p.deficit_days >= w.config.pirate.flip_days &&
-                       p.treasury < -w.config.pirate.flip_debt * economy::monthly_costs(w.config, p);
-    const bool unrest = p.unrest_days >= w.config.rebel.days;
-    if (!broke && !unrest) return;
+    if (p.pirate) return 0;
+    // Hunger acts through happiness (SYS-1).
+    const double debt = std::clamp(-p.treasury / (c.pirate.flip_debt * economy::monthly_costs(c, p)), 0.0, 1.0);
+    return std::min(1.0, c.rebel.scale * (std::pow(happiness::misery(c, p.happiness), c.rebel.power) + c.rebel.w_debt * debt));
+}
+
+void check_rebellion(World& w, Id id, Observer* observer) {
+    const double chance = rebellion_chance(w, id);
+    if (chance <= 0 || w.rng[Stream::Events].uniform01() >= chance) return;
     // ECO-13: a planet with no vassals turns pirate; one with vassals breaks away with
     // them, at war with its old faction. A root with vassals has no one to rebel against
     // (OPN-41).
@@ -116,8 +124,10 @@ void restore(World& w, Id id) {
     Planet& p = w.planets[at(id)];
     if (!p.pirate) return;
     p.pirate = false;
+    events::reshift(w, id, -1);
     p.makes = p.lawful_makes;
     p.tiers = p.lawful_tiers;
+    events::reshift(w, id, 1);
     p.labour = {1.0 / 3, 1.0 / 3, 1.0 / 3};
     w.ledger.destroyed[kStims] += p.stock[kStims];  // a lawful market holds none (PIR-14)
     p.stock[kStims] = 0;

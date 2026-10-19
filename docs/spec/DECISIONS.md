@@ -5,6 +5,55 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · Phase A round 3, built and run
+
+The design below, built (MS-8, round 3), with what the runs found. Proposed until the
+human signs off.
+
+- **Luxuries take more labour than life support** (`good.yield`: regional 1/6, fringe
+  1/3). At a yield of 1 a luxury paid more per worker than food even at a glut, so
+  every luxury market sat at the price floor (PRD-7, SYS-2).
+- **A security unit is worth a fixed multiple of its cost** (× threat × reserves), so
+  the number bought doesn't grow with income; a rich planet buys bigger units. Valued
+  by income, the richest spent a third of their gross income on guns and dragged their
+  lieges into debt through patronage (MIL-5, SYS-5).
+- **Fringe planets weight life support × 3** (`gen.fringe_ls_mult`), and the fringe
+  luxuries × 2, not 5: most fringe planets otherwise lost 90% of their people (PRD-7,
+  GEN-6).
+- **A luxury's producer guarantee holds across its home regions together,** not per
+  home region: small worlds can't fit it per region (PRD-8, GEN-6).
+- **Contraband demand** reads the old `(1 − H)` as `(1 − s(H)) ÷ 2`, s the signed u: ½
+  at neutral, so content planets still buy some (SYS-16).
+- **Tuning:** `rebel.scale` 0.01 → 0.007, `defence.per_spend` 0.01 → 0.0015.
+- **Fixed:** an event's efficiency shift was left behind when a planet's goods changed
+  (turning pirate, recapture); it's now moved with them (SYS-4).
+
+### 2026-10-18 · Phase A round 3, design changes
+
+Agreed with the human in conversation, written into the spec as `proposed`.
+
+- **Happiness:** a signed scale with 0 neutral and no caps. It settles toward a target
+  set by luxuries (each with diminishing returns, so variety pays), contraband and
+  hunger, below neutral with no luxuries. A content population buys fewer luxuries
+  (PRD-4, SYS-1).
+- **Productivity and growth:** 1× at neutral, rising toward a ceiling and falling toward
+  a floor with diminishing returns. The floor lets a miserable planet just feed itself:
+  poverty is sticky, not a death spiral. Unhappiness slows growth (PRD-5, PRD-2, PRD-6).
+- **Eight luxuries,** six regional and two from the fringe, so luxuries are carried and
+  distant planets have something to sell (PRD-1, PRD-8, GEN-6). Names are placeholders
+  (OPN-35).
+- **One money supply per planet:** an unhappy planet raises its luxury reserves and so
+  pays merchants more (PRD-10, SYS-3).
+- **Rebellion** is a weekly chance from unhappiness and debt, under one scale factor
+  (ECO-13, SYS-16).
+- **Garrisoning a conquest** is a weighed choice, not fixed (MIL-12, SYS-13).
+- **Defence** is bought in proportion to income, and reserves beyond a cushion raise its
+  value; deep treasuries at wealthy core planets are intended (MIL-5, SYS-5, CHK-7).
+- **Checks:** border planets may change hands often (CHK-6 to 40% a year, the
+  most-traded planet at most twice a year); reserves must level off, not stop at a growth
+  cap (CHK-7); happiness must spread out (CHK-12).
+- Held in reserve: output per head falling with population (OPN-38).
+
 ### 2026-10-18 · Phase A round 2, design changes
 
 Agreed with the human in conversation, written straight into the spec as `proposed`.

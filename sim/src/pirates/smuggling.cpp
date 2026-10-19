@@ -7,6 +7,7 @@
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
+#include "lattice/happiness.hpp"
 #include "lattice/market.hpp"
 #include "pirates/pirates.hpp"
 #include "pirates/suspicion.hpp"
@@ -184,7 +185,7 @@ double sell_to_population(World& w, Id id) {
     Planet& p = w.planets[at(c.planet)];
     if (c.cargo_good != kStims || c.cargo_qty <= 0 || p.pirate) return 0;
     const auto& cfg = w.config;
-    const double want = std::min(p.population * cfg.goods[kStims].consumption * (1 - p.happiness), cfg.pirate.demand_cap * p.population);
+    const double want = std::min(p.population * cfg.goods[kStims].consumption * happiness::craving(cfg, p.happiness), cfg.pirate.demand_cap * p.population);
     const double q = std::min(c.cargo_qty, std::max(0.0, want - p.contraband_today));
     if (q <= 0) return 0;
     const double revenue = q * cfg.goods[kStims].base_price * cfg.pirate.contraband_price;

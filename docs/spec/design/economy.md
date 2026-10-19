@@ -172,7 +172,9 @@ eventually renounces its faction and the Authority to join the pirate faction (P
 *(proposed)* **Failure has two causes and two outcomes.** A planet fails when it has
 been in deficit long enough, or when its population has been hungry and miserable long
 enough (PRD-2); isolation from the Lattice shows up as hunger before it shows up in the
-treasury. A failing planet **rebels**:
+treasury. *(proposed, round 3)* Failure is **a chance each week, not a deadline:** it
+grows as happiness goes further below neutral and as debt deepens, under one scale factor
+for tuning. A failing planet **rebels**:
 
 - **with no vassals, it turns pirate** (PIR-3);
 - **with vassals, it secedes** as an independent faction, taking its branch, and its old

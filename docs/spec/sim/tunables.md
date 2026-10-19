@@ -24,11 +24,16 @@ thousands.
 ## Goods and prices (PRD, SYS-1 to SYS-4)
 
 Per-good keys are written `good.<name>.<key>` in config, for example
-`good.food.base_price`. The goods are food, water and oxygen (life support), wine, spice
-and silk (luxuries) and stims (contraband). Luxuries have no `consumption` key (they use
-`lux.consumption`) and life support no `happiness` key. Keys with a tier or count in
-brackets are written as separate keys (`prod.efficiency_high`) or a list
-(`lux.variety_bonus = [0, 0, 0.003, 0.006]`).
+`good.food.base_price`. The goods are food, water and oxygen (life support); wine,
+spice, silk, tea, perfume and glassware (regional luxuries) and crystal and amber
+(fringe luxuries), all placeholder names (OPN-35); and stims (contraband). Luxuries
+have no `consumption` key (they use `happy.need`). Keys with a tier in brackets are
+written as separate keys (`prod.efficiency_high`).
+
+*Round 3 (SYS-1, SYS-3, PRD-4, PRD-5), proposed and built:* the `happy.*` keys replace
+`pop.happiness_drain`, `pop.starve_happiness`, `pop.p_base`, `pop.p_happy`,
+`lux.consumption`, `lux.variety_min`, `lux.variety_bonus` and `good.happiness`, which
+are gone.
 
 | Key | Meaning | Start |
 |---|---|---|
@@ -36,7 +41,7 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `good.reserve_days[g]` | Reserve target in days of consumption | life support 30, luxuries 15, contraband 15 |
 | `good.k[g]` | Price exponent (steeper is more sensitive) | life support 1.5, luxuries 1.0, contraband 1.0 |
 | `good.consumption[g]` | Per thousand people per day | life support 1.0 each; contraband 0.2 |
-| `good.happiness[g]` | Happiness per unit per thousand | luxuries 0.02, contraband 0.06 |
+| `good.yield[g]` | Output per unit of labour, against life support's (SYS-2) *(proposed, round 3: at 1, then 1/3, luxuries glutted)* | life support and contraband 1, regional luxuries 1/6, fringe luxuries 1/3 |
 | `price.min`, `price.max` | Clamp on price ÷ base | 0.2, 5 |
 | `price.spread` | Ask–bid spread | 0.06 |
 | `price.chunk` | Trade chunk as share of reserve | 0.05 |
@@ -47,15 +52,20 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `pop.growth_rate` | Daily growth at full excess | 0.0005 |
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |
 | `pop.growth_factor_min`, `_max` | Governor growth factor range (PRD-3) | 0.5, 1.5 |
-| `pop.happiness_drain` | Daily drain | 0.01 |
-| `pop.starve_happiness` | Daily happiness lost at total life-support shortfall (PRD-2) *(proposed, round 2)* | 0.03 |
-| `pop.p_base`, `pop.p_happy` | Productivity = base + happy × H | 0.6, 0.6 |
 | `pop.contraband_penalty` | Productivity lost per unit of recent contraband per thousand | 4 |
 | `pop.contraband_window` | Days in the contraband average | 30 |
-| `lux.consumption` | Luxury use per thousand at full fill | 0.5 |
 | `lux.max_fill` | Fill above which luxury use stops rising | 1.5 |
-| `lux.variety_min` | Share of full use that counts toward variety | 0.2 |
-| `lux.variety_bonus[n]` | Daily bonus for n luxuries | 0, 0, 0.003, 0.006 |
+| `happy.need` | Each luxury's full use, per thousand per day | 0.1 |
+| `happy.sated` | How much a happy population cuts its luxury use | 1 |
+| `happy.base` | Target happiness with no luxuries | −0.3 |
+| `happy.lux` | Target happiness per luxury, × ln(1 + use ÷ need) | 0.25 |
+| `happy.contraband` | The same for contraband, more than a legal luxury (PRD-6) | 0.5 |
+| `happy.hunger` | Target happiness lost at total life-support shortfall | 1 |
+| `happy.settle_days` | Days for happiness to close most of the gap to its target | 30 |
+| `happy.scale` | Happiness at which effects are about three quarters of their full size | 0.5 |
+| `happy.p_up`, `happy.p_down` | Productivity's ceiling and floor: 1 + up, 1 − down | 0.3, 0.2 |
+| `happy.g_up`, `happy.g_down` | Growth's boost when happy, and its cut when unhappy (1 stops it) | 0, 1 |
+| `happy.want` | An unhappy planet's luxury reserves grow by up to this share | 1 |
 | `prod.efficiency[tier]` | Output multiplier by tier | high 1.0, medium 0.6, low 0.3 |
 | `prod.labour_per_capita` | Output per thousand at share 1, efficiency 1, P 1 *(Phase A round 1; was 3.5)* | 8 |
 | `prod.labour_shift` | Share of labour moved per week | 0.05 |
@@ -156,7 +166,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `dip.neighbour_days` | Lattice days within which factions border | 3 |
 | `dip.w_idle`, `dip.w_targets`, `dip.w_strength`, `dip.w_peace`, `dip.w_wars`, `dip.w_losses` | War vote weights *(proposed; Phase A round 1, from 0.2, 0.3, 1, 0.5, 1.5, 0.5)* | 0.1, 0.05, 0.1, 0.5, 1.5, 0.5 |
 | `dip.border_days`, `dip.declare_threshold` | War vote reach and threshold *(threshold proposed; Phase A round 1, from 1)* | 5, 1.5 |
-| `dip.w_treasury`, `dip.reserve_months`, `dip.treasury_cap` | Money beyond `reserve_months` of operating costs votes for war, up to `treasury_cap` (DIP-4) *(proposed, round 2)* | 0.3, 6, 3 |
+| `dip.w_treasury` | Money beyond `budget.reserve_months` of operating costs votes for war, up to `budget.hoard_cap` (DIP-4) *(proposed, round 2; the reserve and cap moved to `budget.*` in round 3)* | 0.3 |
 | `dip.s_planets`, `dip.s_power`, `dip.s_treasury`, `dip.s_months`, `dip.sue_threshold` | Suing-for-peace score; `s_months` is weariness a month at war *(proposed; round 2 replaced `s_wars` 1)* | 3, 2, 1, 0.4, 1 |
 | `dip.min_war_days` | No offer is heard before this (DIP-3) *(proposed, round 2)* | 30 |
 | `dip.hope_share`, `dip.hope_halflife_months` | The winner's hope: this share of the loser's income near its border, by power share, halving this often (DIP-3) *(proposed, round 2)* | 0.5, 2 |
@@ -166,16 +176,18 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `combat.noise` | Randomness per round | 0.3 |
 | `combat.retreat_base`, `combat.retreat_risk` | Retreat when own ÷ enemy falls below `base − risk × this` | 0.6, 0.4 |
 | `combat.retreat_loss`, `combat.cargo_destroyed` | Retreat losses, cargo destroyed | 0.2, 0.3 |
-| `defence.per_spend` | Static defence per credit of security spend per month *(proposed; round 2, from 0.005)* | 0.01 |
+| `defence.per_spend` | Static defence per credit of security spend per month *(proposed; round 2 0.01, from 0.005; round 3 0.0015, with spending sized to income)* | 0.0015 |
 | `defence.regen` | Share of the maximum static defence rebuilt a day, when not besieged *(proposed, MS-5)* | 0.05 |
+| `value.security_share`, `value.security_ratio` | A security unit is this share of monthly income, replacing `value.security_unit` for defence; each is worth ratio × its cost × threat × hoard (SYS-5) *(proposed, round 3)* | 0.02, 2 |
+| `budget.hoard`, `budget.reserve_months`, `budget.hoard_cap` | Money beyond the reserve raises defence values by up to hoard × cap; the war vote's reserve and cap (SYS-5, DIP-4) *(proposed, round 3)* | 1, 6, 3 |
 | `value.blockade_months`, `value.retake_months` | Blockading an enemy's gate, and retaking one's own, are worth this many months of the income of the planets it serves (MIL-17) *(proposed, round 2)* | 8, 8 |
 | `blockade.enabled`, `blockade.defence_share`, `blockade.hold_days` | Gate attacks on or off; a gate's static defence against its holder's; how long the captor's army garrisons it (MIL-17) *(proposed, round 2)* | true, 0.7, 30 |
 | `value.war_mult`, `value.border_mult` | Defence is worth `1 + war_mult` at war, `+ border_mult` with an enemy planet within `dip.border_days` *(proposed, MS-5)* | 2, 1 |
-| `value.security_unit` | Static defence is bought in units of this much a month *(proposed, MS-5)* | 1,000 |
+| `value.security_unit` | Policing is bought in units of this much a month *(proposed, MS-5; static defence used it until round 3)* | 1,000 |
 | `value.invade_months`, `value.gate_months`, `value.aftermath_months` | A planet taken is worth this many months of its income, more for a gate holder, less rebuilding *(proposed; round 2 raised aftermath from 2)* | 12, 6, 8 |
 | `value.protect` | Keep or grant: protection cost per day of travel from the keeper *(proposed, MS-5)* | 0.1 |
-| `capture.happiness_loss`, `capture.stock_loss`, `capture.pop_loss` | Capture effects (FAC-10) | 0.4, 0.5, 0.05 |
-| `capture.hold_days` | The conquering army garrisons the planet this long (SYS-13) *(proposed, round 2)* | 30 |
+| `capture.happiness_drop`, `capture.stock_loss`, `capture.pop_loss` | Capture effects (FAC-10): happiness lost (round 3: subtracted, was a share), stock and population shares lost | 0.4, 0.5, 0.05 |
+| `capture.hold_days` | A conquering army that chooses to hold the planet garrisons it this long (SYS-13) *(proposed, round 2; a choice from round 3)* | 30 |
 
 ## Information, piracy, suspicion (INF, PIR, SYS-15 to SYS-17, SYS-19)
 
@@ -192,8 +204,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `raid.enabled`, `raid.share`, `raid.days`, `raid.standoff` | Raiding at war: on (EXP-1 switches it off), the weekly chance a spare commander is sent, days held, distance short of the enemy planet in sector widths *(proposed, MS-5)* | true, 0.3, 10, 0.15 |
 | `escort.rate` | What an escort asks per combat power per day of the trip *(proposed, MS-5)* | 20 |
 | `security.risk_post`, `security.days`, `security.pay` | A planet whose sector's believed risk passes this posts a patrol of this many days, at this pay a day *(proposed, MS-5)* | 0.5, 10, 200 |
-| `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet fails (ECO-13) | 60, 3 |
-| `rebel.happiness`, `rebel.shortfall`, `rebel.days` | A planet below this happiness, with a shortfall above this, for this many days in a row fails (ECO-13) *(proposed, round 2: a shortfall of 0 flipped 31% of planets a year, mostly war-cut ones on the network)* | 0.15, 0.5, 90 |
+| `pirate.flip_debt` | Debt, in months of operating costs, at which debt's share of the rebellion chance is full (ECO-13) | 3 |
+| `rebel.scale`, `rebel.power`, `rebel.w_debt` | Weekly failure chance = scale × (u(H)^power below neutral + w_debt × debt share), replacing `pirate.flip_days`, `rebel.happiness`, `rebel.shortfall` and `rebel.days` (SYS-16) *(proposed, round 3: a scale of 0.01 flipped 9% of planets a year)* | 0.007, 2, 1 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
 | `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of with chance equal to its risk tolerance | false |
 | `pirate.range_days` | How far pirates go raiding, in days of open space at the reference speed *(proposed, MS-6)* | 20 |
@@ -232,5 +244,6 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `gen.pop_median` | Median starting population, thousands (GEN-3) *(proposed, MS-2)* | 1,000 |
 | `gen.pop_spread`, `gen.region_pop_spread` | Log-normal spread per planet and per region *(proposed, MS-2)* | 0.8, 0.3 |
 | `gen.moon_pop` | A moon's population against a planet's *(proposed, MS-2)* | 0.3 |
-| `gen.start_happiness` | Starting happiness (GEN-10) *(proposed, MS-2)* | 0.5 |
-| `gen.weight_spread`, `gen.favour_mult` | Region production weights `1 ± spread`, and the favoured good's multiplier (GEN-6) *(proposed, MS-2)* | 0.5, 3 |
+| `gen.start_happiness` | Starting happiness (GEN-10) *(proposed, MS-2; round 3: 0, neutral, was 0.5)* | 0 |
+| `gen.weight_spread`, `gen.favour_mult` | Region production weights `1 ± spread`, and the multiplier for a region's favoured life-support good and its home luxuries (GEN-6) *(proposed, MS-2)* | 0.5, 3 |
+| `gen.lux_home_regions`, `gen.lux_away`, `gen.fringe_lux_mult`, `gen.fringe_ls_mult` | Home regions per regional luxury; a luxury's weight away from home; fringe planets' weight for the fringe luxuries, and for life support (GEN-6) *(proposed, round 3: a fringe luxury weight of 5, with life support at 1, starved most fringe planets to a tenth)* | 2, 0.1, 2, 3 |

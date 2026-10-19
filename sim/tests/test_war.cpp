@@ -8,6 +8,7 @@
 #include "chars/contracts.hpp"
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
+#include "economy/economy.hpp"
 #include "helpers.hpp"
 #include "info/facts.hpp"
 #include "lattice/market.hpp"
@@ -44,6 +45,7 @@ Config quiet() {
     c.value.gate_months = 0;
     c.value.blockade_months = 0;    // nor gate attacks
     c.value.retake_months = 0;
+    c.rebel.scale = 0;              // nor rebellions
     return c;
 }
 
@@ -246,17 +248,39 @@ TEST_CASE("the stronger side wins a battle in rounds (SYS-14)") {
 TEST_CASE("security spending buys static defence, more at war (MIL-5)") {
     World w = new_world(quiet(), 67);
     const Front f = front(w);
+    Planet& p = w.planets[at(f.a)];
+    p.income_avg = 4 * p.population * w.config.econ.wage;  // rich enough to guard itself in peace
     budget::weekly(w, f.a, nullptr);
-    const double peace = w.planets[at(f.a)].security;
-    CHECK(peace > 0);
+    CHECK(p.security > 0);
+    // Bought in shares of income (SYS-5).
+    const double unit = w.config.value.security_share * p.income_avg * static_cast<double>(w.config.time.payment_days);
+    CHECK(std::fmod(p.security / unit + 1e-9, 1.0) < 1e-6);
     advance(w, 30 * kDay);
-    CHECK(w.planets[at(f.a)].defence == doctest::Approx(w.config.defence.per_spend * w.planets[at(f.a)].security));
+    CHECK(p.defence == doctest::Approx(w.config.defence.per_spend * p.security));
+    p.income_avg = 4 * p.population * w.config.econ.wage;
+    budget::weekly(w, f.a, nullptr);
+    const double peace = p.security;
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
     budget::weekly(w, f.a, nullptr);
     CHECK(w.planets[at(f.a)].security == peace);  // it hasn't heard yet (DIP-5)
     info::learn_state(w.characters[at(w.planets[at(f.a)].governor)].facts, f.root_a, f.root_b, DipState::War, w.now);
     budget::weekly(w, f.a, nullptr);
     CHECK(w.planets[at(f.a)].security > peace);
+}
+
+TEST_CASE("money beyond the reserve makes defence worth more (MIL-5, SYS-5)") {
+    World w = new_world(quiet(), 67);
+    const Front f = front(w);
+    Planet& p = w.planets[at(f.a)];
+    const double costs = economy::monthly_costs(w.config, p);
+    p.treasury = w.config.budget.reserve_months * costs;  // at the reserve: no boost
+    CHECK(budget::hoard(w, f.a) == doctest::Approx(1));
+    budget::weekly(w, f.a, nullptr);
+    const double thin = p.security;
+    p.treasury = 100 * w.config.budget.reserve_months * costs;  // far past it: capped
+    CHECK(budget::hoard(w, f.a) == doctest::Approx(1 + w.config.budget.hoard * w.config.budget.hoard_cap));
+    budget::weekly(w, f.a, nullptr);
+    CHECK(p.security > thin);
 }
 
 TEST_CASE("an invasion besieges, wins and captures (SYS-13, FAC-8, FAC-9, FAC-10)") {
@@ -275,16 +299,47 @@ TEST_CASE("an invasion besieges, wins and captures (SYS-13, FAC-8, FAC-9, FAC-10
     for (int d = 0; d < 60 && w.ledger.captures == 0; ++d) advance(w, kDay);
     CHECK(w.ledger.sieges >= 1);
     REQUIRE(w.ledger.captures == 1);
-    // The army holds its prize a while (SYS-13).
-    CHECK(w.armies[at(army)].alive);
-    CHECK(w.armies[at(army)].action == ArmyAction::Garrison);
-    CHECK(w.armies[at(army)].planet == f.b);
-    advance(w, (w.config.capture.hold_days + 30) * kDay);
+    // No enemy near the prize: holding it isn't worth the stipends, so the army goes home
+    // (MIL-12, SYS-13).
+    CHECK(!w.armies[at(army)].alive);
+    CHECK(w.ledger.holds == 0);
+    advance(w, 30 * kDay);
     CHECK(fealty::root_of(w, f.b) == f.root_a);
     CHECK(w.planets[at(f.b)].governor != old_gov);
     CHECK(w.characters[at(old_gov)].governs == kNone);
     CHECK(w.characters[at(w.planets[at(f.b)].governor)].governs == f.b);
     CHECK(w.planets[at(f.b)].population < pop);
+    CHECK(!w.armies[at(army)].alive);
+}
+
+TEST_CASE("a conquest with enemy fleets near is held a while, then left (MIL-12, SYS-13)") {
+    World w = new_world(quiet(), 68);
+    // A prize worth its usual months; no invasions but this one all the same (GEN-10).
+    w.config.value.invade_months = Config{}.value.invade_months;
+    w.config.gen.warmup_days = 1'000'000;
+    const Front f = front(w);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    for (int i = 0; i < 4; ++i) commander(w, f.a, 3, 2);
+    strip_defences(w, f.b);
+    w.planets[at(f.b)].defence = 5;
+    // An enemy planet near the prize, not one that would send it relief (not up its tree).
+    std::vector<Id> chain;
+    for (Id p = f.b; p != kNone; p = w.planets[at(p)].liege) chain.push_back(p);
+    Id near = kNone;
+    for (Id q : fealty::faction_planets(w, f.root_b)) {
+        if (std::find(chain.begin(), chain.end(), q) == chain.end() && w.derived.travel(q, f.b) <= w.config.dip.border_days) near = q;
+    }
+    REQUIRE(near != kNone);
+    for (int i = 0; i < 4; ++i) commander(w, near, 3, 2);  // as strong as the army
+    const Id army = armies::commission(w, f.a, f.b, false, nullptr);
+    REQUIRE(army != kNone);
+    for (int d = 0; d < 60 && w.ledger.captures == 0; ++d) advance(w, kDay);
+    REQUIRE(w.ledger.captures == 1);
+    CHECK(w.ledger.holds == 1);
+    CHECK(w.armies[at(army)].alive);
+    CHECK(w.armies[at(army)].action == ArmyAction::Garrison);
+    CHECK(w.armies[at(army)].planet == f.b);
+    advance(w, (w.config.capture.hold_days + 30) * kDay);
     CHECK(!w.armies[at(army)].alive);
 }
 
@@ -636,6 +691,8 @@ TEST_CASE("an army takes an undefended enemy gate: a blockade, shut to all but t
 TEST_CASE("a traveller who hasn't heard of a blockade finds out at the gate and goes another way (MIL-17)") {
     World w = new_world(quiet(), 69);
     const Front f = front(w);
+    w.config.dip.sue_threshold = 1e9;
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);  // and it lasts, or the blockade lifts (MIL-17)
     const Id node = open_gate(w, f);
     REQUIRE(node != kNone);
     const Id holder = gates::holder(w, node);
@@ -670,11 +727,13 @@ TEST_CASE("a traveller who hasn't heard of a blockade finds out at the gate and 
 
     c.activity = Activity::Exploring;
     REQUIRE(move::travel_to(w, id, holder));
-    for (int d = 0; d < 120 && w.characters[at(id)].planet != holder; ++d) advance(w, kDay);
-    CHECK(w.characters[at(id)].planet == holder);
+    // It finds out at the gate, and its new route doesn't get off there.
+    for (int h = 0; h < 60 * 24 && !gates::find(w.characters[at(id)].facts, node); ++h) advance(w, kHour);
     const GateFact* known = gates::find(w.characters[at(id)].facts, node);
     REQUIRE(known);
     CHECK(known->captor == f.a);
+    CHECK(w.characters[at(id)].planet == kNone);  // learnt on the way, not at a planet
+    CHECK(!exits_at(w.characters[at(id)].route));
 }
 
 TEST_CASE("an unheld blockade is retaken by the holder's faction; a ceasefire lifts one (MIL-17)") {

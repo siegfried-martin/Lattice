@@ -39,6 +39,7 @@ Config quiet() {
     c.gen.pirate_planets = 0;
     c.value.invade_months = 0;
     c.raid.share = 0;
+    c.rebel.scale = 0;  // rebellions only where a test raises them
     return c;
 }
 
@@ -67,12 +68,12 @@ Id armed(World& w, Id planet, int ships_n, int tier) {
 
 }  // namespace
 
-TEST_CASE("a planet with no vassals long in deficit turns pirate (ECO-13, PIR-3)") {
+TEST_CASE("a failing planet with no vassals turns pirate (ECO-13, PIR-3)") {
     World w = new_world(quiet(), 91);
+    w.config.rebel.scale = 1;  // deep enough in debt, certain
     const Id p = leaf_planet(w);
     REQUIRE(p != kNone);
     Planet& planet = w.planets[at(p)];
-    planet.deficit_days = w.config.pirate.flip_days;
     planet.treasury = -10 * economy::monthly_costs(w.config, planet);
     const double lawful_costs = economy::monthly_costs(w.config, planet);
     pirates::check_rebellion(w, p, nullptr);
@@ -99,7 +100,7 @@ TEST_CASE("a failing planet with vassals secedes with them, at war with its old 
     const std::vector<Id> below = fealty::vassals(w, p);
     const Id old_root = fealty::root_of(w, p);
     Planet& planet = w.planets[at(p)];
-    planet.deficit_days = w.config.pirate.flip_days;
+    w.config.rebel.scale = 1;
     planet.treasury = -10 * economy::monthly_costs(w.config, planet);
     pirates::check_rebellion(w, p, nullptr);
     CHECK(!planet.pirate);
@@ -109,24 +110,32 @@ TEST_CASE("a failing planet with vassals secedes with them, at war with its old 
     CHECK(w.ledger.secessions == 1);
 }
 
-TEST_CASE("starvation makes a population unhappy, and unhappy and starving long enough, it rebels (PRD-2, ECO-13)") {
+TEST_CASE("starvation makes a population unhappy, and rebellion grows likelier with misery and debt (PRD-2, ECO-13, SYS-16)") {
     World w = new_world(quiet(), 92);
+    w.config.rebel.scale = Config{}.rebel.scale;
+    const Config& c = w.config;
     const Id p = leaf_planet(w);
     REQUIRE(p != kNone);
     Planet& planet = w.planets[at(p)];
-    planet.happiness = 1;
+    planet.happiness = 0;
+    planet.treasury = 0;
+    CHECK(pirates::rebellion_chance(w, p) == 0);  // content enough and solvent: never
     for (Good g : kLifeSupport) planet.stock[g] = 0;
     planet.productivity = 0;  // nothing made today, and nothing to buy with
-    const double before = planet.happiness;
     economy::planet_day(w, p);
-    CHECK(planet.happiness < before - w.config.pop.happiness_drain);
-    planet.happiness = 0;
-    planet.unrest_days = w.config.rebel.days - 1;
-    for (Good g : kLifeSupport) planet.stock[g] = 0;
-    planet.productivity = 0;
-    economy::planet_day(w, p);
-    CHECK(planet.unrest_days == w.config.rebel.days);
-    pirates::check_rebellion(w, p, nullptr);
+    CHECK(planet.happiness < (c.happy.base - c.happy.hunger * 0.5) / c.happy.settle_days);
+    planet.happiness = -0.2;
+    const double unhappy = pirates::rebellion_chance(w, p);
+    CHECK(unhappy > 0);
+    planet.happiness = -1;
+    const double miserable = pirates::rebellion_chance(w, p);
+    CHECK(miserable > unhappy);
+    CHECK(miserable <= c.rebel.scale);
+    planet.treasury = -0.5 * c.pirate.flip_debt * economy::monthly_costs(c, planet);
+    CHECK(pirates::rebellion_chance(w, p) == doctest::Approx(miserable + c.rebel.scale * c.rebel.w_debt * 0.5));
+    // Weekly draws: over enough weeks, it happens.
+    w.config.rebel.scale = 0.5;
+    for (int week = 0; week < 50 && !planet.pirate; ++week) pirates::check_rebellion(w, p, nullptr);
     CHECK(planet.pirate);
 }
 
@@ -445,9 +454,15 @@ TEST_CASE("a pirate offers a bold independent a run instead of attacking it (PIR
     const Id bold = chars::spawn(w, 0);
     w.characters[at(bold)].risk = 0.95;
     w.characters[at(bold)].activity = Activity::Exploring;
-    REQUIRE(move::start_route(w, raider, move::sortie(w, kPirates, 0, haven, 0.15, kDay)));
-    w.characters[at(raider)].activity = Activity::Raiding;
     REQUIRE(move::travel_to(w, bold, haven));
+    // The raider waits on station on the independent's first stretch of open space.
+    const std::vector<Leg>& path = w.characters[at(bold)].route;
+    REQUIRE(path.front().kind == LegKind::Space);  // it leaves planet 0 in open space
+    Leg station = path.front();
+    station.x1 = station.x0, station.y1 = station.y0, station.to_planet = 0, station.to_node = kNone, station.wait = 2 * kDay;
+    REQUIRE(move::start_route(w, raider, {station}));
+    w.characters[at(raider)].activity = Activity::Raiding;
+    w.characters[at(raider)].last_planet = haven;  // where it's from
     encounters::step(w, nullptr);
     CHECK(w.ledger.offers == 1);
     CHECK(w.characters[at(bold)].offer != kNone);

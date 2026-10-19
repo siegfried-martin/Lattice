@@ -1,6 +1,7 @@
 #include "lattice/config.hpp"
 
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <set>
 #include <sstream>
@@ -153,7 +154,7 @@ void validate(const Config& c) {
         require(g.reserve_days > 0, name + ".reserve_days must be above 0");
         require(g.k > 0, name + ".k must be above 0");
         require(g.consumption >= 0, name + ".consumption can't be negative");
-        require(g.happiness >= 0, name + ".happiness can't be negative");
+        require(g.yield > 0, name + ".yield must be above 0");
     }
 
     positive(c.price.min, "price.min");
@@ -171,19 +172,25 @@ void validate(const Config& c) {
     share(c.pop.shrink_rate, "pop.shrink_rate");
     non_negative(c.pop.growth_factor_min, "pop.growth_factor_min");
     require(c.pop.growth_factor_max >= c.pop.growth_factor_min, "pop.growth_factor_max must be at least pop.growth_factor_min");
-    non_negative(c.pop.happiness_drain, "pop.happiness_drain");
-    non_negative(c.pop.starve_happiness, "pop.starve_happiness");
-    share(c.rebel.happiness, "rebel.happiness");
-    share(c.rebel.shortfall, "rebel.shortfall");
-    positive(static_cast<double>(c.rebel.days), "rebel.days");
-    non_negative(c.pop.p_base, "pop.p_base");
-    non_negative(c.pop.p_happy, "pop.p_happy");
+    non_negative(c.rebel.scale, "rebel.scale");
+    positive(c.rebel.power, "rebel.power");
+    non_negative(c.rebel.w_debt, "rebel.w_debt");
     non_negative(c.pop.contraband_penalty, "pop.contraband_penalty");
     positive(static_cast<double>(c.pop.contraband_window), "pop.contraband_window");
 
-    non_negative(c.lux.consumption, "lux.consumption");
     positive(c.lux.max_fill, "lux.max_fill");
-    non_negative(c.lux.variety_min, "lux.variety_min");
+    positive(c.happy.need, "happy.need");
+    non_negative(c.happy.sated, "happy.sated");
+    non_negative(c.happy.lux, "happy.lux");
+    non_negative(c.happy.contraband, "happy.contraband");
+    non_negative(c.happy.hunger, "happy.hunger");
+    require(c.happy.settle_days >= 1, "happy.settle_days must be at least 1");
+    positive(c.happy.scale, "happy.scale");
+    non_negative(c.happy.p_up, "happy.p_up");
+    require(c.happy.p_down >= 0 && c.happy.p_down < 1, "happy.p_down must be 0 to below 1");
+    non_negative(c.happy.g_up, "happy.g_up");
+    non_negative(c.happy.g_down, "happy.g_down");
+    non_negative(c.happy.want, "happy.want");
 
     positive(c.prod.efficiency_high, "prod.efficiency_high");
     positive(c.prod.efficiency_medium, "prod.efficiency_medium");
@@ -286,8 +293,11 @@ void validate(const Config& c) {
     non_negative(c.dip.border_days, "dip.border_days");
     non_negative(c.dip.tribute_rate, "dip.tribute_rate");
     non_negative(c.dip.w_treasury, "dip.w_treasury");
-    positive(c.dip.reserve_months, "dip.reserve_months");
-    non_negative(c.dip.treasury_cap, "dip.treasury_cap");
+    positive(c.budget.reserve_months, "budget.reserve_months");
+    non_negative(c.budget.hoard, "budget.hoard");
+    non_negative(c.budget.hoard_cap, "budget.hoard_cap");
+    positive(c.value.security_share, "value.security_share");
+    non_negative(c.value.security_ratio, "value.security_ratio");
     non_negative(c.dip.s_months, "dip.s_months");
     non_negative(static_cast<double>(c.dip.min_war_days), "dip.min_war_days");
     non_negative(c.dip.hope_share, "dip.hope_share");
@@ -307,7 +317,7 @@ void validate(const Config& c) {
     non_negative(c.value.retake_months, "value.retake_months");
     non_negative(c.blockade.defence_share, "blockade.defence_share");
     non_negative(static_cast<double>(c.blockade.hold_days), "blockade.hold_days");
-    share(c.capture.happiness_loss, "capture.happiness_loss");
+    non_negative(c.capture.happiness_drop, "capture.happiness_drop");
     non_negative(static_cast<double>(c.capture.hold_days), "capture.hold_days");
     share(c.capture.stock_loss, "capture.stock_loss");
     share(c.capture.pop_loss, "capture.pop_loss");
@@ -324,8 +334,7 @@ void validate(const Config& c) {
     non_negative(c.security.risk_post, "security.risk_post");
     positive(static_cast<double>(c.security.days), "security.days");
     non_negative(c.security.pay, "security.pay");
-    require(c.pirate.flip_days >= 0, "pirate.flip_days can't be negative");
-    non_negative(c.pirate.flip_debt, "pirate.flip_debt");
+    positive(c.pirate.flip_debt, "pirate.flip_debt");
     non_negative(c.pirate.cost_mult, "pirate.cost_mult");
     non_negative(c.pirate.salary, "pirate.salary");
     non_negative(c.pirate.range_days, "pirate.range_days");
@@ -368,9 +377,13 @@ void validate(const Config& c) {
     non_negative(c.gen.pop_spread, "gen.pop_spread");
     non_negative(c.gen.region_pop_spread, "gen.region_pop_spread");
     positive(c.gen.moon_pop, "gen.moon_pop");
-    share(c.gen.start_happiness, "gen.start_happiness");
+    require(std::isfinite(c.gen.start_happiness), "gen.start_happiness must be a number");
     require(c.gen.weight_spread >= 0 && c.gen.weight_spread < 1, "gen.weight_spread must be 0 to 1");
     positive(c.gen.favour_mult, "gen.favour_mult");
+    require(c.gen.lux_home_regions >= 1, "gen.lux_home_regions must be at least 1");
+    positive(c.gen.lux_away, "gen.lux_away");
+    positive(c.gen.fringe_lux_mult, "gen.fringe_lux_mult");
+    positive(c.gen.fringe_ls_mult, "gen.fringe_ls_mult");
 }
 
 std::string to_toml(const Config& config) {

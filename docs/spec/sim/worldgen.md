@@ -90,12 +90,29 @@ efficiency at random (PRD-7). Then repair: every good must have at least
 `gen.min_producers` producers per region at medium or better (PRD-8); swap draws until it
 holds. Contraband is never drawn for a lawful planet.
 
+*(proposed, round 3: built)* **Luxuries are regional:**
+- Each of the six regional luxuries has `gen.lux_home_regions` home regions, spread so
+  every region is home to about two. A region's weight for a luxury it isn't home to
+  is × `gen.lux_away`; for one it is, × `gen.favour_mult`.
+- The two fringe luxuries have weight × `gen.lux_away` on network planets, and fringe
+  planets weight them × `gen.fringe_lux_mult`.
+- *(proposed, round 3)* **Fringe planets weight life support × `gen.fringe_ls_mult`:**
+  far from trade, settlements grow their own. With a fringe luxury weight of 5 and life
+  support at 1, most fringe planets made one life-support good or none, no merchant
+  reached them, and they lost about 90% of their people in three years.
+- The repair guarantees life support in every region, each regional luxury across its
+  home regions together, and each fringe luxury across the fringe as a whole.
+
 *As built:* a region's weights are `1 ± gen.weight_spread` per lawful good, with one
-favoured good × `gen.favour_mult`. The repair takes a medium-or-better slot from a good
-that has more producers than it needs: it either swaps tiers with the short good where
-the planet already makes it at low, or replaces that slot's good. Neither creates a new
-shortfall, so the repair always ends, and it always succeeds when the region has at
-least 3 × `gen.min_producers` planets.
+favoured life-support good × `gen.favour_mult` (before round 3 the favoured good could be
+any lawful good). The repair works through a list of needs, each a good and a set of
+planets (a region, a luxury's home regions, or the fringe). It takes a medium-or-better
+slot from a good that every need it counts toward has more than enough of: it either
+swaps tiers with the short good where the planet already makes it at low, or replaces
+that slot's good. Neither creates a new shortfall, so the repair always ends. On a
+development world (three regions) a luxury's guarantee can't hold per home region: a
+region of seven fringe planets has fourteen medium-or-better slots against eighteen
+needs, which is why it holds across the home regions together.
 
 ### GEN-7 Fuel prices `v1`
 

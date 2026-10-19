@@ -60,7 +60,12 @@ before capture, by courier coverage and scouting. *Tests:* MIL-11, INF-12.
 
 Too low and everyone conquers everyone; too high and the map freezes. *Metric:* planets
 changing hands per year. *(proposed, round 2)* Also blockades a year per faction, at
-least 0.5: blockading is a normal part of war (MIL-17). *Tests:* MIL-5, MIL-10, MIL-17.
+least 0.5: blockading is a normal part of war (MIL-17). *(proposed, round 3)* Border
+planets change hands often in war, so the band is 5% to 40% a year; and the
+most-traded planet changes hands at most twice a year (before round 2's garrisoning,
+one planet changed hands 19 times in three years). *As built:* CHK-6c counts each
+planet's `planet.captured` events and takes the largest, per year.
+*Tests:* MIL-5, MIL-10, MIL-12, MIL-17.
 
 ## Economy
 
@@ -69,6 +74,15 @@ least 0.5: blockading is a normal part of war (MIL-17). *Tests:* MIL-5, MIL-10, 
 No runaway inflation or deflation over long runs, in peace and in war. *Metric:* total
 money (treasuries + character wealth) and mean price index per month. *Tests:* ECO-1,
 ECO-5.
+
+*(proposed, round 3)* **Reserves level off rather than compound.** Deep treasuries are
+intended, especially at wealthy core planets and capitals: with no loans, cash is a
+faction's only buffer against war and losses. What fails is endless growth. *Metric:*
+total money growth over the second half of a run at most 1.1 a year, and the median
+planet's treasury in months of costs no more than 1.5 times higher at the end than at
+the halfway point. *As built:* CHK-7 is the yearly growth from the halfway sample to the
+last, band 0.8 to 1.1; CHK-7c reads months of costs as treasury ÷ (`econ.op_base` +
+`econ.op_per_capita` × population), ignoring pirate planets' lower costs.
 
 ### CHK-8 Peace and war cycle `v1`
 
@@ -103,6 +117,14 @@ fringe planets over time against on-network ones. *Tests:* WLD-6.
 Populations reach a size their production and imports can feed, without oscillating or
 dying off; a blockade shrinks a planet slowly. *Metric:* population per planet; its
 variance after warm-up. *Tests:* PRD-2.
+
+*(proposed, round 3)* **Happiness spreads out rather than piling at the ends:** at most
+20% of planet-days have happiness's productivity effect within 5% of its floor or
+ceiling, and the fringe's median happiness is below the network's but not at the floor.
+*As built:* over the second half's samples, CHK-12c is the share with u(H) ≥ 0.95
+(SYS-1), CHK-12d the fringe median less the network median (at most 0), CHK-12e u of the
+fringe median when it's below neutral (at most 0.95).
+*Tests:* PRD-4, PRD-5.
 
 ### CHK-13 Labour doesn't oscillate `v1`
 

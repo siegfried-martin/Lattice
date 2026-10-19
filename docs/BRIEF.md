@@ -207,24 +207,32 @@ The design of the full game is settled enough to build its simulation. In brief:
   than half the time, in wars of one to three game months (DIP-1 to DIP-4).
 - **War:** armies with telegraphed intent cross open space from the nearest gate that
   lets them out; sieges grind down a planet's defences while couriers race to bring help
-  (MIL-7 to MIL-11). Armies can also capture an enemy's gate: a blockade, shut to all
+  (MIL-7 to MIL-11). A conqueror holds its prize only when it fears losing it more than
+  it needs its army home (MIL-12). Planets buy defence as a share of income, more at war
+  and more again from a deep treasury (MIL-5). Armies can also capture an enemy's gate: a blockade, shut to all
   but the captor, which cuts the planets it serves off from the Lattice until it's
   retaken or peace lifts it (MIL-17). Combat away from the player is auto-resolved
   (MIL-13).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
-  to ECO-5). The v1 goods are food, water, oxygen, three luxuries and one contraband
-  (PRD-1). Each planet makes three goods at high, medium and low efficiency, partly by
-  region; prices come from stock against a reserve; droughts and festivals keep them
-  moving (PRD-7 to PRD-11). Fuel is a fixed local price in v1 (ECO-11).
+  to ECO-5). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
+  from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
+  goods at high, medium and low efficiency, partly by region; a luxury takes more labour
+  than food, and fringe worlds grow more of their own; prices come from stock against a
+  reserve; droughts and festivals keep them moving (PRD-7 to PRD-11). Happiness is a
+  signed scale that settles toward what a population gets: each luxury with diminishing
+  returns, hunger pulling it down. Productivity rises and falls with it toward a ceiling
+  and a poverty floor, so poor planets stay poor without collapsing; an unhappy planet
+  pays more for luxuries (PRD-4, PRD-5). Fuel is a fixed local price in v1 (ECO-11).
 - **Trade:** merchants are characters. A faction root pays merchants a salary for its
   information network, in return for trips that start and end at home; independents run
   single trips. Merchants hire escorts by weighing route risk against cargo value. A slow
   osmosis keeps markets from becoming deserts (TRD-3 to TRD-13).
 - **Piracy:** one anarchic pirate faction on the fringe, unable to use the Lattice. Broke
   commanders turn pirate; loot sells only at pirate planets, which make contraband. A
-  planet fails on a long deficit or long hunger; with no vassals it turns pirate, with
-  vassals it secedes and is attacked by its old faction (ECO-13). One
+  planet may fail any week, likelier the unhappier and deeper in debt it is; with no
+  vassals it turns pirate, with vassals it secedes and is attacked by its old faction
+  (ECO-13). One
   pirate relation both shields you from pirates and raises lawful suspicion, so smuggling
   is a real risk (PIR-1 to PIR-13).
 - **Information moves at the speed of ships.** Every character has its own dated facts;
