@@ -1,5 +1,6 @@
 #include "lattice/world.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <utility>
 #include <cmath>
@@ -24,6 +25,9 @@
 #include "war/armies.hpp"
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
+#include "war/encounters.hpp"
+#include "war/risk.hpp"
+#include "war/threats.hpp"
 
 namespace lattice {
 
@@ -168,6 +172,23 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.reliefs", -1, static_cast<double>(w.ledger.reliefs));
     o.sample(t, "world.deaths", -1, static_cast<double>(w.ledger.deaths));
     o.sample(t, "world.power_destroyed", -1, w.ledger.power_destroyed);
+    o.sample(t, "world.raids", -1, static_cast<double>(w.ledger.raids));
+    o.sample(t, "world.escorts", -1, static_cast<double>(w.ledger.escorts));
+    o.sample(t, "world.escort_pay", -1, w.ledger.escort_pay);
+    o.sample(t, "world.loot", -1, w.ledger.loot);
+    o.sample(t, "world.sightings", -1, static_cast<double>(w.ledger.sightings));
+    o.sample(t, "world.warnings", -1, static_cast<double>(w.ledger.warnings));
+    o.sample(t, "world.garrisons", -1, static_cast<double>(w.ledger.garrisons));
+    o.sample(t, "world.patrols", -1, static_cast<double>(w.ledger.patrols));
+    // Risk (SYS-19, CHK-4): per sector, and its spread.
+    double risk_sum = 0, risk_max = 0;
+    for (std::size_t s = 0; s < w.risk.size(); ++s) {
+        risk_sum += w.risk[s].risk;
+        risk_max = std::max(risk_max, w.risk[s].risk);
+        if (w.risk[s].risk > 0) o.sample(t, "sector.risk", static_cast<std::int64_t>(s), w.risk[s].risk);
+    }
+    o.sample(t, "world.mean_risk", -1, w.risk.empty() ? 0 : risk_sum / static_cast<double>(w.risk.size()));
+    o.sample(t, "world.max_risk", -1, risk_max);
     o.sample(t, "world.fires", -1, static_cast<double>(w.ledger.fires));
     o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
     o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);
@@ -197,6 +218,7 @@ void on_daily_tick(World& w, Observer* observer) {
     events::roll(w, observer);
     osmosis::run(w);
     chars::daily(w, observer);
+    risk::daily(w);
 }
 
 void on_debug_ping(World& w, const Event& e) {
@@ -235,7 +257,7 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             move::on_arrive(w, record, static_cast<std::uint32_t>(e.a), observer);
             break;
         case EventKind::KinematicStep:
-            move::kinematic_step(w, observer);
+            encounters::step(w, observer);
             break;
         case EventKind::CourierDue:
             info::courier_due(w, record, observer);
@@ -264,6 +286,9 @@ void dispatch(World& w, const Event& e, Observer* observer) {
         case EventKind::CallForHelp:
             armies::call_for_help(w, record, static_cast<Id>(e.a), observer);
             break;
+        case EventKind::ThreatWarning:
+            threats::warning(w, record, static_cast<Id>(e.a), static_cast<Id>(e.b), observer);
+            break;
     }
 }
 
@@ -278,15 +303,24 @@ void rebuild_derived(World& w) {
     d.route_pred = std::move(routes.pred);
     d.route_via = std::move(routes.via);
     d.route_sums.assign(d.planet_count * d.planet_count, {});
+    d.route_risk_sectors.assign(d.planet_count * d.planet_count, {});
     for (Id a = 0; a < static_cast<Id>(d.planet_count); ++a) {
         for (Id b = 0; b < static_cast<Id>(d.planet_count); ++b) {
             if (a == b) continue;
-            Derived::RouteSum& s = d.route_sums[at(a) * d.planet_count + at(b)];
+            const std::size_t k = at(a) * d.planet_count + at(b);
+            Derived::RouteSum& s = d.route_sums[k];
+            std::vector<Id>& sectors = d.route_risk_sectors[k];
             for (const Leg& l : move::route_legs(w, a, b)) {
-                if (l.kind == LegKind::Space) s.space += std::hypot(l.x1 - l.x0, l.y1 - l.y0);
+                if (l.kind == LegKind::Space) {
+                    s.space += std::hypot(l.x1 - l.x0, l.y1 - l.y0);
+                    sectors.push_back(risk::sector_at(w.map, l.x0, l.y0));
+                    sectors.push_back(risk::sector_at(w.map, l.x1, l.y1));
+                }
                 if (l.kind == LegKind::Lattice) s.lattice += l.lattice_length;
                 if (l.kind == LegKind::Hop) ++s.hops;
             }
+            std::sort(sectors.begin(), sectors.end());
+            sectors.erase(std::unique(sectors.begin(), sectors.end()), sectors.end());
         }
     }
     d.osmosis_pairs = osmosis::pairs(w);
@@ -302,6 +336,7 @@ World new_world(const Config& config, std::uint64_t seed) {
     world.rng = RngStreams::from_seed(seed);
 
     gen::generate(world);
+    world.risk.assign(world.map.sectors.size(), {});
     economy::init_state(world);
     rebuild_derived(world);
     chars::populate(world);

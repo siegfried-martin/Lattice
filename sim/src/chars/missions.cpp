@@ -9,6 +9,8 @@
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
 #include "politics/opinion.hpp"
+#include "war/raids.hpp"
+#include "war/threats.hpp"
 
 namespace lattice::missions {
 
@@ -24,9 +26,10 @@ Id post(World& w, Mission m, Observer* observer) {
     w.events.push({.time = posted.expires, .kind = EventKind::MissionExpire, .record = id});
     ++w.ledger.missions_posted;
     if (observer) {
+        constexpr const char* kinds[] = {"courier", "scout", "trade", "escort", "command", "smuggle", "security"};
         observer->log(w.now, "mission.posted", id,
-                      std::string(posted.kind == MissionKind::Courier ? "courier" : "scout") + " at " + std::to_string(posted.at) +
-                          " to " + std::to_string(posted.target));
+                      std::string(kinds[static_cast<std::size_t>(posted.kind)]) + " at " + std::to_string(posted.at) + " to " +
+                          std::to_string(posted.target));
     }
     return id;
 }
@@ -38,7 +41,13 @@ void unpost(World& w, Id id) {
 
 double round_trip(const World& w, Id a, Id b) { return w.derived.travel(a, b) + w.derived.travel(b, a); }
 
-ContractKind contract_kind(MissionKind k) { return k == MissionKind::Courier ? ContractKind::Courier : ContractKind::Scout; }
+ContractKind contract_kind(MissionKind k) {
+    switch (k) {
+        case MissionKind::Courier: return ContractKind::Courier;
+        case MissionKind::Security: return ContractKind::Security;
+        default: return ContractKind::Scout;
+    }
+}
 
 }  // namespace
 
@@ -92,6 +101,42 @@ void root_weekly(World& w, Id root, Observer* observer) {
          observer);
 }
 
+void planet_weekly(World& w, Id planet, Observer* observer) {
+    const Planet& p = w.planets[at(planet)];
+    if (p.governor == kNone) return;
+    bool scouting = false, patrolling = false;
+    for (Id m : p.missions) {
+        scouting = scouting || (w.missions[at(m)].kind == MissionKind::Scout && w.missions[at(m)].sortie);
+        patrolling = patrolling || w.missions[at(m)].kind == MissionKind::Security;
+    }
+    const auto& c = w.config;
+    const std::vector<Id> enemies = raids::believed_enemies(w, planet);
+    if (!scouting && !enemies.empty()) {
+        Id target = kNone;
+        for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+            if (std::find(enemies.begin(), enemies.end(), fealty::root_of(w, q)) == enemies.end()) continue;
+            if (w.derived.travel(planet, q) > c.dip.border_days) continue;
+            if (target == kNone || w.derived.travel(planet, q) < w.derived.travel(planet, target)) target = q;
+        }
+        if (target != kNone) {
+            post(w,
+                 {.kind = MissionKind::Scout, .level = MissionLevel::Planet, .poster = p.governor, .at = planet, .target = target,
+                  .base_pay = c.mission.scout_pay * round_trip(w, planet, target), .min_combat = c.scout.min_combat,
+                  .posted = w.now, .expires = w.now + 7 * kDay, .sortie = true},
+                 observer);
+        }
+    }
+    Facts& known = info::governor_facts(w, planet);
+    info::observe_risk(w, known, p.sector);
+    if (!patrolling && info::believed_risk(known, p.sector) >= c.security.risk_post) {
+        post(w,
+             {.kind = MissionKind::Security, .level = MissionLevel::Planet, .poster = p.governor, .at = planet, .target = planet,
+              .base_pay = c.security.pay * static_cast<double>(c.security.days), .min_combat = c.scout.min_combat,
+              .posted = w.now, .expires = w.now + 7 * kDay, .sortie = true},
+             observer);
+    }
+}
+
 double pay_now(const World& w, const Mission& m) {
     const double waited = static_cast<double>(w.now - m.posted) / kDay;
     return m.base_pay * (1 + w.config.mission.pay_growth * waited);
@@ -117,9 +162,10 @@ Offer best_offer(const World& w, Id id) {
     for (Id mid : w.planets[at(c.planet)].missions) {
         const Mission& m = w.missions[at(mid)];
         if (m.state != MissionState::Open || !qualifies(w, id, m)) continue;
-        const double days = std::max(move::trip_days(w, c, m.at, m.target) + move::trip_days(w, c, m.target, m.at), 1.0 / 24);
+        const double hold = m.kind == MissionKind::Security ? static_cast<double>(w.config.security.days) : 0;
+        const double days = std::max(move::trip_days(w, c, m.at, m.target) + move::trip_days(w, c, m.target, m.at) + hold, 1.0 / 24);
         const double fuel = move::fuel_cost(w, c, m.at, m.target) + move::fuel_cost(w, c, m.target, m.at);
-        const double skill = c.skills[static_cast<std::size_t>(m.kind)];
+        const double skill = c.skills[skill_of(m.kind)];
         const double score = (pay_now(w, m) / days) * (1 + w.config.skill.bonus * skill) - f.run_cost - fuel / days;
         if (score > best.score) best = {mid, score};
     }
@@ -136,9 +182,19 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     if (m.kind == MissionKind::Courier) m.packet = info::governor_facts(w, m.at);
     Character& c = w.characters[at(id)];
     c.mission = mid;
-    c.activity = Activity::Mission;
+    c.activity = m.kind == MissionKind::Security ? Activity::Patrolling : Activity::Mission;
     if (observer) observer->log(w.now, "mission.taken", mid, "by " + std::to_string(id));
-    if (!move::travel_to(w, id, m.target)) {
+    bool going = false;
+    if (m.sortie) {
+        // Out and back without landing: war scouting holds half a day off the target, a
+        // patrol security.days over its own space.
+        const Time hold = m.kind == MissionKind::Security ? w.config.security.days * kDay : kDay / 2;
+        going = move::start_route(w, id, move::sortie(w, chars::faction_of(w, c), m.at, m.target, w.config.raid.standoff, hold));
+        m.outbound = false;
+    } else {
+        going = move::travel_to(w, id, m.target);
+    }
+    if (!going) {
         // Unreachable: give it back.
         m.state = MissionState::Expired;
         contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
@@ -170,11 +226,13 @@ void arrived(World& w, Id id, Observer* observer) {
     }
     // Home: deliver, and get paid (REL-8: the contract ends with the job).
     info::merge_into(info::governor_facts(w, m.at), m.packet);
+    threats::check(w, m.at, observer);
     m.packet = {};
     m.state = MissionState::Done;
     w.planets[at(m.at)].treasury -= m.pay;
     chars::earn(c, m.pay, m.kind != MissionKind::Courier);
-    auto& skill = c.skills[static_cast<std::size_t>(m.kind)];
+    if (m.kind == MissionKind::Security) ++w.ledger.patrols;
+    auto& skill = c.skills[skill_of(m.kind)];
     skill = std::min(w.config.skill.max, skill + w.config.skill.gain);
     ++c.missions_done;
     c.reputation += 1;  // REL-7: grows with missions completed (OPN-11)

@@ -5,6 +5,7 @@
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
 #include "war/diplomacy.hpp"
+#include "war/raids.hpp"
 
 namespace lattice::governor {
 
@@ -28,7 +29,9 @@ void weekly(World& w, Id planet, Observer* observer) {
     fealty::adjust_tribute(w, planet, observer);
     fealty::check_defection(w, planet, observer);
     budget::weekly(w, planet, observer);
+    raids::dispatch(w, planet, observer);
     missions::root_weekly(w, planet, observer);
+    missions::planet_weekly(w, planet, observer);
 }
 
 bool holds_gates(const World& w, Id planet) {

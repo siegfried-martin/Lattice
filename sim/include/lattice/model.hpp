@@ -185,6 +185,7 @@ struct Planet {
     double security = 0;     // monthly spend on static defence and patrols (ECO-4): a sink
     double defence = 0;      // static defence now, in combat power
     Id siege = kNone;        // the siege it's under
+    Id warned_army = kNone;  // the last army it raised the alarm about (MIL-11)
 };
 template <class Ar, record_of<Planet> P>
 void fields(Ar& ar, P& p) {
@@ -193,7 +194,7 @@ void fields(Ar& ar, P& p) {
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
     ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
-    ar(p.security, p.defence, p.siege);
+    ar(p.security, p.defence, p.siege, p.warned_army);
 }
 
 // ---- Relationships (REL-2, REL-3, SYS-10) ----
@@ -243,14 +244,53 @@ void fields(Ar& ar, F& f) {
     ar(f.planet, f.time, f.price, f.stock);
 }
 
-// A character's information. Sorted by planet, so sharing is a merge of two sorted
-// lists keeping the newer of each (INF-4).
+// The risk of a sector as last seen (INF-6, SYS-19).
+struct RiskFact {
+    Id sector = kNone;
+    Time time = 0;
+    double risk = 0;
+};
+template <class Ar, record_of<RiskFact> F>
+void fields(Ar& ar, F& f) {
+    ar(f.sector, f.time, f.risk);
+}
+
+// The state between two roots, a < b, as last heard (DIP-5).
+struct DipFact {
+    Id a = kNone, b = kNone;
+    Time time = 0;
+    std::uint8_t state = 0;  // a DipState
+};
+template <class Ar, record_of<DipFact> F>
+void fields(Ar& ar, F& f) {
+    ar(f.a, f.b, f.time, f.state);
+}
+
+// An army seen (INF-3): where, when, and its intent (MIL-7).
+struct Sighting {
+    Id army = kNone;
+    Time time = 0;
+    double x = 0, y = 0;
+    Id target = kNone;  // the planet it means to take
+    Id faction = kNone; // whose army
+    double power = 0;   // its combat power, as seen
+};
+template <class Ar, record_of<Sighting> F>
+void fields(Ar& ar, F& f) {
+    ar(f.army, f.time, f.x, f.y, f.target, f.faction, f.power);
+}
+
+// A character's information. Each list is sorted by its subject, so sharing is a merge of
+// sorted lists keeping the newer of each (INF-4).
 struct Facts {
     std::vector<PriceFact> prices{};
+    std::vector<RiskFact> risks{};
+    std::vector<DipFact> dips{};
+    std::vector<Sighting> sightings{};
 };
 template <class Ar, record_of<Facts> F>
 void fields(Ar& ar, F& f) {
-    ar(f.prices);
+    ar(f.prices, f.risks, f.dips, f.sightings);
 }
 
 // ---- Character (MOD-3) ----
@@ -265,10 +305,11 @@ struct Leg {
     Id to_planet = kNone;                  // where it ends: a planet, or
     Id to_node = kNone;                    // a Lattice node
     double lattice_length = 0;             // for fuel (SYS-21)
+    Time wait = 0;                         // time held at the end (a raider or patrol on station)
 };
 template <class Ar, record_of<Leg> L>
 void fields(Ar& ar, L& l) {
-    ar(l.kind, l.x0, l.y0, l.x1, l.y1, l.depart, l.arrive, l.to_planet, l.to_node, l.lattice_length);
+    ar(l.kind, l.x0, l.y0, l.x1, l.y1, l.depart, l.arrive, l.to_planet, l.to_node, l.lattice_length, l.wait);
 }
 
 // What a character is doing now (CHR-2's short-term action). Append only.
@@ -280,12 +321,19 @@ enum class Activity : std::uint8_t {
     Mission = 4,    // on a mission (SYS-8)
     Serving = 5,    // a sworn commander at its post (MIL-2)
     Army = 6,       // with an army, mustering or moving with it (MIL-7)
+    Raiding = 7,    // sent to raid the enemy's trade (MIL-15)
+    Escorting = 8,  // escorting a merchant (TRD-8)
+    Patrolling = 9, // on a security mission (MIL-5)
 };
-inline constexpr int kActivityCount = 7;
+inline constexpr int kActivityCount = 10;
 
 // The kinds of mission and skill (CHR-10). Append only.
-enum class MissionKind : std::uint8_t { Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5 };
+// Skills are the first six; Security missions count toward the escort skill.
+enum class MissionKind : std::uint8_t { Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5, Security = 6 };
 inline constexpr int kSkillCount = 6;
+constexpr std::size_t skill_of(MissionKind k) {
+    return static_cast<std::size_t>(k == MissionKind::Security ? MissionKind::Escort : k);
+}
 
 // One stop of a merchant's planned trip: sell what's aboard, then buy `buy` (or
 // nothing) for the next stop.
@@ -345,6 +393,9 @@ struct Character {
     Time salary_checked = -kDay * 365;  // last weighed a merchant salary (SYS-9)
     Id army = kNone;    // the army it serves in
     Id battle = kNone;  // the battle it's fighting
+    Time paused_at = kNever;  // a battle stopped it mid-leg
+    Id escort = kNone;     // the escort it hired for this trip (TRD-8)
+    Id escorting = kNone;  // the merchant it escorts
 };
 template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
@@ -353,7 +404,8 @@ void fields(Ar& ar, C& c) {
     ar(c.activity, c.opinions, c.authority_opinion, c.governs, c.contracts, c.mission, c.skills, c.reputation,
        c.missions_done);
     ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
-    ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle);
+    ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle,
+       c.paused_at, c.escort, c.escorting);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -397,12 +449,13 @@ struct Mission {
     Id taker = kNone;
     double pay = 0;     // agreed when taken (it grows while open)
     bool outbound = true;  // a round trip's first half
+    bool sortie = false;   // out and back without landing (war scouting, patrols)
     Facts packet{};     // what a courier or scout carries
 };
 template <class Ar, record_of<Mission> M>
 void fields(Ar& ar, M& m) {
     ar(m.kind, m.level, m.poster, m.at, m.target, m.base_pay, m.min_combat, m.min_cargo, m.posted, m.expires);
-    ar(m.state, m.taker, m.pay, m.outbound, m.packet);
+    ar(m.state, m.taker, m.pay, m.outbound, m.sortie, m.packet);
 }
 
 // ---- An automated courier run (INF-8, SYS-15) ----
@@ -458,6 +511,8 @@ struct Ledger {
     double tribute = 0, patronage = 0, stipends = 0, salaries = 0, dues = 0, maintenance = 0;
     std::int64_t defections = 0, hires = 0, fires = 0, tribute_changes = 0;
     // War (MS-5).
+    double loot = 0, escort_pay = 0;
+    std::int64_t raids = 0, escorts = 0, sightings = 0, warnings = 0, garrisons = 0, patrols = 0;
     double security = 0, ceasefire_tribute = 0, power_destroyed = 0;
     std::array<double, kGoodCount> destroyed{};  // goods lost in capture and battle
     std::int64_t wars = 0, ceasefires = 0, battles = 0, sieges = 0, captures = 0, reliefs = 0, deaths = 0, pods = 0;
@@ -469,6 +524,7 @@ void fields(Ar& ar, L& l) {
     ar(l.detections, l.meetings_shared, l.missions_posted, l.missions_done, l.missions_expired);
     ar(l.tribute, l.patronage, l.stipends, l.salaries, l.dues, l.maintenance, l.defections, l.hires, l.fires,
        l.tribute_changes);
+    ar(l.loot, l.escort_pay, l.raids, l.escorts, l.sightings, l.warnings, l.garrisons, l.patrols);
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,
        l.reliefs, l.deaths, l.pods);
 }
@@ -502,7 +558,7 @@ void fields(Ar& ar, R& r) {
 // ---- Armies, battles and sieges (MOD-6, MOD-7) ----
 
 // Append only.
-enum class ArmyAction : std::uint8_t { Muster = 0, Move = 1, Besiege = 2, Retreat = 3, Disband = 4 };
+enum class ArmyAction : std::uint8_t { Muster = 0, Move = 1, Besiege = 2, Retreat = 3, Disband = 4, Garrison = 5 };
 
 struct Army {
     Id commissioner = kNone;  // the governor (character) who raised it (MIL-9)
@@ -539,10 +595,13 @@ struct Battle {
     Time start = 0;
     std::int64_t rounds = 0;
     bool alive = true;
+    Good loot_good = kGoodCount;     // cargo from destroyed ships, for the winner (SYS-14)
+    double loot_qty = 0;
 };
 template <class Ar, record_of<Battle> B>
 void fields(Ar& ar, B& b) {
     ar(b.planet, b.x, b.y, b.sides, b.armies, b.damage, b.lost, b.planet_side, b.start, b.rounds, b.alive);
+    ar(b.loot_good, b.loot_qty);
 }
 
 // MOD-7: once no defending ships remain, daily rounds against the static defence.
@@ -557,6 +616,19 @@ struct Siege {
 template <class Ar, record_of<Siege> S>
 void fields(Ar& ar, S& s) {
     ar(s.planet, s.army, s.start, s.called, s.relieved, s.alive);
+}
+
+// ---- Risk (SYS-19, TRD-16) ----
+
+// A sector's risk, the truth every character's belief approximates, and what feeds it
+// today.
+struct SectorRisk {
+    double risk = 0;
+    double raids = 0, hostile_days = 0, clear_days = 0;  // today's
+};
+template <class Ar, record_of<SectorRisk> S>
+void fields(Ar& ar, S& s) {
+    ar(s.risk, s.raids, s.hostile_days, s.clear_days);
 }
 
 // ---- The Trade Authority (FAC-13, FAC-14, SYS-20) ----

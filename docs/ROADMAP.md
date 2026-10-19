@@ -12,4 +12,5 @@ cost (Phase B). Connecting the simulation to the rendered game follows.
 
 MS-1, the skeleton and toolchain, is done: the core, runner, tests, saves and a Godot
 binding the project loads. MS-2 (world generation and the economy), MS-3 (characters,
-movement, information and trade) and MS-4 (politics) are built. Next is MS-5, war.
+movement, information and trade), MS-4 (politics) and MS-5 (war) are built. Next is MS-6,
+piracy and suspicion.

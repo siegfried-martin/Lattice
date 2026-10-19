@@ -14,6 +14,7 @@
 #include "politics/opinion.hpp"
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
+#include "war/raids.hpp"
 
 namespace lattice::armies {
 
@@ -111,6 +112,7 @@ void start_leg(World& w, Id id) {
 void go(World& w, Id id, Id dest) {
     Army& a = w.armies[at(id)];
     const Id from = a.planet;
+    if (from == kNone) return;  // already on its way; its arrival decides what's next
     std::vector<Leg> route = move::plan(w, fealty::root_of(w, a.home), from, dest);
     if (route.empty()) {
         disband(w, id, nullptr);
@@ -137,6 +139,7 @@ void retreat(World& w, Id id, Observer* observer) {
     }
     a.action = ArmyAction::Retreat;
     a.target = kNone;
+    if (a.planet == kNone) return;  // on the move: it heads home when it arrives
     if (a.planet == a.home) {
         disband(w, id, observer);
         return;
@@ -305,9 +308,17 @@ void besiege(World& w, Id id, Observer* observer) {
         w.events.push({.time = w.now + trip, .kind = EventKind::CallForHelp, .record = siege, .a = liege});
         w.sieges[at(siege)].called = true;
     }
-    const std::vector<Id> defenders = ready(w, t);
+    // The defenders: its commanders at home, and any garrison sent ahead.
+    std::vector<Id> defenders = ready(w, t);
+    Id garrison = kNone;
+    for (Id g = 0; g < static_cast<Id>(w.armies.size()); ++g) {
+        const Army& other = w.armies[at(g)];
+        if (!other.alive || other.action != ArmyAction::Garrison || other.planet != t) continue;
+        if (garrison == kNone) garrison = g;
+        for (Id m : other.members) defenders.push_back(m);
+    }
     if (!defenders.empty()) {
-        combat::start(w, a.members, defenders, t, true, id, kNone, observer);
+        combat::start(w, w.armies[at(id)].members, defenders, t, true, id, garrison, observer);
         return;
     }
     w.events.push({.time = w.now + kDay, .kind = EventKind::SiegeRound, .record = siege});
@@ -328,8 +339,7 @@ std::pair<double, double> position(const World& w, const Army& a) {
 
 Plan best_invasion(const World& w, Id planet) {
     Plan best;
-    const Id root = fealty::root_of(w, planet);
-    const std::vector<Id> enemies = diplomacy::enemies(w, root);
+    const std::vector<Id> enemies = raids::believed_enemies(w, planet);  // as it has heard (DIP-5)
     if (enemies.empty()) return best;
     const Id gov = w.planets[at(planet)].governor;
     for (const Army& a : w.armies) {
@@ -425,6 +435,16 @@ void member_arrived(World& w, Id id, Observer*) {
 
 void muster_deadline(World& w, Id id, Observer* observer) {
     Army& a = w.armies[at(id)];
+    if (a.alive && a.action == ArmyAction::Garrison) {
+        for (Id m : a.members) {
+            if (w.characters[at(m)].battle != kNone) {  // not in the middle of a fight
+                w.events.push({.time = w.now + kDay, .kind = EventKind::ArmyMuster, .record = id});
+                return;
+            }
+        }
+        retreat(w, id, observer);  // the garrison's time is up
+        return;
+    }
     if (!a.alive || a.action != ArmyAction::Muster) return;
     // Those not there yet are left behind.
     for (Id m : std::vector<Id>(a.called)) release(w, m, w.characters[at(m)].planet != kNone ? w.characters[at(m)].planet : a.home);
@@ -461,7 +481,11 @@ void on_arrive(World& w, Id id, std::uint32_t seq, Observer* observer) {
     if (a.relief) {
         const Id siege = w.planets[at(t)].siege;
         if (siege == kNone || !w.sieges[at(siege)].alive) {
-            retreat(w, id, observer);
+            // Here before the siege: garrison the planet until the threat passes or
+            // army.muster_days go by (MIL-11, INF-12).
+            a.action = ArmyAction::Garrison;
+            w.events.push({.time = w.now + w.config.army.muster_days * kDay, .kind = EventKind::ArmyMuster, .record = id});
+            if (observer) observer->log(w.now, "army.garrison", id, "at " + std::to_string(t));
             return;
         }
         // Relief joins the defenders against the besiegers (MIL-11).

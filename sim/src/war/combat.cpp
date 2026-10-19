@@ -6,6 +6,7 @@
 
 #include "chars/characters.hpp"
 #include "chars/contracts.hpp"
+#include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "politics/fealty.hpp"
 #include "war/armies.hpp"
@@ -35,8 +36,38 @@ void lose_fleet(World& w, Id id, Observer* observer) {
         const Id ct = contracts::held(w, id, k);
         if (ct != kNone) contracts::end(w, ct);
     }
-    if (c.cargo_good != kGoodCount) w.ledger.destroyed[c.cargo_good] += c.cargo_qty;
+    // Cargo: combat.cargo_destroyed of it is destroyed; the rest is the winner's to take,
+    // and what it can't carry is lost (SYS-14).
+    if (c.cargo_good != kGoodCount && c.cargo_qty > 0) {
+        double lost = c.cargo_qty;
+        if (c.battle != kNone) {
+            Battle& b = w.battles[at(c.battle)];
+            if (b.loot_good == kGoodCount || b.loot_good == c.cargo_good) {
+                const double saved = c.cargo_qty * (1 - w.config.combat.cargo_destroyed);
+                b.loot_good = c.cargo_good;
+                b.loot_qty += saved;
+                lost -= saved;
+            }
+        }
+        w.ledger.destroyed[c.cargo_good] += lost;
+    }
     c.cargo_qty = 0, c.cargo_cost = 0, c.cargo_good = kGoodCount;
+    // An escort and its merchant part (TRD-8): the job no longer exists.
+    if (c.escort != kNone) {
+        Character& e = w.characters[at(c.escort)];
+        contracts::end(w, contracts::held(w, c.escort, ContractKind::Escort));
+        e.escorting = kNone;
+        if (e.planet == kNone && e.route.empty() && e.battle == kNone) {
+            e.planet = e.last_planet = c.last_planet;
+            e.activity = Activity::Idle;
+            chars::wake(w, c.escort, w.now + kHour);
+        }
+        c.escort = kNone;
+    }
+    if (c.escorting != kNone) {
+        w.characters[at(c.escorting)].escort = kNone;
+        c.escorting = kNone;
+    }
     c.trip.clear();
     if (c.army != kNone) armies::leave(w, c.army, id);
     c.army = kNone;
@@ -44,6 +75,7 @@ void lose_fleet(World& w, Id id, Observer* observer) {
     c.route.clear();
     c.leg = 0;
     ++c.travel_seq;
+    c.paused_at = kNever;
     if (w.rng[Stream::Combat].chance(w.config.combat.pod_death_p)) {
         c.alive = false;
         for (Id k : std::vector<Id>(c.contracts)) contracts::end(w, k);
@@ -118,11 +150,21 @@ Id start(World& w, std::vector<Id> attackers, std::vector<Id> defenders, Id plan
     w.battles.push_back(std::move(b));
     const auto id = static_cast<Id>(w.battles.size() - 1);
     for (const auto& side : w.battles.back().sides) {
-        for (Id c : side) w.characters[at(c)].battle = id;
+        for (Id c : side) {
+            w.characters[at(c)].battle = id;
+            move::pause(w, c);
+        }
     }
     ++w.ledger.battles;
     w.events.push({.time = w.now + w.config.time.battle_round_hours * kHour, .kind = EventKind::BattleRound, .record = id});
     if (observer) observer->log(w.now, "battle.start", id, "at " + std::to_string(planet));
+    return id;
+}
+
+Id start_in_space(World& w, std::vector<Id> attackers, std::vector<Id> defenders, double x, double y, Observer* observer) {
+    const Id id = start(w, std::move(attackers), std::move(defenders), kNone, false, kNone, kNone, observer);
+    w.battles[at(id)].x = x;
+    w.battles[at(id)].y = y;
     return id;
 }
 
@@ -171,8 +213,26 @@ void round(World& w, Id id, Observer* observer) {
         return;
     }
     b.alive = false;
+    // The winners take what loot they can carry; the rest is lost (SYS-14, MIL-15).
+    if (b.loot_qty > 0) {
+        for (Id f : b.sides[at(winner)]) {
+            Character& taker = w.characters[at(f)];
+            if (taker.cargo_qty > 0 && taker.cargo_good != b.loot_good) continue;
+            const double take = std::min(b.loot_qty, ships::fleet(w, taker).cargo - taker.cargo_qty);
+            if (take <= 0) continue;
+            taker.cargo_good = b.loot_good;
+            taker.cargo_qty += take;
+            b.loot_qty -= take;
+            w.ledger.loot += take;
+        }
+        w.ledger.destroyed[b.loot_good] += b.loot_qty;
+        b.loot_qty = 0;
+    }
     for (const auto& side : b.sides) {
-        for (Id f : side) w.characters[at(f)].battle = kNone;
+        for (Id f : side) {
+            w.characters[at(f)].battle = kNone;
+            move::resume(w, f);
+        }
     }
     if (observer) observer->log(w.now, "battle.end", id, "won by side " + std::to_string(winner));
     armies::battle_over(w, id, winner, observer);

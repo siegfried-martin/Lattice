@@ -5,6 +5,29 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-5 part 2, risk, raids, escorts and news
+
+- **Risk:**
+  - per sector, fed by raids and raiders' time in open space, cleared by patrols;
+  - beliefs are seen at leg ends and planets and shared (SYS-19, INF-6);
+  - merchants charge believed route risk on their cargo (SYS-7).
+- **Raids** *(proposed)*: spare commanders sortie toward the nearest believed-enemy
+  planet, engage enemy members in range, take loot up to capacity, and sell it at home
+  (MIL-15).
+- **Escorts:** hired at a stop from armed characters idle there, by the expected-loss
+  formula; they travel and fight with the merchant and are paid at the trip's end
+  (TRD-8 to TRD-10).
+- **Sorties:** out toward a planet without landing, held at a standoff, then home. They
+  serve raids, war scouting and patrols.
+- **Warnings and garrisons:**
+  - sightings record intent and power;
+  - a governor warns its liege of an army coming for it;
+  - relief can garrison before a siege (MIL-11, INF-12).
+- **Security missions** patrol a planet's own space when its believed risk is high
+  (MIL-5).
+- **DIP-5:** war and peace are facts. Governors, merchants, raiders and patrols act on
+  them; osmosis, gates and the vote use the truth.
+
 ### 2026-10-18 · MS-5 part 1, war
 
 - **Correction:** escorts come with risk in MS-5, not MS-6 as MS-3's entry said; MS-5's

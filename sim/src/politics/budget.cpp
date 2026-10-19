@@ -11,6 +11,7 @@
 #include "politics/opinion.hpp"
 #include "war/armies.hpp"
 #include "war/diplomacy.hpp"
+#include "war/raids.hpp"
 
 namespace lattice::budget {
 
@@ -75,10 +76,13 @@ void weekly(World& w, Id planet, Observer* observer) {
     double money = p.treasury + c.budget.credit_risk * income * g.risk;
     const double pressure = p.treasury < 0 ? 1 + c.budget.debt_pressure * static_cast<double>(p.deficit_days) / c.time.payment_days : 1;
 
-    // Defence is worth more at war, and more again with an enemy planet near (MIL-5).
-    const Id root = fealty::root_of(w, planet);
-    const std::vector<Id> enemies = diplomacy::enemies(w, root);
+    // Defence is worth more at war, and more again with an enemy planet near or an enemy
+    // army seen coming (MIL-5), all as the governor believes (DIP-5).
+    const std::vector<Id> enemies = raids::believed_enemies(w, planet);
     bool border = false;
+    for (const Sighting& s : g.facts.sightings) {
+        if (s.target == planet && s.time >= w.now - c.scout.threat_days * kDay) border = true;
+    }
     for (Id q = 0; q < static_cast<Id>(w.planets.size()) && !enemies.empty() && !border; ++q) {
         if (std::find(enemies.begin(), enemies.end(), fealty::root_of(w, q)) != enemies.end() &&
             w.derived.travel(planet, q) <= c.dip.border_days) {

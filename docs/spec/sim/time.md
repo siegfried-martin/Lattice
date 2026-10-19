@@ -100,6 +100,14 @@ an evasion. Sightings (INF-3) come from the same check.
   `space.detect_range`, and checks neighbouring cells. In MS-3 that is members who can
   share facts. Hashing every ship cost a hundred times more at busy systems, where
   traffic crowds the short hops between planets and interchanges.
+- *MS-5:* also raiders, patrols, scouts on missions, members of factions at war, and
+  armies moving in open space.
+  - **Detection:** a hostile pair in range is engaged with chance `space.engage_p` a step.
+    A quarry faster than its attacker slips away with chance `space.evade` × its speed
+    edge, which stands in for the full detection roll.
+  - **Battles in open space** stop both sides' journeys; survivors resume their legs
+    afterwards.
+  - Armies don't meet each other in the field yet.
 
 ### TIM-7 Hazards cost time `v1` `proposed`
 

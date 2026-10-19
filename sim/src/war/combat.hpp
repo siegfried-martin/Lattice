@@ -9,6 +9,8 @@ namespace lattice::combat {
 // fighters stop where they are until it ends. Returns the battle.
 Id start(World& world, std::vector<Id> attackers, std::vector<Id> defenders, Id planet, bool planet_side, Id attacking_army,
          Id defending_army, Observer* observer);
+// A battle in open space at a position: travellers stop until it's over (TIM-6).
+Id start_in_space(World& world, std::vector<Id> attackers, std::vector<Id> defenders, double x, double y, Observer* observer);
 
 // One hourly round: each side loses combat.lethality x the other's power x noise, as whole
 // ships, weakest first and each commander's flagship last; a side retreats when its power

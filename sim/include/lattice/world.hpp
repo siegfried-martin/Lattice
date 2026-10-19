@@ -44,6 +44,7 @@ struct Derived {
         std::int32_t hops = 0;
     };
     std::vector<RouteSum> route_sums;
+    std::vector<std::vector<Id>> route_risk_sectors;  // P x P: open-space sectors on the route
     const RouteSum& route(Id a, Id b) const {
         return route_sums[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
     }
@@ -84,6 +85,7 @@ struct World {
     std::vector<Army> armies;
     std::vector<Battle> battles;
     std::vector<Siege> sieges;
+    std::vector<SectorRisk> risk;  // per sector
     Authority authority;
     Ledger ledger;
 
