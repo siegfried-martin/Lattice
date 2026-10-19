@@ -11,29 +11,41 @@ Generated once (GEN) and never changed by the simulation.
 
 | Record | Fields |
 |---|---|
-| **Sector** | hex coordinates, culture region, neighbours, fuel price base |
-| **Region** | culture, production weights per good |
-| **Group** | sector, member planets, holder planet (WLD-5), interchange node (if on the network) |
-| **Lattice node** | interchange or junction, position, edges |
+| **Sector** | hex coordinates, centre, culture region, its system (at most one); neighbours are computed |
+| **Region** | culture (its index), seed sector, production weights per lawful good, population scale |
+| **System** | sector, centre, fringe flag, planets and moons |
+| **Group** | system, member planets, holder planet (WLD-5), interchange node (if on the network) |
+| **Lattice node** | interchange or junction, position, the group an interchange serves, edges |
 | **Lattice edge** | two nodes, length (sets transit time) |
 | **Hop lane** | two planets, length |
+| **Seats of power** | the planets chosen as seats (GEN-8) |
 | **Ship variant** | name, culture, class, tier, combat power, trade power (cargo), speed in open space, Lattice Drive (yes/no), price |
 | **Good** | kind (life support, luxury, contraband), base price, reserve days, price exponent, consumption per capita, happiness value |
+
+Goods are a fixed list in code (food, water, oxygen; wine, spice, silk; stims, the
+names flavour); their numbers are config (`good.<name>.*`), not stored records.
+
+**Derived, not saved:** reference travel times between planets (TIM-4), the osmosis
+pairs (SYS-6) and each region's planets are rebuilt from the map after generation and
+after loading.
 
 ### MOD-2 Planet `v1`
 
 | Field | Notes |
 |---|---|
-| sector, group | static |
-| culture | static (WLD-16) |
+| sector, region, system, group, moon of, position | static |
+| culture | static (WLD-16): its region |
+| fringe | static: off the network (WLD-6) |
 | governor | character ID (FAC-1) |
 | population, happiness | PRD-2, PRD-4 |
 | prosperity | derived index, stored for capture effects (FAC-10, SYS-13) |
 | stock per good | the market |
 | goods made | three goods, each with base efficiency tier (high, medium, low) |
-| efficiency modifiers | active events (PRD-11) |
+| efficiency modifiers | tier shift per good made, and festivals running, from active events (PRD-11) |
 | labour share per good made | PRD-9 |
+| productivity, contraband average | SYS-1 |
 | treasury | may be negative (ECO-8) |
+| income average, income today | for the credit limit (SYS-3) |
 | tax rate | ECO-3 |
 | tribute rate | set by its liege (FAC-6) |
 | growth factor | from governor's risk tolerance (PRD-3) |
@@ -145,7 +157,9 @@ little. Sharing is a merge of two sorted vectors keeping the newer of each key (
 ### MOD-10 World event `v1`
 
 `(kind, planets or region, good, efficiency or consumption change, start, end)` for
-PRD-11.
+PRD-11. *As built:* kind, region (regional events), the planets it affects, the good,
+start, end and an alive flag; the change follows from the kind (SYS-4). Ended events
+keep their slot (ARC-2).
 
 ### MOD-11 The scheduled-event queue `v1`
 
@@ -160,3 +174,11 @@ PRD-11.
 | payload | two integers, their meaning set by the kind |
 
 Ordered by time, then phase, then sequence number (TIM-2).
+
+### MOD-12 World ledger `v1`
+
+Cumulative world totals kept for the checks (CHK-7): money created (population spending,
+ECO-1), money sunk (operating costs, the osmosis margin and later every other sink),
+goods produced and consumed per good, osmosis volume and margin. The total of all money
+held always equals the starting total plus money created minus money sunk; a test holds
+the simulation to it.

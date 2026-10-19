@@ -1,4 +1,4 @@
-# Checks that the simulation binding loads and runs (ARC-4, MS-1). Run by `make check`:
+# Checks that the simulation binding loads and runs (ARC-4). Run by `make check`:
 #   godot --headless --path . --script res://tests/sim_binding.gd
 extends SceneTree
 
@@ -18,8 +18,12 @@ func _run() -> bool:
 	for i in 3600:
 		sim.advance(1.0 / 60.0)
 	var snap: Dictionary = sim.snapshot()
-	if snap.day != 1 or snap.seed != 42 or snap.events_processed < 1:
+	if snap.day != 1 or snap.seed != 42 or snap.events_processed < 1 or snap.planets < 2:
 		printerr("sim binding: unexpected snapshot ", snap)
 		return false
-	print("sim binding: ok ", snap)
+	var planet: Dictionary = sim.planet(0)
+	if planet.is_empty() or planet.population <= 0 or not planet.prices.has("food"):
+		printerr("sim binding: unexpected planet ", planet)
+		return false
+	print("sim binding: ok day %d, %d planets, population %.0f" % [snap.day, snap.planets, snap.population])
 	return true

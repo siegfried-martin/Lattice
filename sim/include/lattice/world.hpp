@@ -6,6 +6,7 @@
 
 #include "lattice/config.hpp"
 #include "lattice/event_queue.hpp"
+#include "lattice/model.hpp"
 #include "lattice/rng.hpp"
 #include "lattice/time.hpp"
 
@@ -26,7 +27,27 @@ public:
     }
 };
 
-// The whole simulation state. Everything here goes into saves (ARC-9).
+// Values computed from the static map, rebuilt after generation and after loading
+// rather than saved.
+struct Derived {
+    // Reference travel time between planets in days (TIM-4), row-major by planet.
+    std::vector<double> travel_days;
+    std::size_t planet_count = 0;
+    double travel(Id a, Id b) const {
+        return travel_days[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
+    }
+
+    // Market pairs close enough for osmosis (SYS-6), a < b, with their falloff weight.
+    struct Pair {
+        Id a, b;
+        double days, weight;
+    };
+    std::vector<Pair> osmosis_pairs;
+
+    std::vector<std::vector<Id>> region_planets;
+};
+
+// The whole simulation state. Everything but `derived` goes into saves (ARC-9).
 struct World {
     Config config;
     std::uint64_t seed = 0;
@@ -37,9 +58,21 @@ struct World {
 
     // debug.pings scaffolding: how often each ping record has fired.
     std::vector<std::int64_t> ping_fires;
+
+    Map map;
+    std::vector<Planet> planets;
+    std::vector<WorldEvent> world_events;  // never removed; ended ones have alive = false
+    Ledger ledger;
+
+    Derived derived;
 };
 
+// Generates a world (GEN) and schedules its cadences. Doesn't run the warm-up
+// (GEN-10); the runner does that.
 World new_world(const Config& config, std::uint64_t seed);
+
+// Recomputes world.derived from the map and config.
+void rebuild_derived(World& world);
 
 // Runs every event due in [now, now + dt), in (time, phase, seq) order, then sets now to
 // now + dt (TIM-2). Splitting an interval into smaller advances gives the same result.

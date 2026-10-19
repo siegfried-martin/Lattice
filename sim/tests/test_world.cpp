@@ -11,10 +11,11 @@ using namespace lattice;
 
 namespace {
 
+// Records when the daily tick samples its first world series.
 struct Recorder : Observer {
     std::vector<std::pair<Time, std::string>> samples;
     void sample(Time t, std::string_view series, std::int64_t, double) override {
-        samples.emplace_back(t, std::string(series));
+        if (series == "world.events_processed") samples.emplace_back(t, std::string(series));
     }
 };
 
@@ -31,21 +32,29 @@ TEST_CASE("advance runs events in [now, now + dt) (TIM-2)") {
     Recorder r;
     advance(w, kDay, &r);
     CHECK(w.now == kDay);
-    REQUIRE(r.samples.size() == 2);  // one daily tick, at time 0
+    REQUIRE(r.samples.size() == 1);  // one daily tick, at time 0
     CHECK(r.samples[0].first == 0);
     advance(w, kDay, &r);
-    CHECK(r.samples.size() == 4);
-    CHECK(r.samples[2].first == kDay);
+    CHECK(r.samples.size() == 2);
+    CHECK(r.samples[1].first == kDay);
     advance(w, 0, &r);
-    CHECK(r.samples.size() == 4);
+    CHECK(r.samples.size() == 2);
 }
 
-TEST_CASE("a year has 365 daily ticks") {
+TEST_CASE("a year has 365 daily ticks and every planet has 365 days") {
     World w = new_world(Config{}, 1);
-    advance(w, 365 * kDay);
-    CHECK(w.events_processed == 365);
-    CHECK(w.events.size() == 1);
-    CHECK(w.events.top().time == 365 * kDay);
+    Recorder r;
+    advance(w, 365 * kDay, &r);
+    CHECK(r.samples.size() == 365);
+    std::int64_t planet_days = 0;
+    for (const Event& e : w.events.raw()) {
+        if (e.kind == EventKind::PlanetDay) {
+            CHECK(e.time >= 365 * kDay);
+            CHECK(e.time < 366 * kDay);
+            ++planet_days;
+        }
+    }
+    CHECK(planet_days == static_cast<std::int64_t>(w.planets.size()));
 }
 
 TEST_CASE("the same seed and config give the same world (ARC-5)") {

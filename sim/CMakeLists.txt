@@ -30,10 +30,16 @@ add_library(lattice_core STATIC
     src/core/event_queue.cpp
     src/core/rng.cpp
     src/core/save.cpp
+    src/core/travel.cpp
     src/core/world.cpp
+    src/economy/economy.cpp
+    src/economy/events.cpp
+    src/economy/market.cpp
+    src/gen/worldgen.cpp
+    src/trade/osmosis.cpp
 )
 set_target_properties(lattice_core PROPERTIES CXX_EXTENSIONS OFF)
-target_include_directories(lattice_core PUBLIC include)
+target_include_directories(lattice_core PUBLIC include PRIVATE src)
 target_include_directories(lattice_core SYSTEM PRIVATE third_party/tomlplusplus)
 target_link_libraries(lattice_core PUBLIC lattice_options)
 
@@ -52,9 +58,13 @@ if(LATTICE_BUILD_TESTS)
         tests/test_rng.cpp
         tests/test_save.cpp
         tests/test_world.cpp
+        tests/test_worldgen.cpp
+        tests/test_economy.cpp
     )
     set_target_properties(lattice-tests PROPERTIES CXX_EXTENSIONS OFF)
     target_include_directories(lattice-tests SYSTEM PRIVATE third_party/doctest)
+    target_include_directories(lattice-tests PRIVATE src)
+    target_compile_definitions(lattice-tests PRIVATE LATTICE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(lattice-tests PRIVATE lattice_core)
     add_test(NAME lattice-tests COMMAND lattice-tests)
 endif()

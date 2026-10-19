@@ -13,7 +13,7 @@ namespace lattice {
 // Saves are versioned binary holding the whole world (ARC-9). Bump this whenever the
 // layout of the world section changes; a build reads only its own version. Config
 // fields are stored by name, so adding a tunable doesn't need a bump.
-inline constexpr std::uint32_t kSaveVersion = 1;
+inline constexpr std::uint32_t kSaveVersion = 2;
 
 class SaveError : public std::runtime_error {
 public:

@@ -48,11 +48,14 @@ Read `docs/VISION.md` first. It is the intent everything else serves.
 - `sim/` is the C++20 core (`docs/spec/sim/`), with no Godot types; `gdext/` is the
   thin binding, which builds into `bin/`. Both build with CMake and Ninja.
 - `make sim-test` builds and runs the tests; `make sim-release` builds the runner,
-  `sim/build/release/lattice-run --help`.
+  `sim/build/release/lattice-run --help`. The default config is a development world;
+  `--config sim/configs/v1.toml` runs a v1-size one.
 - Keep it deterministic (ARC-5, ARC-6): iterate only vectors or `std::map`, draw random
   numbers from the system's own stream, and schedule through the event queue.
-- A new record field or event kind changes the save layout: bump `kSaveVersion`. A new
-  tunable goes in `Config`, `for_each_field` and `tunables.md`.
+- A new record field or event kind changes the save layout: add it to the record's
+  `fields()` list (and to the save's reference checks for an event kind), and bump
+  `kSaveVersion`. A new tunable goes in `Config`, `for_each_field`, `validate` and
+  `tunables.md`.
 - Run `make gdext` before opening the editor on a fresh checkout (ARC-4).
 
 ## Checking your work

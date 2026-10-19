@@ -1,5 +1,7 @@
 #include "lattice/rng.hpp"
 
+#include <cmath>
+#include <numbers>
 #include <sstream>
 #include <stdexcept>
 
@@ -33,6 +35,12 @@ std::int64_t Rng::uniform_int(std::int64_t lo, std::int64_t hi) {
         r = next();
     } while (r >= limit);
     return static_cast<std::int64_t>(static_cast<std::uint64_t>(lo) + r % n);
+}
+
+double Rng::normal() {
+    const double u1 = 1.0 - uniform01();  // (0, 1], so the log is finite
+    const double u2 = uniform01();
+    return std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * std::numbers::pi * u2);
 }
 
 std::string Rng::state() const {

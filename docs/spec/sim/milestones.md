@@ -21,6 +21,21 @@ World generation (GEN-1 to GEN-7), population, production, labour, markets and p
 events, treasuries and operating costs, osmosis (SYS-1 to SYS-6). Planets with no
 characters yet: osmosis is the only trade.
 
+*Built 2026-10-18.* World generation makes the map, regions, systems, groups, the
+Lattice, hop lanes, what planets make, the seats of power (for fuel prices) and fuel
+prices; each planet runs its daily economy, weekly labour shift and monthly costs; world
+events and osmosis run daily. The runner writes the map and per-planet, per-good and
+world series. Tests cover every generation promise over many seeds at both sizes, the
+SYS-1 to SYS-6 formulas, and that money and goods add up over a year (MOD-12).
+
+*Found:* with the starting values the world can't feed itself, so populations shrink
+from the first day. A thousand people need 3 units of life support a day; at most they
+make `prod.labour_per_capita` × productivity, 3.5 × 0.9 ≈ 3.2, and only if all their
+labour is at high efficiency. Prices then climb to `price.max`, happiness falls to 0
+and productivity to `pop.p_base`. Planets missing a life-support good live on osmosis
+alone. Not tuned here: merchants (MS-3) change the picture, and tuning waits for Phase A
+(SIM-2).
+
 ### MS-3 Characters, movement, information and trade `v1`
 
 Characters and generation (SYS-18), ship variants, running costs and fuel (SYS-21),

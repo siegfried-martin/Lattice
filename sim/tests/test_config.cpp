@@ -49,3 +49,35 @@ TEST_CASE("the written config reads back to the same config (ARC-7)") {
 TEST_CASE("a missing file is an error") {
     CHECK_THROWS_AS(load_config_file("/nonexistent/lattice.toml"), ConfigError);
 }
+
+TEST_CASE("per-good keys and lists (MS-2)") {
+    Config c = parse_config(R"(
+[good.food]
+base_price = 12
+[good.stims]
+happiness = 0.1
+[lux]
+variety_bonus = [0, 0.001, 0.002, 4]
+)");
+    CHECK(c.goods[kFood].base_price == 12);
+    CHECK(c.goods[kStims].happiness == 0.1);
+    CHECK(c.lux.variety_bonus[3] == 4);
+
+    // Luxuries take their consumption from lux.consumption, so the key doesn't exist.
+    CHECK_THROWS_WITH_AS(parse_config("[good.wine]\nconsumption = 1\n"), doctest::Contains("unknown key good.wine.consumption"),
+                         ConfigError);
+    CHECK_THROWS_WITH_AS(parse_config("[lux]\nvariety_bonus = [0, 1]\n"), doctest::Contains("list of 4 numbers"), ConfigError);
+    CHECK_THROWS_WITH_AS(parse_config("[lux]\nvariety_bonus = [0, 1, \"x\", 2]\n"), doctest::Contains("list of numbers"),
+                         ConfigError);
+
+    Config d;
+    d.lux.variety_bonus = {0.5, 0.25, 0.125, 1};
+    d.goods[kSilk].k = 2.5;
+    CHECK(parse_config(to_toml(d)) == d);
+}
+
+TEST_CASE("the v1 config file loads") {
+    const Config c = load_config_file(LATTICE_SOURCE_DIR "/configs/v1.toml");
+    CHECK(c.gen.width == 10);
+    CHECK(c.gen.planets == 100);
+}

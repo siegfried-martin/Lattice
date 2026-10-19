@@ -11,4 +11,6 @@ the world is stable (Phase A), then experiments testing whether each mechanic ea
 cost (Phase B). Connecting the simulation to the rendered game follows.
 
 MS-1, the skeleton and toolchain, is done: the core, runner, tests, saves and a Godot
-binding the project loads. Next is MS-2, world generation and the economy.
+binding the project loads. MS-2, world generation and the economy, is built (planets
+trade only by osmosis until merchants arrive). Next is MS-3, characters, movement,
+information and trade.
