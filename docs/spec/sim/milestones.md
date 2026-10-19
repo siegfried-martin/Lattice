@@ -382,6 +382,49 @@ and tuning until the checks pass (`checks.md`).
   - Price dispersion (CHK-14, 0.95, band to 0.6), war share (CHK-8, 0.46 against 0.5
     to 0.8), flips (CHK-9, 5.5% against 5%), the most-traded planet (CHK-6c, 2.9),
     smuggling runs (CHK-24, 75% of seeds).
+- **Where round 4's money goes** (eight seeds, second half, share of money created):
+  making goods 45%, operating costs about 24%, the osmosis margin 15%, patronage 7.7%,
+  tribute 4.5%, static defence 3.0%, ships bought 0.9%, stipends 0.3%, ship running
+  costs and fuel 0.2%. Military spending of every kind is about 4%; raising an army
+  moves no money; patronage paid down is 1.3 to 2.7 times tribute paid up; an invasion's
+  counted value is on the order of a thousand times its counted cost. War can't drain a
+  treasury, so CHK-8's cycle can't happen.
+- **Where a run's time goes** (one v1 world, a year, profiled 2026-10-19): character
+  decisions are about 60% of it, merchants planning trips most of that; the open-space
+  step 18%. One function, `curve_at` (a merchant's believed price curve, with a `pow`
+  per call), is 34% on its own and could be computed once per fact; weighing a salary
+  plans the best trip twice. Sweeps already use every core, one seed each, so threads
+  inside a world wouldn't make them faster; cheaper decisions would. No action yet
+  (TIM-8 holds: about 15 seconds a year).
+
+**Next: the war and fealty round** *(designed 2026-10-19, not built)*. One area at a time,
+against a target written down first (CHK-26):
+1. **Bounties for kills,** paid by the root (MIL-18), and **spoils of capture** split by
+   power × days in the siege (MIL-19).
+2. **Fleet loans** in both directions (MIL-3, MIL-11), replacing the automatic call to
+   arms; **commanders choose their objectives** as missions (MIL-2, MIL-9), behind a
+   config flag so a run with and without shows what autonomy alone does.
+3. **Tribute relief requests** on fixed need tests (FAC-15), with **patronage narrowed**
+   to rebuilding captured planets (FAC-7).
+4. **Reputation in stipends** (MIL-2).
+5. **Messages go one way** (INF-16): requests carry deadlines and defaults.
+
+Watch: CHK-26's bands, the root's treasury at war (CHK-8), money growth (CHK-7), time
+at war, captures, desertions (objectives declined), relief granted and refused. Munitions
+(MIL-4) and MIL-3's liege paying for a whole campaign wait until bounties show whether
+war is still too cheap. OPN-42 (character roles) may change items 2 and 4 before
+they're built.
+
+**Discussed, not decided: the economy after this round.** Starvation and merchants'
+margins point at the same causes. In round 4 a full ration of life support would take
+about a third of the median planet's budget (US households spend about a tenth on food),
+and the poorest tenth would need 2 to 3 times their whole budget, so they starve on
+price, not on stock; about 38% of purchasing power goes unspent, because luxury buying
+is capped by how full the market is; and growth eats every surplus. Levers discussed,
+for a later round with its own targets: life support cheap enough to be 10% to 15% of the
+budget; a price curve steep only below the reserve; growth that follows happiness up to
+a capacity per planet instead of food surplus; luxuries bought from whatever budget is
+left. Governors capping population was discussed and set aside as not market driven.
 
 ### MS-9 Phase B `v1`
 

@@ -5,6 +5,45 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-19 · War and fealty money, design
+
+Agreed with the human in conversation, written into the spec as `proposed`; not built.
+Placeholders for the targets, to be tuned when something isn't working.
+
+- **A target before tuning:** CHK-26's bands for tribute, military spending and
+  patronage as shares of net income, in peace and war. Round 4 measured military
+  spending at about 4% of money created and patronage above tribute (MS-8).
+- **Bounties for kills,** paid monthly by the root at `bounty.share` 0.5 of each enemy
+  ship's price; for kills, not participation (MIL-18, SYS-14).
+- **Spoils of capture:** `spoils.per_prosperity` × N × P from the captured planet's
+  treasury, split by combat power × days in the siege (MIL-19, SYS-13).
+- **Fleet loans:** serving another governor is a loan of the service contract for a
+  duration. A liege borrowing pays the stipends plus `loan.fee_months`; a vassal
+  borrowing for relief pays the stipends and spends favour, with `loan.relief_fee` 0.
+  What's lent is the employer, never the ships (MIL-3, MIL-11, REL-8; REJ-12 stands).
+- **Commanders choose their objectives** as missions, by expected kills, spoils, losses
+  and the stipend at stake if their employer falls; declining every one is a small bad
+  deed. No forced missions. Armies are whoever joins by the deadline (MIL-2, MIL-9,
+  CHR-10, SYS-9, SYS-13).
+- **Tribute is meant to be high;** a vassal meeting a fixed need test can ask for
+  relief, granted or refused at a cost in opinion, ending when the need clears
+  (FAC-6, FAC-15, SYS-11). **Patronage** is narrowed to rebuilding captured planets
+  (FAC-7, SYS-5).
+- **Reputation raises a stipend,** up to double on a levelling curve (`hire.rep_mult`,
+  `hire.rep_half`) (MIL-2, REL-7); what it's worth to an employer is OPN-40.
+- **Messages go one way:** contracts end on their own terms, requests carry a deadline
+  and a default, and the fleet is the reply (INF-16).
+- **Goals and decisions are separate;** a decision never replans a goal on the spot
+  (CHR-2).
+- **Deferred:** munitions (MIL-4) and the liege paying for a whole campaign, until
+  bounties show whether war is still too cheap; whether the war vote weighs bounty costs
+  (OPN-41); the economic levers (cheaper life support, growth to a capacity, luxuries
+  from what's left), discussed for a later round (MS-8).
+- **Open:** character roles (OPN-42), which the human is taking to the planning agent
+  and may change the commander rules before they're built.
+- **Not taken:** parallelising decisions on a GPU or threads (sweeps already use every
+  core; decisions are branchy and depend on each other; profile first, TIM-8).
+
 ### 2026-10-18 · Phase A round 4, built and run
 
 The design below, built (MS-8, round 4), and what the runs needed. Proposed until the
@@ -419,6 +458,9 @@ Ideas considered and dropped. Don't reintroduce one without a new reason.
 | REJ-37 | Trading standing for money | Money is never traded for opinion | REL-1 |
 | REJ-38 | A greed trait | Risk tolerance covers it | CHR-4 |
 | REJ-39 | Academy worlds training crew of their culture | Not needed; new characters start at low level | CHR-6; crew hiring stays open (OPN-36) |
+| REJ-40 | Bounties for taking part in a war action | Pays for turning up, not for fighting | Bounties for kills (MIL-18); spoils weighted by days in the siege (MIL-19) |
+| REJ-41 | Governors ordering their commanders onto missions | The one forced choice in a design where everyone chooses | Objectives as missions (MIL-2) |
+| REJ-42 | Acknowledgements and resent messages; couriers that nothing can stop, even a blockade | Protocol state for every character, or no fragility at all | One-way messages with deadlines and defaults (INF-16) |
 
 ## Retired IDs
 

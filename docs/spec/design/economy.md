@@ -71,6 +71,10 @@ that must be replaced; **raids are a small sink of their own** (MIL-15).
 | Munitions refills, recruited ships, equipment (ECO-6) | Trade between characters and the state |
 | Authority dues spent on network maintenance | Pirate hire pay and loot sales |
 | Raid losses; the osmosis margin (TRD-13) | Contraband sales (lawful population to smuggler to pirate planet) |
+| | *(proposed)* Bounties (root to commander, MIL-18), spoils (captured planet to its captors, MIL-19), loan fees (MIL-3) |
+
+*(proposed, war and fealty round)* Bounties and spoils move money, but they end in ships
+bought to replace those lost, which is a sink: treasury to commander to shipyard.
 
 Destroying goods isn't a money sink: the money that paid for them has already moved on
 (REJ-21).
@@ -90,6 +94,9 @@ grow rich refilling the fleets fighting there. When these come into the economy
 In peace, ships, weapons and munitions accumulate and treasuries fill, which makes war
 attractive. War consumes them, treasuries drain through stipends, and peace starts to
 look better. This is an outcome to check for, not a rule.
+
+*(proposed, war and fealty round)* Round 4 couldn't produce it: a war cost a treasury
+almost nothing. Bounties paid by the root (MIL-18) are what drains it now.
 
 *See:* DIP-4, CHK-8.
 

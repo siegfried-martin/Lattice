@@ -201,6 +201,23 @@ commanders against top-up. *Tests:* PIR-4, PIR-8.
 NPC smugglers carry a meaningful share of contraband. *Metric:* contraband volume by
 carrier. *Tests:* PIR-13.
 
+### CHK-26 War and fealty money are where they're meant to be `v1` `proposed`
+
+War and fleets are expensive, tribute is high, and patronage is rare (MIL-18, FAC-6,
+FAC-7). Measured per faction, as shares of the faction's net income (SYS-5), split by
+diplomatic state. *(proposed bands, placeholders until the runs say otherwise)*
+
+| | Peace | War |
+|---|---|---|
+| Tribute paid up, median vassal, share of its own net income | 20% to 30% | 20% to 30% |
+| Military: stipends + security + bounties + loan fees | 10% to 20% | 40% to 60%, with the root's treasury falling month on month |
+| Patronage | under 5% | under 5% |
+
+*Metric:* monthly flows from the ledger per faction, by its state that month. *Tests:*
+MIL-2, MIL-18, FAC-6, FAC-7, FAC-15, ECO-7. *Found in round 4:* military spending of
+every kind was about 4% of the money created, tribute 3% to 6%, and patronage 1.3 to 2.7
+times tribute.
+
 ## Performance
 
 ### CHK-25 It runs fast enough `v1`

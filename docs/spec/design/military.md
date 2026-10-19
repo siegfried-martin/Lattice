@@ -20,12 +20,58 @@ objectives** (attack, defend, join an army); **commanders make the tactical deci
 in service of them. A war costs a governor the stipends it pays out. A commander who
 serves well keeps or grows their stipend.
 
+*(proposed, war and fealty round)*
+- **The stipend follows fleet power and reputation.** It grows with combat power, as
+  now, and with reputation (REL-7) on a curve that levels off, so a famous veteran
+  earns up to about twice an unknown's rate for the same fleet, not ten times.
+  Reputation needs a real worth to the employer, or governors will hire unknowns
+  (OPN-40).
+- **Commanders choose; nobody orders them.** A governor's objectives are posted as
+  missions on its board (CHR-10): defend here, join the siege of X with a muster at Y
+  by day T. The commanders it pays, and any it has borrowed (MIL-3), choose among them
+  by value:
+  - for: the kills (MIL-18) and spoils (MIL-19) they expect;
+  - against: the expected loss of their own ships (their believed chance of losing ×
+    their fleet's value) and the travel;
+  - and the stipend they lose if their employer's planet falls, since capture ends
+    the contracts it paid (SYS-13). This is why a commander defends its employer
+    without a rule saying so.
+
+  Declining every objective the employer posts is a small bad deed (REL-3), not a
+  breach. A commander's choice is which objective to take and how to fight it, not
+  whether to work.
+- *Why:* every other character chooses its work (CHR-1, CHR-10); a forced mission would
+  be the one exception, and a player serving as a commander can always say no.
+
 ### MIL-3 Serving the liege `v1`
 
 When a liege raises an army from its vassals, **the liege pays the stipends of the
 vassals' commanders while they serve**. So the vassal isn't paying for its liege's war;
 its cost is a home left less defended. The commanders want to go, because campaigns are
 how a commander wins a planet (FAC-9).
+
+*(proposed, war and fealty round)* **Serving another governor is a loan of the service
+contract,** in either direction, for a duration:
+- **A liege borrowing a vassal's commanders** sends a request: the stipend it will take
+  over, a fee to the vassal (`loan.fee_months` of the stipend), the muster point and a
+  deadline. The vassal grants or refuses; refusing is a bad deed (REL-10). This replaces
+  the vassal's yes-or-no answer to a call to arms.
+- **A vassal borrowing its liege's commanders** for relief (MIL-11) takes over their
+  stipend and spends favour: the liege's opinion of it falls a little (`deed.relief_used`).
+  A fee on top (`loan.relief_fee`) starts at 0.
+- **What's lent is the employer, never the ships.** The commander keeps its fleet and
+  its own choices (MIL-2): during the loan it picks among the borrower's objectives.
+  Governors still don't own or lend hardware (CHR-8, REJ-12).
+- **The governors agree the transfer; the commander doesn't.** Its service contract
+  allows it, so it isn't asked a third time. It's still free to end the contract
+  (REL-8).
+- **A loan ends on its own terms:** its purpose done (the army disbands, the siege
+  lifts) or `loan.max_days`. The commander goes home on its own; nobody has to tell
+  anyone (INF-16).
+
+*Why:* the same deal covers both directions, makes MIL-3's payment explicit, and gives
+raising an army a political cost and a courier delay: a liege with disloyal vassals
+can't raise a big army quickly.
 
 ### MIL-4 What a fleet costs `v1`
 
@@ -36,6 +82,9 @@ how a commander wins a planet (FAC-9).
   like Mount & Blade's units, drawn from the planet's culture (WLD-18). Buying one is a
   money sink in v1.
 - **Equipment** is sold by outfitters for money, outside the economy, in v1.
+
+*(proposed, war and fealty round)* Bounties (MIL-18) pay a commander back for what war
+costs it; munitions aren't charged until bounties show whether they're needed.
 
 *(later)* Munitions, ships and equipment come into the supply chain (PRD-13); the
 player's missiles are finite in a magazine and restock depends on a planet's stock.
@@ -104,6 +153,13 @@ budget decision on believed value against full cost, aftermath included (ECO-8).
 
 *(open)* How the target is picked and when an invasion launches (OPN-17).
 
+*(proposed, war and fealty round)* **An army is whoever joins.** The commissioner posts
+the invasion as an objective with a muster point and a deadline, borrowing vassals'
+commanders first if it wants them (MIL-3). Each commander it pays or has borrowed
+decides whether to take it (MIL-2). At the deadline, whoever has arrived marches.
+Joining a well-supported siege is attractive with no rule for it: the expected loss in
+a big army is small.
+
 ### MIL-10 Sieges `v1`
 
 An attacked planet fights with its **static defences and its defence fleet** (the
@@ -129,6 +185,12 @@ vassal is helped first, when several call at once, is the liege's opinion of eac
 The timing race is the core of defence: the invader's open-space crawl from the nearest
 allowed exit, against the defender's detection, scout return, courier run and
 reinforcement travel (INF-12).
+
+*(proposed, war and fealty round)* **Relief is a loan from liege to vassal** (MIL-3): the
+call for help is the request, the liege lends commanders, and their arrival is the
+answer (INF-16). The vassal takes over their stipend while they serve and spends
+favour. The commanders lent still choose how to fight (MIL-2), and their own stipend is
+at stake in the faction's planets too.
 
 ### MIL-12 Capture `v1`
 
@@ -172,6 +234,48 @@ reinforcement without taking territory.
 
 *Why:* wars should cost the enemy's economy without every war changing who owns the map.
 Discrete states make a blockade easy to track and to see.
+
+## Paying for war
+
+*(proposed, war and fealty round)* War and fielding fleets should be expensive, and the
+cost should fall on whoever wants the war. Today a war costs a treasury almost nothing:
+military spending of every kind is about 4% of the money created, raising an army moves
+no money, and a lost ship comes out of its commander's savings (MS-8, round 4). The two
+rules below are how war gets paid for; munitions (MIL-4) and MIL-3's liege paying for a
+whole campaign wait until these show whether war is still too cheap.
+
+### MIL-18 Bounties for kills `v1` `proposed`
+
+The **root pays a bounty** for every enemy ship a commander's fleet destroys: a share
+(`bounty.share`) of that ship's price. Bounties are for kills, not for taking part, and
+a fleet earns for what it destroyed itself. They're tallied per commander and paid
+monthly from the root's treasury. A root that can't pay loses the commander's opinion,
+and an unpaid commander may leave its service.
+
+- **Who pays:** the root, because the faction's leadership is who wants the war. Tribute
+  is how it gets the money (FAC-6).
+- **What it does:** peace is cheap and war is expensive, with no special rule. A long,
+  active war drains the root's treasury month by month (ECO-7, CHK-8). A commander's
+  losses get paid back, and the replacement ships are a sink (MIL-4).
+- **Static defence isn't a kill:** guns aren't ships. Grinding down a planet is paid by
+  its spoils (MIL-19).
+- **Freighters earn little,** being priced low for their combat power. Raiding enemy
+  shipping still pays a bit, as commerce raiding should.
+
+*Why:* in Bannerlord a mercenary is paid for each war action; here the faction pays,
+because the faction is the one with the war aim.
+
+### MIL-19 Spoils of capture `v1` `proposed`
+
+A captured planet yields **spoils**: a small sum sized by its prosperity
+(`spoils.per_prosperity` × population × productivity), taken from its treasury, as much
+as it holds. They're split among the army's commanders by **combat power × days in the
+siege,** so a fleet that turns up at the last moment gets little. A blockade yields
+none.
+
+*Why:* taking another people's wealth is why wars are fought. Seizing the treasury makes
+it a transfer, not new money, and gives a falling planet a reason to spend before it
+falls.
 
 ## Combat away from the player
 
