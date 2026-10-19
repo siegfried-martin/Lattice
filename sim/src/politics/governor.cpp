@@ -5,6 +5,7 @@
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
 #include "war/diplomacy.hpp"
+#include "pirates/pirates.hpp"
 #include "war/raids.hpp"
 
 namespace lattice::governor {
@@ -25,6 +26,14 @@ void schedule(World& w) {
 }
 
 void weekly(World& w, Id planet, Observer* observer) {
+    if (w.planets[at(planet)].pirate) {
+        // A pirate planet: defence and raids, no politics (PIR-1, PIR-3).
+        budget::weekly(w, planet, observer);
+        pirates::dispatch(w, planet, observer);
+        return;
+    }
+    pirates::check_flip(w, planet, observer);
+    if (w.planets[at(planet)].pirate) return;
     diplomacy::root_weekly(w, planet, observer);
     fealty::adjust_tribute(w, planet, observer);
     fealty::check_defection(w, planet, observer);
@@ -42,8 +51,8 @@ bool holds_gates(const World& w, Id planet) {
 void monthly(World& w, Id planet, Observer* observer) {
     Planet& p = w.planets[at(planet)];
     // Dues (SYS-20): the Authority spends authority.maintenance of them on the network, a
-    // sink, and keeps the rest for mercenary contracts (MS-6).
-    const double dues = w.config.dues.access + (holds_gates(w, planet) ? w.config.dues.gate : 0);
+    // sink, and keeps the rest for mercenary contracts. Pirate planets pay none (ECO-14).
+    const double dues = p.pirate ? 0 : w.config.dues.access + (holds_gates(w, planet) ? w.config.dues.gate : 0);
     p.treasury -= dues;
     const double upkeep = dues * w.config.dues.maintenance;
     w.authority.treasury += dues - upkeep;

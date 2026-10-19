@@ -29,7 +29,9 @@ int medium_or_better(const World& w, Id region, Good g) {
     int n = 0;
     for (const Planet& p : w.planets) {
         if (p.region != region) continue;
-        for (int s = 0; s < 3; ++s) n += p.makes[at(s)] == g && p.tiers[at(s)] != kLow;
+        const auto& makes = p.pirate ? p.lawful_makes : p.makes;
+        const auto& tiers = p.pirate ? p.lawful_tiers : p.tiers;
+        for (int s = 0; s < 3; ++s) n += makes[at(s)] == g && tiers[at(s)] != kLow;
     }
     return n;
 }
@@ -107,10 +109,13 @@ void check_world(const World& w) {
     // GEN-6: three distinct lawful goods at high, medium and low; enough producers per
     // region.
     for (const Planet& p : w.planets) {
-        std::set<Good> goods(p.makes.begin(), p.makes.end());
+        // A pirate planet makes contraband now; what it drew is kept for recapture (PIR-3).
+        const auto& makes = p.pirate ? p.lawful_makes : p.makes;
+        std::set<Good> goods(makes.begin(), makes.end());
         CHECK(goods.size() == 3);
         CHECK(!goods.contains(kStims));
-        std::set<Tier> tiers(p.tiers.begin(), p.tiers.end());
+        const auto& drawn = p.pirate ? p.lawful_tiers : p.tiers;
+        std::set<Tier> tiers(drawn.begin(), drawn.end());
         CHECK(tiers.size() == 3);
     }
     for (Id r = 0; r < static_cast<Id>(m.regions.size()); ++r) {

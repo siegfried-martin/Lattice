@@ -71,6 +71,7 @@ brackets are written as separate keys (`prod.efficiency_high`) or a list
 | `dues.access`, `dues.gate` | Authority dues per month (ECO-10) | 500, 1,500 |
 | `authority.maintenance` | Share of dues spent on the network (a sink) | 0.6 |
 | `authority.clear_days` | Length of a clearing contract | 30 |
+| `authority.risk_post`, `authority.pay`, `authority.contracts`, `authority.opinion_per_job` | A sector this risky near the network gets a clearing contract, at this pay a day, at most this many a week; the Authority's opinion of a mercenary who completes one rises by this *(proposed, MS-6)* | 0.3, 300, 3, 5 |
 | `budget.credit_risk` | How far into the red risk tolerance lets a spender plan | 1 month of income × risk |
 | `budget.diminishing` | Value multiplier per further unit of one option | 0.6 |
 | `budget.debt_pressure` | Cost multiplier per month in the red | 0.1 |
@@ -186,7 +187,10 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `security.risk_post`, `security.days`, `security.pay` | A planet whose sector's believed risk passes this posts a patrol of this many days, at this pay a day *(proposed, MS-5)* | 0.5, 10, 200 |
 | `pirate.flip_days`, `pirate.flip_debt` | Deficit days and debt before a planet turns | 60, 3 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
-| `pirate.turn_p(risk)` | Chance a broke commander turns pirate | risk (EXP-9: 1) |
+| `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of with chance equal to its risk tolerance | false |
+| `pirate.range_days` | How far pirates go raiding, in days of open space at the reference speed *(proposed, MS-6)* | 20 |
+| `pirate.commanders` | Pirate commanders at each starting pirate planet (GEN-9) *(proposed, MS-6)* | 2 |
+| `space.engage_cooldown_hours` | After a fight in open space, neither side is engaged again for this long *(proposed, MS-6)* | 12 |
 | `pirate.salary` | Pirate stipend ÷ lawful stipend | 0.6 |
 | `pirate.need_fill`, `pirate.surplus_fill` | Fills that trigger pirate missions | 0.5, 1.2 |
 | `pirate.smuggler_risk` | Risk tolerance above which NPCs smuggle | 0.7 |

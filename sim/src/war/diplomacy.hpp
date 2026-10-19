@@ -10,6 +10,9 @@ DipState state(const World& world, Id root_a, Id root_b);
 bool at_war(const World& world, Id root_a, Id root_b);
 // Whether the factions of two planets are at war.
 bool planets_at_war(const World& world, Id a, Id b);
+// At war, or one is a pirate planet and the other isn't (DIP-7: the pirates are hostile to
+// everyone outside them).
+bool hostile_planets(const World& world, Id a, Id b);
 // Roots this root is at war with.
 std::vector<Id> enemies(const World& world, Id root);
 

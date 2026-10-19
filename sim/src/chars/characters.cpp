@@ -12,6 +12,7 @@
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
+#include "pirates/pirates.hpp"
 #include "war/armies.hpp"
 #include "war/raids.hpp"
 #include "war/threats.hpp"
@@ -148,8 +149,9 @@ void populate(World& w) {
                             w.config.time.payment_days * kDay);
         }
     }
+    pirates::seed(w);  // the starting pirate planets and their crews (GEN-8, GEN-9)
     std::vector<double> weights;
-    for (const Planet& p : w.planets) weights.push_back(p.population);
+    for (const Planet& p : w.planets) weights.push_back(p.pirate ? 0 : p.population);
     Rng& rng = w.rng[Stream::Characters];
     while (static_cast<std::int64_t>(w.characters.size()) < w.config.chars.target) {
         spawn(w, static_cast<Id>(rng.weighted(weights)));
@@ -157,6 +159,7 @@ void populate(World& w) {
 }
 
 Id faction_of(const World& w, const Character& c) {
+    if (c.pirate) return kPirates;
     if (c.governs != kNone) return fealty::root_of(w, c.governs);
     for (Id k : c.contracts) {
         const Contract& ct = w.contracts[at(k)];
@@ -185,7 +188,8 @@ void daily(World& w, Observer*) {
         Character& c = w.characters[at(id)];
         if (!c.alive) continue;
         ++alive;
-        const double cost = ships::fleet(w, c).run_cost;  // SYS-21
+        // SYS-21; suspended on the way to turn pirate (PIR-4).
+        const double cost = c.activity == Activity::Renouncing ? 0 : ships::fleet(w, c).run_cost;
         c.wealth -= cost;
         w.ledger.running_costs += cost;
         w.ledger.money_sunk += cost;
@@ -195,14 +199,15 @@ void daily(World& w, Observer*) {
             c.broke_since = kNever;
         } else if (c.broke_since == kNever) {
             c.broke_since = w.now;
-        } else if (w.now - c.broke_since >= cfg.chars.broke_days * kDay) {
-            go_broke(w, id);
+        } else if (w.now - c.broke_since >= cfg.chars.broke_days * kDay && c.activity != Activity::Renouncing) {
+            // PIR-4: a commander who knows a pirate planet may head there; else it sells ships.
+            if (!pirates::try_turn(w, id, nullptr)) go_broke(w, id);
         }
     }
 
     // SYS-18: top the population up, at lawful planets weighted by population.
     std::vector<double> weights;
-    for (const Planet& p : w.planets) weights.push_back(p.population);
+    for (const Planet& p : w.planets) weights.push_back(p.pirate ? 0 : p.population);  // at lawful planets
     Rng& rng = w.rng[Stream::Characters];
     for (std::int64_t i = 0; i < cfg.chars.spawn_per_day && alive < cfg.chars.target; ++i, ++alive) {
         spawn(w, static_cast<Id>(rng.weighted(weights)));
@@ -223,7 +228,7 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
         return;
     }
     if (c.activity == Activity::Mission || c.activity == Activity::Escorting || c.activity == Activity::Patrolling ||
-        c.activity == Activity::Raiding) {
+        c.activity == Activity::Raiding || c.activity == Activity::Renouncing) {
         return;  // arrivals drive these
     }
     if (c.army != kNone) {
@@ -280,6 +285,7 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
 void landed(World& w, Id id, Observer* observer) {
     Character& c = w.characters[at(id)];
     info::observe_market(w, c.facts, c.planet);
+    pirates::observe_system(w, c.facts, c.planet);
     // INF-4: a member landing at a planet of its faction shares with the governor.
     const Id faction = faction_of(w, c);
     if (faction != kNone && fealty::root_of(w, c.planet) == faction) {
@@ -293,6 +299,9 @@ void landed(World& w, Id id, Observer* observer) {
             return;
         case Activity::Raiding:
             raids::home(w, id, observer);
+            return;
+        case Activity::Renouncing:
+            pirates::renounce(w, id, observer);
             return;
         case Activity::Trading:
             wake(w, id, w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour));  // TRD-12: loading takes time

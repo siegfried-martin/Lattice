@@ -137,6 +137,20 @@ void planet_weekly(World& w, Id planet, Observer* observer) {
     }
 }
 
+bool post_clearing(World& w, Id planet, Observer* observer) {
+    for (Id m : w.planets[at(planet)].missions) {
+        if (w.missions[at(m)].authority) return false;
+    }
+    const auto& a = w.config.authority;
+    post(w,
+         {.kind = MissionKind::Security, .level = MissionLevel::Planet, .poster = w.planets[at(planet)].governor, .at = planet,
+          .target = planet, .base_pay = a.pay * static_cast<double>(a.clear_days), .min_combat = w.config.scout.min_combat,
+          .posted = w.now, .expires = w.now + 7 * kDay, .sortie = true, .authority = true},
+         observer);
+    ++w.ledger.authority_contracts;
+    return true;
+}
+
 double pay_now(const World& w, const Mission& m) {
     const double waited = static_cast<double>(w.now - m.posted) / kDay;
     return m.base_pay * (1 + w.config.mission.pay_growth * waited);
@@ -144,7 +158,7 @@ double pay_now(const World& w, const Mission& m) {
 
 bool qualifies(const World& w, Id id, const Mission& m) {
     const Character& c = w.characters[at(id)];
-    if (c.governs != kNone || c.ships.empty() || c.cargo_qty > 0) return false;
+    if (c.governs != kNone || c.ships.empty() || c.cargo_qty > 0 || c.pirate) return false;
     const ships::Fleet f = ships::fleet(w, c);
     if (!f.lattice_drive || f.combat < m.min_combat || f.cargo < m.min_cargo) return false;
     if (m.level == MissionLevel::Faction) {
@@ -162,7 +176,9 @@ Offer best_offer(const World& w, Id id) {
     for (Id mid : w.planets[at(c.planet)].missions) {
         const Mission& m = w.missions[at(mid)];
         if (m.state != MissionState::Open || !qualifies(w, id, m)) continue;
-        const double hold = m.kind == MissionKind::Security ? static_cast<double>(w.config.security.days) : 0;
+        const double hold = m.kind != MissionKind::Security ? 0
+                            : m.authority                    ? static_cast<double>(w.config.authority.clear_days)
+                                                             : static_cast<double>(w.config.security.days);
         const double days = std::max(move::trip_days(w, c, m.at, m.target) + move::trip_days(w, c, m.target, m.at) + hold, 1.0 / 24);
         const double fuel = move::fuel_cost(w, c, m.at, m.target) + move::fuel_cost(w, c, m.target, m.at);
         const double skill = c.skills[skill_of(m.kind)];
@@ -188,7 +204,9 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     if (m.sortie) {
         // Out and back without landing: war scouting holds half a day off the target, a
         // patrol security.days over its own space.
-        const Time hold = m.kind == MissionKind::Security ? w.config.security.days * kDay : kDay / 2;
+        const Time hold = m.kind != MissionKind::Security ? kDay / 2
+                          : m.authority                    ? w.config.authority.clear_days * kDay
+                                                           : w.config.security.days * kDay;
         going = move::start_route(w, id, move::sortie(w, chars::faction_of(w, c), m.at, m.target, w.config.raid.standoff, hold));
         m.outbound = false;
     } else {
@@ -229,7 +247,12 @@ void arrived(World& w, Id id, Observer* observer) {
     threats::check(w, m.at, observer);
     m.packet = {};
     m.state = MissionState::Done;
-    w.planets[at(m.at)].treasury -= m.pay;
+    if (m.authority) {
+        w.authority.treasury -= m.pay;  // FAC-14: the Authority's mercenaries
+        c.authority_opinion += w.config.authority.opinion_per_job;
+    } else {
+        w.planets[at(m.at)].treasury -= m.pay;
+    }
     chars::earn(c, m.pay, m.kind != MissionKind::Courier);
     if (m.kind == MissionKind::Security) ++w.ledger.patrols;
     auto& skill = c.skills[skill_of(m.kind)];

@@ -40,6 +40,7 @@ std::vector<Id> candidates(const World& w, Id planet) {
         if (!c.alive || c.governs != kNone || c.planet == kNone || c.mission != kNone || c.ships.empty()) continue;
         if (w.derived.travel(c.planet, planet) > h.range_days) continue;
         if (contracts::held(w, id, ContractKind::Service) != kNone || contracts::held(w, id, ContractKind::MerchantSalary) != kNone) continue;
+        if (c.pirate != home.pirate) continue;  // pirates serve pirate planets, and only pirates do
         const double power = ships::fleet(w, c).combat;
         if (power < w.config.scout.min_combat) continue;
         const double score = h.w_power * power + h.w_opinion * opinion::get(w, home.governor, id) +
@@ -64,6 +65,15 @@ std::vector<Id> sworn(const World& w, Id governor) {
 }  // namespace
 
 double stipend(const World& w, const Character& c) { return w.config.hire.stipend_per_power * ships::fleet(w, c).combat; }
+
+namespace {
+
+// What a planet pays a commander: a pirate planet pays pirate.salary of it (PIR-5).
+double pay_at(const World& w, Id planet, const Character& c) {
+    return stipend(w, c) * (w.planets[at(planet)].pirate ? w.config.pirate.salary : 1);
+}
+
+}  // namespace
 
 void weekly(World& w, Id planet, Observer* observer) {
     const Planet& p = w.planets[at(planet)];
@@ -91,15 +101,19 @@ void weekly(World& w, Id planet, Observer* observer) {
     }
     const double threat = 1 + (enemies.empty() ? 0 : c.value.war_mult) + (border ? c.value.border_mult : 0);
 
-    // Defence: the commanders it has first (no churn), then the best candidates.
-    const std::vector<Id> current = sworn(w, gov);
+    // Defence: the commanders it has first (no churn), then the best candidates. A pirate
+    // planet keeps whoever joins it (PIR-4: renounced commanders are hired) and hires no
+    // one else, so it budgets only static defence (proposed).
+    const std::vector<Id> current = p.pirate ? std::vector<Id>{} : sworn(w, gov);
     std::vector<Id> people = current;
-    for (Id id : candidates(w, planet)) people.push_back(id);
+    if (!p.pirate) {
+        for (Id id : candidates(w, planet)) people.push_back(id);
+    }
     Option defence;
     for (Id id : people) {
         const double power = ships::fleet(w, w.characters[at(id)]).combat;
         defence.units.push_back(
-            {stipend(w, w.characters[at(id)]) * pressure, threat * c.value.defence * income * power / c.value.power_ref});
+            {pay_at(w, planet, w.characters[at(id)]) * pressure, threat * c.value.defence * income * power / c.value.power_ref});
     }
 
     // Static defence (MIL-5), bought in units of value.security_unit a month.
@@ -109,9 +123,11 @@ void weekly(World& w, Id planet, Observer* observer) {
         security.units.push_back({c.value.security_unit * pressure, threat * c.value.defence * income * unit_power / c.value.power_ref});
     }
 
-    // An invasion, at war (SYS-13): one unit for the best target.
+    // An invasion, at war or facing a pirate planet (SYS-13): one unit for the best target.
+    // Pirates raid; they don't invade (PIR-8).
     Option invasion;
-    const armies::Plan plan = armies::best_invasion(w, planet);
+    const bool warming_up = w.now < c.gen.warmup_days * kDay;  // GEN-10: the world settles first
+    const armies::Plan plan = p.pirate || warming_up ? armies::Plan{} : armies::best_invasion(w, planet);
     if (plan.target != kNone) invasion.units.push_back({plan.cost * pressure, plan.value});
 
     // Patronage to vassals in the red: each unit a month of their operating costs, worth
@@ -155,7 +171,7 @@ void weekly(World& w, Id planet, Observer* observer) {
         if (i < current.size()) {
             const Id k = contracts::held(w, id, ContractKind::Service);
             if (funded) {
-                w.contracts[at(k)].pay = stipend(w, ch);
+                w.contracts[at(k)].pay = pay_at(w, planet, ch);
             } else {
                 contracts::end(w, k);
                 ++w.ledger.fires;
@@ -164,7 +180,7 @@ void weekly(World& w, Id planet, Observer* observer) {
             continue;
         }
         if (!funded) continue;
-        const double asked = stipend(w, ch);
+        const double asked = pay_at(w, planet, ch);
         if (asked <= ch.earned_cargo + ch.earned_combat) continue;  // it makes more on its own
         contracts::sign(w, ContractKind::Service, gov, id, asked, c.time.payment_days * kDay);
         ++w.ledger.hires;

@@ -5,6 +5,31 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-18 · MS-6 part 1, pirates
+
+- **The pirate faction:**
+  - a faction id with no root;
+  - no diplomacy and no osmosis;
+  - full pirates are off the Lattice, and pirate planets' gates are shut to everyone
+    (PIR-1, PIR-2, WLD-12).
+- **Flips:**
+  - weekly by ECO-13's rule;
+  - the governor turns with the planet; its vassals go free;
+  - production goes to contraband;
+  - forgiven debt is money created;
+  - neighbours see it (PIR-3, ECO-13).
+- **Pirate planets:**
+  - their population buys contraband before luxuries;
+  - they keep every commander who joins and budget only static defence (proposed);
+  - capture restores production (PIR-3, MIL-12).
+- **Broke commanders** turn pirate by risk tolerance if they know a haven (PIR-4,
+  EXP-9's switch).
+- **Pirate raids** *(proposed)*: target lawful planets within `pirate.range_days` by
+  population; hunger raises the rate (PIR-3, SYS-16).
+- **Engagements:** a cooldown after any fight in open space (proposed).
+- **The Authority** posts clearing contracts paid from its treasury (FAC-14).
+- **Warm-up:** no invasions during it.
+
 ### 2026-10-18 · MS-5 part 2, risk, raids, escorts and news
 
 - **Risk:**

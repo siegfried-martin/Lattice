@@ -26,6 +26,7 @@ Config quiet() {
     Config c;
     c.chars.target = 0;
     c.courier.mission_share = 0;
+    c.gen.pirate_planets = 0;
     return c;
 }
 

@@ -126,7 +126,9 @@ factions start at peace.
   the group's other planets swear to their holder. An off-network group's holder swears
   to the holder of the nearest on-network group.
 - Independents are drawn from planets with no vassals, so trees stay whole.
-- Pirate planets wait for MS-6.
+- *(MS-6)* Pirate planets: `gen.pirate_planets` fringe planets with no vassals, each turned
+  pirate with `pirate.commanders` pirate commanders (one gunship each). They are seeded
+  after the lawful commanders and before the bottom rung, inside `char.target`.
 
 ### GEN-9 Starting characters `v1` `proposed`
 

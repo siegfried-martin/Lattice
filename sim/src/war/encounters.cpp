@@ -8,6 +8,7 @@
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
+#include "pirates/pirates.hpp"
 #include "politics/fealty.hpp"
 #include "war/armies.hpp"
 #include "war/combat.hpp"
@@ -44,9 +45,17 @@ void engage(World& w, Id attacker, Id quarry, double x, double y, bool raid, Obs
     if (!rng.chance(w.config.space.engage_p)) return;
     quarry = leader(w, quarry);
     Character& q = w.characters[at(quarry)];
-    if (q.battle != kNone || w.characters[at(attacker)].battle != kNone) return;
-    const double vq = ships::fleet(w, q).speed, va = ships::fleet(w, w.characters[at(attacker)]).speed;
+    Character& a = w.characters[at(attacker)];
+    if (q.battle != kNone || a.battle != kNone) return;
+    // After a fight neither side is set on again for a while: the quarry gets clear, the
+    // raider sees to its prize.
+    const Time cooldown = static_cast<Time>(w.config.space.engage_cooldown_hours * kHour);
+    if ((a.last_engaged != kNever && w.now - a.last_engaged < cooldown) || (q.last_engaged != kNever && w.now - q.last_engaged < cooldown)) {
+        return;
+    }
+    const double vq = ships::fleet(w, q).speed, va = ships::fleet(w, a).speed;
     if (vq > va && rng.chance(w.config.space.evade * (vq - va) / vq)) return;  // it slips away
+    a.last_engaged = q.last_engaged = w.now;
     std::vector<Id> defenders{quarry};
     if (q.escort != kNone) defenders.push_back(q.escort);
     combat::start_in_space(w, {attacker}, defenders, x, y, observer);
@@ -73,19 +82,32 @@ void step(World& w, Observer* observer) {
     const Time cooldown = static_cast<Time>(w.config.space.meet_cooldown_hours * kHour);
     std::vector<Entry> entries;
     auto cell = [&](double v) { return static_cast<std::int64_t>(std::floor(v / r)); };
+    // Everyone in open space, then only those something could happen to. Anyone near a
+    // raider is someone something could happen to.
+    std::vector<Entry> all;
+    std::vector<std::pair<std::int64_t, std::int64_t>> hot;
     for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
         const Character& c = w.characters[at(id)];
         if (!in_space(c)) continue;
         const Id faction = chars::faction_of(w, c);
         const bool raider = c.activity == Activity::Raiding, patrol = c.activity == Activity::Patrolling;
-        const bool share = faction != kNone && w.now - c.last_meet >= cooldown;
-        const bool at_war = faction != kNone && !diplomacy::enemies(w, faction).empty();
+        const bool share = faction >= 0 && w.now - c.last_meet >= cooldown;
+        const bool at_war = faction >= 0 && !diplomacy::enemies(w, faction).empty();
         const bool scout = c.mission != kNone && w.missions[at(c.mission)].kind == MissionKind::Scout;
-        if (!(share || raider || patrol || at_war || scout)) continue;
         const auto [x, y] = move::position(w, c);
-        if (raider) risk::add_hostile(w, x, y, step_days);
+        if (raider) {
+            risk::add_hostile(w, x, y, step_days);
+            for (std::int64_t dx = -1; dx <= 1; ++dx) {
+                for (std::int64_t dy = -1; dy <= 1; ++dy) hot.emplace_back(cell(x) + dx, cell(y) + dy);
+            }
+        }
         if (patrol) risk::add_patrol(w, x, y, step_days);
-        entries.push_back({cell(x), cell(y), id, false, faction, x, y, share, raider, patrol, at_war || scout});
+        all.push_back({cell(x), cell(y), id, false, faction, x, y, share, raider, patrol, at_war || scout});
+    }
+    std::sort(hot.begin(), hot.end());
+    for (const Entry& e : all) {
+        const bool near_raider = std::binary_search(hot.begin(), hot.end(), std::pair{e.cx, e.cy});
+        if (e.share || e.raider || e.patrol || e.at_war || near_raider) entries.push_back(e);
     }
     for (Id id = 0; id < static_cast<Id>(w.armies.size()); ++id) {
         const Army& a = w.armies[at(id)];
@@ -116,10 +138,16 @@ void step(World& w, Observer* observer) {
                         continue;
                     }
                     if (a.share && b.share && a.faction == b.faction) chars::detected(w, a.id, b.id);
-                    // Hostile meetings, as the attacker believes (DIP-5).
+                    // Hostile meetings: pirates attack anyone below neutral with them (PIR-9),
+                    // lawful patrols attack pirates, and at war, as the attacker believes
+                    // (DIP-5).
                     auto hostile = [&](const Entry& from, const Entry& to) {
-                        return from.faction != kNone && to.faction != kNone && from.faction != to.faction &&
-                               info::believes_war(w.characters[at(from.id)].facts, from.faction, to.faction);
+                        const Character& x = w.characters[at(from.id)];
+                        const Character& y = w.characters[at(to.id)];
+                        if (x.pirate) return pirates::attacks(w, x, y);
+                        if (y.pirate) return true;
+                        return from.faction >= 0 && to.faction >= 0 && from.faction != to.faction &&
+                               info::believes_war(x.facts, from.faction, to.faction);
                     };
                     const double mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
                     if (a.patrol && b.raider && hostile(a, b)) engage(w, a.id, b.id, mx, my, false, observer);

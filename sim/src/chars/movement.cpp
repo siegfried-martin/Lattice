@@ -76,21 +76,28 @@ std::vector<Leg> route_legs(const World& w, Id a, Id b) {
 
 std::vector<Leg> plan(const World& w, Id faction, Id a, Id b) {
     std::vector<Leg> legs = route_legs(w, a, b);
-    if (faction == kNone) return legs;
     const std::vector<Id> enemies = diplomacy::enemies(w, faction);
-    if (enemies.empty()) return legs;
     std::vector<bool> closed(w.map.nodes.size(), false);
     bool any = false;
     for (Id n = 0; n < static_cast<Id>(w.map.nodes.size()); ++n) {
         const LatticeNode& node = w.map.nodes[at(n)];
-        if (node.kind != NodeKind::Interchange) continue;  // junctions have only the Authority's key (OPN-22)
-        const Id holder_root = fealty::root_of(w, w.map.groups[at(node.group)].holder);
-        closed[at(n)] = std::find(enemies.begin(), enemies.end(), holder_root) != enemies.end();
+        // The Authority refuses full pirates at every gate (WLD-12, PIR-2); junctions have
+        // only its key (OPN-22).
+        if (faction == kPirates) {
+            closed[at(n)] = true;
+        } else if (node.kind == NodeKind::Interchange) {
+            const Id holder = w.map.groups[at(node.group)].holder;
+            const Id holder_root = fealty::root_of(w, holder);
+            // A pirate planet's gates are shut with the Authority's key (WLD-12, proposed);
+            // an enemy's with its own.
+            closed[at(n)] = w.planets[at(holder)].pirate ||
+                            std::find(enemies.begin(), enemies.end(), holder_root) != enemies.end();
+        }
         any = any || closed[at(n)];
     }
     if (!any) return legs;
     // Does the reference route get on or off at a shut gate?
-    bool blocked = false;
+    bool blocked = faction == kPirates && std::any_of(legs.begin(), legs.end(), [](const Leg& l) { return l.kind == LegKind::Lattice; });
     for (std::size_t i = 0; i < legs.size(); ++i) {
         if (legs[i].kind != LegKind::Space) continue;
         if (legs[i].to_node != kNone && closed[at(legs[i].to_node)]) blocked = true;

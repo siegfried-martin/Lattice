@@ -37,6 +37,7 @@ Config quiet() {
     c.chars.target = 0;
     c.chars.spawn_per_day = 0;
     c.courier.mission_share = 0;
+    c.gen.pirate_planets = 0;
     c.dip.declare_threshold = 1e9;  // no wars but the ones a test declares
     c.value.invade_months = 0;      // and no invasions but the ones it raises
     c.value.gate_months = 0;

@@ -22,6 +22,7 @@ Config quiet() {
     Config c;
     c.chars.target = 0;
     c.courier.mission_share = 0;
+    c.gen.pirate_planets = 0;
     return c;
 }
 
@@ -149,6 +150,7 @@ TEST_CASE("the starting commanders match each planet's income (GEN-9)") {
     c.chars.spawn_per_day = 0;
     const World w = new_world(c, 47);
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (w.planets[at(p)].pirate) continue;
         double power = 0;
         for (Id k : w.characters[at(gov_of(w, p))].contracts) {
             const Contract& ct = w.contracts[at(k)];

@@ -19,6 +19,10 @@ void root_weekly(World& world, Id planet, Observer* observer);
 // security.risk_post posts a patrol over its own space (MIL-5).
 void planet_weekly(World& world, Id planet, Observer* observer);
 
+// A Trade Authority clearing contract at a planet (FAC-14): a patrol paid by the
+// Authority. False if one is already open there.
+bool post_clearing(World& world, Id planet, Observer* observer);
+
 // pay = base x (1 + mission.pay_growth x days waiting).
 double pay_now(const World& world, const Mission& m);
 bool qualifies(const World& world, Id character, const Mission& m);
