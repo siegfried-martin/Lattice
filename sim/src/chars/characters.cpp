@@ -13,6 +13,8 @@
 #include "politics/fealty.hpp"
 #include "trade/merchants.hpp"
 #include "pirates/pirates.hpp"
+#include "pirates/smuggling.hpp"
+#include "pirates/suspicion.hpp"
 #include "war/armies.hpp"
 #include "war/raids.hpp"
 #include "war/threats.hpp"
@@ -258,6 +260,16 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
     if (c.activity == Activity::Serving) c.activity = Activity::Idle;
 
     maybe_buy_ship(w, id, observer);
+    // A pirate run it agreed to on contact (PIR-13), once its hold is empty.
+    if (c.offer != kNone) {
+        const Mission& run = w.missions[at(c.offer)];
+        if (run.state != MissionState::Open) {
+            c.offer = kNone;
+        } else if (smuggling::qualifies(w, id, run)) {
+            smuggling::take(w, id, c.offer, observer);
+            if (c.mission != kNone) return;
+        }
+    }
     merchant::consider_salary(w, id, observer);
 
     // Fit and pay (CHR-10): the best mission on this board against the best trade.
@@ -292,8 +304,17 @@ void landed(World& w, Id id, Observer* observer) {
         info::share(c.facts, info::governor_facts(w, c.planet));
         threats::check(w, c.planet, observer);
     }
+    // Lawful markets inspect (INF-14).
+    suspicion::on_landing(w, id, observer);
     switch (c.activity) {
         case Activity::Mission:
+            if (c.mission != kNone && (w.missions[at(c.mission)].kind == MissionKind::Smuggle ||
+                                       w.missions[at(c.mission)].kind == MissionKind::LegalGoods)) {
+                smuggling::landed(w, id, observer);
+                return;
+            }
+            missions::arrived(w, id, observer);
+            return;
         case Activity::Patrolling:
             missions::arrived(w, id, observer);
             return;

@@ -191,6 +191,7 @@ struct Planet {
 
     // Piracy (PIR-3, ECO-13).
     bool pirate = false;
+    double policing = 0;  // monthly spend on inspections (PIR-15): a sink
     std::array<Good, 3> lawful_makes{};  // what it made, restored on recapture
     std::array<Tier, 3> lawful_tiers{};
     double contraband_today = 0;  // contraband its population bought today (SYS-1, SYS-16)
@@ -203,7 +204,7 @@ void fields(Ar& ar, P& p) {
     ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.deficit_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
     ar(p.security, p.defence, p.siege, p.warned_army);
-    ar(p.pirate, p.lawful_makes, p.lawful_tiers, p.contraband_today);
+    ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
 }
 
 // ---- Relationships (REL-2, REL-3, SYS-10) ----
@@ -211,9 +212,9 @@ void fields(Ar& ar, P& p) {
 // What happened (REL-3). Append only.
 enum class DeedKind : std::uint8_t {
     HelpSent = 0, HelpMissed = 1, PlanetGranted = 2, Patronage = 3, TributeRaised = 4, PassedOver = 5,
-    CallAnswered = 6, CallRefused = 7, BorderHeld = 8, JobDone = 9, Attacked = 10, TributeLowered = 11,
+    CallAnswered = 6, CallRefused = 7, BorderHeld = 8, JobDone = 9, Attacked = 10, TributeLowered = 11, Caught = 12,
 };
-inline constexpr int kDeedKindCount = 12;
+inline constexpr int kDeedKindCount = 13;
 
 struct Deed {
     DeedKind kind = DeedKind::JobDone;
@@ -316,6 +317,19 @@ void fields(Ar& ar, F& f) {
 
 // ---- Character (MOD-3) ----
 
+// How suspicious one faction (a root planet, or kAuthority) is of a character (INF-14).
+// It fades toward 0; brought up to date when read or moved.
+inline constexpr Id kAuthority = -3;
+struct Suspicion {
+    Id faction = kNone;
+    double value = 0;
+    Time updated = 0;
+};
+template <class Ar, record_of<Suspicion> S>
+void fields(Ar& ar, S& s) {
+    ar(s.faction, s.value, s.updated);
+}
+
 // One leg of a journey (TIM-4 to TIM-6). Append only.
 enum class LegKind : std::uint8_t { Space = 0, Lattice = 1, Hop = 2 };
 
@@ -351,10 +365,14 @@ inline constexpr int kActivityCount = 11;
 
 // The kinds of mission and skill (CHR-10). Append only.
 // Skills are the first six; Security missions count toward the escort skill.
-enum class MissionKind : std::uint8_t { Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5, Security = 6 };
+enum class MissionKind : std::uint8_t {
+    Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5, Security = 6, LegalGoods = 7,
+};
 inline constexpr int kSkillCount = 6;
 constexpr std::size_t skill_of(MissionKind k) {
-    return static_cast<std::size_t>(k == MissionKind::Security ? MissionKind::Escort : k);
+    if (k == MissionKind::Security) return static_cast<std::size_t>(MissionKind::Escort);
+    if (k == MissionKind::LegalGoods) return static_cast<std::size_t>(MissionKind::Trade);
+    return static_cast<std::size_t>(k);
 }
 
 // One stop of a merchant's planned trip: sell what's aboard, then buy `buy` (or
@@ -423,6 +441,8 @@ struct Character {
     Time pirate_relation_at = 0;   // when it last changed (it fades toward rest)
     Id renounce_to = kNone;        // the pirate planet it's heading for (PIR-4)
     Time last_engaged = kNever;    // its last fight in open space
+    std::vector<Suspicion> suspicion{};  // per faction, and the Authority (INF-14)
+    Id offer = kNone;              // a pirate run it was offered on contact (PIR-13)
 };
 template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
@@ -433,7 +453,7 @@ void fields(Ar& ar, C& c) {
     ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
     ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle,
        c.paused_at, c.escort, c.escorting, c.pirate, c.pirate_relation, c.pirate_relation_at, c.renounce_to,
-       c.last_engaged);
+       c.last_engaged, c.suspicion, c.offer);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -479,12 +499,14 @@ struct Mission {
     bool outbound = true;  // a round trip's first half
     bool sortie = false;   // out and back without landing (war scouting, patrols)
     bool authority = false;  // paid by the Trade Authority (FAC-14)
+    Good good = kGoodCount;  // a pirate run's cargo (SYS-16)
+    double qty = 0;
     Facts packet{};     // what a courier or scout carries
 };
 template <class Ar, record_of<Mission> M>
 void fields(Ar& ar, M& m) {
     ar(m.kind, m.level, m.poster, m.at, m.target, m.base_pay, m.min_combat, m.min_cargo, m.posted, m.expires);
-    ar(m.state, m.taker, m.pay, m.outbound, m.sortie, m.authority, m.packet);
+    ar(m.state, m.taker, m.pay, m.outbound, m.sortie, m.authority, m.good, m.qty, m.packet);
 }
 
 // ---- An automated courier run (INF-8, SYS-15) ----
@@ -544,6 +566,8 @@ struct Ledger {
     std::int64_t raids = 0, escorts = 0, sightings = 0, warnings = 0, garrisons = 0, patrols = 0;
     // Piracy (MS-6).
     std::int64_t flips = 0, recaptures = 0, turned_pirate = 0, pirate_raids = 0, authority_contracts = 0;
+    std::int64_t offers = 0, smuggled_runs = 0, legal_runs = 0, inspections = 0, caught = 0;
+    double smuggled = 0, confiscated = 0, policing = 0, smuggler_profit = 0;
     double security = 0, ceasefire_tribute = 0, power_destroyed = 0;
     std::array<double, kGoodCount> destroyed{};  // goods lost in capture and battle
     std::int64_t wars = 0, ceasefires = 0, battles = 0, sieges = 0, captures = 0, reliefs = 0, deaths = 0, pods = 0;
@@ -557,6 +581,7 @@ void fields(Ar& ar, L& l) {
        l.tribute_changes);
     ar(l.loot, l.escort_pay, l.raids, l.escorts, l.sightings, l.warnings, l.garrisons, l.patrols);
     ar(l.flips, l.recaptures, l.turned_pirate, l.pirate_raids, l.authority_contracts);
+    ar(l.offers, l.smuggled_runs, l.legal_runs, l.inspections, l.caught, l.smuggled, l.confiscated, l.policing, l.smuggler_profit);
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,
        l.reliefs, l.deaths, l.pods);
 }

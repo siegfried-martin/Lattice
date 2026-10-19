@@ -274,7 +274,7 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
 - **Now:** building the headless simulation in C++, milestone by milestone, then tuning
   it for stability and testing each mechanic's worth. The skeleton and toolchain are
   done, and world generation, the economy, characters, movement, information, trade,
-  politics and war are built; next are piracy and suspicion.
+  politics, war, piracy and suspicion are built; next are spies.
 - **Next:** connecting the simulation to the rendered game.
 
 ## Glossary

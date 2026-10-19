@@ -123,6 +123,15 @@ void weekly(World& w, Id planet, Observer* observer) {
         security.units.push_back({c.value.security_unit * pressure, threat * c.value.defence * income * unit_power / c.value.power_ref});
     }
 
+    // Policing (PIR-15) *(proposed)*: units of value.security_unit a month, worth what the
+    // productivity lost to contraband costs the planet (pop.contraband_penalty x C of
+    // its income) x sus.police_effect.
+    Option policing;
+    if (!p.pirate && p.contraband_avg > 0) {
+        const double harm = income * c.pop.contraband_penalty * p.contraband_avg * c.sus.police_effect;
+        for (int k = 0; k < 16; ++k) policing.units.push_back({c.value.security_unit * pressure, harm});
+    }
+
     // An invasion, at war or facing a pirate planet (SYS-13): one unit for the best target.
     // Pirates raid; they don't invade (PIR-8).
     Option invasion;
@@ -145,7 +154,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     }
 
     // Fund the best value per cost first.
-    std::vector<Option*> options{&defence, &security, &invasion};
+    std::vector<Option*> options{&defence, &security, &policing, &invasion};
     for (Option& o : patronage) options.push_back(&o);
     for (;;) {
         Option* best = nullptr;
@@ -189,6 +198,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     }
 
     w.planets[at(planet)].security = static_cast<double>(security.funded) * c.value.security_unit;
+    w.planets[at(planet)].policing = static_cast<double>(policing.funded) * c.value.security_unit;
     if (invasion.funded > 0) armies::commission(w, planet, plan.target, false, observer);
 
     // Patronage: paid now, a good deed once per grant.

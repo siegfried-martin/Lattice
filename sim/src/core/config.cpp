@@ -322,6 +322,14 @@ void validate(const Config& c) {
     non_negative(c.authority.pay, "authority.pay");
     require(c.authority.contracts >= 0, "authority.contracts can't be negative");
     require(c.gen.pirate_planets >= 0, "gen.pirate_planets can't be negative");
+    non_negative(c.pirate.legal_bonus, "pirate.legal_bonus");
+    share(c.sus.inspect_base, "sus.inspect_base");
+    non_negative(c.sus.war, "sus.war");
+    non_negative(c.sus.police_per_unit, "sus.police_per_unit");
+    share(c.sus.find_base, "sus.find_base");
+    positive(c.sus.scale, "sus.scale");
+    share(c.sus.fade, "sus.fade");
+    non_negative(c.sus.police_effect, "sus.police_effect");
 
     require(c.gen.width >= 2 && c.gen.width <= 200, "gen.width must be 2 to 200");
     require(c.gen.height >= 2 && c.gen.height <= 200, "gen.height must be 2 to 200");

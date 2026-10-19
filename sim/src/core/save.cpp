@@ -304,8 +304,9 @@ void check_references(const World& w) {
     for (const Planet& p : w.planets) require(opt(p.siege, w.sieges.size()), "planet siege");
     for (const Character& c : w.characters) {
         require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()) && opt(c.escort, nc) && opt(c.escorting, nc) &&
-                    opt(c.renounce_to, np),
+                    opt(c.renounce_to, np) && opt(c.offer, w.missions.size()),
                 "character war");
+        for (const Suspicion& s : c.suspicion) require(s.faction == kAuthority || in(s.faction, np), "suspicion");
     }
     for (const Planet& p : w.planets) require(opt(p.warned_army, w.armies.size()), "planet warning");
     require(w.risk.size() == m.sectors.size(), "sector risk");

@@ -147,8 +147,14 @@ smugglers, the pirate relation, contraband in lawful markets, policing and suspi
 - **Seen over five development years:** pirates take hold in some seeds, not others. In
   seed 3 one fringe haven persists, with 14 broke commanders joining it and 50 pirate
   sorties.
-- **Part 2:** pirate missions, smugglers, contraband in lawful markets, policing and
-  suspicion.
+*Part 2 built 2026-10-18.*
+- **What runs:**
+  - pirate missions (smuggling and legal goods), offered on contact to bold independents;
+  - contraband sold untaxed to lawful populations, with its productivity cost;
+  - suspicion and inspections, with confiscation;
+  - policing as a budget option.
+- **Seen in seed 3 over five years:** about 400 offers, 67 legal-goods and 15 smuggling
+  runs, 4,400 units of contraband reaching lawful populations, and 4 smugglers caught.
 
 ### MS-7 Spies `v1`
 

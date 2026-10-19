@@ -196,7 +196,12 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `pirate.smuggler_risk` | Risk tolerance above which NPCs smuggle | 0.7 |
 | `pirate.contraband_price`, `pirate.demand_cap` | Lawful contraband price and demand cap | base × 1.5, 0.3 per thousand |
 | `pirel.accept`, `pirel.success`, `pirel.fail`, `pirel.rest`, `pirel.fade` | Pirate relation (PIR-9) | to 0, +15, to −50, −50, 0.02 |
-| `sus.*` | Suspicion per behaviour, per trade, fade, inspection base | set in MS-6 |
+| `pirate.legal_bonus` | A legal-goods run's pay per unit delivered, on top of the sale *(proposed, MS-6)* | 5 |
+| `sus.inspect_base`, `sus.war`, `sus.police_per_unit` | P(inspect) = base × (1 + police_per_unit per `value.security_unit` of monthly policing + war when at war) *(proposed, MS-6)* | 0.05, 0.5, 0.5 |
+| `sus.find_base`, `sus.scale` | An inspection catches with min(1, find_base + suspicion ÷ scale) *(proposed, MS-6)* | 0.3, 100 |
+| `sus.contraband`, `sus.pirate`, `sus.trade`, `sus.caught`, `sus.fade` | Suspicion per landing with contraband, per point of pirate relation above neutral per landing, removed per genuine trade, added when caught; weekly fade *(proposed, MS-6)* | 10, 0.2, 2, 30, 0.05 |
+| `sus.police_effect` | Budget value of policing: × the share of income contraband costs *(proposed, MS-6)* | 2 |
+| `deed.caught` | Opinion change when a governor's inspection catches someone (INF-14) *(proposed, MS-6)* | −20 |
 
 ## World generation (GEN)
 

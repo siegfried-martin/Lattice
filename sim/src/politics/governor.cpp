@@ -6,6 +6,7 @@
 #include "trade/merchants.hpp"
 #include "war/diplomacy.hpp"
 #include "pirates/pirates.hpp"
+#include "pirates/smuggling.hpp"
 #include "war/raids.hpp"
 
 namespace lattice::governor {
@@ -30,6 +31,7 @@ void weekly(World& w, Id planet, Observer* observer) {
         // A pirate planet: defence and raids, no politics (PIR-1, PIR-3).
         budget::weekly(w, planet, observer);
         pirates::dispatch(w, planet, observer);
+        smuggling::post(w, planet, observer);
         return;
     }
     pirates::check_flip(w, planet, observer);
@@ -61,9 +63,10 @@ void monthly(World& w, Id planet, Observer* observer) {
     w.ledger.money_sunk += upkeep;
 
     // Security (ECO-4, MIL-5): patrols and static defence, a sink.
-    p.treasury -= p.security;
+    p.treasury -= p.security + p.policing;
     w.ledger.security += p.security;
-    w.ledger.money_sunk += p.security;
+    w.ledger.policing += p.policing;
+    w.ledger.money_sunk += p.security + p.policing;
 
     fealty::pay_tribute(w, planet, observer);
     if (p.liege == kNone) diplomacy::pay_ceasefire(w, planet, observer);

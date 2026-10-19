@@ -9,6 +9,7 @@
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
 #include "pirates/pirates.hpp"
+#include "pirates/smuggling.hpp"
 #include "politics/fealty.hpp"
 #include "war/armies.hpp"
 #include "war/combat.hpp"
@@ -150,6 +151,9 @@ void step(World& w, Observer* observer) {
                                info::believes_war(x.facts, from.faction, to.faction);
                     };
                     const double mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                    // A pirate meeting a bold independent offers it a run first (PIR-13).
+                    if (w.characters[at(a.id)].pirate && !w.characters[at(b.id)].pirate) smuggling::offer(w, a.id, b.id, observer);
+                    if (w.characters[at(b.id)].pirate && !w.characters[at(a.id)].pirate) smuggling::offer(w, b.id, a.id, observer);
                     if (a.patrol && b.raider && hostile(a, b)) engage(w, a.id, b.id, mx, my, false, observer);
                     else if (b.patrol && a.raider && hostile(b, a)) engage(w, b.id, a.id, mx, my, false, observer);
                     else if (a.raider && !b.raider && hostile(a, b)) engage(w, a.id, b.id, mx, my, true, observer);

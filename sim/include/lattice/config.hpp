@@ -269,7 +269,7 @@ struct Config {
 
     // Opinion change per deed (REL-3), by DeedKind.
     struct Deeds {
-        std::array<double, 12> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5};
+        std::array<double, 13> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5, -20};
 
         friend bool operator==(const Deeds&, const Deeds&) = default;
     } deed;
@@ -397,6 +397,7 @@ struct Config {
         double smuggler_risk = 0.7;
         double contraband_price = 1.5;  // x base, what a lawful population pays a smuggler
         double demand_cap = 0.3;        // per thousand a day
+        double legal_bonus = 5;         // a legal-goods run's pay per unit delivered, on top of the sale
 
         friend bool operator==(const Pirate&, const Pirate&) = default;
     } pirate;
@@ -406,6 +407,23 @@ struct Config {
 
         friend bool operator==(const PirateRelation&, const PirateRelation&) = default;
     } pirel;
+
+    // Suspicion and inspection (INF-14, SYS-17).
+    struct Sus {
+        double inspect_base = 0.05;   // chance a landing is inspected, before intensity
+        double war = 0.5;             // intensity added at war
+        double police_per_unit = 0.5; // intensity per value.security_unit a month of policing
+        double find_base = 0.3;       // chance an inspection catches a smuggler it knows nothing of
+        double scale = 100;           // suspicion that makes a catch certain
+        double contraband = 10;       // suspicion added per landing with contraband aboard, not caught
+        double pirate = 0.2;          // per point of pirate relation above neutral, at each landing
+        double trade = 2;             // removed per genuine trade at a planet of the faction
+        double caught = 30;
+        double fade = 0.05;           // weekly
+        double police_effect = 2;     // the budget's value of policing (SYS-5)
+
+        friend bool operator==(const Sus&, const Sus&) = default;
+    } sus;
 
     struct AuthorityParams {
         double risk_post = 0.3;           // a sector this risky near the network gets a clearing contract
@@ -638,6 +656,18 @@ void for_each_field(C& c, F&& f) {
     f("pirate.smuggler_risk", c.pirate.smuggler_risk);
     f("pirate.contraband_price", c.pirate.contraband_price);
     f("pirate.demand_cap", c.pirate.demand_cap);
+    f("pirate.legal_bonus", c.pirate.legal_bonus);
+    f("sus.inspect_base", c.sus.inspect_base);
+    f("sus.war", c.sus.war);
+    f("sus.police_per_unit", c.sus.police_per_unit);
+    f("sus.find_base", c.sus.find_base);
+    f("sus.scale", c.sus.scale);
+    f("sus.contraband", c.sus.contraband);
+    f("sus.pirate", c.sus.pirate);
+    f("sus.trade", c.sus.trade);
+    f("sus.caught", c.sus.caught);
+    f("sus.fade", c.sus.fade);
+    f("sus.police_effect", c.sus.police_effect);
     f("pirel.accept", c.pirel.accept);
     f("pirel.success", c.pirel.success);
     f("pirel.fail", c.pirel.fail);
@@ -655,7 +685,7 @@ void for_each_field(C& c, F&& f) {
 
     constexpr const char* deeds[] = {"help_sent", "help_missed", "planet_granted", "patronage", "tribute_raised",
                                      "passed_over", "call_answered", "call_refused", "border_held", "job_done",
-                                     "attacked", "tribute_lowered"};
+                                     "attacked", "tribute_lowered", "caught"};
     for (std::size_t i = 0; i < c.deed.amount.size(); ++i) f(std::string("deed.") + deeds[i], c.deed.amount[i]);
 
     f("fealty.cascade", c.fealty.cascade);
