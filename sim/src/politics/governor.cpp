@@ -8,6 +8,7 @@
 #include "pirates/pirates.hpp"
 #include "pirates/smuggling.hpp"
 #include "war/raids.hpp"
+#include "war/spies.hpp"
 
 namespace lattice::governor {
 
@@ -71,6 +72,7 @@ void monthly(World& w, Id planet, Observer* observer) {
     fealty::pay_tribute(w, planet, observer);
     if (p.liege == kNone) diplomacy::pay_ceasefire(w, planet, observer);
     budget::pay_stipends(w, planet, observer);
+    spies::pay(w, planet, observer);
     if (p.liege == kNone) merchant::pay_salaries(w, planet, observer);
 }
 

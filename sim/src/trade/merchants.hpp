@@ -40,4 +40,9 @@ void pay_salaries(World& world, Id root, Observer* observer);
 // The salaried merchant's root, or none.
 Id employer_root(const World& world, Id character);
 
+// One leg's trade, for those whose trips aren't their own (a spy's cover, INF-14): buy what
+// best pays at `next` by belief, and sell what's aboard here.
+void buy_for(World& world, Id character, Id next);
+void sell_here(World& world, Id character);
+
 }  // namespace lattice::merchant

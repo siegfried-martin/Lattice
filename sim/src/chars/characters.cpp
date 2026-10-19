@@ -16,6 +16,7 @@
 #include "pirates/smuggling.hpp"
 #include "pirates/suspicion.hpp"
 #include "war/armies.hpp"
+#include "war/spies.hpp"
 #include "war/raids.hpp"
 #include "war/threats.hpp"
 
@@ -166,6 +167,7 @@ Id faction_of(const World& w, const Character& c) {
     for (Id k : c.contracts) {
         const Contract& ct = w.contracts[at(k)];
         if (!ct.alive || ct.period == 0) continue;  // one-job contracts don't make a member
+        if (ct.kind == ContractKind::Spy) continue;  // nor does a secret one, to anyone looking (SYS-17)
         const Character& employer = w.characters[at(ct.employer)];
         if (&employer == &c || employer.governs == kNone) continue;
         return fealty::root_of(w, employer.governs);
@@ -232,6 +234,10 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
     if (c.activity == Activity::Mission || c.activity == Activity::Escorting || c.activity == Activity::Patrolling ||
         c.activity == Activity::Raiding || c.activity == Activity::Renouncing) {
         return;  // arrivals drive these
+    }
+    if (contracts::held(w, id, ContractKind::Spy) != kNone) {
+        spies::next(w, id, observer);
+        return;
     }
     if (c.army != kNone) {
         // Called to an army: go to the muster point and join (MIL-9).
@@ -323,6 +329,9 @@ void landed(World& w, Id id, Observer* observer) {
             return;
         case Activity::Renouncing:
             pirates::renounce(w, id, observer);
+            return;
+        case Activity::Spying:
+            spies::landed(w, id, observer);
             return;
         case Activity::Trading:
             wake(w, id, w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour));  // TRD-12: loading takes time

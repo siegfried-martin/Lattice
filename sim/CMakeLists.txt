@@ -54,6 +54,7 @@ add_library(lattice_core STATIC
     src/war/encounters.cpp
     src/war/raids.cpp
     src/war/risk.cpp
+    src/war/spies.cpp
     src/war/threats.cpp
     src/economy/economy.cpp
     src/economy/events.cpp
@@ -87,6 +88,7 @@ if(LATTICE_BUILD_TESTS)
         tests/test_politics.cpp
         tests/test_war.cpp
         tests/test_pirates.cpp
+        tests/test_spies.cpp
     )
     set_target_properties(lattice-tests PROPERTIES CXX_EXTENSIONS OFF)
     target_include_directories(lattice-tests SYSTEM PRIVATE third_party/doctest)

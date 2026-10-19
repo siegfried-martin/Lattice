@@ -11,6 +11,7 @@ the world is stable (Phase A), then experiments testing whether each mechanic ea
 cost (Phase B). Connecting the simulation to the rendered game follows.
 
 MS-1, the skeleton and toolchain, is done: the core, runner, tests, saves and a Godot
-binding the project loads. MS-2 (world generation and the economy), MS-3 (characters,
-movement, information and trade), MS-4 (politics), MS-5 (war) and MS-6 (piracy and
-suspicion) are built. Next is MS-7, spies.
+binding the project loads. MS-2 to MS-7 are built: world generation and the economy,
+characters, movement, information and trade, politics, war, piracy and suspicion, and
+spies. Every v1 system runs. Next is MS-8: full scale, the experiment harness, and Phase
+A tuning.

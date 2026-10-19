@@ -342,6 +342,17 @@ void at_stop(World& w, Id id, Observer* observer) {
     }
 }
 
+void buy_for(World& w, Id id, Id next) {
+    const Character& c = w.characters[at(id)];
+    if (c.planet == kNone || c.cargo_qty > 0) return;
+    const ships::Fleet f = ships::fleet(w, c);
+    const Ctx x{w, c, f.cargo, std::max(0.0, c.wealth - chars::reserve(w, c)), f.run_cost};
+    const LegChoice leg = best_leg(x, c.planet, true, next);
+    if (leg.good != kGoodCount) buy_for_leg(w, id, leg.good, next, nullptr);
+}
+
+void sell_here(World& w, Id id) { sell_cargo(w, id); }
+
 Id explore_target(const World& w, const Character& c) {
     if (c.planet == kNone) return kNone;
     const double stale = w.config.merchant.stale_days * kDay;

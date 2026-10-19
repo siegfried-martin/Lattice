@@ -360,8 +360,9 @@ enum class Activity : std::uint8_t {
     Escorting = 8,  // escorting a merchant (TRD-8)
     Patrolling = 9, // on a security mission (MIL-5)
     Renouncing = 10, // broke, on its way to a pirate planet to join it (PIR-4)
+    Spying = 11,     // a spy, on its rounds (INF-13)
 };
-inline constexpr int kActivityCount = 11;
+inline constexpr int kActivityCount = 12;
 
 // The kinds of mission and skill (CHR-10). Append only.
 // Skills are the first six; Security missions count toward the escort skill.
@@ -461,7 +462,7 @@ void fields(Ar& ar, C& c) {
 // Append only.
 enum class ContractKind : std::uint8_t {
     Fealty = 0, Service = 1, MerchantSalary = 2, Escort = 3, Courier = 4, Scout = 5, Security = 6, Mercenary = 7,
-    PirateHire = 8,
+    PirateHire = 8, Spy = 9,  // a spy's contract is secret (SYS-17)
 };
 
 struct Contract {
@@ -568,6 +569,9 @@ struct Ledger {
     std::int64_t flips = 0, recaptures = 0, turned_pirate = 0, pirate_raids = 0, authority_contracts = 0;
     std::int64_t offers = 0, smuggled_runs = 0, legal_runs = 0, inspections = 0, caught = 0;
     double smuggled = 0, confiscated = 0, policing = 0, smuggler_profit = 0;
+    // Spies (MS-7).
+    std::int64_t spies_hired = 0, spy_visits = 0, musters_seen = 0, spies_caught = 0;
+    double spy_pay = 0;
     double security = 0, ceasefire_tribute = 0, power_destroyed = 0;
     std::array<double, kGoodCount> destroyed{};  // goods lost in capture and battle
     std::int64_t wars = 0, ceasefires = 0, battles = 0, sieges = 0, captures = 0, reliefs = 0, deaths = 0, pods = 0;
@@ -582,6 +586,7 @@ void fields(Ar& ar, L& l) {
     ar(l.loot, l.escort_pay, l.raids, l.escorts, l.sightings, l.warnings, l.garrisons, l.patrols);
     ar(l.flips, l.recaptures, l.turned_pirate, l.pirate_raids, l.authority_contracts);
     ar(l.offers, l.smuggled_runs, l.legal_runs, l.inspections, l.caught, l.smuggled, l.confiscated, l.policing, l.smuggler_profit);
+    ar(l.spies_hired, l.spy_visits, l.musters_seen, l.spies_caught, l.spy_pay);
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,
        l.reliefs, l.deaths, l.pods);
 }

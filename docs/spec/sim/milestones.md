@@ -161,6 +161,17 @@ smugglers, the pirate relation, contraband in lawful markets, policing and suspi
 Spies (INF-13, SYS-17). Last because suspicion already exists for smuggling, so a spy
 only adds the role and what it can learn behind enemy lines.
 
+*Built 2026-10-18.*
+- **What runs:**
+  - spies hired through the budget at war, on secret contracts;
+  - rounds to enemy markets with cover trades;
+  - sightings of armies forming, which reach home and raise warnings;
+  - blown covers, with an attack;
+  - EXP-4's switch.
+- **Seen in seed 1 over five years:** spies saw about 320 musters, and warnings and
+  garrisons rose with them. Hiring churns as budgets move: about 5,300 hires for about
+  100 posts, and 680 caught.
+
 ### MS-8 Full scale and Phase A `v1`
 
 v1-size worlds, the parallel experiment harness (many worlds across cores), plotting,

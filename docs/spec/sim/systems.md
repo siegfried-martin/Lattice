@@ -726,6 +726,21 @@ P(caught)      = P(inspect) × f(suspicion)      contraband found or cover blown
   `sus.police_effect`; spend is a monthly sink.
 - **Not yet:** the Authority's inspections on the Lattice.
 
+*As built (MS-7), spies* *(proposed throughout)*:
+- **Hiring:** a governor that believes it's at war buys spies through its budget, each
+  worth `spy.value` × monthly income × threat for `spy.salary` a month. They're hired
+  from independent traders idle within `hire.range_days`; at peace they're let go.
+- **The secret contract:** it doesn't make the spy a member (`faction_of` ignores it).
+  It shares with its own governor at home, which checks the news for threats (SYS-13).
+- **The round:** from home, to the enemy market within `spy.range_days` it has seen least
+  recently, and back.
+  - Abroad it sells what it carries and buys for home as cover. A visit without a
+    purchase adds `sus.no_trade`.
+  - It records every army at that planet as a sighting with its intent. One forming
+    there adds `sus.muster`.
+- **Caught:** an inspection that catches a spy blows its cover. The contract ends, the
+  governor there takes the `caught` deed, and the planet's commanders at home attack it.
+
 - **Spies** *(proposed)*: a spy holds a **secret** contract with its planet, so to others
   it reads as an independent and keeps neutral standing (and Lattice access). It travels
   to enemy planets, records what it sees there (musters, prices), and returns to report.

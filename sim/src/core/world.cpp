@@ -218,6 +218,14 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.inspections", -1, static_cast<double>(w.ledger.inspections));
     o.sample(t, "world.caught", -1, static_cast<double>(w.ledger.caught));
     o.sample(t, "world.confiscated", -1, w.ledger.confiscated);
+    // Spies (EXP-4).
+    std::int64_t spies_now = 0;
+    for (const Contract& k : w.contracts) spies_now += k.alive && k.kind == ContractKind::Spy;
+    o.sample(t, "world.spies", -1, static_cast<double>(spies_now));
+    o.sample(t, "world.spies_hired", -1, static_cast<double>(w.ledger.spies_hired));
+    o.sample(t, "world.spy_visits", -1, static_cast<double>(w.ledger.spy_visits));
+    o.sample(t, "world.musters_seen", -1, static_cast<double>(w.ledger.musters_seen));
+    o.sample(t, "world.spies_caught", -1, static_cast<double>(w.ledger.spies_caught));
     o.sample(t, "world.fires", -1, static_cast<double>(w.ledger.fires));
     o.sample(t, "world.trips", -1, static_cast<double>(w.ledger.trips));
     o.sample(t, "world.trade_profit", -1, w.ledger.trade_profit);
