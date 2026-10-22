@@ -223,3 +223,28 @@ These don't touch the sim, or can be added later without changing what's built:
 4. **Spies:** EXP-4 first, then the stealth and detection rewrite if spies earn their
    place.
 5. **Top-ups (5.3),** only if tribute relief doesn't fix poor planets.
+
+## 6. The human's answers (2026-10-22)
+
+- **Missions are the market for wants.** Missions plus characters free to choose among
+  them work like a free market. An entity says what it wants, and whoever finds it worth
+  doing does it. Much of the design was already heading this way: objectives, loans,
+  scouting, couriers, clearing contracts, the Authority board and top-ups. Price stays the
+  motivator for ordinary trade (TRD-2). Missions carry wants that a price can't express.
+- **Failing a mission is a bad deed** with its issuer. Abandoning a one-job contract
+  counts as failing it, which narrows REL-8 for missions. Standing contracts can still be
+  ended without a penalty.
+- Q1: **Stewards are allowed** (REJ-8 is reversed). Stewarding is also a way up for
+  merchants and spies.
+- Q2: **Sailing governors come now.** Balancing a model they'd overturn wastes the time.
+- Q3: **One budget.** The governor splits war and defence from everything else, and
+  decides how the war and defence share is spent. The steward decides everything else.
+- Q4: Cultures exist in a minimal form. A character's culture is its birth region. It
+  gives that region's ships a small spread in their stats, and governors give it a small
+  hiring preference (`hire.w_culture`). It's cheap and already built, so it stays as an
+  input. *(The implementation agent's answer; not yet confirmed.)*
+- Q5: See the first point.
+- Q6: Pending. "Patrol time" needed explaining.
+- Q7: **The per-trip reset on any non-hostile planet is fine for now.**
+- Q8: **Free money (P3) is accepted in principle.** Try without it first, but for a small
+  issue, use free money rather than reworking the model.
