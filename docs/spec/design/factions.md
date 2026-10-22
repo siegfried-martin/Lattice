@@ -144,14 +144,17 @@ keep it.
 Mount & Blade style: **the governor who keeps the planet chooses its new governor** from
 existing characters with good standing and reputation, with **extra weight for the
 commander who led the capture**. So a commander's chance of becoming governor depends on
-how far down the tree the planet travels. There are no stewards and no pool of standing
-politicians.
+how far down the tree the planet travels. There is no pool of standing politicians.
+
+*(proposed, roles round)* The choice is the governor post's fitness function (CHR-20),
+with the capture bonus on top. Stewards now exist (FAC-16), and a steward is a
+candidate for any seat its chooser fills.
 
 *(open)* Whether "governing skill" weighs in. Skills come from missions, and a candidate
 has never governed; it could be generated with the character, or reputation and
 relationship could carry the choice alone (leaning that way).
 
-*See:* REJ-8, REJ-9, OPN-10.
+*See:* REJ-8 (reversed), REJ-9, OPN-10, FAC-17.
 
 ### FAC-10 Capture costs prosperity `v1` `proposed`
 
@@ -160,6 +163,49 @@ decision. A long siege does more damage on top. Prosperity recovers slowly on it
 and faster with patronage, and tribute follows prosperity, so the payback is visible.
 
 *See:* OPN-8, SYS-13.
+
+## Stewards and succession
+
+### FAC-16 The steward `v1` `proposed`
+
+*(roles round; reverses REJ-8)* A governor appoints a **steward** to run its planet's
+economy. It's a contract (REL-8) that either side can end, and the governor picks by the
+steward post's fitness function (CHR-20). The steward is an NPC-only role in v1
+(CHR-17).
+
+- **The steward decides the economy:** everything that isn't war, defence or politics
+  (CHR-4). The governor decides how much goes to war and defence, how that share is spent,
+  and the politics.
+- **The steward runs the planet while the governor sails** (MIL-20). It holds the
+  planet's information and receives its messages, and answers requests by the rules
+  the governor would use (INF-16), with its own beliefs. The governor and steward share
+  what they know when the governor comes home (INF-4). No rule keeps a governor at home
+  during a siege; leaving is the governor's risk-tolerance call.
+- **It has to be worth taking:** a salary from the planet's budget (an operating cost,
+  ECO-4), and the faction's information (INF-4). That makes stewarding a way up for
+  merchants and spies, who bring trade and information skills to it.
+- **A planet with no steward** is run by its governor, which then stays home.
+
+*Why:* a governor who commands a fleet needs someone to run the planet while it's away,
+and the economy gets a decision-maker of its own.
+
+### FAC-17 Succession `v1` `proposed`
+
+*(roles round)* A governor can die now that governors sail (MIL-20, CHR-15).
+
+- **A governor dies:** the steward runs the budget meanwhile, with no new objectives
+  posted. The liege (the governor above the planet in the tree) chooses the successor by
+  the governor post's fitness function (CHR-20), and the steward is a candidate.
+- **A root dies:** **the steward of the root's planet becomes its governor,** and so the
+  root (FAC-2). The root appointed it, so the faction goes to someone the root trusted.
+  The vassals' opinion of the new root starts from their opinion of that character, so a
+  succession is a natural moment for defection (FAC-11), with no extra rule.
+- **No steward:** a vassal planet's liege chooses as above. At a root, the vassal whose
+  governor thought best of the old root becomes the root, as when a root's planet is
+  captured (SYS-13), and chooses the dead root's successor under itself. A root with no
+  vassals is succeeded by the best fit among its own commanders.
+- **Capture isn't death:** a captured planet's governor is deposed and the planet goes
+  through keep or grant (FAC-8). The steward's contract ends with the deposed governor's.
 
 ## Holding together
 
@@ -204,6 +250,9 @@ pirates.
   (TRD-16).
 - It holds the network key of every gate (WLD-12) and keeps its own opinion of each
   character, which is that character's Authority standing.
+- *(proposed, roles round)* It runs a **mission board** at every planet (MSN-7), and its
+  cut of those deliveries is income beside dues. Its mercenary contracts are where
+  bounties in unclaimed space come from (MSN-10).
 - Its income stays close to steady and drops only when planets go pirate.
 
 *Why:* the one fixed point in a moving world.

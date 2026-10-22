@@ -1,6 +1,6 @@
 # Roadmap
 
-*Reset 2026-09-27; updated 2026-10-19.*
+*Reset 2026-09-27; updated 2026-10-22.*
 
 Done so far: the travel foundation (`WORLD_AND_TRAVEL.md`), a first combat prototype
 (`COMBAT.md`), and four rounds of design, now formalised as the spec (`docs/spec/`).
@@ -22,10 +22,15 @@ budgets and tribute to net income; its results and what still fails (merchants
 squeezed, so idle characters and pirates are too many) are in `sim/milestones.md`
 (MS-8).
 
-Next is designed but not built: a round on paying for war and fealty. Round 4 showed war
-costs a treasury almost nothing and patronage outweighs tribute, so the round adds
-bounties for kills paid by the root, spoils of capture, fleet loans between governors,
+Next is designed but not built: a round on roles, then on paying for war and fealty,
+tuned once together. Governors get fleets of their own and sail, so they can die and be
+succeeded, and a steward runs the planet's economy and keeps it while the governor is
+away. One fitness score fills every post. Missions become the one way any entity asks
+for work, and failing one costs the issuer's opinion (MSN). Round 4 showed war costs a
+treasury almost nothing and patronage outweighs tribute, so the war half adds bounties
+for kills paid by the root, spoils of capture, fleet loans between governors,
 commanders choosing their own objectives, tribute relief for poor vassals and reputation
-in stipends, tuned against target bands written first (CHK-26). The human is settling a
-question about character roles with the planning agent first (OPN-42). The economic
-round (starvation and the merchant squeeze) follows.
+in stipends, tuned against target bands written first (CHK-26 to CHK-29). Later rounds
+from the same design: the Authority's mission board (the merchant squeeze), spy
+missions with stealth and detection, and pirate bounties. The economic round
+(starvation) follows.

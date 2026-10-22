@@ -8,8 +8,8 @@ are in `relationships.md`.
 
 ### CHR-1 One kind of entity, many roles `v1`
 
-There is one kind of entity, the **character**. Governor, commander, merchant, spy,
-scout, courier, escort, mercenary, smuggler, pirate and the player are **roles** a
+There is one kind of entity, the **character**. Governor, steward, commander, merchant,
+spy, scout, courier, escort, mercenary, smuggler, pirate and the player are **roles** a
 character holds: a current contract or status (REL-8), which changes. A career is a path
 through contracts, not a change of entity; the same character, with the same ships,
 wealth, skills and relationships, carries across every step.
@@ -53,6 +53,9 @@ ship decides which missions a character can do:** combat hardpoints against carg
 capacity. A mixed loadout takes both small deliveries and escort jobs because the
 hardware allows it.
 
+*(proposed, roles round)* A ship's profile also has **stealth** and **detection**
+(INF-14), and whether it carries a Lattice Drive or armour (TRD-18).
+
 ### CHR-4 Risk tolerance is the one personality trait `v1`
 
 Each character has one trait, **risk tolerance**, from conservative to aggressive. It is
@@ -65,6 +68,15 @@ the only personality input anywhere in the design. It governs:
 - a governor's lean in a war vote (DIP-4, proposed).
 
 It does **not** govern mission choice, which is fit and pay (CHR-10).
+
+*(proposed, roles round)* **A planet's decisions read the trait of whoever makes them**
+(FAC-16):
+
+- **the governor:** how much goes to war and defence against everything else, and how
+  that share is spent (commanders, security, policing, invasions); tribute rates and
+  relief; objectives; war votes; swearing fealty and defecting;
+- **the steward:** everything else, including growth (PRD-3), patronage, a root's
+  merchant salaries, mission top-ups (MSN-8), and how concentrated that spending is.
 
 *Why:* one trait players learn to read, reused everywhere, instead of a trait per
 decision. A greed trait was considered and not needed.
@@ -99,7 +111,8 @@ characters already in the higher roles. After that, only the bottom rung is gene
 
 Governors and factions **don't own or lend out fleet hardware**. A commander's stipend
 (MIL-2) is compensation they spend on ships they own. Promotion never confiscates
-anything.
+anything. *(proposed, roles round)* A governor's own fleet is its personal property, not
+the planet's; the planet's static defences and patrols are the planet's (MIL-20).
 
 *Why:* governor-owned fleets suit a pure simulation but break the player fantasy of
 building, modding and capturing ships (REJ-12). The cost is that a governor has no hold
@@ -127,24 +140,31 @@ job is to tie fleet size to income, not to punish waiting.
   another. The choice weighs skills, which missions have been paying, and risk tolerance
   (CHR-4).
 - **Reputation and fleet power unlock better missions,** which feeds income and skill.
+- *(proposed, roles round)* **Every mission follows one primitive** (MSN-2): an
+  issuer, a target, a payout fixed when taken, a deadline and a gate. Failing one,
+  abandoning it included, is a bad deed with the issuer (MSN-3).
 - *(proposed, war and fealty round)* **A governor's war objectives are missions too**
   (MIL-2): defend here, join this siege. Their pay is what a commander expects from
   kills and spoils (MIL-18, MIL-19), less what it expects to lose. Expected loss is
   value, not personality, so risk tolerance still doesn't govern the choice (CHR-4).
 
-### CHR-11 The ladder `v1`
+### CHR-11 Paths, not a ladder `v1` `proposed`
 
-Two career paths, each starting with a job anyone can take on day one:
+*(proposed, roles round; replaces "the ladder")* **Paths describe what a ship and the
+market tend to produce. They aren't ladders:** no path has to lead anywhere, and none is
+gated behind another. A merchant who runs dangerous routes with its own fleet may drift
+into commanding or governing; nothing names that route.
 
-- **Warrior:** scout → escort → fleet commander → governor.
-- **Merchant:** courier → merchant → rich merchant. For v1 that is the end of the
-  merchant path: a rich merchant can hire plenty of protection and make more money.
+| Path | Typical first jobs | Typical ship | Tends toward |
+|---|---|---|---|
+| Merchant | courier runs, single trips, Authority board missions (MSN-7) | a cargo hull, with or without a Lattice Drive (TRD-18) | rich merchant; steward; commander or governor with a fleet of its own |
+| Warrior | scouting, bounties, escorts (MSN-10) | an armed hull | escort, commander, governor |
+| Spy | covert deliveries, smuggling, tracking (MSN-11) | a small, fast, low-profile hull | spy for factions, smuggler, steward |
 
-Scouting is the first warship job, in a basic armed hull; couriering is the first
-merchant job, in a fast unarmed one. Planet-level courier and scout missions are open to
-anyone; faction-level ones need membership (INF-10). Escorting needs more combat power,
-and for faction trips good standing with the faction (TRD-8). The paths aren't walls: a
-courier who buys a gunship starts taking scout missions.
+Every job comes from the same mission primitive (MSN-2), and every post is filled by the
+same fitness function (CHR-20). Planet-level courier and scout missions are open to
+anyone; faction-level ones need membership (INF-10). A courier who buys a gunship starts
+taking scout missions.
 
 ### CHR-12 Fleet power: combat and trade `v1`
 
@@ -202,7 +222,7 @@ rules.
 - **Standing, reputation, relationships and skills stay.** Only ships and cargo lost in
   the fight are gone.
 - **Rehiring is the market.** A governor choosing a commander weighs affordability, fleet
-  power and their relationship with the candidate (OPN-15). A commander who saved can
+  power and their relationship with the candidate (CHR-20). A commander who saved can
   rebuild fast and is rehired quickly; one who gambled everything starts smaller. The
   game doesn't referee saving against spending.
 
@@ -217,6 +237,15 @@ open to them are the roles open to everyone: trader, courier, scout, smuggler, s
 escort, mercenary, sworn commander, governor, pirate. A player governor who leaves fealty
 becomes the root of their own faction, by the same rule as any governor (FAC-2, FAC-11).
 
+*(proposed, roles round)* **The one exception is the steward,** which is NPC-only in v1
+(FAC-16). Time stops while the player is at a planet, so a player steward would have
+nothing to do. A player steward is `later`.
+
+`open` How the start reaches the Lattice Drive (OPN-43). Both the merchant and the
+warrior paths should reach it by their own work. The warrior's escort jobs need a drive
+for Lattice merchants, and a merchant's choice between a drive and a ship without one is
+a real fitting decision (TRD-18).
+
 ### CHR-18 Death and saving `v1`
 
 If the player's pod is shot down, they die and reload. The penalty of death is the
@@ -228,3 +257,30 @@ player lands** at a planet, as in Escape Velocity.
 Named merchants are characters like any other. Replacing procedurally generated
 characters with hand-made static ones, so the player meets authored personalities, is an
 idea to try; it may be too hard to manage.
+
+## Choosing for posts
+
+### CHR-20 One fitness function for every post `v1` `proposed`
+
+*(roles round)* Whoever fills a post scores the candidates with **one fitness function**,
+on data that already exists, with weights for each post:
+
+| Post | Chooser | Leans on |
+|---|---|---|
+| Governor | the liege, the capturing keeper (FAC-8, FAC-9) or the succession (FAC-17) | combat power, reputation, opinion |
+| Steward | the governor | trade power, reputation, opinion |
+| Commander | the governor | combat power, affordability, opinion |
+
+- **The inputs** are the two power ratings (CHR-12), reputation (REL-7), the chooser's
+  opinion of the candidate (REL-2), shared culture (WLD-18), and for commanders, what the
+  stipend costs (MIL-2). The weights are Phase A tuning.
+- **Opinion carries real weight, and power and reputation have diminishing returns,** or
+  the biggest fleet or the richest merchant wins every post.
+- **Governor and steward are single seats:** the best fit takes it. **Commanders are an
+  open market:** a governor hires zero to many, each when its value clears its cost in
+  the budget (MIL-6). Zero is a valid state.
+- **Risk tolerance isn't an input** (CHR-4).
+
+*Answers:* OPN-15 (how a governor weighs hiring) and OPN-40 (what reputation is worth to
+an employer: it weighs in every pick).
+

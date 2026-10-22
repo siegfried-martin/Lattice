@@ -123,6 +123,9 @@ Planet-level and faction-level couriers, and planet-level and faction-level scou
 **Planet-level missions are open to anyone; faction-level ones need faction
 membership.**
 
+*(proposed, roles round)* These are four kinds of the one mission primitive (MSN-2),
+beside spy missions (MSN-11) and the rest of MSN.
+
 ### INF-11 Missions travel at courier speed `v1`
 
 A faction-level mission appears at a planet when a courier delivers it. A governor who
@@ -147,6 +150,11 @@ armies in transit at the border, spies catch them forming at home.** A spy who i
 discovered is attacked; there is no capture (CHR-14). Spies are the last v1 milestone
 (MS-7), and the no-spies experiment (EXP-4) decides whether they earn their place.
 
+*(proposed, roles round; built in the spy round)* **Spies take missions; planets don't
+employ them.** A spy is a freelancer paid per job (MSN-11, REL-8), working for any
+governor or root, for the Authority, or for a pirate planet. A scout risks combat; a
+spy risks detection.
+
 ### INF-14 Suspicion `v1`
 
 One detection mechanism, shared by spies and smugglers:
@@ -162,6 +170,34 @@ One detection mechanism, shared by spies and smugglers:
 - **The player can see their own meter,** so the risk is legible and they can back off.
 - *(proposed)* An inspection that finds contraband or catches a spy is a bad deed (REL-3)
   and confiscates the contraband.
+
+*(proposed, roles round; replaces the meter above when the spy round is built)*
+**Stealth against detection, counted per trip:**
+
+- **Stealth** is a character rating. It grows a very little with each exposure survived,
+  with a cap and diminishing returns. The ship adds a small modifier: a covert hull is
+  stealthier (OPN-44).
+- **Detection** is a stat on **planets** (set by policing, PIR-15), on **sectors**
+  (derived from the patrols the open-space step finds there, TIM-6, never stored) and
+  on **ships**, which matters when ships meet.
+- **An exposure** is landing at an enemy or inspecting planet, or an encounter in an
+  enemy sector. It adds to the character's **suspicion** by how far the place's
+  detection beats the character's stealth. A high pirate relation (PIR-9), cargo that
+  doesn't fit the route, and lingering all add to it.
+- **Suspicion is one number per character, per trip.** It resets on landing at a planet
+  not hostile to the character. Landing at the planet being infiltrated is an exposure,
+  so it doesn't reset there. Working deep in enemy territory with many enemy ships
+  around is harder, which is the point.
+- **Past the threshold:**
+  - **in enemy territory,** the mission fails and the character is **flagged hostile**
+    to the detecting faction until it lands at a planet not hostile to it. There's no
+    capture (CHR-14). A flagged ship that's caught is a combat loss, and the pod rolls;
+  - **in lawful space,** an inspection that finds contraband confiscates it, and it's a
+    bad deed.
+- **The player sees their own counter,** so the risk is readable and they can back off.
+- **Exposures happen** at landings and at encounters in enemy sectors, not on every
+  sector entered, so the risk doesn't compound unrealistically.
+- A second, lasting suspicion stat is the upgrade if Phase A shows spies never fail.
 
 ### INF-15 An information market `later`
 

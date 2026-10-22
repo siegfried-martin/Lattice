@@ -154,7 +154,8 @@ collapsing the map. *Metric:* experiment run (EXP-1 in reverse: a target faction
 
 A meaningful share of scouts become escorts, some become commanders and a few become
 governors; a meaningful share of couriers become merchants. *Metric:* role transitions
-per character over their life. *Tests:* CHR-10, CHR-11.
+per character over their life. *Tests:* CHR-10, CHR-11. *(proposed, roles round)*
+Stewards are a destination too: some merchants and spies become stewards (CHK-27).
 
 ### CHK-17 The population holds and new characters find work `v1`
 
@@ -217,6 +218,42 @@ diplomatic state. *(proposed bands, placeholders until the runs say otherwise)*
 MIL-2, MIL-18, FAC-6, FAC-7, FAC-15, ECO-7. *Found in round 4:* military spending of
 every kind was about 4% of the money created, tribute 3% to 6%, and patronage 1.3 to 2.7
 times tribute.
+
+### CHK-27 Paths cross `v1` `proposed`
+
+*(roles round)* Posts aren't filled from one path. Some governors were merchants, spies
+or stewards, and some stewards were commanders. If every governor is a warrior and every
+steward a merchant, the fitness weights are too narrow (CHR-20). *Metric:* each
+governor's, steward's and commander's main earnings before the post (trade, missions,
+stipends). *Tests:* CHR-11, CHR-20, FAC-16.
+
+### CHK-28 Missions are worth what they cost `v1` `proposed`
+
+*(roles round)* Each kind of issuer gets something for its mission spend, and missions
+supplement price without replacing it (TRD-2). *Metrics and bands, placeholders:*
+
+- spend, completions and failures per kind of issuer (MSN-4). An issuer that keeps losing
+  on one kind of mission is a candidate for free money (MSN-5), decided with these
+  numbers;
+- failures are a minority of taken missions, but not zero;
+- commander hiring doesn't run away in a long war (CHK-8);
+- *(with the Authority board, MSN-7)* the Authority's cut against its drift losses stays
+  in a band, not exactly balanced. Missions move under a ceiling of all goods moved, and
+  the board doesn't widen the gap between member and independent merchants (the merchant
+  squeeze, MS-8);
+- *(with top-ups, MSN-8)* top-ups don't keep a chronic failure (ECO-13) alive forever;
+- *(with spawned bounties, MSN-10)* pay falls as a sector's risk falls;
+- *(with the spy round, INF-14)* spy failures sit in a band: not zero, not constant, and
+  falling with stealth.
+
+*Tests:* MSN-1 to MSN-11.
+
+### CHK-29 Successions settle `v1` `proposed`
+
+*(roles round)* Every planet always has a governor (FAC-1). Most governors who die are
+succeeded inside a month. A root's death sometimes costs it a vassal, but rarely more
+than one (FAC-11's damping). *Metric:* days without a governor; defections within
+three months of a succession, against the base rate. *Tests:* FAC-16, FAC-17, MIL-20.
 
 ## Performance
 

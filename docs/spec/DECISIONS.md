@@ -5,6 +5,53 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-22 · Roles, progression and missions, design
+
+The planning agent's draft `ROLES.md` (answering OPN-42), reviewed with the human and
+written into the spec as `proposed`; not built. The draft and its review are in git at
+commit 3145d4b.
+
+- **Missions are the market for wants:** an entity posts what it wants, and characters
+  free to choose take what's worth it to them. Price still runs ordinary trade. One
+  mission primitive for every path (new `design/missions.md`, MSN-1, MSN-2).
+- **Failing a mission is a bad deed,** and abandoning a one-job contract counts as
+  failing it. This narrows REL-8 and REJ-15 for missions only. Completion is a good deed,
+  and tiers open with the issuer's opinion. Reputation isn't hit by failure (MSN-3,
+  REL-3, REL-7).
+- **Paths, not a ladder:** merchant, warrior and spy describe tendencies, and nothing is
+  gated behind anything (CHR-11, rewritten).
+- **One fitness function** fills every post (governor, steward, commander), with weights
+  per post. Culture stays an input. Answers OPN-15 and OPN-40 (CHR-20, MIL-6, FAC-9,
+  SYS-22).
+- **Stewards return** (reverses REJ-8): an NPC-only post that runs a planet's economy and
+  holds the planet while its governor sails. It's a way up for merchants and spies
+  (FAC-16, CHR-17).
+- **One budget, two deciders:** the governor decides war and defence against the rest,
+  and how that share is spent; the steward decides everything else. Each line reads its
+  decider's risk tolerance (CHR-4, ECO-8, SYS-5).
+- **Governors command their own fleets** (admiral; grand admiral with vassals). They
+  defend at home, sail with a steward in charge, pay themselves a stipend, and can die
+  (MIL-1, MIL-20). The human chose to build this now rather than balance a model it would
+  overturn.
+- **Succession:** a liege chooses a dead governor's successor, with the steward among the
+  candidates. A dead root's steward becomes the root. Capture keeps its own rule (FAC-17).
+- **Free money is allowed for missions,** named, measured and logged: try without first,
+  and prefer it to reworking the model for a small issue (MSN-5, ECO-1).
+- **Invented targets change nothing,** but the time spent hunting them counts as patrol
+  time in the sector's risk (MSN-6, TRD-16, SYS-19).
+- **Designed for later rounds:** the Authority's board, data store and cut (MSN-7,
+  FAC-14, ECO-10), as the response to the merchant squeeze; spy missions and per-trip
+  suspicion against stealth and detection, replacing salaried spies and the per-faction
+  meter (MSN-11, INF-13, INF-14, PIR-9, PIR-12, PIR-15); delivery top-ups, a narrow
+  exception to TRD-2 held until tribute relief is measured (MSN-8); war margins
+  (MSN-9); merchant ship profiles (TRD-18); missions between governors, with refusal
+  sized by the ask (MSN-12, REL-10).
+- **The next round** builds the roles model (fitness, stewards, governors' fleets,
+  succession, mission rules), then the war and fealty money, and then tunes once (MS-8).
+- **Retired:** OPN-15, OPN-40 and OPN-42 (answered). **New questions:** the start and the
+  Lattice Drive (OPN-43), the ship's effect on stealth (OPN-44), the spy and pirate
+  overlap (OPN-45), and the fitness weights (OPN-46).
+
 ### 2026-10-19 · War and fealty money, design
 
 Agreed with the human in conversation, written into the spec as `proposed`; not built.
@@ -426,14 +473,14 @@ Ideas considered and dropped. Don't reintroduce one without a new reason.
 | REJ-5 | Faction- or culture-specific Lattice technology | Variety belongs to hardware | WLD-20 |
 | REJ-6 | "Threader" | A speech-to-text error | The Lattice Drive (WLD-8) |
 | REJ-7 | Pirate range bounded by Lattice fuel | Pirates don't use the Lattice | Slow open-space travel (PIR-2) |
-| REJ-8 | Stewards running planets for governors in the field | Characters rise organically instead | FAC-9 |
+| REJ-8 | Stewards running planets for governors in the field | Characters rise organically instead | FAC-9. *Reversed 2026-10-22:* governors now sail with their own fleets, and stewarding is a way up for merchants and spies (FAC-16) |
 | REJ-9 | A pool of standing politicians without planets | No job once governors are chosen from existing characters | FAC-9 |
 | REJ-10 | Prisoners, ransom, exchange, captivity | Clunky, and from a historical setting Lattice isn't in. Never in the game. | Escape pods (CHR-15) |
 | REJ-11 | A closed money loop (wages from production) | Money bunches up in one part of the economy | ECO-1, ECO-5 |
 | REJ-12 | Governors owning and lending fleets | Breaks the player's ownership of their ships | CHR-8 |
 | REJ-13 | No fleet running cost at all | Money piles up and fleet size isn't tied to income | Low running costs (CHR-9) |
 | REJ-14 | Favor as a currency or ledger, alongside loyalty and money | Three systems where two do the job | REL-1 |
-| REJ-15 | Reputation or opinion penalties for ending contracts | Players mustn't feel locked in | REL-8 |
+| REJ-15 | Reputation or opinion penalties for ending contracts | Players mustn't feel locked in | REL-8. *Narrowed 2026-10-22:* abandoning a mission counts as failing it (MSN-3) |
 | REJ-16 | Money from population alone | A blockaded planet would keep printing income | ECO-1 |
 | REJ-17 | Money from trade taxes alone | Doesn't explain where money enters | ECO-1 |
 | REJ-18 | Private producers and shop owners | Accounts without decisions anyone sees | ECO-2 |
@@ -444,7 +491,7 @@ Ideas considered and dropped. Don't reintroduce one without a new reason.
 | REJ-23 | Discrete price levels internally | Every merchant sees the same jump and herds | Smooth curve shown as bands (PRD-10) |
 | REJ-24 | Agent auction pricing (BazaarBot style) | Hard to tune and read; beliefs already give emergence | PRD-10 |
 | REJ-25 | Planet merchant fleets | No motivator once merchants are characters paid by price | TRD-1, TRD-3 |
-| REJ-26 | The planet as matchmaker for convoys and escorts | Adds waiting, duplicates price | TRD-2, TRD-8 |
+| REJ-26 | The planet as matchmaker for convoys and escorts | Adds waiting, duplicates price | TRD-2, TRD-8. *Narrowed 2026-10-22:* top-ups for planets that can't bid (MSN-8) |
 | REJ-27 | Rust with gdext for the simulation | 0.x with breaking changes, few shipped games, weaker Windows story | C++ (ARC-1) |
 | REJ-28 | Fuel and munitions competing with cargo space | Makes buying consumables feel bad | ECO-12 |
 | REJ-29 | Separate legality lists for the Authority and each faction | Unreadable | PIR-14 |
@@ -461,6 +508,8 @@ Ideas considered and dropped. Don't reintroduce one without a new reason.
 | REJ-40 | Bounties for taking part in a war action | Pays for turning up, not for fighting | Bounties for kills (MIL-18); spoils weighted by days in the siege (MIL-19) |
 | REJ-41 | Governors ordering their commanders onto missions | The one forced choice in a design where everyone chooses | Objectives as missions (MIL-2) |
 | REJ-42 | Acknowledgements and resent messages; couriers that nothing can stop, even a blockade | Protocol state for every character, or no fragility at all | One-way messages with deadlines and defaults (INF-16) |
+| REJ-43 | Spawned mission kills lowering a sector's risk | Invented targets would change real decisions, and belief and truth would drift apart | The hunt counts as patrol time (MSN-6) |
+| REJ-44 | A rule keeping a governor at home during a siege | Leaving is the governor's own risk call | The steward runs the planet (FAC-16) |
 
 ## Retired IDs
 

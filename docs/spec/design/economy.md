@@ -25,6 +25,11 @@ when goods are delivered and bought. A population with nothing to buy generates 
 
 *Why:* a blockaded planet must lose income (REJ-16, REJ-17).
 
+*(proposed, roles round)* **Named exceptions for missions** (MSN-5): a mission may create
+free money when that's a small fix and reworking the model would be a big one. Each is a
+named tunable, its own metric flow and a line in `DECISIONS.md`. Starting wealth for new
+characters is the precedent (SYS-18).
+
 ### ECO-2 Every planet is a state trader `v1`
 
 The governor decides what the planet produces (PRD-9) and owns the output. Sales of the
@@ -54,6 +59,7 @@ PIR-15). These are **larger than Authority dues**. Their purpose is pressure on
 governors: a governor has to keep making money, or the planet drifts toward piracy
 (ECO-13). *(proposed)* Operating costs scale with population, so the pressure comes from
 margin, not size; flat costs would make small planets always go pirate and big ones never.
+*(proposed, roles round)* The steward's salary is an operating cost (FAC-16).
 
 ### ECO-5 Sinks `v1`
 
@@ -118,6 +124,9 @@ every spender** (governors, lieges, roots, commanders, merchants).
   that grows the longer they stay there (OPN-18).
 - **Value is subjective:** shaped by risk tolerance, relationships and possibly stale
   information (INF-2).
+- *(proposed, roles round)* **A planet's budget has two deciders:** the governor sets
+  how much goes to war and defence and how it's spent; the steward spends the rest. Each
+  line reads its decider's risk tolerance (CHR-4, FAC-16).
 
 ## Money within a faction
 
@@ -141,6 +150,9 @@ which is intended.
 - **Network access:** a planet pays for its own ships to travel the Lattice.
 - **Gate holding:** a planet that holds gates (WLD-5) also pays for the right to control
   entry and exit there.
+
+*(proposed, roles round)* The Authority also earns its cut of the deliveries on its
+board (MSN-7).
 
 A gate holder pays the higher tier or becomes a pirate planet. There's no lawful middle
 state of an unpaid, closed interchange, because the player couldn't tell it from a pirate

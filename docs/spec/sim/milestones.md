@@ -397,23 +397,50 @@ and tuning until the checks pass (`checks.md`).
   inside a world wouldn't make them faster; cheaper decisions would. No action yet
   (TIM-8 holds: about 15 seconds a year).
 
-**Next: the war and fealty round** *(designed 2026-10-19, not built)*. One area at a time,
-against a target written down first (CHK-26):
+**Next: the roles and war round** *(roles designed 2026-10-22, war and fealty money
+2026-10-19; not built)*. Governors who sail change who defends, who dies and who
+decides, so they're built before any more balancing. Two building stages, then tuning
+once, against targets written down first (CHK-26 to CHK-29):
+
+*Stage 1, roles: the model.*
+1. **One fitness function** for governors, stewards and commanders (CHR-20, SYS-22),
+   replacing the hiring score and the governor score.
+2. **Stewards** (FAC-16): appointed, paid, holding the planet's information while the
+   governor is away; **one budget, two deciders** (CHR-4, SYS-5).
+3. **Governors' own fleets** (MIL-20): seeded governors get ships; at home they defend;
+   with a steward they join the armies they commission and answer calls.
+4. **Succession** (FAC-17): governor and root deaths.
+5. **The mission rules** (MSN-3): deadlines, failure and abandonment as a bad deed, and
+   spend tracked per issuer.
+
+Then check the world still runs and that round 4's checks haven't regressed, before
+stage 2.
+
+*Stage 2, war and fealty money (designed 2026-10-19):*
 1. **Bounties for kills,** paid by the root (MIL-18), and **spoils of capture** split by
    power × days in the siege (MIL-19).
 2. **Fleet loans** in both directions (MIL-3, MIL-11), replacing the automatic call to
-   arms; **commanders choose their objectives** as missions (MIL-2, MIL-9), behind a
-   config flag so a run with and without shows what autonomy alone does.
+   arms; **commanders choose their objectives** as missions (MIL-2, MIL-9), governors
+   with fleets among them (MIL-20), behind a config flag so a run with and without shows
+   what autonomy alone does.
 3. **Tribute relief requests** on fixed need tests (FAC-15), with **patronage narrowed**
    to rebuilding captured planets (FAC-7).
 4. **Reputation in stipends** (MIL-2).
 5. **Messages go one way** (INF-16): requests carry deadlines and defaults.
 
 Watch: CHK-26's bands, the root's treasury at war (CHK-8), money growth (CHK-7), time
-at war, captures, desertions (objectives declined), relief granted and refused. Munitions
-(MIL-4) and MIL-3's liege paying for a whole campaign wait until bounties show whether
-war is still too cheap. OPN-42 (character roles) may change items 2 and 4 before
-they're built.
+at war, captures, desertions (objectives declined), relief granted and refused,
+governors killed and successions (CHK-29), and where governors and stewards came from
+(CHK-27). Munitions (MIL-4) and MIL-3's liege paying for a whole campaign wait until
+bounties show whether war is still too cheap.
+
+**Later rounds from the roles design,** one area each:
+- **The Authority's board and contract merchants** (MSN-7), as the response to the
+  merchant squeeze (round 4: 23% of characters idle, 15% pirates).
+- **Spies:** EXP-4 first; then spy missions and per-trip suspicion against stealth and
+  detection (MSN-11, INF-14), if spies earn their place.
+- **Spawned bounties** (MSN-6, MSN-10), with the hunt counting as patrol time.
+- **Delivery top-ups** (MSN-8), only if tribute relief leaves poor planets unfed.
 
 **Discussed, not decided: the economy after this round.** Starvation and merchants'
 margins point at the same causes. In round 4 a full ration of life support would take

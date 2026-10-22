@@ -91,6 +91,7 @@ standing being a root's opinion (REL-5). It does two jobs at once:
 
 - **neutral or better, and pirates don't attack you;**
 - **the higher it is, the more lawful inspections flag you** through suspicion (INF-14).
+  *(proposed, roles round)* It adds to each exposure (INF-14).
 
 Its resting point toward outsiders is **hostile**, and it **decays slowly** toward it, so a
 former smuggler drifts back to being attacked by pirates and unsuspected by the law. One
@@ -118,7 +119,8 @@ as information.
 
 A character with a good pirate relation who has never become a full pirate is a
 **smuggler**. They can use the Lattice; suspicion is their risk of being caught. This is
-the "pirate disguised as a neutral merchant" of the drafts.
+the "pirate disguised as a neutral merchant" of the drafts. *(proposed, roles round)*
+A smuggler's risk is the same per-trip suspicion as a spy's (INF-14).
 
 ### PIR-13 NPC smugglers `v1`
 
@@ -140,7 +142,8 @@ never want illegal goods for their own militaries.
 
 Policing is a planetary expense, paid through the security force (MIL-5). It cuts
 contraband inflow and costs the treasury. *(proposed)* What it buys is **inspection
-intensity**, the suspicion system's dial (INF-14). A governor can keep the population
+intensity**, the suspicion system's dial (INF-14). *(proposed, roles round)* That dial
+is the planet's detection stat. Policing is the governor's decision (CHR-4). A governor can keep the population
 happy with legal luxuries, run a police state, or live with low productivity; governors
 land in different places, so smuggling routes shift as governors change.
 

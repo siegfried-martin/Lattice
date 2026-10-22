@@ -24,4 +24,5 @@ rules are in `docs/spec/`. Between rounds this folder holds only this README.
    `docs/spec/DECISIONS.md`, and deletes the drafts. Git keeps them.
 
 The first drafts (`FACTIONS.md`, `ECONOMY.md`, `TRADE.md`, `CHARACTERS.md`) were
-formalised on 2026-10-18 and are preserved at the git tag `planning-drafts-1`.
+formalised on 2026-10-18 and are preserved at the git tag `planning-drafts-1`. The roles draft (`ROLES.md`) and its review were formalised on
+2026-10-22; they're at commit 3145d4b.

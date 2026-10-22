@@ -58,6 +58,8 @@ Opinion changes only because something happened. Examples:
 | *(proposed)* Liege refuses tribute relief to a vassal that qualifies | Vassal's of liege, down |
 | *(proposed)* Commander declines every objective its employer posts (MIL-2) | Employer's of commander, down a little |
 | *(proposed)* Root can't pay the bounties it owes (MIL-18) | Commander's of root, down |
+| *(proposed, roles round)* A mission completed (MSN-3) | Issuer's of taker, up (as a job done well) |
+| *(proposed, roles round)* A mission failed or abandoned (MSN-3) | Issuer's of taker, down |
 
 **Opinion drifts slowly back toward a resting point,** neutral by default, so old deeds
 fade and loyalty needs renewing. Grievances are bad deeds that haven't faded yet.
@@ -101,7 +103,8 @@ Reputation is separate from opinion: how well known and accomplished a character
 not how any one character feels about them. It grows with missions completed and fleet
 power, and it unlocks better missions (CHR-10), shortens landing waits (WLD-14) and
 weighs in choosing governors (FAC-9). *(proposed, war and fealty round)* It also raises
-a commander's stipend, on a curve that levels off (MIL-2).
+a commander's stipend, on a curve that levels off (MIL-2). *(proposed, roles round)* It
+weighs in filling every post (CHR-20), and failing a mission doesn't lower it (MSN-3).
 
 *See:* OPN-11 (how it's computed).
 
@@ -114,7 +117,9 @@ run, a mercenary task and a pirate hire are all **contracts** between characters
 
 - **Either side can end any contract at any time.** The only cost is losing what the
   contract gave: pay, protection, information. There is **no reputation or relationship
-  penalty** for ending one, for NPCs or the player.
+  penalty** for ending one, for NPCs or the player. *(proposed, roles round)* **The
+  exception is a mission:** abandoning a one-job contract counts as failing it, a bad
+  deed with the issuer (MSN-3). Standing contracts are unaffected.
 - **Duration depends on the job.** Fealty and service contracts are standing until
   someone ends them. Escort, courier, scout and mercenary tasks are for one job: the
   contract starts with it and ends with it. Nobody is on retainer.
@@ -143,6 +148,9 @@ Refusing a call to arms doesn't end a contract, so it can lower the liege's opin
 refusing it is this deed. The same holds for a liege refusing tribute relief a vassal
 qualifies for (FAC-15), and, as a smaller deed, for a commander declining every
 objective its employer posts (MIL-2). None of these ends a contract.
+
+*(proposed, roles round)* A refusal's size follows the size of the ask (MSN-12), so a
+liege can't push a vassal away by spamming small requests.
 
 *See:* OPN-16.
 

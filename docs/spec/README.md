@@ -69,16 +69,17 @@ design: every number in `design/` is illustrative, and the starting values live 
 | File | Prefix | Covers | Key terms |
 |---|---|---|---|
 | `world.md` | WLD | Map, sectors and systems, the Lattice and its travel rules, gates and their two keys, landing, the clock, cultures and regions, aliens | sector, system, group, gate holder, Lattice Drive, bail out, ramp boost, culture region, fringe |
-| `characters.md` | CHR | The one character model, attributes, the risk trait, generation, ownership, careers and the ladder, fleet power, losing and escape pods, the player | role, risk tolerance, skill, ladder, fleet power, preset variant, escape pod, autosave |
+| `characters.md` | CHR | The one character model, attributes, the risk trait, generation, ownership, careers and paths, fleet power, losing and escape pods, the player, the fitness function | role, risk tolerance, skill, path, fleet power, preset variant, escape pod, autosave, fitness |
 | `relationships.md` | REL | Money and relationships as the only two systems, opinion and deeds, standing, reputation, contracts | opinion, deed, loyalty, favor, standing, reputation, contract |
-| `factions.md` | FAC | Governors and fealty trees, the fealty deal, tribute, patronage, keep-or-grant, choosing governors, defection, the Trade Authority | governor, liege, vassal, root, tribute, patronage, keep or grant, defection, Trade Authority |
+| `factions.md` | FAC | Governors and fealty trees, the fealty deal, tribute, patronage, keep-or-grant, choosing governors, stewards and succession, defection, the Trade Authority | governor, liege, vassal, root, tribute, patronage, keep or grant, steward, succession, defection, Trade Authority |
 | `diplomacy.md` | DIP | War, peace and ceasefire between factions | war, peace, ceasefire, suing for peace, war vote |
-| `military.md` | MIL | Commanders and stipends, running costs, planetary defence, armies, invasions, sieges, off-screen combat | stipend, running cost, security force, army, intent, action, siege, relief, loan, objective, bounty, spoils |
+| `military.md` | MIL | Commanders and stipends, running costs, planetary defence, armies, invasions, sieges, off-screen combat | stipend, running cost, security force, army, intent, action, siege, relief, loan, objective, bounty, spoils, admiral |
 | `economy.md` | ECO | Where money enters and leaves, the state trader, taxes, operating costs, budget decisions, money within a faction, Authority dues, fuel, planets turning pirate | purchasing power, state trader, transaction tax, sink, budget model, dues, fuel price |
 | `production.md` | PRD | v1 goods, population, production and labour, prices, efficiency events, the full supply chain (later) | life support, luxury, contraband, reserve, efficiency, labour share, happiness, productivity |
 | `trade.md` | TRD | Merchants and their trip shapes, escorts, osmosis, ambient ships, the risk number, trade missions for the player | faction merchant, independent merchant, trip shape, escort, osmosis, ambient, risk |
 | `piracy.md` | PIR | The pirate faction, pirate planets, commanders turning pirate, loot, the pirate relation, smuggling, contraband policing | pirate faction, anarchy, pirate relation, smuggler, full pirate, policing |
-| `information.md` | INF | Facts and beliefs, sharing, couriers, scouts, mission travel, spies, suspicion | fact, belief, sharing, courier, scout, sighting, spy, suspicion |
+| `information.md` | INF | Facts and beliefs, sharing, couriers, scouts, mission travel, spies, suspicion | fact, belief, sharing, courier, scout, sighting, spy, suspicion, stealth, detection, exposure |
+| `missions.md` | MSN | Missions as the market for wants, the one mission primitive, success and failure, free money, spawned targets, the Authority's board, top-ups, and each path's missions | mission, issuer, tier, spawned target, free money, Authority board |
 
 ### Simulation (`sim/`)
 
