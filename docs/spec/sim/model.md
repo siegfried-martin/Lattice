@@ -37,6 +37,7 @@ after loading.
 | culture | static (WLD-16): its region |
 | fringe | static: off the network (WLD-6) |
 | governor | character ID (FAC-1) |
+| steward | character ID, or none (FAC-16) *(proposed, roles round)* |
 | population, happiness | PRD-2, PRD-4; *(round 3)* happiness is signed, 0 neutral (SYS-1) |
 | prosperity | derived index, stored for capture effects (FAC-10, SYS-13) |
 | stock per good | the market |
@@ -50,7 +51,7 @@ after loading.
 | tribute rate | set by its liege (FAC-6) |
 | income this month, tribute received this month, last tribute paid | for tribute (FAC-6) and patronage (SYS-5); *(round 4)* the month's income is net |
 | low since | when its governor's opinion of the liege fell below the defection threshold (FAC-11) |
-| growth factor | from governor's risk tolerance (PRD-3) |
+| growth factor | from governor's risk tolerance (PRD-3); *(proposed, roles round)* from the steward's, when there is one |
 | patrol upkeep, policing spend | ECO-4, PIR-15 |
 | static defence | current strength, maximum (MIL-5) |
 | fuel price | fixed at world build (ECO-11) |
@@ -76,6 +77,8 @@ after loading.
 | pirate status | none, full pirate (PIR-11); *as built*, also the pirate planet it's heading to when turning (PIR-4) and its last fight in open space |
 | suspicion | per faction root, plus Authority (INF-14); *as built*, a sorted list of (faction, value, last updated), fading lazily; and a pirate run offered on contact (PIR-13) |
 | goal, action | current long-term goal and short-term action (CHR-2) |
+| stewards | *(proposed, roles round)* the planet it stewards, if any (FAC-16) |
+| stealth | *(proposed, roles round; spy round)* a rating that grows with exposures survived (INF-14) |
 | broke since | for running out of money (PIR-4) |
 
 *As built (MS-3)*, also: the planet it's at, the planet where it last landed (and
@@ -92,7 +95,7 @@ opinion (FAC-14) are stored as two fields on the character.
 
 | Field | Notes |
 |---|---|
-| kind | fealty (governor to governor), service (commander to governor), merchant salary, escort, courier, scout, security, mercenary task, pirate hire |
+| kind | fealty (governor to governor), service (commander to governor), merchant salary, escort, courier, scout, security, mercenary task, pirate hire; *(proposed, roles round)* steward (governor to steward) |
 | parties | employer, employee |
 | pay | amount and schedule (per period, or on completion) |
 | mission | the mission a one-job contract carries out |
@@ -180,7 +183,7 @@ little. Sharing is a merge of two sorted vectors keeping the newer of each key (
 | pay | grows the longer it sits (CHR-10) |
 | requirements | minimum combat or trade power, faction membership |
 | posted, expires | times |
-| state, taker, agreed pay, leg | open, taken, done or expired; the pay is fixed when taken; outbound or returning |
+| state, taker, agreed pay, leg | open, taken, done or expired; the pay is fixed when taken; outbound or returning; *(proposed, roles round)* also failed, with a deadline set when taken (MSN-3) |
 | packet | the facts a courier or scout carries |
 
 ### MOD-10 World event `v1`
@@ -208,7 +211,10 @@ Ordered by time, then phase, then sequence number (TIM-2).
 
 Cumulative world totals kept for the checks (CHK-7): money created (population spending,
 ECO-1), money sunk (operating costs, *(round 4)* the cost of making goods, the osmosis margin and every other sink),
-goods produced and consumed per good, osmosis volume and margin. The total of all money
+goods produced and consumed per good, osmosis volume and margin. *(proposed, roles round)*
+Mission spend, completions and failures per kind of issuer (MSN-4); stewards appointed,
+successions, and governors killed. Any free money a mission creates is its own flow
+(MSN-5). The total of all money
 held always equals the starting total plus money created minus money sunk; a test holds
 the simulation to it.
 

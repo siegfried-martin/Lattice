@@ -6,6 +6,7 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | Term | Meaning | Rule |
 |---|---|---|
 | **Action** | What a character or army is doing right now; changes freely | CHR-2, MIL-7 |
+| **Admiral** | A governor with a fleet of its own; a **grand admiral** has vassals too. A title, not a role *(proposed)* | MIL-1, MIL-20 |
 | **Ambient ship** | A spawned, unpersisted ship near the player; not a character | TRD-15 |
 | **Anarchy** | The pirate faction's structure: no hierarchy, no coordination, no infighting | PIR-1 |
 | **Army** | Forces gathered for a major operation, with an intent | MIL-7 |
@@ -20,13 +21,16 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Culture** | A static region with its own hardware; every character has one | WLD-16 |
 | **Deed** | Something that happened that moves an opinion | REL-3 |
 | **Defection** | A governor breaking fealty after sustained low opinion, with an alternative | FAC-11 |
+| **Detection** | How hard a planet, sector or ship looks; what stealth is measured against *(proposed)* | INF-14 |
 | **Efficiency** | How well a planet makes a good: high, medium or low tier, shifted by events | PRD-7 |
 | **Event** | A temporary supply or demand shock: drought, bumper harvest, festival | PRD-11 |
+| **Exposure** | A landing or encounter where a character's cover is tested; it adds to suspicion *(proposed)* | INF-14 |
 | **Fact** | One piece of information, with the time it was observed | INF-2 |
 | **Faction** | A root governor and everything under them | FAC-2 |
 | **Faction merchant** | A merchant paid a salary by a root, limited to three trip shapes | TRD-3 |
 | **Favor** | A liege's opinion of a vassal | REL-2 |
 | **Fealty** | The standing contract between a vassal governor and their liege | FAC-5 |
+| **Fitness** | The one score that fills every post, with weights per post *(proposed)* | CHR-20 |
 | **Fleet power** | Two ratings, combat and trade, from ship class, tier and loadout | CHR-12 |
 | **Fringe** | Planets off the Lattice network | WLD-6 |
 | **Full pirate** | A character who attacked a non-pirate unprovoked or took a pirate commander contract | PIR-11 |
@@ -38,6 +42,7 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Happiness** | A population's contentment; raises productivity; drains slowly | PRD-4 |
 | **Independent merchant** | A merchant without a faction salary, running single trips | TRD-4 |
 | **Intent** | An army's strategic objective; sticky and telegraphed | MIL-7 |
+| **Issuer** | Whoever posts a mission and pays for it *(proposed)* | MSN-2 |
 | **Keep or grant** | A conquering governor installs a new governor under themselves, or passes the planet down | FAC-8 |
 | **Labour share** | The part of a planet's labour on each of its three goods | PRD-9 |
 | **Lattice** | The wormhole highway network, and the game's name | WLD-1 |
@@ -46,6 +51,7 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Loan** | A service contract lent from one governor to another for a duration; the borrower pays the stipend; never the ships *(proposed)* | MIL-3 |
 | **Loyalty** | A vassal's opinion of its liege | REL-2 |
 | **Mercenary** | A commander with no standing contract | REL-11 |
+| **Mission** | A want posted by an issuer, with a target, a payout fixed when taken, a deadline and a gate *(proposed)* | MSN-2 |
 | **Objective** | A governor's war aim posted as a mission (defend here, join this siege); commanders choose among them *(proposed)* | MIL-2 |
 | **Opinion** | One character's feeling about another, moved by deeds, fading to rest | REL-2 |
 | **Osmosis** | The slow background flow of goods between nearby markets | TRD-13 |
@@ -67,12 +73,16 @@ colour, stations aboard a ship) are in `docs/BRIEF.md`.
 | **Security force** | A planet's static defences and procedurally generated patrols | MIL-5 |
 | **Siege** | Destroying a planet's defence fleet and static defences, which takes time | MIL-10 |
 | **Smuggler** | A character with a good pirate relation who isn't a full pirate | PIR-12 |
+| **Spawned target** | A target that exists only for a mission and changes nothing in the simulation *(proposed)* | MSN-6 |
 | **Spoils** | Money taken from a captured planet's treasury, split by power × days in the siege *(proposed)* | MIL-19 |
-| **Spy** | An agent posing as a neutral trader deep in enemy territory | INF-13 |
+| **Spy** | An agent posing as a neutral trader deep in enemy territory; *(proposed)* a freelancer on spy missions | INF-13, MSN-11 |
 | **Standing** | The opinion of a planet's governor (planet) or a faction's root (faction) | REL-5 |
 | **State trader** | Every planet: the governor owns output and everyone trades with the state | ECO-2 |
+| **Stealth** | A character's rating against detection, growing with exposures survived *(proposed)* | INF-14 |
+| **Steward** | The NPC who runs a planet's economy for its governor, and the planet while the governor sails *(proposed)* | FAC-16 |
 | **Stipend** | A sworn commander's pay from their governor | MIL-2 |
-| **Suspicion** | A per-faction meter that raises the chance of being inspected and caught | INF-14 |
+| **Succession** | Choosing a dead governor's successor; a dead root's steward takes the root *(proposed)* | FAC-17 |
+| **Suspicion** | A per-faction meter that raises the chance of being inspected and caught; *(proposed)* one number per trip, reset at a non-hostile landing | INF-14 |
 | **Trade Authority** | The neutral, fixed-rule faction that runs the Lattice | FAC-13 |
 | **Tribute** | The share of income a vassal pays its liege | FAC-6 |
 | **Tribute relief** | A lower tribute rate a vassal may ask for when it meets a fixed need test *(proposed)* | FAC-15 |

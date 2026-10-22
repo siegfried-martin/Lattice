@@ -11,6 +11,10 @@ A **commander** is a character with a fleet (CHR-1). Commanders aren't nodes of 
 faction tree; they attach to it by a contract with a governor (REL-11). Commanders want
 to grow in power and get more ships, bounded by how much money they can make.
 
+*(proposed, roles round)* **A governor with a fleet is a commander too** (MIL-20). Titles
+are derived, not roles: an **admiral** is a governor with a fleet, and a **grand
+admiral** is one with vassals.
+
 ### MIL-2 The stipend `v1`
 
 A sworn commander is paid a **stipend** by their governor. It's compensation the
@@ -24,8 +28,9 @@ serves well keeps or grows their stipend.
 - **The stipend follows fleet power and reputation.** It grows with combat power, as
   now, and with reputation (REL-7) on a curve that levels off, so a famous veteran
   earns up to about twice an unknown's rate for the same fleet, not ten times.
-  Reputation needs a real worth to the employer, or governors will hire unknowns
-  (OPN-40).
+  Reputation needs a real worth to the employer, or governors will hire unknowns.
+  *(proposed, roles round)* It has one: it weighs in the commander post's fitness
+  (CHR-20).
 - **Commanders choose; nobody orders them.** A governor's objectives are posted as
   missions on its board (CHR-10): defend here, join the siege of X with a muster at Y
   by day T. The commanders it pays, and any it has borrowed (MIL-3), choose among them
@@ -61,7 +66,9 @@ contract,** in either direction, for a duration:
   A fee on top (`loan.relief_fee`) starts at 0.
 - **What's lent is the employer, never the ships.** The commander keeps its fleet and
   its own choices (MIL-2): during the loan it picks among the borrower's objectives.
-  Governors still don't own or lend hardware (CHR-8, REJ-12).
+  Governors still don't own or lend hardware (CHR-8, REJ-12). *(proposed, roles round)*
+  A governor's own fleet has no service contract to lend. A liege asks a governor to
+  bring it with a mission instead (MSN-12).
 - **The governors agree the transfer; the commander doesn't.** Its service contract
   allows it, so it isn't asked a third time. It's still free to end the contract
   (REL-8).
@@ -111,11 +118,34 @@ ship in range) and a **security force**.
 
 *See:* CHK-6 (defence numbers are a first-class lever).
 
-### MIL-6 Hiring commanders `v1` `open`
+### MIL-6 Hiring commanders `v1` `proposed`
 
 A governor choosing a commander weighs what they can afford, the candidate's fleet power
-and their opinion of the candidate. How these combine, how often a governor decides and
-how many candidates it considers are open (OPN-15).
+and their opinion of the candidate.
+
+*(proposed, roles round; answers OPN-15)* **Commanders are an open market.** Candidates
+are scored by the commander post's fitness function (CHR-20). A governor hires zero to
+many, each one a budget unit funded when its value clears its cost (ECO-8), so the bar
+rises as the budget tightens. Zero is a valid state, and the governor's own fleet is
+the baseline (MIL-20). It decides weekly, with the budget.
+
+### MIL-20 The governor's own fleet `v1` `proposed`
+
+*(roles round)* A governor keeps and sails the ships it owned before taking the planet
+(CHR-8). Seeded governors start with a fleet of their own (CHR-7).
+
+- **It commands like any commander** (MIL-1, MIL-2). It sets its planet's objectives
+  and may take them itself. It joins the armies it commissions (MIL-9) and takes the
+  missions its liege offers (MSN-12).
+- **At home, it defends.** Its fleet fights for its planet beside the commanders it pays.
+- **It's paid like any commander:** the governor pays itself a stipend out of the war
+  and defence share (MIL-2), and keeps its own bounties and spoils (MIL-18, MIL-19).
+- **The planet's static defences and patrols stay the planet's** (MIL-5). Only the fleet
+  is the governor's.
+- **The fleet dies with its commander:** the governor is the last ship lost (MIL-13),
+  and then its pod rolls (CHR-15). A governor who dies is succeeded (FAC-17).
+- **While it's away,** its steward runs the planet (FAC-16). With no steward it stays
+  home.
 
 ## Armies
 
@@ -159,6 +189,9 @@ commanders first if it wants them (MIL-3). Each commander it pays or has borrowe
 decides whether to take it (MIL-2). At the deadline, whoever has arrived marches.
 Joining a well-supported siege is attractive with no rule for it: the expected loss in
 a big army is small.
+
+*(proposed, roles round)* The commissioning governor's own fleet joins the army too
+(MIL-20).
 
 ### MIL-10 Sieges `v1`
 

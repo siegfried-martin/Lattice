@@ -28,7 +28,12 @@ their own.
 A governor who wants a good lets its price rise, and merchants come. Governments don't
 hire traders for tasks or match convoys with escorts.
 
-*See:* REJ-26 (the planet as matchmaker).
+*(proposed, roles round)* **One narrow exception:** a governor or root may top up the
+margin on a delivery to a planet in its tree that can't bid its price up enough to pull
+supply, because it's poor, starved or blockaded (MSN-8). Held until tribute relief
+(FAC-15) has been measured.
+
+*See:* REJ-26 (the planet as matchmaker, narrowed by MSN-8), MSN-1.
 
 ## Merchants
 
@@ -72,7 +77,8 @@ the faction's merchant contract.
 
 Faction merchants don't trade with planets of a faction they're at war with, merchants in
 transit there turn for home when war breaks out, and osmosis stops between warring
-factions (TRD-13).
+factions (TRD-13). Independents, and characters on spy missions (MSN-11), may still
+cross a war line.
 
 ### TRD-7 Economic damage comes from killing merchants `v1`
 
@@ -171,7 +177,25 @@ the region and events,** as in Escape Velocity. They aren't backed by simulation
 Each sector has one **risk** value: the truth that drives ambient pirate spawns
 (TRD-15), and that every character's per-sector risk belief approximates (INF-6). It
 rises with pirate presence and raids, and falls with Authority mercenary contracts
-(FAC-14) and the player clearing pirates.
+(FAC-14) and the player clearing pirates. *(proposed, roles round)* Time spent hunting
+spawned bounties counts as patrol time in the sector; the spawned kills themselves
+don't (MSN-6).
+
+### TRD-18 Merchant ship profiles `v1` `proposed`
+
+*(roles round)* Three merchant profiles. To begin with, the simulation needs only two
+attributes: whether a ship has a Lattice Drive, and whether it's armoured.
+
+| Profile | Typical use |
+|---|---|
+| Lattice Drive, unarmoured | safe trade on or near the Lattice |
+| No drive, unarmoured | short trades away from the Lattice |
+| No drive, armoured | runs through contested space |
+
+The Lattice Drive costs cargo space or speed. Speed matters to a merchant, because a
+faster ship reacts to market information sooner and needs less escorting. Heavy cargo is
+still the main income, so merchants fly the slowest hulls. How weight affects a ship is
+OPN-28. Culture variants are `later`.
 
 ## Missions for the player
 
@@ -182,7 +206,8 @@ rises with pirate presence and raids, and falls with Authority mercenary contrac
 - **Trade around** a big merchant, since its arrival is about to move prices.
 - **Intercept** a particular merchant: time-sensitive, worked out from sightings and
   reports to predict where it will be (INF-2). *(open)* How the player finds targets and
-  what they start with (OPN-25).
+  what they start with (OPN-25). *(proposed, roles round)* Spy tracking missions are one
+  source (MSN-11).
 
 Merchants are attacked **in open space**; a meeting on the Lattice in a third faction's
 territory is rare enough to ignore.

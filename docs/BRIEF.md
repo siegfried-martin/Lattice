@@ -183,12 +183,25 @@ requirement: a summoner may never ride a missile.
 
 The design of the full game is settled enough to build its simulation. In brief:
 
-- **One kind of character.** Governor, commander, merchant, scout, courier, escort,
-  smuggler, spy, pirate and the player are roles, held as contracts that either side can
-  end without penalty (CHR-1, REL-8). Everyone owns their own ships (CHR-8). New
-  characters start at the bottom and climb: scout → escort → commander → governor, or
-  courier → merchant → rich merchant (CHR-11). There's one personality trait, risk
-  tolerance (CHR-4).
+- **One kind of character.** Governor, steward, commander, merchant, scout, courier,
+  escort, smuggler, spy, pirate and the player are roles, held as contracts that either
+  side can end without penalty (CHR-1, REL-8). Everyone owns their own ships (CHR-8).
+  New characters start at the bottom. There's one personality trait, risk tolerance
+  (CHR-4).
+- **Paths, not ladders** *(proposed, not built yet)*: merchant, warrior and spy describe
+  what a ship and the market tend to lead to, and none is gated behind another. One
+  fitness score fills every post (governor, steward, commander), weighing fleet or cargo
+  power, reputation, the chooser's opinion and culture (CHR-11, CHR-20).
+- **Missions are the market for wants** *(proposed)*: anyone who wants something done
+  posts a mission, and characters free to choose take what's worth it to them. Price
+  still runs ordinary trade. One kind of mission serves every path: a payout fixed when
+  taken, a deadline, and a gate on who can take it. Failing or abandoning a mission costs
+  the issuer's opinion; completing one raises it and opens better-paid work. A mission
+  may create a little free money where that's simpler than reworking the model, named
+  and measured. Targets invented for a mission change nothing in the simulation (MSN-1
+  to MSN-6). Later rounds add a Trade Authority mission board for merchants, freelance
+  spy missions with stealth against detection, and bounties on pirates (MSN-7 to
+  MSN-11).
 - **Losing:** no capture, ever. A destroyed ship's pilot rides a missile-fast escape pod
   to safety; if the player's pod is shot down they reload from the autosave made on
   landing (CHR-14, CHR-15, CHR-18).
@@ -203,6 +216,11 @@ The design of the full game is settled enough to build its simulation. In brief:
   there's somewhere better to go (FAC-5 to FAC-11). *(proposed)* Tribute is meant to be
   high; a starving or poor vassal can ask for less, and refusing costs the liege its
   loyalty. Patronage is for rebuilding conquered planets (FAC-7, FAC-15).
+  *(proposed, not built yet)* Governors command fleets of their own (an admiral; a grand
+  admiral with vassals), and a **steward**, an NPC, runs the planet's economy and keeps
+  it while the governor is away. The governor decides war and defence; the steward
+  decides the rest. A governor can now die in battle: its liege picks a successor, and a
+  dead root's steward inherits the faction (FAC-16, FAC-17, MIL-20).
 - **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing or
   war-weary faction sues for peace and pays tribute; the winner holds out for what it
   hoped to take. Money piled up in peace votes for war. A faction is at war a little more
@@ -308,9 +326,11 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
   it for stability and testing each mechanic's worth. The skeleton and toolchain are
   done, and every v1 system is built (world generation, the economy, characters,
   movement, information, trade, politics, war, piracy, suspicion and spies). Tuning at
-  full scale has had four rounds; the next is designed: paying for war (bounties,
-  spoils, fleet loans, commanders choosing their objectives) and tribute relief, with
-  the economy's starvation and merchant squeeze after it.
+  full scale has had four rounds. The next is designed: first the roles model (stewards,
+  governors with fleets, succession, one fitness score, the mission rules), then paying
+  for war (bounties, spoils, fleet loans, commanders choosing their objectives) and
+  tribute relief, tuned once together. The Authority's mission board, spy missions and
+  the economy's starvation and merchant squeeze come after.
 - **Next:** connecting the simulation to the rendered game.
 
 ## Glossary
