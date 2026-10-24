@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "chars/missions.hpp"
+#include "politics/roles.hpp"
 #include "lattice/market.hpp"
 #include "war/threats.hpp"
 
@@ -126,11 +127,13 @@ void share(Facts& a, Facts& b) {
     b = a;
 }
 
-Facts& governor_facts(World& w, Id planet) {
-    Character& g = w.characters[at(w.planets[at(planet)].governor)];
+Facts& planet_facts(World& w, Id planet) {
+    Character& g = w.characters[at(roles::in_charge(w, planet))];
     observe_market(w, g.facts, planet);
     return g.facts;
 }
+
+const Facts& planet_facts(const World& w, Id planet) { return w.characters[at(roles::in_charge(w, planet))].facts; }
 
 void schedule_couriers(World& w) {
     const Time period = w.config.courier.interval_days * kDay;
@@ -161,7 +164,7 @@ void send_courier(World& w, Id vassal) {
     from.treasury -= cost;
     w.ledger.money_sunk += cost;
     w.ledger.courier_runs += cost;
-    w.courier_runs.push_back({.from = liege, .to = vassal, .packet = governor_facts(w, liege)});
+    w.courier_runs.push_back({.from = liege, .to = vassal, .packet = planet_facts(w, liege)});
     const auto run = static_cast<std::int64_t>(w.courier_runs.size() - 1);
     const Time trip = std::max<Time>(1, static_cast<Time>(w.derived.travel(liege, vassal) * kDay));
     w.events.push({.time = w.now + trip, .kind = EventKind::CourierArrive, .record = run});
@@ -171,7 +174,7 @@ void courier_arrive(World& w, Id id, Observer* observer) {
     CourierRun& run = w.courier_runs[at(id)];
     if (!run.alive) return;
     if (!run.returning) {
-        Facts& vassal = governor_facts(w, run.to);
+        Facts& vassal = planet_facts(w, run.to);
         merge_into(vassal, run.packet);
         run.packet = vassal;
         threats::check(w, run.to, observer);
@@ -179,7 +182,7 @@ void courier_arrive(World& w, Id id, Observer* observer) {
         const Time trip = std::max<Time>(1, static_cast<Time>(w.derived.travel(run.to, run.from) * kDay));
         w.events.push({.time = w.now + trip, .kind = EventKind::CourierArrive, .record = id});
     } else {
-        merge_into(governor_facts(w, run.from), run.packet);
+        merge_into(planet_facts(w, run.from), run.packet);
         threats::check(w, run.from, observer);
         run.alive = false;
         run.packet = {};

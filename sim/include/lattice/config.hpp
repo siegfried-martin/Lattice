@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "lattice/goods.hpp"
 
@@ -236,6 +237,7 @@ struct Config {
         std::int64_t expiry_days = 30;
         double courier_pay = 150;  // per day of the expected trip
         double scout_pay = 300;
+        double deadline_mult = 3;  // a taken mission's deadline, in multiples of its reference days (MSN-3)
 
         friend bool operator==(const MissionParams&, const MissionParams&) = default;
     } mission;
@@ -292,7 +294,7 @@ struct Config {
 
     // Opinion change per deed (REL-3), by DeedKind.
     struct Deeds {
-        std::array<double, 13> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5, -20};
+        std::array<double, 14> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5, -20, -10};
 
         friend bool operator==(const Deeds&, const Deeds&) = default;
     } deed;
@@ -309,7 +311,7 @@ struct Config {
         std::int64_t threat_days = 10;
         double rival_opinion = 20;
         double w_favor = 1;
-        double capture_bonus = 30;
+        double capture_bonus = 0.3;  // added to the fitness of the army's leader at capture (SYS-22)
 
         friend bool operator==(const Fealty&, const Fealty&) = default;
     } fealty;
@@ -516,12 +518,32 @@ struct Config {
     struct Hire {
         double range_days = 5;
         double stipend_per_power = 300;  // per month
-        double w_power = 1;
-        double w_opinion = 0.05;
-        double w_culture = 0.5;
+        double rep_half = 10;  // reputation at which fitness's reputation term is half (SYS-22)
 
         friend bool operator==(const Hire&, const Hire&) = default;
     } hire;
+
+    // Fitness weights per post (CHR-20, SYS-22); each term runs about 0 to 1.
+    struct FitWeights {
+        double power = 0, trade = 0, rep = 0, opinion = 0, culture = 0;
+
+        friend bool operator==(const FitWeights&, const FitWeights&) = default;
+    };
+    struct Fit {
+        FitWeights governor{.power = 1, .trade = 0, .rep = 1, .opinion = 1, .culture = 0.5};
+        FitWeights steward{.power = 0, .trade = 1, .rep = 1, .opinion = 1, .culture = 0.5};
+        FitWeights commander{.power = 1, .trade = 0, .rep = 0.5, .opinion = 0.5, .culture = 0.5};
+        double cargo_half = 400;  // cargo at which the trade term is half
+
+        friend bool operator==(const Fit&, const Fit&) = default;
+    } fit;
+
+    struct StewardParams {
+        bool enabled = true;        // EXP-13 turns stewards off
+        double salary_share = 0.02; // of the planet's monthly net income (FAC-16)
+
+        friend bool operator==(const StewardParams&, const StewardParams&) = default;
+    } steward;
 
     struct Dues {
         double access = 500;   // per month, every lawful planet (ECO-10)
@@ -559,6 +581,7 @@ struct Config {
         double independent_share = 0.1;  // planets that start as their own roots (GEN-8)
         double commanders_per_income = 1e-5;  // starting combat power per credit of monthly income (GEN-9)
         std::int64_t pirate_planets = 2;      // fringe planets that start as pirate planets (GEN-8)
+        std::int64_t governor_ships = 2;      // tier-1 gunships a seeded governor starts with (MIL-20)
 
         friend bool operator==(const Gen&, const Gen&) = default;
     } gen;
@@ -696,6 +719,7 @@ void for_each_field(C& c, F&& f) {
     f("mission.expiry_days", c.mission.expiry_days);
     f("mission.courier_pay", c.mission.courier_pay);
     f("mission.scout_pay", c.mission.scout_pay);
+    f("mission.deadline_mult", c.mission.deadline_mult);
 
     f("skill.gain", c.skill.gain);
     f("skill.max", c.skill.max);
@@ -778,7 +802,7 @@ void for_each_field(C& c, F&& f) {
 
     constexpr const char* deeds[] = {"help_sent", "help_missed", "planet_granted", "patronage", "tribute_raised",
                                      "passed_over", "call_answered", "call_refused", "border_held", "job_done",
-                                     "attacked", "tribute_lowered", "caught"};
+                                     "attacked", "tribute_lowered", "caught", "mission_failed"};
     for (std::size_t i = 0; i < c.deed.amount.size(); ++i) f(std::string("deed.") + deeds[i], c.deed.amount[i]);
 
     f("fealty.cascade", c.fealty.cascade);
@@ -862,9 +886,20 @@ void for_each_field(C& c, F&& f) {
 
     f("hire.range_days", c.hire.range_days);
     f("hire.stipend_per_power", c.hire.stipend_per_power);
-    f("hire.w_power", c.hire.w_power);
-    f("hire.w_opinion", c.hire.w_opinion);
-    f("hire.w_culture", c.hire.w_culture);
+    f("hire.rep_half", c.hire.rep_half);
+
+    for (auto [post, wt] : {std::pair{"governor", &c.fit.governor}, std::pair{"steward", &c.fit.steward},
+                            std::pair{"commander", &c.fit.commander}}) {
+        const std::string k = std::string("fit.") + post + ".";
+        f(k + "power", wt->power);
+        f(k + "trade", wt->trade);
+        f(k + "rep", wt->rep);
+        f(k + "opinion", wt->opinion);
+        f(k + "culture", wt->culture);
+    }
+    f("fit.cargo_half", c.fit.cargo_half);
+    f("steward.enabled", c.steward.enabled);
+    f("steward.salary_share", c.steward.salary_share);
 
     f("dues.access", c.dues.access);
     f("dues.gate", c.dues.gate);
@@ -896,6 +931,7 @@ void for_each_field(C& c, F&& f) {
     f("gen.independent_share", c.gen.independent_share);
     f("gen.commanders_per_income", c.gen.commanders_per_income);
     f("gen.pirate_planets", c.gen.pirate_planets);
+    f("gen.governor_ships", c.gen.governor_ships);
 }
 
 class ConfigError : public std::runtime_error {

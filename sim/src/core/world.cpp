@@ -18,6 +18,7 @@
 #include "politics/authority.hpp"
 #include "politics/governor.hpp"
 #include "politics/opinion.hpp"
+#include "politics/roles.hpp"
 #include "trade/merchants.hpp"
 #include "economy/economy.hpp"
 #include "economy/events.hpp"
@@ -125,6 +126,47 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.faction_merchants", -1, static_cast<double>(faction_merchants));
     o.sample(t, "world.chars_serving", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Serving)]));
     o.sample(t, "world.chars_army", -1, static_cast<double>(by_activity[static_cast<std::size_t>(Activity::Army)]));
+
+    // Roles (CHK-27, CHK-29): stewards, empty seats, governors away with their fleets, and
+    // what each post's holders mostly earned from before it, by EarnPath.
+    std::int64_t stewards = 0, vacant = 0, away = 0;
+    double vacant_days = w.ledger.vacant_days;
+    std::array<std::array<std::int64_t, 3>, 3> paths{};  // governor, steward, commander x EarnPath
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        const Planet& pl = w.planets[at(p)];
+        if (pl.steward != kNone) ++stewards, ++paths[1][w.characters[at(pl.steward)].path];
+        if (roles::vacant(w, p)) {
+            ++vacant;
+            vacant_days += static_cast<double>(w.now - pl.vacant_since) / kDay;
+        } else if (pl.governor != kNone) {
+            away += !roles::home(w, p);
+            ++paths[0][w.characters[at(pl.governor)].path];
+        }
+    }
+    for (const Contract& k : w.contracts) {
+        if (k.alive && k.kind == ContractKind::Service) ++paths[2][w.characters[at(k.employee)].path];
+    }
+    o.sample(t, "roles.stewards", -1, static_cast<double>(stewards));
+    o.sample(t, "roles.vacant", -1, static_cast<double>(vacant));
+    o.sample(t, "roles.governors_away", -1, static_cast<double>(away));
+    o.sample(t, "roles.vacant_days", -1, vacant_days);
+    o.sample(t, "roles.successions", -1, static_cast<double>(w.ledger.successions));
+    o.sample(t, "roles.governors_killed", -1, static_cast<double>(w.ledger.governors_killed));
+    o.sample(t, "roles.stewards_appointed", -1, static_cast<double>(w.ledger.stewards_appointed));
+    o.sample(t, "roles.steward_quits", -1, static_cast<double>(w.ledger.steward_quits));
+    o.sample(t, "roles.steward_pay", -1, w.ledger.steward_pay);
+    constexpr const char* posts[] = {"roles.path_governor", "roles.path_steward", "roles.path_commander"};
+    for (std::size_t post = 0; post < 3; ++post) {
+        for (std::size_t path = 0; path < 3; ++path) o.sample(t, posts[post], static_cast<Id>(path), static_cast<double>(paths[post][path]));
+    }
+    // Missions per kind of issuer (MSN-4, CHK-28), by Issuer.
+    for (int i = 0; i < kIssuerCount; ++i) {
+        o.sample(t, "issuer.spend", i, w.ledger.issuer_spend[at(i)]);
+        o.sample(t, "issuer.taken", i, static_cast<double>(w.ledger.issuer_taken[at(i)]));
+        o.sample(t, "issuer.done", i, static_cast<double>(w.ledger.issuer_done[at(i)]));
+        o.sample(t, "issuer.failed", i, static_cast<double>(w.ledger.issuer_failed[at(i)]));
+    }
+    o.sample(t, "world.free_money", -1, w.ledger.free_money);
 
     // Politics (CHK-1, CHK-3).
     std::int64_t roots = 0, factions = 0, sworn = 0;
@@ -323,6 +365,9 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             break;
         case EventKind::MissionExpire:
             missions::expire(w, record, observer);
+            break;
+        case EventKind::MissionDeadline:
+            missions::deadline(w, record, observer);
             break;
         case EventKind::GovernorWeekly:
             governor::weekly(w, record, observer);

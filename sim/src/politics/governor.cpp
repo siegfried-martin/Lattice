@@ -3,6 +3,7 @@
 #include "chars/missions.hpp"
 #include "politics/budget.hpp"
 #include "politics/fealty.hpp"
+#include "politics/roles.hpp"
 #include "trade/merchants.hpp"
 #include "war/diplomacy.hpp"
 #include "war/gates.hpp"
@@ -30,19 +31,26 @@ void schedule(World& w) {
 
 void weekly(World& w, Id planet, Observer* observer) {
     if (const Id node = w.gates.empty() ? kNone : gates::held_by(w, planet); node != kNone) gates::check(w, node, observer);
+    // A dead governor's seat, once its chooser has heard (FAC-17). While it waits, the
+    // steward runs the budget and the planet commissions nothing.
+    const bool vacant = roles::settle(w, planet, observer);
     if (w.planets[at(planet)].pirate) {
         // A pirate planet: defence and raids, no politics (PIR-1, PIR-3).
         budget::weekly(w, planet, observer);
-        pirates::dispatch(w, planet, observer);
+        if (!vacant) pirates::dispatch(w, planet, observer);
         smuggling::post(w, planet, observer);
         return;
     }
     pirates::check_rebellion(w, planet, observer);
     if (w.planets[at(planet)].pirate) return;
     diplomacy::root_weekly(w, planet, observer);
-    fealty::adjust_tribute(w, planet, observer);
-    fealty::check_defection(w, planet, observer);
+    if (!vacant) {
+        fealty::adjust_tribute(w, planet, observer);
+        fealty::check_defection(w, planet, observer);
+    }
+    roles::steward_weekly(w, planet, observer);
     budget::weekly(w, planet, observer);
+    if (vacant) return;
     raids::dispatch(w, planet, observer);
     missions::root_weekly(w, planet, observer);
     missions::planet_weekly(w, planet, observer);

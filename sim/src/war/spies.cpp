@@ -106,7 +106,7 @@ void landed(World& w, Id id, Observer* observer) {
     }
     if (c.planet == home) {
         merchant::sell_here(w, id);
-        Facts& known = info::governor_facts(w, home);
+        Facts& known = info::planet_facts(w, home);
         info::share(c.facts, known);  // the secret contract: it reports home (INF-4)
         threats::check(w, home, observer);
         chars::wake(w, id, w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour));

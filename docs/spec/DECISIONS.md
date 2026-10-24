@@ -5,6 +5,32 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-24 · Roles model built (MS-8 stage 1)
+
+Stage 1 of the roles and war round, built as designed on 2026-10-22; results in MS-8.
+Choices made in building it, for sign-off (SYS-22, SYS-8 and SYS-5 "as built"):
+
+- **Steward offers go down the fitness order** until someone accepts, not to the best fit
+  only. Candidates must be between jobs with an empty hold.
+- **A dead governor holds its seat until a successor comes.** Its commanders, steward,
+  spies, merchants, posted missions and armies pass to the successor. With no steward,
+  the vacant planet's budget doesn't run, and it never adjusts tribute, defects, raids or
+  posts missions while vacant.
+- **A governor's pod goes home**, and a governor that lost its fleet governs on without
+  one; it doesn't buy ships.
+- **A pirate run's deadline** is `mission.deadline_mult` × `mission.expiry_days`, since its
+  route isn't known when it's taken; a failed smuggling run dumps its contraband.
+- **The self-stipend** is an amount on the planet, not a contract.
+- **Seeded and generated governors** also get `char.start_wealth`.
+- **A capture winner from the keeper's own commanders** now travels to its planet instead of
+  appearing there.
+- **`hire.w_*` are removed;** `fealty.capture_bonus` is 0.3; new keys `steward.enabled`
+  (EXP-13's switch, world-wide for now), `fit.*`, `steward.salary_share`,
+  `mission.deadline_mult`, `hire.rep_half`, `gen.governor_ships`, `deed.mission_failed`.
+- **Not yet:** escort contracts aren't mission records, so failing one isn't a bad deed;
+  the hunt as patrol time waits for spawned bounties.
+- **New checks in `checks.py`:** CHK-27 to CHK-29, with placeholder bands.
+
 ### 2026-10-22 · Roles, progression and missions, design
 
 The planning agent's draft `ROLES.md` (answering OPN-42), reviewed with the human and

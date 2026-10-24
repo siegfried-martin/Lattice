@@ -8,6 +8,7 @@
 #include "chars/ships.hpp"
 #include "economy/economy.hpp"
 #include "info/facts.hpp"
+#include "politics/roles.hpp"
 #include "politics/fealty.hpp"
 
 namespace lattice::diplomacy {
@@ -42,8 +43,9 @@ int side_of(const Relation& r, Id root) { return root == r.a ? 0 : 1; }
 // Both roots know at once; everyone else hears by courier and sharing (DIP-5).
 void announce(World& w, const Relation& r) {
     for (Id root : {r.a, r.b}) {
-        const Id gov = w.planets[at(root)].governor;
-        if (gov != kNone) info::learn_state(w.characters[at(gov)].facts, r.a, r.b, r.state, w.now);
+        if (w.planets[at(root)].governor != kNone) {
+            info::learn_state(w.characters[at(roles::in_charge(w, root))].facts, r.a, r.b, r.state, w.now);
+        }
     }
 }
 

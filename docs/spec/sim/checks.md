@@ -255,6 +255,13 @@ succeeded inside a month. A root's death sometimes costs it a vassal, but rarely
 than one (FAC-11's damping). *Metric:* days without a governor; defections within
 three months of a succession, against the base rate. *Tests:* FAC-16, FAC-17, MIL-20.
 
+*In `checks.py` (roles round, placeholder bands):* CHK-27, governors who came from trade,
+and CHK-27b, stewards who came from combat work, each at least 5% of those with any
+earnings; CHK-28, missions failed, 0.1% to 50% of those taken; CHK-28b, the worst kind of
+issuer's failed share, at most 50% (issuers with 20 or more taken); CHK-29, days a seat
+stays empty per succession, at most 30; CHK-29b, defections from a planet within three
+months of its succession, at most one each. The base-rate comparison isn't computed.
+
 ## Performance
 
 ### CHK-25 It runs fast enough `v1`

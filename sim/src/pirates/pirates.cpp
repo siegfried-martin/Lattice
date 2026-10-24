@@ -6,10 +6,12 @@
 
 #include "chars/characters.hpp"
 #include "chars/contracts.hpp"
+#include "chars/missions.hpp"
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "economy/economy.hpp"
 #include "economy/events.hpp"
+#include "politics/roles.hpp"
 #include "lattice/happiness.hpp"
 #include "lattice/market.hpp"
 #include "politics/budget.hpp"
@@ -78,7 +80,7 @@ void flip(World& w, Id id, Observer* observer) {
     for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
         const Planet& n = w.planets[at(q)];
         if (n.governor != kNone && q != id && w.derived.travel(q, id) <= w.config.dip.neighbour_days) {
-            observe(w, w.characters[at(n.governor)].facts, id);
+            observe(w, w.characters[at(roles::in_charge(w, q))].facts, id);
         }
     }
     ++w.ledger.flips;
@@ -226,6 +228,7 @@ bool try_turn(World& w, Id id, Observer* observer) {
     const double p = w.config.pirate.turn_all ? 1 : c.risk;  // pirate.turn_p(risk) (EXP-9)
     if (!w.rng[Stream::Characters].chance(p)) return false;
     if (!move::travel_to(w, id, best)) return false;
+    if (c.mission != kNone) missions::fail(w, c.mission, observer);  // walking off with it (MSN-3)
     c.activity = Activity::Renouncing;
     c.renounce_to = best;
     if (observer) observer->log(w.now, "pirate.turning", id, "toward " + std::to_string(best));

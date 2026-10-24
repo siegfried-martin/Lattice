@@ -133,7 +133,7 @@ TEST_CASE("fealty trees grow from the seats (GEN-8, FAC-2)") {
     }
 }
 
-TEST_CASE("the starting world has a governor per planet and fills char.target (GEN-9, FAC-1)") {
+TEST_CASE("the starting world has a governor per planet and fills char.target (GEN-9, FAC-1, MIL-20)") {
     const World w = new_world(test::small(), 4);
     CHECK(static_cast<std::int64_t>(w.characters.size()) == w.config.chars.target);
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
@@ -142,7 +142,9 @@ TEST_CASE("the starting world has a governor per planet and fills char.target (G
         const Character& g = w.characters[at(planet.governor)];
         CHECK(g.governs == p);
         CHECK(g.planet == p);
-        CHECK(g.ships.empty());
+        // MIL-20: its own fleet, gen.governor_ships tier-1 gunships of its culture.
+        CHECK(static_cast<std::int64_t>(g.ships.size()) == w.config.gen.governor_ships);
+        for (Id v : g.ships) CHECK(v == ships::variant(w.map, g.culture, ShipClass::Gunship, 1));
         // PRD-3: the growth factor follows the governor's risk tolerance.
         const auto& pop = w.config.pop;
         CHECK(planet.growth_factor == doctest::Approx(pop.growth_factor_min + g.risk * (pop.growth_factor_max - pop.growth_factor_min)));

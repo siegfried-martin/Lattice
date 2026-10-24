@@ -46,6 +46,7 @@ add_library(lattice_core STATIC
     src/politics/fealty.cpp
     src/politics/governor.cpp
     src/politics/opinion.cpp
+    src/politics/roles.cpp
     src/trade/escorts.cpp
     src/trade/merchants.cpp
     src/war/armies.cpp
@@ -87,6 +88,7 @@ if(LATTICE_BUILD_TESTS)
         tests/test_economy.cpp
         tests/test_characters.cpp
         tests/test_politics.cpp
+        tests/test_roles.cpp
         tests/test_war.cpp
         tests/test_pirates.cpp
         tests/test_spies.cpp

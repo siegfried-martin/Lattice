@@ -6,9 +6,11 @@
 
 #include "chars/characters.hpp"
 #include "chars/contracts.hpp"
+#include "chars/missions.hpp"
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "politics/fealty.hpp"
+#include "politics/roles.hpp"
 #include "war/armies.hpp"
 #include "war/diplomacy.hpp"
 
@@ -52,6 +54,8 @@ void lose_fleet(World& w, Id id, Observer* observer) {
         w.ledger.destroyed[c.cargo_good] += lost;
     }
     c.cargo_qty = 0, c.cargo_cost = 0, c.cargo_good = kGoodCount;
+    // A mission that needed the fleet, or its cargo, has failed (MSN-3).
+    if (c.mission != kNone) missions::fail(w, c.mission, observer);
     // An escort and its merchant part (TRD-8): the job no longer exists.
     if (c.escort != kNone) {
         Character& e = w.characters[at(c.escort)];
@@ -78,12 +82,28 @@ void lose_fleet(World& w, Id id, Observer* observer) {
     c.paused_at = kNever;
     if (w.rng[Stream::Combat].chance(w.config.combat.pod_death_p)) {
         c.alive = false;
-        for (Id k : std::vector<Id>(c.contracts)) contracts::end(w, k);
         ++w.ledger.deaths;
         if (observer) observer->log(w.now, "character.died", id, "pod lost");
+        if (c.governs != kNone) {
+            // A governor's contracts as employer wait for its successor (FAC-17).
+            for (Id k : std::vector<Id>(c.contracts)) {
+                if (w.contracts[at(k)].employee == id) contracts::end(w, k);
+            }
+            roles::governor_died(w, c.governs, observer);
+            return;
+        }
+        for (Id k : std::vector<Id>(c.contracts)) contracts::end(w, k);
         return;
     }
     ++w.ledger.pods;
+    if (c.governs != kNone) {
+        // A governor's pod makes for home (CHR-15), where it governs on without a fleet.
+        c.planet = c.last_planet = c.governs;
+        c.activity = Activity::Idle;
+        chars::wake(w, id, w.now + kDay);
+        if (observer) observer->log(w.now, "character.pod", id, "home to " + std::to_string(c.planet));
+        return;
+    }
     const Id own = fighter_root(w, id);
     Id best = kNone;
     double best_d = std::numeric_limits<double>::max();

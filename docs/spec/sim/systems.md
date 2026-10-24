@@ -277,7 +277,7 @@ first thing Phase A tunes.
   monthly payment, like stipends. A borrower pays the stipends of commanders it has
   borrowed, and the loan fee when the loan starts (MIL-3).
 
-*(proposed, roles round: not built)* **Two deciders, one budget** (CHR-4, FAC-16). Each
+*(proposed, roles round: built)* **Two deciders, one budget** (CHR-4, FAC-16). Each
 unit falls off at `budget.diminishing ^ (1 − risk ÷ 2)` with the risk of whoever decides
 its line:
 - **the governor's lines:** commanders (its own fleet's stipend among them, MIL-20),
@@ -290,6 +290,11 @@ How much goes to war and defence is how far the governor's valuations carry its 
 against the steward's in the one funding order. The steward's salary is paid before
 units, as an operating cost. A planet with no steward uses the governor's risk
 throughout.
+- *As built:* of the steward's lines only patronage is a budget option yet; merchant
+  salaries stay a fixed offer and missions are posted by rule. A vacant seat (FAC-17)
+  runs its budget with the steward's risk for every line and funds no invasion; with no
+  steward it doesn't run at all, and the dead governor's commanders keep their contracts
+  and pay until the successor takes them over.
 
 *As built (MS-4):*
 - **When:** weekly per governor.
@@ -457,7 +462,7 @@ accept by SYS-8. Paid at trip end (REL-9).
 - **Broke** (`char.broke_days` below zero): sell ships, cheapest first, until solvent,
   keeping the last hull. Turning pirate instead arrives in MS-6.
 
-*(proposed, roles round: not built)* **The mission primitive** (MSN-2, MSN-3):
+*(proposed, roles round: built)* **The mission primitive** (MSN-2, MSN-3):
 - **A taken mission has a deadline:** taken + `mission.deadline_mult` × its reference
   days.
 - **Failed:** the deadline passes, the taker's contract ends without completing it (it
@@ -469,6 +474,19 @@ accept by SYS-8. Paid at trip end (REL-9).
   of issuer: governors, roots, the Authority, pirate planets.
 - **Not yet:** tiers gated on the issuer's opinion, spawned bounties (MSN-6, MSN-10), the
   Authority's board (MSN-7) and spy missions (MSN-11). Each arrives with its own round.
+- *As built:*
+  - **Reference days** are the round trip by reference travel, plus the time on station
+    for a patrol or sortie, at least a day. A pirate run's route isn't known when it's
+    taken, so its reference is `mission.expiry_days`.
+  - **Failure** comes from the deadline, losing the fleet (whether or not the pilot
+    survives) and turning pirate. Nothing else can end a taker's contract early yet:
+    hiring and salaries pass over characters on a mission.
+  - **The bad deed** is the poster's opinion for governors and roots, the Authority's
+    opinion for its contracts, and the pirate relation for a pirate run (PIR-10, as
+    before). A failed smuggling run dumps its contraband.
+  - **The ledger** counts taken, done, failed and paid per issuer kind (MOD-12).
+  - **Escort contracts** (TRD-8) aren't mission records yet, so the failure rule doesn't
+    reach them.
 
 ### SYS-9 Contracts and hiring `v1` `proposed`
 
@@ -520,9 +538,10 @@ accept by SYS-8. Paid at trip end (REL-9).
     arms is answered now, and lends its commanders at their posts.
   - A vassal's call for help is a request the other way, with `loan.relief_fee` (0) and
     no choice for the borrower but to pay the stipends.
-- *(proposed, roles round)* **Candidates are scored by fitness** (CHR-20, SYS-22) with
-  the commander weights, in place of the `hire.w_*` score. A governor's own fleet is a
-  commander unit in its own budget (MIL-20).
+- *(proposed, roles round: built)* **Candidates are scored by fitness** (CHR-20, SYS-22)
+  with the commander weights, in place of the `hire.w_*` score, which is gone. A
+  governor's own fleet is a commander unit in its own budget (MIL-20). Stewards aren't
+  candidates.
 - **Choosing objectives** (MIL-2, CHR-10): objectives are missions of the existing
   `Command` kind, posted on the employer's board and carried by courier to commanders
   away from it. A commander scores each as missions are scored, with pay = expected
@@ -578,8 +597,10 @@ tribute_paid = tribute_rate × (own income + tribute received if fealty.cascade)
 - **Choosing the governor** *(proposed)*: candidates the keeper knows (its commanders and
   characters with a contract in its tree), scored
   `rep + opinion + fealty.capture_bonus if they led the capture`.
-  *(proposed, roles round)* Scored by the governor post's fitness (SYS-22), plus
+  *(proposed, roles round: built)* Scored by the governor post's fitness (SYS-22), plus
   `fealty.capture_bonus` for the commander who led the capture. The pool is SYS-22's.
+  *As built:* a winner from the keeper's own commanders travels to its new planet; only
+  the army's members are placed there at once.
 
 *As built (MS-4):*
 - **Tribute:**
@@ -1079,8 +1100,9 @@ If the living character count is below `char.target`, spawn up to `char.spawn_pe
 at random lawful planets weighted by population, with the planet's culture, risk
 tolerance drawn from `char.risk_dist`, wealth `char.start_wealth` and a first-tier hull
 (armed or unarmed at `char.start_armed_p`). Characters die only by pod roll (SYS-14).
-*(proposed, roles round)* That includes governors now (MIL-20); a governor's death
-starts a succession (SYS-22).
+*(proposed, roles round: built)* That includes governors now (MIL-20); a governor's
+death starts a succession (SYS-22). *As built:* a governor's pod makes for its own
+planet, and a governor without a fleet governs on at home; it doesn't buy ships.
 
 *As built (MS-3):* the armed hull is a scout and the unarmed one a courier, of the
 planet's culture. A new character knows its own planet's market. The starting world
@@ -1116,7 +1138,7 @@ it on visit and share it as a fact.
     while out.
 - *(proposed, roles round: not built)* A character hunting a spawned bounty (MSN-6) counts
   as patrol days in its sector while there, like a security patrol. Its kills of spawned
-  targets don't enter `risk`.
+  targets don't enter `risk`. Built with spawned bounties, in their own round.
 
 ### SYS-20 The Trade Authority `v1`
 
@@ -1158,7 +1180,8 @@ entry, at the fuel price of the planet where the fleet last landed, for every sh
 ### SYS-22 Governors, stewards and succession `v1` `proposed`
 
 *Implements:* CHR-20, FAC-9, FAC-16, FAC-17, MIL-6, MIL-20. *Cadence:* weekly with the
-budget; succession on a death. *(roles round: not built)*
+budget; succession on a death. *(roles round: built, stage 1 of MS-8's roles and war
+round; see "As built" at the end)*
 
 **Fitness** (CHR-20), for a candidate c and a post (governor, steward or commander),
 with each term in about 0 to 1:
@@ -1224,4 +1247,26 @@ planet always has a governor (FAC-1).
   or else the fallback pool above.
 - **Opinions carry over:** the vassals' opinion of the new root is their opinion of that
   character, with no reset.
+
+*As built (roles round, stage 1):*
+- **Steward offers go down the fitness order** until one accepts, rather than to the best
+  fit alone, which might refuse every week. Candidates must also be between jobs: at a
+  planet, idle, trading or exploring, with an empty hold and no escort (EXP-13 turns
+  stewards off with `steward.enabled`).
+- **Planet records:** the steward, the governor's self-stipend (a monthly amount, not a
+  contract), and when a seat fell vacant and when its chooser can fill it. The character
+  records the planet it stewards and, for CHK-27, whether it earned mostly from cargo or
+  combat work when it took its post.
+- **A dead governor holds the seat** until its successor comes, so its contracts as
+  employer (commanders, steward, spies, merchants), the missions it posted, the armies it
+  raised and its facts pass to the successor. While vacant, the planet doesn't adjust
+  tribute, check defection, raid or post missions.
+- **The planet's information** is the governor's facts at home, else the steward's. They
+  share when the governor leaves with an army and when it lands home.
+- **Seeded governors** also start with `char.start_wealth`, counted as spawned money; a
+  generated successor is seeded the same way.
+- **The fallback pool** leaves out characters in an army, a fight, on a mission, escorting,
+  turning pirate or spying, and matches the planet's pirate status.
+- **Not built:** missions between governors (MSN-12) and governors choosing objectives
+  arrive with stage 2.
 

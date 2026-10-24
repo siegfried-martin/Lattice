@@ -251,6 +251,7 @@ void validate(const Config& c) {
     positive(static_cast<double>(c.mission.expiry_days), "mission.expiry_days");
     non_negative(c.mission.courier_pay, "mission.courier_pay");
     non_negative(c.mission.scout_pay, "mission.scout_pay");
+    positive(c.mission.deadline_mult, "mission.deadline_mult");
     non_negative(c.skill.gain, "skill.gain");
     non_negative(c.skill.max, "skill.max");
     non_negative(c.skill.bonus, "skill.bonus");
@@ -281,6 +282,11 @@ void validate(const Config& c) {
     non_negative(c.value.patronage_months, "value.patronage_months");
     non_negative(c.hire.range_days, "hire.range_days");
     positive(c.hire.stipend_per_power, "hire.stipend_per_power");
+    positive(c.hire.rep_half, "hire.rep_half");
+    positive(c.fit.cargo_half, "fit.cargo_half");
+    share(c.steward.salary_share, "steward.salary_share");
+    require(c.gen.governor_ships >= 0 && c.gen.governor_ships <= c.fleet.max_ships,
+            "gen.governor_ships must be 0 to fleet.max_ships");
     non_negative(c.dues.access, "dues.access");
     non_negative(c.dues.gate, "dues.gate");
     share(c.dues.maintenance, "authority.maintenance");

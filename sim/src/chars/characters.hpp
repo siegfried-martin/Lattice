@@ -10,8 +10,9 @@ namespace lattice::chars {
 // tolerance from char.risk_dist (uniform 0-1), char.start_wealth and a first-tier hull,
 // armed with chance char.start_armed_p.
 Id spawn(World& world, Id planet);
-// A governor for a planet (FAC-1, GEN-9). Governors stay at their planet.
-Id make_governor(World& world, Id planet);
+// A character fit to seed a seat (GEN-9, MIL-20): char.start_wealth and
+// gen.governor_ships tier-1 gunships of the planet's culture. Not yet seated.
+Id spawn_ruler(World& world, Id planet);
 // The starting characters (GEN-9 as far as MS-3 goes): a governor for every planet, and
 // bottom-rung characters for the rest of char.target, at planets weighted by population.
 void populate(World& world);

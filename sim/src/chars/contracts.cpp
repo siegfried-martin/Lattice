@@ -2,6 +2,9 @@
 
 #include <algorithm>
 
+#include "chars/characters.hpp"
+#include "politics/roles.hpp"
+
 namespace lattice::contracts {
 
 namespace {
@@ -28,6 +31,20 @@ void end(World& w, Id id) {
     k.alive = false;
     unlist(w.characters[at(k.employer)].contracts, id);
     unlist(w.characters[at(k.employee)].contracts, id);
+    if (k.kind == ContractKind::Steward) {
+        // The post is empty again (FAC-16): its governor was deposed, or it quit.
+        Character& s = w.characters[at(k.employee)];
+        if (s.stewards != kNone) {
+            const Id planet = s.stewards;
+            if (w.planets[at(planet)].steward == k.employee) {
+                w.planets[at(planet)].steward = kNone;
+                roles::set_growth(w, planet);
+            }
+            s.stewards = kNone;
+            if (s.activity == Activity::Stewarding) s.activity = Activity::Idle;
+            if (s.alive) chars::wake(w, k.employee, w.now);
+        }
+    }
 }
 
 Id held(const World& w, Id character, ContractKind kind) {
