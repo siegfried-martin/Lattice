@@ -41,7 +41,7 @@ because some mechanics matter to the world more than to the faction using them.
 | EXP-10 | World switch: osmosis off | Osmosis (TRD-13) | Market deserts, more starvation in remote planets |
 | EXP-11 | World switch: no efficiency events | Events (PRD-11) | Peacetime prices flatten and merchant profits vanish |
 | EXP-12 | World switch: tribute cascade on and off | FAC-6 (proposed) | Which keeps faction size in band (CHK-1) and lieges granting planets |
-| EXP-13 | Appoints no stewards: its governors run everything and stay home | Stewards (FAC-16) and governors' fleets (MIL-20) *(proposed, roles round)* | Its governors fight less far from home; whether the steward's trait changes outcomes |
+| EXP-13 | Appoints no stewards: its governors run everything and stay home | Stewards (FAC-16) and governors' fleets (MIL-20) *(proposed, roles round; built as a world switch, `steward.enabled`)* | Its governors fight less far from home; whether the steward's trait changes outcomes |
 | EXP-14 | World switch: the Authority's board off | The board (MSN-7) *(proposed, roles round)* | Whether osmosis alone holds prices, and how independents fare |
 
 World switches (EXP-9 to EXP-12, EXP-14) compare whole worlds rather than one faction, using the

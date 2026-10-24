@@ -38,6 +38,7 @@ enum class EventKind : std::uint16_t {
     SiegeRound = 16,   // daily; record is the siege
     CallForHelp = 17,  // a call for help reaches a liege; record is the siege, a the liege's planet
     ThreatWarning = 18,  // a warning of an army reaches a liege; record is the army, a the liege, b the planet
+    MissionDeadline = 19,  // a taken mission's deadline (MSN-3); record is the mission
 };
 
 // One entry in the scheduled-event queue (MOD-11).

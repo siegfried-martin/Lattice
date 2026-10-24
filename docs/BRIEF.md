@@ -326,10 +326,10 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
   it for stability and testing each mechanic's worth. The skeleton and toolchain are
   done, and every v1 system is built (world generation, the economy, characters,
   movement, information, trade, politics, war, piracy, suspicion and spies). Tuning at
-  full scale has had four rounds. The next is designed: first the roles model (stewards,
-  governors with fleets, succession, one fitness score, the mission rules), then paying
-  for war (bounties, spoils, fleet loans, commanders choosing their objectives) and
-  tribute relief, tuned once together. The Authority's mission board, spy missions and
+  full scale has had four rounds. The roles model is built (stewards, governors with
+  fleets, succession, one fitness score, the mission rules); next is paying for war
+  (bounties, spoils, fleet loans, commanders choosing their objectives) and tribute
+  relief, then both are tuned once together. The Authority's mission board, spy missions and
   the economy's starvation and merchant squeeze come after.
 - **Next:** connecting the simulation to the rendered game.
 

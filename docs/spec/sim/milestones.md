@@ -397,8 +397,8 @@ and tuning until the checks pass (`checks.md`).
   inside a world wouldn't make them faster; cheaper decisions would. No action yet
   (TIM-8 holds: about 15 seconds a year).
 
-**Next: the roles and war round** *(roles designed 2026-10-22, war and fealty money
-2026-10-19; not built)*. Governors who sail change who defends, who dies and who
+**Now: the roles and war round** *(roles designed 2026-10-22 and built 2026-10-24 as
+stage 1; war and fealty money designed 2026-10-19, not built)*. Governors who sail change who defends, who dies and who
 decides, so they're built before any more balancing. Two building stages, then tuning
 once, against targets written down first (CHK-26 to CHK-29):
 
@@ -415,6 +415,31 @@ once, against targets written down first (CHK-26 to CHK-29):
 
 Then check the world still runs and that round 4's checks haven't regressed, before
 stage 2.
+
+*Stage 1 results (built 2026-10-24; v1 config, 8 seeds, 5 years, against main at 7ec7152
+on the same seeds; no tuning yet):*
+- **It runs, and every seat stays filled.** 0.4 to 2.8 governors die a year; a vacant
+  seat waits 5 days on median (CHK-29), and no run ends with one empty. Successions cost
+  no defections within three months (CHK-29b). About 13 of 101 governors are away with
+  their fleets at any time. Speed is unchanged (CHK-25).
+- **Round 4's checks:** 20 of 32 pass on every seed, against 21 on main. Better: CHK-6
+  (captures in band, 62% of seeds to 100%), CHK-8b (75% to 100%), CHK-9 (pirate flips,
+  12% to 75%), CHK-17b (idle characters 23% to 16%, 12% to 88% of seeds) and CHK-24.
+  Worse, each now failing on one or two seeds: CHK-4 (pirate planets on the fringe, 0.96
+  to 0.72 of pirate-planet time), CHK-7c (treasury months, 0.73 to 0.56) and CHK-7b
+  (price index, 1.23 to 1.33). Battles a year doubled (510 to 960), as every planet now
+  has a governor's fleet to fight for it; deaths per battle fell. Pirates are 14% of
+  characters (15%). Merchant profit per trip doubled (116 to 234).
+- **The new checks:** CHK-27 passes on 75% of seeds (13% of governors came from trade);
+  57% of stewards came from combat work (CHK-27b); 5% of missions fail (CHK-28).
+  CHK-28b fails on 75% of seeds: two-thirds of pirate runs fail, nearly all through the
+  failure paths they always had (nothing to load, caught on landing), which are only now
+  counted. Governors' and roots' missions fail 3% to 4% of the time.
+- **For tuning: stewards churn.** About 82 planets have a steward at any time, but 313 are
+  appointed and 282 quit a year, so a tenure is about three months: at
+  `steward.salary_share` 0.02 of net income, trade beats the salary at the first monthly
+  check. Their pay, 8.1 million a year, is nearly twice every commander's stipend
+  together (4.5 million), and is the likeliest cause of CHK-7c's lower treasuries.
 
 *Stage 2, war and fealty money (designed 2026-10-19):*
 1. **Bounties for kills,** paid by the root (MIL-18), and **spoils of capture** split by

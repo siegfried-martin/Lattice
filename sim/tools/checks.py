@@ -36,7 +36,25 @@ def load(run_dir):
     config = tomllib.loads((run_dir / "config.toml").read_text()) if (run_dir / "config.toml").exists() else {}
     return {"series": series, "planets": planets, "days_per_s": float(m.group(1)) if m else float("nan"),
             "wars": war_lengths(run_dir / "events.csv"), "captured": captures_by_planet(run_dir / "events.csv"),
-            "config": config}
+            "succession_defections": succession_defections(run_dir / "events.csv"), "config": config}
+
+
+def succession_defections(path, window=90):
+    """Per succession, the planet's vassals that defected from it within `window` days
+    (CHK-29b); None with no successions."""
+    if not path.exists():
+        return None
+    succeeded, defected = [], []
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            if row["kind"] == "governor.succeeded":
+                succeeded.append((float(row["day"]), int(row["id"])))
+            elif row["kind"] == "defection" and row["detail"]:
+                defected.append((float(row["day"]), int(row["detail"].split()[1])))
+    if not succeeded:
+        return None
+    hits = sum(1 for day, liege in defected for s_day, planet in succeeded if planet == liege and 0 <= day - s_day <= window)
+    return hits / len(succeeded)
 
 
 def captures_by_planet(path):
@@ -224,6 +242,33 @@ def at_price_floor(run):
     return at / total if total else float("nan")
 
 
+def path_share(run, post, path):
+    """Share of a post's holders at the end whose main earnings before it were `path`
+    (1 trade, 2 combat), among those with any (CHK-27)."""
+    by = run["series"][f"roles.path_{post}"]
+    known = sum(by[i][-1][1] for i in (1, 2) if i in by)
+    return by[path][-1][1] / known if known > 0 and path in by else 0.0
+
+
+def issuer_failed_share(run, issuer=None):
+    """Failed over taken missions, for one kind of issuer or all (CHK-28)."""
+    ids = [issuer] if issuer is not None else list(run["series"]["issuer.taken"])
+    taken = sum(run["series"]["issuer.taken"][i][-1][1] for i in ids)
+    failed = sum(run["series"]["issuer.failed"][i][-1][1] for i in ids)
+    return failed / taken if taken > 0 else float("nan")
+
+
+def worst_issuer_failed(run):
+    return max((issuer_failed_share(run, i) for i in run["series"]["issuer.taken"]
+                if run["series"]["issuer.taken"][i][-1][1] >= 20), default=float("nan"))
+
+
+def vacancy_days(run):
+    """Mean days a seat stayed empty per succession (CHK-29)."""
+    n = values(run, "roles.successions")[-1]
+    return values(run, "roles.vacant_days")[-1] / n if n > 0 else 0.0
+
+
 def profit_per_trip(run):
     trips = per_year(run, "world.trips")
     return per_year(run, "world.trade_profit") / trips if trips > 0 else 0.0
@@ -263,6 +308,13 @@ CHECKS = [
     ("CHK-23", "pirates, share of characters", pirate_share, 0.01, 0.1),
     ("CHK-24", "smuggling runs a year", lambda r: per_year(r, "world.smuggled_runs"), 1, None),
     ("CHK-25", "game days a second", lambda r: r["days_per_s"], 6, None),
+    # Roles round (proposed, placeholder bands).
+    ("CHK-27", "governors who came from trade, share", lambda r: path_share(r, "governor", 1), 0.05, None),
+    ("CHK-27b", "stewards who came from combat work, share", lambda r: path_share(r, "steward", 2), 0.05, None),
+    ("CHK-28", "missions failed, share of taken", issuer_failed_share, 0.001, 0.5),
+    ("CHK-28b", "worst kind of issuer's failed share", worst_issuer_failed, None, 0.5),
+    ("CHK-29", "days a seat stays empty per succession", vacancy_days, None, 30),
+    ("CHK-29b", "defections from a planet within 3 months of its succession, each", lambda r: r["succession_defections"] or 0.0, None, 1),
 ]
 
 

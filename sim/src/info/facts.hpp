@@ -30,9 +30,11 @@ void merge_into(Facts& dst, const Facts& src);
 // Both keep the newer of each subject.
 void share(Facts& a, Facts& b);
 
-// A governor's facts, with its own market freshly observed: "the planet's
-// information is its governor's information" (INF-2).
-Facts& governor_facts(World& world, Id planet);
+// The planet's information (INF-2, SYS-22): the facts of whoever is in charge there, the
+// governor at home or else its steward, with the planet's own market freshly observed.
+Facts& planet_facts(World& world, Id planet);
+// The same, read as it stands.
+const Facts& planet_facts(const World& world, Id planet);
 
 // Schedules a recurring automated courier run from every liege to each direct vassal,
 // staggered (SYS-15).

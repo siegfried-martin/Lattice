@@ -274,6 +274,7 @@ TEST_CASE("taking a pirate planet restores its old production (PIR-3, MIL-12)") 
     const auto makes = w.planets[at(haven)].makes;
     pirates::flip(w, haven, nullptr);
     w.planets[at(haven)].defence = 1;
+    w.characters[at(w.planets[at(haven)].governor)].ships.clear();  // no governor's fleet to defend it (MIL-20)
     // The nearest lawful planet's governor knows and attacks.
     Id home = kNone;
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {

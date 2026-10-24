@@ -22,7 +22,7 @@ std::vector<Id> believed_enemies(const World& w, Id planet) {
     const Id gov = w.planets[at(planet)].governor;
     if (gov == kNone) return out;
     const Id root = fealty::root_of(w, planet);
-    for (const DipFact& f : w.characters[at(gov)].facts.dips) {
+    for (const DipFact& f : info::planet_facts(w, planet).dips) {
         if (static_cast<DipState>(f.state) != DipState::War || (f.a != root && f.b != root)) continue;
         const Id other = f.a == root ? f.b : f.a;
         if (w.planets[at(other)].liege == kNone) out.push_back(other);  // still a root

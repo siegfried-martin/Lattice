@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <vector>
 
 #include "lattice/world.hpp"
 
@@ -42,6 +43,9 @@ void leave(World& world, Id army, Id character);
 void disband(World& world, Id army, Observer* observer);
 
 double power(const World& world, const Army& army);
+// Who's at a planet to fight for it: its governor's fleet and its sworn commanders at
+// their post (MIL-20). Marching, the governor comes only if it can sail (a steward stays).
+std::vector<Id> ready(const World& world, Id planet, bool marching = false);
 std::pair<double, double> position(const World& world, const Army& army);
 
 }  // namespace lattice::armies

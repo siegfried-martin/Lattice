@@ -7,6 +7,7 @@
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
+#include "pirates/pirates.hpp"
 #include "politics/fealty.hpp"
 #include "politics/opinion.hpp"
 #include "war/raids.hpp"
@@ -49,7 +50,74 @@ ContractKind contract_kind(MissionKind k) {
     }
 }
 
+bool pirate_run(const Mission& m) { return m.kind == MissionKind::Smuggle || m.kind == MissionKind::LegalGoods; }
+
+// The days a mission should take, for its deadline (MSN-3): the reference round trip and
+// any time on station. A pirate run's route isn't known when it's taken, so it gets
+// mission.expiry_days.
+double reference_days(const World& w, const Mission& m) {
+    if (pirate_run(m)) return static_cast<double>(w.config.mission.expiry_days);
+    double hold = 0;
+    if (m.kind == MissionKind::Security) {
+        hold = static_cast<double>(m.authority ? w.config.authority.clear_days : w.config.security.days);
+    } else if (m.sortie) {
+        hold = 0.5;
+    }
+    return std::max(1.0, round_trip(w, m.at, m.target) + hold);
+}
+
 }  // namespace
+
+Issuer issuer_of(const World& w, const Mission& m) {
+    if (m.authority) return Issuer::Authority;
+    if (pirate_run(m) || w.planets[at(m.at)].pirate) return Issuer::PiratePlanet;
+    return w.planets[at(m.at)].liege == kNone ? Issuer::Root : Issuer::Governor;
+}
+
+void start_clock(World& w, Id mid) {
+    Mission& m = w.missions[at(mid)];
+    m.deadline = w.now + static_cast<Time>(w.config.mission.deadline_mult * reference_days(w, m) * kDay);
+    w.events.push({.time = m.deadline, .kind = EventKind::MissionDeadline, .record = mid});
+    ++w.ledger.issuer_taken[at(static_cast<Id>(issuer_of(w, m)))];
+}
+
+void fail(World& w, Id mid, Observer* observer) {
+    Mission& m = w.missions[at(mid)];
+    if (m.state != MissionState::Taken) return;
+    m.state = MissionState::Failed;
+    m.packet = {};
+    const Id id = m.taker;
+    Character& c = w.characters[at(id)];
+    const Issuer who = issuer_of(w, m);
+    ++w.ledger.issuer_failed[at(static_cast<Id>(who))];
+    // A bad deed with the issuer; reputation is untouched (MSN-3).
+    const double bad = w.config.deed.amount[static_cast<std::size_t>(DeedKind::MissionFailed)];
+    if (who == Issuer::Authority) {
+        c.authority_opinion += bad;
+    } else if (who == Issuer::PiratePlanet) {
+        pirates::set_relation(w, c, std::min(pirates::relation(w, c), w.config.pirel.fail));  // PIR-10
+        if (m.kind == MissionKind::Smuggle && c.cargo_good == kStims) {
+            w.ledger.destroyed[kStims] += c.cargo_qty;  // dumped: no lawful market takes it openly
+            c.cargo_qty = 0, c.cargo_cost = 0, c.cargo_good = kGoodCount;
+        }
+    } else {
+        opinion::deed(w, m.poster, id, DeedKind::MissionFailed, observer);
+    }
+    if (!pirate_run(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
+    if (observer) observer->log(w.now, "mission.failed", mid, "by " + std::to_string(id));
+    if (c.mission != mid) return;
+    c.mission = kNone;
+    if (c.activity == Activity::Mission || c.activity == Activity::Patrolling) c.activity = Activity::Idle;
+    if (c.alive && c.planet != kNone) {
+        c.idle_since = w.now;
+        chars::wake(w, id, w.now);
+    }
+}
+
+void deadline(World& w, Id mid, Observer* observer) {
+    const Mission& m = w.missions[at(mid)];
+    if (m.state == MissionState::Taken && w.now >= m.deadline) fail(w, mid, observer);
+}
 
 void post_courier(World& w, Id liege, Id vassal, Observer* observer) {
     const auto& c = w.config;
@@ -75,7 +143,7 @@ void root_weekly(World& w, Id root, Observer* observer) {
     for (Id m : planet.missions) {
         if (w.missions[at(m)].kind == MissionKind::Scout) return;  // one at a time
     }
-    const Facts& known = info::governor_facts(w, root);
+    const Facts& known = info::planet_facts(w, root);
     const double stale = w.config.scout.stale_days * kDay;
     Id target = kNone;
     double best = 0;
@@ -126,7 +194,7 @@ void planet_weekly(World& w, Id planet, Observer* observer) {
                  observer);
         }
     }
-    Facts& known = info::governor_facts(w, planet);
+    Facts& known = info::planet_facts(w, planet);
     info::observe_risk(w, known, p.sector);
     if (!patrolling && info::believed_risk(known, p.sector) >= c.security.risk_post) {
         post(w,
@@ -195,7 +263,7 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     m.pay = pay_now(w, m);
     unpost(w, mid);
     contracts::sign(w, contract_kind(m.kind), m.poster, id, m.pay, 0, mid);
-    if (m.kind == MissionKind::Courier) m.packet = info::governor_facts(w, m.at);
+    if (m.kind == MissionKind::Courier) m.packet = info::planet_facts(w, m.at);
     Character& c = w.characters[at(id)];
     c.mission = mid;
     c.activity = m.kind == MissionKind::Security ? Activity::Patrolling : Activity::Mission;
@@ -219,7 +287,9 @@ void take(World& w, Id id, Id mid, Observer* observer) {
         c.mission = kNone;
         c.activity = Activity::Idle;
         chars::wake(w, id, w.now + kDay);
+        return;
     }
+    start_clock(w, mid);
 }
 
 void arrived(World& w, Id id, Observer* observer) {
@@ -227,7 +297,7 @@ void arrived(World& w, Id id, Observer* observer) {
     Mission& m = w.missions[at(c.mission)];
     if (m.outbound && c.planet == m.target) {
         if (m.kind == MissionKind::Courier) {
-            Facts& there = info::governor_facts(w, m.target);
+            Facts& there = info::planet_facts(w, m.target);
             info::merge_into(there, m.packet);
             m.packet = there;
         } else {
@@ -243,7 +313,7 @@ void arrived(World& w, Id id, Observer* observer) {
         return;
     }
     // Home: deliver, and get paid (REL-8: the contract ends with the job).
-    info::merge_into(info::governor_facts(w, m.at), m.packet);
+    info::merge_into(info::planet_facts(w, m.at), m.packet);
     threats::check(w, m.at, observer);
     m.packet = {};
     m.state = MissionState::Done;
@@ -253,6 +323,9 @@ void arrived(World& w, Id id, Observer* observer) {
     } else {
         w.planets[at(m.at)].treasury -= m.pay;
     }
+    const auto who = static_cast<std::size_t>(issuer_of(w, m));
+    w.ledger.issuer_spend[who] += m.pay;
+    ++w.ledger.issuer_done[who];
     chars::earn(c, m.pay, m.kind != MissionKind::Courier);
     if (m.kind == MissionKind::Security) ++w.ledger.patrols;
     auto& skill = c.skills[skill_of(m.kind)];

@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "chars/characters.hpp"
+#include "chars/missions.hpp"
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
@@ -46,20 +47,22 @@ Id post_run(World& w, Id planet, MissionKind kind, Good g, double qty, Observer*
 
 void finish(World& w, Id id, bool success, Observer* observer) {
     Character& c = w.characters[at(id)];
+    if (!success) {
+        if (observer) observer->log(w.now, "pirate.run_failed", c.mission, "by " + std::to_string(id));
+        missions::fail(w, c.mission, observer);  // PIR-10, MSN-3
+        chars::wake(w, id, w.now + kHour);
+        return;
+    }
     Mission& m = w.missions[at(c.mission)];
     m.state = MissionState::Done;
-    const auto& r = w.config.pirel;
-    if (success) {
-        pirates::set_relation(w, c, pirates::relation(w, c) + r.success);
-        auto& skill = c.skills[skill_of(m.kind)];
-        skill = std::min(w.config.skill.max, skill + w.config.skill.gain);
-        ++c.missions_done;
-        ++w.ledger.missions_done;
-        ++(m.kind == MissionKind::Smuggle ? w.ledger.smuggled_runs : w.ledger.legal_runs);
-    } else {
-        pirates::set_relation(w, c, std::min(pirates::relation(w, c), r.fail));  // PIR-10
-    }
-    if (observer) observer->log(w.now, success ? "pirate.run_done" : "pirate.run_failed", c.mission, "by " + std::to_string(id));
+    pirates::set_relation(w, c, pirates::relation(w, c) + w.config.pirel.success);
+    auto& skill = c.skills[skill_of(m.kind)];
+    skill = std::min(w.config.skill.max, skill + w.config.skill.gain);
+    ++c.missions_done;
+    ++w.ledger.missions_done;
+    ++w.ledger.issuer_done[static_cast<std::size_t>(Issuer::PiratePlanet)];
+    ++(m.kind == MissionKind::Smuggle ? w.ledger.smuggled_runs : w.ledger.legal_runs);
+    if (observer) observer->log(w.now, "pirate.run_done", c.mission, "by " + std::to_string(id));
     c.mission = kNone;
     c.activity = Activity::Idle;
     c.idle_since = w.now;
@@ -165,6 +168,7 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     c.mission = mid;
     c.activity = Activity::Mission;
     pirates::set_relation(w, c, std::max(pirates::relation(w, c), w.config.pirel.accept));
+    missions::start_clock(w, mid);
     if (observer) observer->log(w.now, "pirate.run_taken", mid, "by " + std::to_string(id));
     // First stop: the haven for contraband, a lawful market for the legal good.
     Id first = m.at;
@@ -253,6 +257,7 @@ void landed(World& w, Id id, Observer* observer) {
     c.wealth += f.money;
     const double bonus = w.config.pirate.legal_bonus * f.qty;
     haven.treasury -= bonus;
+    w.ledger.issuer_spend[static_cast<std::size_t>(Issuer::PiratePlanet)] += bonus;
     chars::earn(c, bonus, false);
     c.cargo_qty -= f.qty;
     c.cargo_cost = 0;

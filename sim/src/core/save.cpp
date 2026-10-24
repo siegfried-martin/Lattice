@@ -277,7 +277,7 @@ void check_references(const World& w) {
     };
     for (const ShipVariant& v : m.variants) require(in(v.culture, m.regions.size()), "ship variant");
     for (const Planet& p : w.planets) {
-        require(opt(p.governor, nc) && opt(p.liege, np), "planet politics");
+        require(opt(p.governor, nc) && opt(p.liege, np) && opt(p.steward, nc), "planet politics");
         for (Id mi : p.missions) require(in(mi, w.missions.size()), "mission board");
     }
     for (const Character& c : w.characters) {
@@ -305,7 +305,7 @@ void check_references(const World& w) {
     for (const Planet& p : w.planets) require(opt(p.siege, w.sieges.size()), "planet siege");
     for (const Character& c : w.characters) {
         require(opt(c.army, w.armies.size()) && opt(c.battle, w.battles.size()) && opt(c.escort, nc) && opt(c.escorting, nc) &&
-                    opt(c.renounce_to, np) && opt(c.offer, w.missions.size()),
+                    opt(c.renounce_to, np) && opt(c.offer, w.missions.size()) && opt(c.stewards, np),
                 "character war");
         for (const Suspicion& s : c.suspicion) require(s.faction == kAuthority || in(s.faction, np), "suspicion");
     }
@@ -356,7 +356,8 @@ void check_references(const World& w) {
             case EventKind::CharDecide:
             case EventKind::CharArrive: require(in(e.record, nc), "character event"); break;
             case EventKind::CourierArrive: require(in(e.record, w.courier_runs.size()), "courier event"); break;
-            case EventKind::MissionExpire: require(in(e.record, w.missions.size()), "mission event"); break;
+            case EventKind::MissionExpire:
+            case EventKind::MissionDeadline: require(in(e.record, w.missions.size()), "mission event"); break;
             case EventKind::ArmyMuster:
             case EventKind::ArmyArrive: require(in(e.record, w.armies.size()), "army event"); break;
             case EventKind::BattleRound: require(in(e.record, w.battles.size()), "battle event"); break;

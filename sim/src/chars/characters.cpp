@@ -11,6 +11,7 @@
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
+#include "politics/roles.hpp"
 #include "trade/merchants.hpp"
 #include "pirates/pirates.hpp"
 #include "pirates/smuggling.hpp"
@@ -122,20 +123,19 @@ Id spawn(World& w, Id planet) {
     return id;
 }
 
-Id make_governor(World& w, Id planet) {
+Id spawn_ruler(World& w, Id planet) {
     const Id id = add(w, planet);
     Character& c = w.characters[at(id)];
-    c.governs = planet;
-    c.activity = Activity::Governing;
-    Planet& p = w.planets[at(planet)];
-    p.governor = id;
-    // PRD-3: the governor's risk tolerance sets the planet's growth factor.
-    p.growth_factor = w.config.pop.growth_factor_min + c.risk * (w.config.pop.growth_factor_max - w.config.pop.growth_factor_min);
+    c.wealth = w.config.chars.start_wealth;
+    w.ledger.money_spawned += c.wealth;
+    for (std::int64_t i = 0; i < w.config.gen.governor_ships; ++i) {
+        c.ships.push_back(ships::variant(w.map, c.culture, ShipClass::Gunship, 1));  // MIL-20
+    }
     return id;
 }
 
 void populate(World& w) {
-    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) make_governor(w, p);
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) roles::seat(w, p, spawn_ruler(w, p), nullptr);
     // Commanders sworn to each governor, with combat power in proportion to the planet's
     // income (GEN-9): one gunship each.
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
@@ -224,9 +224,49 @@ void wake(World& w, Id id, Time when) {
     w.events.push({.time = std::max(when, w.now), .kind = EventKind::CharDecide, .record = id, .a = c.wake_seq});
 }
 
+namespace {
+
+// Called to an army: go to the muster point and join (MIL-9).
+void join_army(World& w, Id id, Observer* observer) {
+    Character& c = w.characters[at(id)];
+    const Army& a = w.armies[at(c.army)];
+    if (a.alive && a.action == ArmyAction::Muster && c.planet != a.home) {
+        if (c.governs == c.planet) roles::handover(w, c.governs);  // the steward runs things meanwhile
+        if (!move::travel_to(w, id, a.home)) armies::member_arrived(w, id, observer);
+        return;
+    }
+    armies::member_arrived(w, id, observer);
+}
+
+// A governor stays at its planet unless it sails with an army (MIL-20).
+void govern(World& w, Id id, Observer* observer) {
+    Character& c = w.characters[at(id)];
+    if (c.army != kNone) {
+        join_army(w, id, observer);
+        return;
+    }
+    if (c.planet != c.governs) {
+        c.activity = Activity::Idle;
+        if (!move::travel_to(w, id, c.governs)) wake(w, id, w.now + kDay);
+        return;
+    }
+    c.activity = Activity::Governing;
+    roles::handover(w, c.governs);
+}
+
+}  // namespace
+
 void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
     Character& c = w.characters[at(id)];
-    if (seq != c.wake_seq || !c.alive || c.governs != kNone || c.planet == kNone) return;
+    if (seq != c.wake_seq || !c.alive || c.planet == kNone) return;
+    if (c.governs != kNone) {
+        govern(w, id, observer);
+        return;
+    }
+    if (c.stewards != kNone) {
+        roles::steward_decide(w, id, observer);
+        return;
+    }
     if (c.activity == Activity::Trading) {
         merchant::at_stop(w, id, observer);
         return;
@@ -240,13 +280,7 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
         return;
     }
     if (c.army != kNone) {
-        // Called to an army: go to the muster point and join (MIL-9).
-        const Army& a = w.armies[at(c.army)];
-        if (a.alive && a.action == ArmyAction::Muster && c.planet != a.home) {
-            if (!move::travel_to(w, id, a.home)) armies::member_arrived(w, id, observer);
-            return;
-        }
-        armies::member_arrived(w, id, observer);
+        join_army(w, id, observer);
         return;
     }
     // A sworn commander serves at its governor's planet (MIL-2): the governor sets the
@@ -307,9 +341,10 @@ void landed(World& w, Id id, Observer* observer) {
     // INF-4: a member landing at a planet of its faction shares with the governor.
     const Id faction = faction_of(w, c);
     if (faction != kNone && fealty::root_of(w, c.planet) == faction) {
-        info::share(c.facts, info::governor_facts(w, c.planet));
+        info::share(c.facts, info::planet_facts(w, c.planet));
         threats::check(w, c.planet, observer);
     }
+    if (c.governs == c.planet) roles::handover(w, c.planet);  // home: it and the steward share (SYS-22)
     // Lawful markets inspect (INF-14).
     suspicion::on_landing(w, id, observer);
     switch (c.activity) {
@@ -337,6 +372,7 @@ void landed(World& w, Id id, Observer* observer) {
             wake(w, id, w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour));  // TRD-12: loading takes time
             return;
         case Activity::Army:
+        case Activity::Stewarding:
             wake(w, id, w.now);
             return;
         default:

@@ -39,4 +39,16 @@ void take(World& world, Id character, Id mission, Observer* observer);
 void arrived(World& world, Id character, Observer* observer);
 void expire(World& world, Id mission, Observer* observer);
 
+// Who issued a mission, for the ledger (MSN-4).
+Issuer issuer_of(const World& world, const Mission& m);
+// A mission was just taken: its deadline is mission.deadline_mult x its reference days
+// (MSN-3), and the issuer's ledger counts it.
+void start_clock(World& world, Id mission);
+// The taker failed (MSN-3): the deadline passed, it lost the fleet or the cargo, or it
+// walked off. A bad deed with the issuer (deed.mission_failed; the pirate relation for a
+// pirate run, PIR-10), no pay, reputation unchanged, and the one-job contract ends.
+void fail(World& world, Id mission, Observer* observer);
+// A taken mission's deadline (MissionDeadline).
+void deadline(World& world, Id mission, Observer* observer);
+
 }  // namespace lattice::missions

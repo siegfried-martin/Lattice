@@ -580,7 +580,7 @@ TEST_CASE("border planets at war post scouting sorties; risky planets post patro
     World w = new_world(quiet(), 87);
     const Front f = front(w);
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
-    info::learn_state(info::governor_facts(w, f.a), f.root_a, f.root_b, DipState::War, w.now);
+    info::learn_state(info::planet_facts(w, f.a), f.root_a, f.root_b, DipState::War, w.now);
     w.risk[at(w.planets[at(f.a)].sector)].risk = 5;
     const auto posted = w.ledger.missions_posted;
     missions::planet_weekly(w, f.a, nullptr);

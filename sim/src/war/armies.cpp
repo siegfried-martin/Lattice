@@ -12,6 +12,7 @@
 #include "politics/fealty.hpp"
 #include "politics/governor.hpp"
 #include "politics/opinion.hpp"
+#include "politics/roles.hpp"
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
 #include "war/gates.hpp"
@@ -29,11 +30,19 @@ double income(const World& w, Id p) {
     return std::max(0.0, w.planets[at(p)].income_avg) * static_cast<double>(w.config.time.payment_days);
 }
 
-// A governor's sworn commanders at its planet, free to march.
-std::vector<Id> ready(const World& w, Id planet) {
+}  // namespace
+
+std::vector<Id> ready(const World& w, Id planet, bool marching) {
     std::vector<Id> out;
     const Id gov = w.planets[at(planet)].governor;
     if (gov == kNone) return out;
+    // The governor's own fleet (MIL-20): it defends at home, and marches only with a
+    // steward to leave in charge.
+    const Character& g = w.characters[at(gov)];
+    if (g.alive && g.planet == planet && g.army == kNone && g.battle == kNone && !g.ships.empty() &&
+        (!marching || roles::can_sail(w, planet))) {
+        out.push_back(gov);
+    }
     for (Id k : w.characters[at(gov)].contracts) {
         const Contract& ct = w.contracts[at(k)];
         if (!ct.alive || ct.kind != ContractKind::Service || ct.employer != gov) continue;
@@ -44,6 +53,8 @@ std::vector<Id> ready(const World& w, Id planet) {
     }
     return out;
 }
+
+namespace {
 
 double fleet_power(const World& w, const std::vector<Id>& ids) {
     double p = 0;
@@ -146,6 +157,7 @@ void go(World& w, Id id, Id dest, Id dest_node = kNone) {
     a.node = kNone;
     for (Id m : a.members) {
         Character& c = w.characters[at(m)];
+        if (c.governs != kNone && c.governs == c.planet) roles::handover(w, c.governs);  // leaving home (SYS-22)
         c.planet = kNone;
         c.route.clear();
         ++c.travel_seq;
@@ -302,14 +314,17 @@ Id keep_or_grant(World& w, Id keeper, Id target, Observer* observer) {
     }
 }
 
-// FAC-9: the keeper chooses among its commanders and the army that took the planet:
-// reputation + its opinion + fealty.capture_bonus for the army's leader (proposed).
-Id choose_governor(const World& w, Id keeper, const Army& army) {
+// FAC-9, SYS-22: the keeper chooses among its commanders and the army that took the
+// planet by the governor post's fitness, plus fealty.capture_bonus for the army's leader;
+// else from the fallback pool; else none (the caller generates one).
+Id choose_governor(const World& w, Id keeper, const Army& army, Id planet) {
     const Id gov = w.planets[at(keeper)].governor;
     std::vector<Id> pool = army.members;
     for (Id k : w.characters[at(gov)].contracts) {
         const Contract& ct = w.contracts[at(k)];
-        if (ct.alive && ct.kind == ContractKind::Service && ct.employer == gov) pool.push_back(ct.employee);
+        if (!ct.alive || ct.kind != ContractKind::Service || ct.employer != gov) continue;
+        const Character& c = w.characters[at(ct.employee)];
+        if (c.planet != kNone && c.army == kNone && c.battle == kNone) pool.push_back(ct.employee);
     }
     Id leader = kNone;
     double strongest = -1;
@@ -317,15 +332,8 @@ Id choose_governor(const World& w, Id keeper, const Army& army) {
         const double p = ships::fleet(w, w.characters[at(m)]).combat;
         if (p > strongest) strongest = p, leader = m;
     }
-    Id best = kNone;
-    double best_score = -std::numeric_limits<double>::max();
-    for (Id id : pool) {
-        const Character& c = w.characters[at(id)];
-        if (!c.alive || c.governs != kNone) continue;
-        const double score = c.reputation + opinion::get(w, gov, id) + (id == leader ? w.config.fealty.capture_bonus : 0);
-        if (score > best_score || (score == best_score && id < best)) best_score = score, best = id;
-    }
-    return best;
+    const Id best = roles::best_governor(w, pool, gov, planet, leader);
+    return best != kNone ? best : roles::best_governor(w, roles::fallback_pool(w, planet), gov, planet);
 }
 
 double capture_value(const World& w, Id t) {
@@ -410,26 +418,25 @@ void capture(World& w, Id siege, Observer* observer) {
     }
 
     const Id keeper = keep_or_grant(w, army.home, t, observer);
-    const Id chosen = choose_governor(w, keeper, army);
+    Id chosen = choose_governor(w, keeper, army, t);
     fealty::swear(w, t, keeper);
-    if (chosen != kNone) {
+    if (chosen == kNone) {
+        chosen = roles::generate(w, t);  // every planet always has a governor (FAC-1)
+    } else if (std::find(army.members.begin(), army.members.end(), chosen) != army.members.end()) {
+        // From the army at the planet: it lands there.
         Character& g = w.characters[at(chosen)];
-        for (Id k : std::vector<Id>(g.contracts)) {
-            if (w.contracts[at(k)].employee == chosen) contracts::end(w, k);
-        }
         leave(w, s.army, chosen);
         g.army = kNone;
         g.battle = kNone;
-        g.governs = t;
         g.planet = t;
         g.last_planet = t;
         g.route.clear();
         ++g.travel_seq;
-        g.activity = Activity::Governing;
-        planet.governor = chosen;
-        planet.growth_factor = w.config.pop.growth_factor_min +
-                               g.risk * (w.config.pop.growth_factor_max - w.config.pop.growth_factor_min);
     }
+    roles::seat(w, t, chosen, observer);
+    planet.governor_stipend = 0;
+    planet.vacant_since = kNever;
+    planet.succession_at = kNever;
     planet.security = 0;
     ++w.ledger.captures;
     if (observer) {
@@ -506,9 +513,11 @@ Plan best_invasion(const World& w, Id planet) {
     for (const Army& a : w.armies) {
         if (a.alive && a.commissioner == gov && !a.relief) return best;  // one campaign at a time
     }
-    std::vector<Id> own = ready(w, planet), called;
+    // Nor one while the governor is away with its fleet, or the seat is empty (SYS-22).
+    if (!roles::home(w, planet) || w.characters[at(gov)].army != kNone || roles::vacant(w, planet)) return best;
+    std::vector<Id> own = ready(w, planet, true), called;
     for (Id v : fealty::vassals(w, planet)) {
-        for (Id id : ready(w, v)) called.push_back(id);
+        for (Id id : ready(w, v, true)) called.push_back(id);
     }
     const double attack = fleet_power(w, own) + 0.5 * fleet_power(w, called);
     if (attack <= 0) return best;
@@ -518,7 +527,7 @@ Plan best_invasion(const World& w, Id planet) {
     for (Id t = 0; t < static_cast<Id>(w.planets.size()); ++t) {
         // An enemy's planet, or a pirate planet it knows of (MIL-9).
         const Id troot = fealty::root_of(w, t);
-        const bool pirate = w.planets[at(t)].pirate && info::knows_pirate(w.characters[at(gov)].facts, t);
+        const bool pirate = w.planets[at(t)].pirate && info::knows_pirate(info::planet_facts(w, planet), t);
         if (!pirate && std::find(enemies.begin(), enemies.end(), troot) == enemies.end()) continue;
         if (w.derived.travel(planet, t) > w.config.dip.border_days) continue;
         if (w.planets[at(t)].siege != kNone) continue;
@@ -532,7 +541,7 @@ Plan best_invasion(const World& w, Id planet) {
     }
     // Gates (MIL-17): an enemy's to blockade, or one's own to take back.
     if (!w.config.blockade.enabled || w.gates.empty()) return best;
-    const Facts& facts = w.characters[at(gov)].facts;
+    const Facts& facts = info::planet_facts(w, planet);
     for (Id n = 0; n < static_cast<Id>(w.map.nodes.size()); ++n) {
         const Id h = gates::holder(w, n);
         if (h == kNone || w.planets[at(h)].pirate || w.gates[at(n)].siege != kNone) continue;
@@ -566,7 +575,7 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, I
     w.armies.push_back({.commissioner = gov, .home = planet, .target = target, .target_node = node, .relief = relief,
                         .formed = w.now, .planet = planet});
     const auto id = static_cast<Id>(w.armies.size() - 1);
-    for (Id m : ready(w, planet)) {
+    for (Id m : ready(w, planet, true)) {
         attach(w, id, m);
         w.armies[at(id)].members.push_back(m);
     }
@@ -578,7 +587,7 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, I
             opinion::deed(w, gov, vgov, answers ? DeedKind::CallAnswered : DeedKind::CallRefused, observer);
             if (!answers) continue;
             const Time delay = std::max<Time>(1, static_cast<Time>(w.derived.travel(planet, v) * kDay));  // by courier
-            for (Id m : ready(w, v)) {
+            for (Id m : ready(w, v, true)) {
                 attach(w, id, m);
                 w.armies[at(id)].called.push_back(m);
                 chars::wake(w, m, w.now + delay);
@@ -836,7 +845,7 @@ void call_for_help(World& w, Id id, Id liege, Observer* observer) {
     if (!s.alive) return;
     const Id gov = w.planets[at(liege)].governor;
     const Id asking = w.planets[at(s.planet)].governor;
-    const std::vector<Id> free = ready(w, liege);
+    const std::vector<Id> free = ready(w, liege, true);
     const double relief = fleet_power(w, free);
     const double besiegers = power(w, w.armies[at(s.army)]);
     // Relief goes when it stands a fair chance (proposed): P(win) of at least a third

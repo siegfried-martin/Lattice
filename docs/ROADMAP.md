@@ -22,10 +22,10 @@ budgets and tribute to net income; its results and what still fails (merchants
 squeezed, so idle characters and pirates are too many) are in `sim/milestones.md`
 (MS-8).
 
-Next is designed but not built: a round on roles, then on paying for war and fealty,
-tuned once together. Governors get fleets of their own and sail, so they can die and be
-succeeded, and a steward runs the planet's economy and keeps it while the governor is
-away. One fitness score fills every post. Missions become the one way any entity asks
+Now: a round on roles, then on paying for war and fealty, tuned once together. The
+roles half is built (stage 1, results in MS-8). Governors have fleets of their own and
+sail, so they can die and be succeeded, and a steward runs the planet's economy and keeps
+it while the governor is away. One fitness score fills every post. Missions become the one way any entity asks
 for work, and failing one costs the issuer's opinion (MSN). Round 4 showed war costs a
 treasury almost nothing and patronage outweighs tribute, so the war half adds bounties
 for kills paid by the root, spoils of capture, fleet loans between governors,

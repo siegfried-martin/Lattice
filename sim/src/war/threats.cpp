@@ -1,12 +1,14 @@
 #include "war/threats.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "chars/contracts.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
 #include "politics/opinion.hpp"
+#include "politics/roles.hpp"
 #include "war/armies.hpp"
 
 namespace lattice::threats {
@@ -24,13 +26,7 @@ const Sighting* sighting_of(const Facts& f, Id army) {
 
 double ready_power(const World& w, Id planet) {
     double p = 0;
-    const Id gov = w.planets[at(planet)].governor;
-    for (Id k : w.characters[at(gov)].contracts) {
-        const Contract& ct = w.contracts[at(k)];
-        if (!ct.alive || ct.kind != ContractKind::Service || ct.employer != gov) continue;
-        const Character& c = w.characters[at(ct.employee)];
-        if (c.activity == Activity::Serving && c.planet == planet && c.army == kNone) p += ships::fleet(w, c).combat;
-    }
+    for (Id id : armies::ready(w, planet, true)) p += ships::fleet(w, w.characters[at(id)]).combat;
     return p;
 }
 
@@ -52,12 +48,14 @@ bool relieve(World& w, Id liege, Id planet, const Sighting& s, Observer* observe
 void check(World& w, Id planet, Observer* observer) {
     Planet& p = w.planets[at(planet)];
     if (p.governor == kNone) return;
-    const Facts& facts = w.characters[at(p.governor)].facts;
+    // A copy: relief sent below can move the governor out, and it shares with the steward
+    // as it leaves (SYS-22).
+    const std::vector<Sighting> seen = info::planet_facts(std::as_const(w), planet).sightings;
     const Id root = fealty::root_of(w, planet);
     const Time recent = w.now - w.config.scout.threat_days * kDay;
-    for (const Sighting& s : facts.sightings) {
+    for (const Sighting& s : seen) {
         if (s.time < recent || s.target == kNone || s.army == p.warned_army) continue;
-        if (!info::believes_war(facts, root, s.faction)) continue;
+        if (!info::believes_war(info::planet_facts(std::as_const(w), planet), root, s.faction)) continue;
         const bool mine = s.target == planet;
         const bool vassal = w.planets[at(s.target)].liege == planet;
         if (!mine && !vassal) continue;
@@ -75,10 +73,10 @@ void check(World& w, Id planet, Observer* observer) {
 
 void warning(World& w, Id army, Id liege, Id planet, Observer* observer) {
     // The courier brings what the planet knew about the army.
-    const Facts& from = w.characters[at(w.planets[at(planet)].governor)].facts;
+    const Facts& from = info::planet_facts(std::as_const(w), planet);
     const Sighting* s = sighting_of(from, army);
     if (!s || !w.armies[at(army)].alive) return;
-    info::add_sighting(w.characters[at(w.planets[at(liege)].governor)].facts, *s);
+    info::add_sighting(w.characters[at(roles::in_charge(w, liege))].facts, *s);
     if (relieve(w, liege, planet, *s, observer)) return;
     const Id up = w.planets[at(liege)].liege;
     if (up == kNone) return;

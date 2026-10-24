@@ -142,32 +142,33 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `mission.pay_growth` | Pay growth per day unfilled | 0.05 |
 | `mission.expiry_days` | Mission lifetime | 30 |
 | `mission.courier_pay`, `mission.scout_pay` | Base pay per day of the expected round trip *(proposed, MS-3)* | 150, 300 |
-| `mission.deadline_mult` | A taken mission's deadline, in multiples of its reference days (MSN-3) *(proposed, roles round)* | 3 |
+| `mission.deadline_mult` | A taken mission's deadline, in multiples of its reference days (MSN-3) *(proposed, roles round: built)* | 3 |
 | `skill.gain`, `skill.max`, `skill.bonus` | Skill per mission, cap, pay weighting | 1, 20, 0.02 |
 | `spend.threshold_base`, `spend.threshold_risk` | Wealth over ship price before buying: `base − risk × this` | 2, 1 |
 | `spend.reserve_months` | Running costs kept back by the cautious | 3 × (1 − risk) |
 | `hire.range_days`, `hire.stipend_per_power` | Hiring reach, stipend per combat power per month | 5, 300 |
-| `hire.w_power`, `hire.w_opinion`, `hire.w_culture` | Hiring weights. *(proposed, roles round)* Replaced by the commander fitness weights (`fit.commander.*`) | 1, 0.05, 0.5 |
-| `hire.rep_mult`, `hire.rep_half` | A stipend rises by up to `rep_mult` with reputation, half of it at `rep_half` (MIL-2) *(proposed, war and fealty round)* | 1, 10 |
+| `hire.w_power`, `hire.w_opinion`, `hire.w_culture` | *Removed in the roles round:* replaced by the commander fitness weights (`fit.commander.*`) | — |
+| `hire.rep_mult`, `hire.rep_half` | A stipend rises by up to `rep_mult` with reputation, half of it at `rep_half` (MIL-2) *(proposed, war and fealty round)*. `rep_half` also halves fitness's reputation term, and is built with it (roles round); `rep_mult` comes with stage 2 | 1, 10 |
 | `loan.fee_months` | A liege borrowing a vassal's commanders pays the vassal this many months of their stipends (MIL-3) *(proposed, war and fealty round)* | 1 |
 | `loan.relief_fee` | A vassal borrowing its liege's commanders for relief pays this many months of their stipends on top (MIL-11) *(proposed, war and fealty round)* | 0 |
 | `loan.max_days` | Longest a loan runs if its purpose doesn't end it first (MIL-3) *(proposed, war and fealty round)* | 60 |
 | `relief.shortfall`, `relief.income_per_head`, `relief.capture_months` | Need tests for asking tribute relief: life-support shortfall at least this; net income per thousand a month below this; captured within this many months (FAC-15) *(proposed, war and fealty round)* | 0.1, 200, 6 |
-| `fit.<post>.power`, `.trade`, `.rep`, `.opinion`, `.culture` | Fitness weights per post (CHR-20, SYS-22) *(proposed, roles round)* | governor 1, 0, 1, 1, 0.5; steward 0, 1, 1, 1, 0.5; commander 1, 0, 0.5, 0.5, 0.5 |
-| `fit.cargo_half` | Cargo at which the trade term of fitness is half (SYS-22) *(proposed, roles round)* | 400 |
-| `steward.salary_share` | A steward's monthly salary as a share of the planet's monthly net income (FAC-16) *(proposed, roles round)* | 0.02 |
+| `fit.<post>.power`, `.trade`, `.rep`, `.opinion`, `.culture` | Fitness weights per post (CHR-20, SYS-22) *(proposed, roles round: built)* | governor 1, 0, 1, 1, 0.5; steward 0, 1, 1, 1, 0.5; commander 1, 0, 0.5, 0.5, 0.5 |
+| `fit.cargo_half` | Cargo at which the trade term of fitness is half (SYS-22) *(proposed, roles round: built)* | 400 |
+| `steward.salary_share` | A steward's monthly salary as a share of the planet's monthly net income (FAC-16) *(proposed, roles round: built)* | 0.02 |
+| `steward.enabled` | Governors appoint stewards (FAC-16); off for EXP-13 *(proposed, roles round: built)* | true |
 | `relief.rate`, `relief.clear_weeks` | The tribute rate granted on relief, and the weeks passing no test before it ends (FAC-15) *(proposed, war and fealty round)* | 0.05, 8 |
 | `rel.fade` | Weekly share of opinion lost toward rest | 0.03 |
 | `rel.culture_rest` | Rest shift from culture share | 20 |
 | `rel.recent_deeds` | Deeds kept per relationship for the UI (REL-12) *(proposed, MS-4)* | 3 |
-| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)*. *(proposed, war and fealty round)* Call answered and call refused apply to loan requests (MIL-3); relief used −5, relief granted +10, relief refused −15, objective declined −3, bounty unpaid −10. *(proposed, roles round)* Mission failed −10 (MSN-3) |
+| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)*. *(proposed, war and fealty round)* Call answered and call refused apply to loan requests (MIL-3); relief used −5, relief granted +10, relief refused −15, objective declined −3, bounty unpaid −10. *(proposed, roles round: built)* Mission failed −10 (MSN-3) |
 | `fealty.cascade` | Tribute cascades (FAC-6) | true |
 | `fealty.tribute_rate` | Starting tribute rate | 0.15 |
 | `fealty.rate_step`, `fealty.rate_min`, `fealty.rate_max` | How far a liege moves a tribute rate at once, and its bounds (FAC-12) *(proposed, MS-4)* | 0.05, 0, 0.5 |
 | `fealty.raise_opinion` | A liege in the red raises tribute only on vassals at least this loyal (FAC-12) *(proposed, MS-4)* | 20 |
 | `fealty.defect_opinion`, `fealty.defect_weeks` | Defection threshold and duration | −30, 8 |
 | `fealty.threat_days`, `fealty.rival_opinion` | Independence safety, rival offer threshold | 10, 20 |
-| `fealty.w_favor`, `fealty.capture_bonus` | Keep-or-grant and governor choice weights. *(proposed, roles round)* The capture bonus is added to fitness (SYS-22), whose terms run about 0 to 1, so it becomes 0.3 | 1, 30 (0.3 with fitness) |
+| `fealty.w_favor`, `fealty.capture_bonus` | Keep-or-grant and governor choice weights. *(proposed, roles round: built)* The capture bonus is added to fitness (SYS-22), whose terms run about 0 to 1, so it's 0.3 (it was 30 on the old reputation + opinion score) | 1, 0.3 |
 | `pod.death_p` | Out-of-range pod death chance | 0.05 |
 
 ## War (DIP, MIL, SYS-12 to SYS-14)
@@ -251,7 +252,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `gen.min_producers` | Producers per good per region | 2 |
 | `gen.independent_share`, `gen.pirate_planets` | Starting independents and pirate planets | 0.1, 2 |
 | `gen.commanders_per_income` | Starting combat power sworn to a governor per credit of its planet's monthly income (GEN-9) *(proposed, MS-4)* | 0.00001 |
-| `gen.governor_ships` | Gunships, tier 1, a seeded governor starts with (MIL-20) *(proposed, roles round)* | 2 |
+| `gen.governor_ships` | Gunships, tier 1, a seeded governor starts with (MIL-20) *(proposed, roles round: built)* | 2 |
 | `gen.start_treasury_months`, `gen.warmup_days` | Starting treasury, warm-up | 3, 180 |
 | `gen.moon_share` | Share of planets with one to three moons (WLD-4) | 0.25 |
 | `gen.split_planets` | Planets in a system that make it two groups (GEN-3) *(proposed, MS-2)* | 4 |

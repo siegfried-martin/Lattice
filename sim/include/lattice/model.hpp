@@ -158,7 +158,7 @@ struct Planet {
     double population = 0;
     double happiness = 0;
     double productivity = 0;
-    double growth_factor = 1;   // PRD-3; from the governor's risk tolerance once there are governors
+    double growth_factor = 1;   // PRD-3; from the governor's risk tolerance, or the steward's (FAC-16)
     double contraband_avg = 0;  // C in SYS-1
 
     // The market (SYS-3) and production (SYS-2).
@@ -185,6 +185,11 @@ struct Planet {
     double tribute_month = 0;    // tribute received since its last payment
     double tribute_paid = 0;     // its last payment's tribute, as its liege saw it
     Time low_since = kNever;     // its governor's opinion of the liege below fealty.defect_opinion since
+    // Roles (FAC-16, FAC-17, MIL-20, SYS-22).
+    Id steward = kNone;           // runs its steward's lines of the budget, and the planet while the governor is away
+    double governor_stipend = 0;  // monthly: the budget's unit for the governor's own fleet, when funded
+    Time vacant_since = kNever;   // its governor died then; the seat waits for a successor
+    Time succession_at = kNever;  // when the chooser can name one (its liege's courier round trip)
 
     // Defence (MIL-5).
     double security = 0;     // monthly spend on static defence and patrols (ECO-4): a sink
@@ -206,6 +211,7 @@ void fields(Ar& ar, P& p) {
     ar(p.stock, p.labour, p.tier_shift, p.festivals);
     ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.net_avg, p.net_today, p.deficit_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
+    ar(p.steward, p.governor_stipend, p.vacant_since, p.succession_at);
     ar(p.security, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
 }
@@ -216,8 +222,9 @@ void fields(Ar& ar, P& p) {
 enum class DeedKind : std::uint8_t {
     HelpSent = 0, HelpMissed = 1, PlanetGranted = 2, Patronage = 3, TributeRaised = 4, PassedOver = 5,
     CallAnswered = 6, CallRefused = 7, BorderHeld = 8, JobDone = 9, Attacked = 10, TributeLowered = 11, Caught = 12,
+    MissionFailed = 13,
 };
-inline constexpr int kDeedKindCount = 13;
+inline constexpr int kDeedKindCount = 14;
 
 struct Deed {
     DeedKind kind = DeedKind::JobDone;
@@ -376,8 +383,9 @@ enum class Activity : std::uint8_t {
     Patrolling = 9, // on a security mission (MIL-5)
     Renouncing = 10, // broke, on its way to a pirate planet to join it (PIR-4)
     Spying = 11,     // a spy, on its rounds (INF-13)
+    Stewarding = 12, // a steward, docked at its planet or on its way there (FAC-16)
 };
-inline constexpr int kActivityCount = 12;
+inline constexpr int kActivityCount = 13;
 
 // The kinds of mission and skill (CHR-10). Append only.
 // Skills are the first six; Security missions count toward the escort skill.
@@ -459,6 +467,8 @@ struct Character {
     Time last_engaged = kNever;    // its last fight in open space
     std::vector<Suspicion> suspicion{};  // per faction, and the Authority (INF-14)
     Id offer = kNone;              // a pirate run it was offered on contact (PIR-13)
+    Id stewards = kNone;           // the planet it stewards (FAC-16)
+    std::uint8_t path = 0;         // what it mostly earned from before its post (CHK-27): an EarnPath
 };
 template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
@@ -469,7 +479,7 @@ void fields(Ar& ar, C& c) {
     ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
     ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle,
        c.paused_at, c.escort, c.escorting, c.pirate, c.pirate_relation, c.pirate_relation_at, c.renounce_to,
-       c.last_engaged, c.suspicion, c.offer);
+       c.last_engaged, c.suspicion, c.offer, c.stewards, c.path);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -478,6 +488,7 @@ void fields(Ar& ar, C& c) {
 enum class ContractKind : std::uint8_t {
     Fealty = 0, Service = 1, MerchantSalary = 2, Escort = 3, Courier = 4, Scout = 5, Security = 6, Mercenary = 7,
     PirateHire = 8, Spy = 9,  // a spy's contract is secret (SYS-17)
+    Steward = 10,             // a governor's steward (FAC-16)
 };
 
 struct Contract {
@@ -498,7 +509,7 @@ void fields(Ar& ar, C& c) {
 
 enum class MissionLevel : std::uint8_t { Planet = 0, Faction = 1 };
 // Append only.
-enum class MissionState : std::uint8_t { Open = 0, Taken = 1, Done = 2, Expired = 3 };
+enum class MissionState : std::uint8_t { Open = 0, Taken = 1, Done = 2, Expired = 3, Failed = 4 };
 
 struct Mission {
     MissionKind kind = MissionKind::Courier;
@@ -518,11 +529,12 @@ struct Mission {
     Good good = kGoodCount;  // a pirate run's cargo (SYS-16)
     double qty = 0;
     Facts packet{};     // what a courier or scout carries
+    Time deadline = kNever;  // set when taken (MSN-3)
 };
 template <class Ar, record_of<Mission> M>
 void fields(Ar& ar, M& m) {
     ar(m.kind, m.level, m.poster, m.at, m.target, m.base_pay, m.min_combat, m.min_cargo, m.posted, m.expires);
-    ar(m.state, m.taker, m.pay, m.outbound, m.sortie, m.authority, m.good, m.qty, m.packet);
+    ar(m.state, m.taker, m.pay, m.outbound, m.sortie, m.authority, m.good, m.qty, m.packet, m.deadline);
 }
 
 // ---- An automated courier run (INF-8, SYS-15) ----
@@ -557,6 +569,13 @@ template <class Ar, record_of<WorldEvent> E>
 void fields(Ar& ar, E& e) {
     ar(e.kind, e.region, e.planets, e.good, e.start, e.end, e.alive);
 }
+
+// Who issued a mission, for the ledger (MSN-4). Append only.
+enum class Issuer : std::uint8_t { Governor = 0, Root = 1, Authority = 2, PiratePlanet = 3 };
+inline constexpr int kIssuerCount = 4;
+
+// What a character mostly earned from before it took a post (CHK-27). Append only.
+enum class EarnPath : std::uint8_t { None = 0, Trade = 1, Combat = 2 };
 
 // World totals kept for the money and goods checks (CHK-7). Cumulative.
 struct Ledger {
@@ -594,6 +613,13 @@ struct Ledger {
     std::int64_t wars = 0, ceasefires = 0, battles = 0, sieges = 0, captures = 0, reliefs = 0, deaths = 0, pods = 0;
     // Blockades (MIL-17).
     std::int64_t gate_attacks = 0, blockades = 0, retakes = 0, lifts = 0;
+    // Missions per kind of issuer (MSN-4, CHK-28), indexed by Issuer.
+    std::array<double, 4> issuer_spend{};
+    std::array<std::int64_t, 4> issuer_taken{}, issuer_done{}, issuer_failed{};
+    double free_money = 0;  // created for missions (MSN-5): none yet; its own flow when there is
+    // Roles (FAC-16, FAC-17, CHK-27, CHK-29).
+    std::int64_t stewards_appointed = 0, steward_quits = 0, successions = 0, governors_killed = 0;
+    double steward_pay = 0, vacant_days = 0;
 };
 template <class Ar, record_of<Ledger> L>
 void fields(Ar& ar, L& l) {
@@ -610,6 +636,8 @@ void fields(Ar& ar, L& l) {
     ar(l.security, l.ceasefire_tribute, l.power_destroyed, l.destroyed, l.wars, l.ceasefires, l.battles, l.sieges, l.captures,
        l.reliefs, l.deaths, l.pods);
     ar(l.gate_attacks, l.blockades, l.retakes, l.lifts);
+    ar(l.issuer_spend, l.issuer_taken, l.issuer_done, l.issuer_failed, l.free_money);
+    ar(l.stewards_appointed, l.steward_quits, l.successions, l.governors_killed, l.steward_pay, l.vacant_days);
 }
 
 // ---- Diplomacy (MOD-5, DIP-1 to DIP-3) ----
