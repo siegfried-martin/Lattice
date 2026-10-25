@@ -351,7 +351,7 @@ TEST_CASE("commanders choose an objective by what it pays against what it risks 
     for (Id k : std::vector<Id>(w.characters[at(t.governor)].contracts)) contracts::end(w, k);
     w.characters[at(t.governor)].ships.clear();
 
-    SUBCASE("a strong, poor target: it declines, a small bad deed with its employer") {
+    SUBCASE("a strong, poor target with no purse: it declines, which costs it nothing") {
         t.defence = 1e7;
         t.treasury = 0;
         const double was = opinion::get(w, gov_of(w, f.a), m);
@@ -359,7 +359,23 @@ TEST_CASE("commanders choose an objective by what it pays against what it risks 
         CHECK(w.characters[at(m)].army == kNone);
         if (army != kNone) CHECK(!in(w.armies[at(army)].members, m));
         CHECK(w.ledger.objectives_declined >= 1);
-        CHECK(opinion::get(w, gov_of(w, f.a), m) < was);
+        CHECK(opinion::get(w, gov_of(w, f.a), m) == was);
+        if (army == kNone) {
+            // Nobody came: the planet waits objective.retry_days before another campaign.
+            CHECK(w.planets[at(f.a)].campaign_after == w.now + w.config.objective.retry_days * kDay);
+            CHECK(armies::best_invasion(w, f.a).target == kNone);
+        }
+    }
+    SUBCASE("the same target with a purse worth the risk: it joins, and the purse rises only as far as it must") {
+        t.defence = 50;
+        t.treasury = 0;
+        const Id army = armies::commission(w, f.a, f.b, false, nullptr, kNone, 1e9);
+        REQUIRE(army != kNone);
+        CHECK(in(w.armies[at(army)].members, m));
+        const auto& o = w.config.objective;
+        CHECK(w.armies[at(army)].purse >= o.reward_share * 1e9);
+        CHECK(w.armies[at(army)].purse <= o.reward_max * 1e9);
+        CHECK(w.armies[at(army)].purse == doctest::Approx(o.reward_share * 1e9));  // the first offer was enough
     }
     SUBCASE("an undefended, rich target: it joins") {
         t.defence = 0;
@@ -404,4 +420,26 @@ TEST_CASE("a world with war money runs, and loans and bounties stay consistent (
             if (!w.planets[at(p)].bounties.empty()) CHECK(w.planets[at(p)].liege == kNone);
         }
     }
+}
+
+TEST_CASE("an objective done pays its purse from the army's home, split by days in the siege (MIL-2)") {
+    World w = new_world(quiet(), 309);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    const Id m1 = commander(w, f.a, 1), m2 = commander(w, f.a, 1);
+    w.armies.push_back({.commissioner = gov_of(w, f.a), .home = f.a, .target = f.b, .members = {m1, m2},
+                        .action = ArmyAction::Besiege, .planet = f.b, .purse = 1000});
+    const auto army = static_cast<Id>(w.armies.size() - 1);
+    w.sieges.push_back({.planet = f.b, .army = army, .start = w.now, .power_days = {{m1, 3}, {m2, 1}}});
+    const auto siege = static_cast<Id>(w.sieges.size() - 1);
+    const double home = w.planets[at(f.a)].treasury;
+    const double w1 = w.characters[at(m1)].wealth, w2 = w.characters[at(m2)].wealth;
+    prizes::pay_purse(w, army, siege, nullptr);
+    CHECK(w.planets[at(f.a)].treasury == doctest::Approx(home - 1000));
+    CHECK(w.characters[at(m1)].wealth - w1 == doctest::Approx(750));
+    CHECK(w.characters[at(m2)].wealth - w2 == doctest::Approx(250));
+    CHECK(w.ledger.objective_rewards == doctest::Approx(1000));
+    CHECK(w.armies[at(army)].purse == 0);
+    prizes::pay_purse(w, army, siege, nullptr);  // paid once
+    CHECK(w.ledger.objective_rewards == doctest::Approx(1000));
 }

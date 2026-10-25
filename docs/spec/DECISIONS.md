@@ -5,6 +5,19 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-24 · Tuning pass, part 1: rewarded objectives and a higher tribute base
+
+Agreed with the human after the stage 2 results (MIL-2, SYS-9, FAC-6):
+
+- **Objectives carry a purse** sized from the commissioner's own valuation, paid on
+  success, rising at the muster until it clears, and counted in the budget at its ceiling
+  (`objective.reward_*`, 0.02, 0.02, 0.3).
+- **Declining is free;** `deed.objective_declined` is no longer applied.
+- **An abandoned campaign waits** `objective.retry_days` (28) before the next.
+- **The loan fee is paid only** for the lent commanders who take the objective.
+- **Tribute stays static** except in its special circumstances (a liege in the red,
+  disloyalty, relief). Its base is raised from 0.15 to 0.25 (`fealty.tribute_rate`).
+
 ### 2026-10-24 · War and fealty money built (MS-8 stage 2)
 
 Stage 2 of the roles and war round, built as designed on 2026-10-19; results in MS-8.

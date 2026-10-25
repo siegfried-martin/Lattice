@@ -34,5 +34,9 @@ void siege_day(World& world, Id siege);
 // At capture: the spoils leave the planet's treasury for the army's commanders, by their
 // power x days in the siege (all alike on the first day).
 void take_spoils(World& world, Id siege, Observer* observer);
+// An objective done (a planet or gate taken, a gate taken back): the army's home planet
+// pays its purse to the members, split as the spoils are (by power x days in the siege, or
+// by power with no siege), whatever its treasury holds (MIL-2).
+void pay_purse(World& world, Id army, Id siege, Observer* observer);
 
 }  // namespace lattice::prizes

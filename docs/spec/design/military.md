@@ -47,6 +47,20 @@ serves well keeps or grows their stipend.
   whether to work.
 - *Why:* every other character chooses its work (CHR-1, CHR-10); a forced mission would
   be the one exception, and a player serving as a commander can always say no.
+- *(proposed, tuning pass 2026-10-24)* **An objective carries a purse,** like any mission
+  (MSN-2), so offering one is a strategic decision and not a weekly notice.
+  - **Size:** a share of what the target is worth to the governor, paid on success and
+    split by strength × days in the siege.
+  - **Price:** the purse starts low and rises while that brings more commanders in, up
+    to a ceiling. The budget counts the ceiling as the campaign's cost, so only targets
+    worth the price are attacked.
+  - **Declining an offer costs nothing,** which replaces the small bad deed above.
+  - **A campaign nobody joins is abandoned,** and the planet waits a while before
+    offering another.
+  - **A vassal is paid the loan fee only** for the commanders who take the objective.
+  - *Why:* in stage 2 an objective paid only what a commander might pick up in kills
+    and spoils. About 90% of offers were declined, each one a bad deed, and war still
+    cost the governor little.
 
 ### MIL-3 Serving the liege `v1`
 

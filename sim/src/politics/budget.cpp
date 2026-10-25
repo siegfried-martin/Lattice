@@ -212,7 +212,9 @@ void weekly(World& w, Id planet, Observer* observer) {
     const bool warming_up = w.now < c.gen.warmup_days * kDay;  // GEN-10: the world settles first
     // A vacant seat commissions nothing (FAC-17).
     const armies::Plan plan = p.pirate || warming_up || vacant ? armies::Plan{} : armies::best_invasion(w, planet);
-    if (plan.target != kNone) invasion.units.push_back({plan.cost * pressure, plan.value});
+    // Its cost counts the most the purse can come to, by the chance of paying it (MIL-2).
+    const double purse = c.objective.choose ? c.objective.reward_max * plan.value : 0;
+    if (plan.target != kNone) invasion.units.push_back({(plan.cost + purse) * pressure, plan.value});
 
     // Patronage to vassals in the red that were captured within relief.capture_months: each
     // unit a month of their operating costs, worth the tribute it keeps flowing, more for
@@ -295,7 +297,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     if (spy_people.empty()) {
         for (Id id : spies_now) spies::release(w, id);  // at peace: no more need of them
     }
-    if (invasion.funded > 0) armies::commission(w, planet, plan.target, false, observer, plan.node);
+    if (invasion.funded > 0) armies::commission(w, planet, plan.target, false, observer, plan.node, plan.gain);
 
     // Patronage: paid now, a good deed once per grant.
     for (std::size_t i = 0; i < vassals.size(); ++i) {

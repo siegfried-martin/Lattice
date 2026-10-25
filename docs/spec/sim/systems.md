@@ -587,10 +587,32 @@ accept by SYS-8. Paid at trip end (REL-9).
     `objective.stake_months` × the fall in its post's chance of falling to the armies
     that post has seen coming within `scout.threat_days`. It joins when joining beats
     both staying and 0. When neither is above 0, that's `deed.objective_declined` with
-    its employer.
+    its employer. *(Tuning pass: no deed; declining is free.)*
   - **A gate pays no spoils,** so its objective pays only the bounties for its guards.
   - **A lent commander that declines** serves at the borrower's planet until the loan
-    ends.
+    ends. *(Tuning pass: it isn't lent at all.)*
+- *(proposed, tuning pass 2026-10-24: built)* **The purse** (MIL-2):
+  - **The plan's gain** is the target's capture value, or a gate's blockade or retake
+    value, before the chance of winning.
+  - **The budget's invasion unit** costs the stipends over the campaign plus
+    `objective.reward_max` × the plan's value, the most the purse can cost by its chance
+    of being paid.
+  - **The price rises in one sitting.** At commission, the purse is
+    `objective.reward_share` × gain, raised by `objective.reward_step` until as many of
+    the commanders at home join as would at `objective.reward_max`. Commanders lent later
+    are offered the purse as it stands. A commander's join value adds P(win) × its
+    share of power × the purse.
+  - **Payment** is from the army's home treasury on success (a planet or gate taken, a
+    gate taken back), whatever the treasury holds. It's split by power × days in the
+    siege, as the spoils are, or by power with no siege, and counts as military spending.
+  - **No takers:** a campaign that ends with nobody in it sets the planet's next campaign
+    to `objective.retry_days` later.
+  - **Loans:** a vassal lends only the commanders that take the objective, and is paid
+    the fee for them alone. If it grants but none take it, its courier says so, and the
+    liege records neither answer nor refusal.
+  - **No walking away yet:** no path lets a commander leave an army it has joined, so
+    MSN-3's failure deed has nothing to apply to.
+  - **With `objective.choose` off** there's no purse, and the budget doesn't count one.
 
 ### SYS-10 Relationships `v1`
 

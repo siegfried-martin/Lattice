@@ -19,6 +19,7 @@ struct Plan {
     Id target = kNone;
     double value = 0, cost = 0;
     Id node = kNone;  // a gate to blockade or take back, with its holder as target (MIL-17)
+    double gain = 0;  // what taking it is worth, before the chance of winning: the purse is a share of it (MIL-2)
 };
 Plan best_invasion(const World& world, Id planet);
 
@@ -29,7 +30,10 @@ Plan best_invasion(const World& world, Id planet);
 // relief army leaves at once with everyone at home (MIL-11), lent to the planet relieved.
 // With a node, the army's objective is that gate (MIL-17): an enemy's to blockade, or its
 // own faction's to take back; target is then the gate's holder.
-Id commission(World& world, Id planet, Id target, bool relief, Observer* observer, Id node = kNone);
+// The objective's purse is a share of gain, rising from objective.reward_share while that
+// brings more of the commanders at home in, to objective.reward_max; paid on success.
+// Nobody joining is an abandoned campaign: none for objective.retry_days.
+Id commission(World& world, Id planet, Id target, bool relief, Observer* observer, Id node = kNone, double gain = 0);
 
 // A liege's loan request reaches a vassal (MIL-3): it grants if its governor's opinion of
 // the liege is at least 0 or the fee covers its home's lost defence over loan.max_days
@@ -38,7 +42,7 @@ Id commission(World& world, Id planet, Id target, bool relief, Observer* observe
 void loan_request(World& world, Id army, Id vassal, Observer* observer);
 
 // What an army's objective is worth to a commander (MIL-2, SYS-9), against staying at its
-// employer's planet: join = expected bounties + spoils share - expected losses - fuel;
+// employer's planet: join = expected purse, bounties and spoils share - expected losses - fuel;
 // home = its stipend x objective.stake_months x how much its being there lowers the chance
 // the planet falls to the armies its planet has seen coming.
 struct Weighed {

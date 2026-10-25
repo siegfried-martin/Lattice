@@ -301,7 +301,7 @@ struct Config {
 
     struct Fealty {
         bool cascade = true;         // tribute on tribute received (FAC-6)
-        double tribute_rate = 0.15;  // starting rate
+        double tribute_rate = 0.25;  // starting rate (tuning pass: 0.15)
         double rate_step = 0.05;     // a liege moves a vassal's rate by this
         double rate_min = 0;
         double rate_max = 0.5;
@@ -582,6 +582,11 @@ struct Config {
     struct ObjectiveParams {
         bool choose = true;        // off: every commander at the muster joins, as before
         double stake_months = 3;   // a planet that falls costs a commander defending it this many months' stipend
+        // The purse an objective pays on success, as shares of what its target is worth
+        // to the commissioner: it starts at reward_share and rises by reward_step, up to
+        // reward_max, while that brings more commanders in.
+        double reward_share = 0.02, reward_step = 0.02, reward_max = 0.3;
+        std::int64_t retry_days = 28;  // after a campaign nobody joined, the wait before another
 
         friend bool operator==(const ObjectiveParams&, const ObjectiveParams&) = default;
     } objective;
@@ -955,6 +960,10 @@ void for_each_field(C& c, F&& f) {
     f("spoils.per_prosperity", c.spoils.per_prosperity);
     f("objective.choose", c.objective.choose);
     f("objective.stake_months", c.objective.stake_months);
+    f("objective.reward_share", c.objective.reward_share);
+    f("objective.reward_step", c.objective.reward_step);
+    f("objective.reward_max", c.objective.reward_max);
+    f("objective.retry_days", c.objective.retry_days);
 
     f("dues.access", c.dues.access);
     f("dues.gate", c.dues.gate);

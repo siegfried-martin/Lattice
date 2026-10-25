@@ -198,6 +198,8 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "money.objectives_taken", -1, static_cast<double>(l.objectives_taken));
     o.sample(t, "money.objectives_home", -1, static_cast<double>(l.objectives_home));
     o.sample(t, "money.objectives_declined", -1, static_cast<double>(l.objectives_declined));
+    o.sample(t, "money.objective_rewards", -1, l.objective_rewards);
+    o.sample(t, "money.campaigns_abandoned", -1, static_cast<double>(l.campaigns_abandoned));
     // By the faction's state that month: id 0 peace, 1 war.
     for (std::size_t s = 0; s < 2; ++s) {
         const auto id = static_cast<Id>(s);

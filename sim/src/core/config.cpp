@@ -297,6 +297,10 @@ void validate(const Config& c) {
     non_negative(c.bounty.share, "bounty.share");
     non_negative(c.spoils.per_prosperity, "spoils.per_prosperity");
     non_negative(c.objective.stake_months, "objective.stake_months");
+    require(c.objective.reward_share >= 0 && c.objective.reward_share <= c.objective.reward_max && c.objective.reward_max <= 1,
+            "objective.reward_share and reward_max must be 0 <= share <= max <= 1");
+    positive(c.objective.reward_step, "objective.reward_step");
+    require(c.objective.retry_days >= 0, "objective.retry_days can't be negative");
     require(c.gen.governor_ships >= 0 && c.gen.governor_ships <= c.fleet.max_ships,
             "gen.governor_ships must be 0 to fleet.max_ships");
     non_negative(c.dues.access, "dues.access");

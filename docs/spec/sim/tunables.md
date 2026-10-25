@@ -153,6 +153,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `loan.relief_fee` | A vassal borrowing its liege's commanders for relief pays this many months of their stipends on top (MIL-11) *(proposed, war and fealty round: built)* | 0 |
 | `loan.max_days` | Longest a loan runs if its purpose doesn't end it first (MIL-3) *(proposed, war and fealty round: built)* | 60 |
 | `objective.choose` | Commanders choose whether to join an army's objective (MIL-2, SYS-9); off for EXP-15, when everyone at a muster joins *(proposed, war and fealty round: built)* | true |
+| `objective.reward_share`, `objective.reward_step`, `objective.reward_max` | An objective's purse as shares of what its target is worth to the commissioner: where it starts, each rise while that brings more commanders in, and its ceiling, which the budget counts as the cost (MIL-2) *(proposed, tuning pass: built; first tried at 0.1, 0.1, 0.5)* | 0.02, 0.02, 0.3 |
+| `objective.retry_days` | After a campaign nobody joined, the wait before the planet offers another (MIL-2) *(proposed, tuning pass: built)* | 28 |
 | `objective.stake_months` | Months of stipend a commander counts on losing if the planet it serves at falls, for the value of staying (SYS-9) *(proposed, war and fealty round: built)* | 3 |
 | `relief.shortfall`, `relief.income_per_head`, `relief.capture_months` | Need tests for asking tribute relief: life-support shortfall at least this; net income per thousand a month below this; captured within this many months (FAC-15) *(proposed, war and fealty round: built)*. `capture_months` also limits patronage to rebuilding (FAC-7) | 0.1, 200, 6 |
 | `fit.<post>.power`, `.trade`, `.rep`, `.opinion`, `.culture` | Fitness weights per post (CHR-20, SYS-22) *(proposed, roles round: built)* | governor 1, 0, 1, 1, 0.5; steward 0, 1, 1, 1, 0.5; commander 1, 0, 0.5, 0.5, 0.5 |
@@ -163,9 +165,9 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `rel.fade` | Weekly share of opinion lost toward rest | 0.03 |
 | `rel.culture_rest` | Rest shift from culture share | 20 |
 | `rel.recent_deeds` | Deeds kept per relationship for the UI (REL-12) *(proposed, MS-4)* | 3 |
-| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)*. *(proposed, war and fealty round: built)* Call answered and call refused apply to loan requests (MIL-3); relief used −5, relief granted +10, relief refused −15, objective declined −3, bounty unpaid −10. *(proposed, roles round: built)* Mission failed −10 (MSN-3) |
+| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)*. *(proposed, war and fealty round: built)* Call answered and call refused apply to loan requests (MIL-3); relief used −5, relief granted +10, relief refused −15, objective declined −3 (unused since the tuning pass: declining is free), bounty unpaid −10. *(proposed, roles round: built)* Mission failed −10 (MSN-3) |
 | `fealty.cascade` | Tribute cascades (FAC-6) | true |
-| `fealty.tribute_rate` | Starting tribute rate | 0.15 |
+| `fealty.tribute_rate` | Starting tribute rate; static unless a liege in the red raises it, a disloyal vassal has it lowered, or relief (FAC-6, FAC-15). *(Tuning pass 2026-10-24: 0.15 to 0.25)* | 0.25 |
 | `fealty.rate_step`, `fealty.rate_min`, `fealty.rate_max` | How far a liege moves a tribute rate at once, and its bounds (FAC-12) *(proposed, MS-4)* | 0.05, 0, 0.5 |
 | `fealty.raise_opinion` | A liege in the red raises tribute only on vassals at least this loyal (FAC-12) *(proposed, MS-4)* | 20 |
 | `fealty.defect_opinion`, `fealty.defect_weeks` | Defection threshold and duration | −30, 8 |

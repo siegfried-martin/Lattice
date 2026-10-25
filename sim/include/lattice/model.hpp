@@ -210,6 +210,7 @@ struct Planet {
     Time relief_needed = kNever;   // on relief: when it last passed a need test
     double month_military = 0;     // since its last payment: stipends, security, bounties and loan fees paid
     double month_patronage = 0;    // and patronage paid
+    Time campaign_after = 0;       // an abandoned campaign: no new one before this (SYS-13)
 
     // Defence (MIL-5).
     double security = 0;     // monthly spend on static defence and patrols (ECO-4): a sink
@@ -233,7 +234,7 @@ void fields(Ar& ar, P& p) {
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
     ar(p.steward, p.governor_stipend, p.vacant_since, p.succession_at);
     ar(p.bounties, p.captured_at, p.shortfall, p.relief_from, p.relief_pending, p.relief_needed, p.month_military,
-       p.month_patronage);
+       p.month_patronage, p.campaign_after);
     ar(p.security, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
 }
@@ -666,6 +667,8 @@ struct Ledger {
     std::int64_t bounties_unpaid = 0, loans = 0, loans_refused = 0, relief_loans = 0;
     std::int64_t relief_asked = 0, relief_granted = 0, relief_refused = 0, relief_ended = 0;
     std::int64_t objectives_taken = 0, objectives_home = 0, objectives_declined = 0;
+    double objective_rewards = 0;  // purses paid on success (MIL-2)
+    std::int64_t campaigns_abandoned = 0;
     // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
     // 1 war): own net income, military and patronage paid, and vassals' net and tribute.
     std::array<double, 2> month_net{}, month_military{}, month_patronage{}, vassal_net{}, vassal_tribute{};
@@ -689,7 +692,7 @@ void fields(Ar& ar, L& l) {
     ar(l.stewards_appointed, l.steward_quits, l.successions, l.governors_killed, l.steward_pay, l.vacant_days);
     ar(l.bounties_owed, l.bounties_paid, l.spoils, l.loan_fees, l.bounties_unpaid, l.loans, l.loans_refused, l.relief_loans);
     ar(l.relief_asked, l.relief_granted, l.relief_refused, l.relief_ended, l.objectives_taken, l.objectives_home,
-       l.objectives_declined);
+       l.objectives_declined, l.objective_rewards, l.campaigns_abandoned);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
 }
 
@@ -749,12 +752,13 @@ struct Army {
     std::int32_t awaiting = 0;
     std::vector<Id> answered{};
     double plan_power = 0;  // the power its commissioner counted on (SYS-13), for commanders weighing it (MIL-2)
+    double purse = 0;       // the objective's reward, paid by its home planet on success (MIL-2)
 };
 template <class Ar, record_of<Army> A>
 void fields(Ar& ar, A& a) {
     ar(a.commissioner, a.home, a.target, a.target_node, a.relief, a.members, a.called, a.action, a.formed);
     ar(a.planet, a.node, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive, a.asked, a.awaiting, a.answered,
-       a.plan_power);
+       a.plan_power, a.purse);
 }
 
 // A fight, resolved in hourly rounds (SYS-14). Side 0 attacks.

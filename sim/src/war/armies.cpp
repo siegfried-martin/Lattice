@@ -276,6 +276,7 @@ void at_gate(World& w, Id id, Observer* observer) {
             return;
         }
         gates::retake(w, n, observer);  // nobody holds it (MIL-17)
+        prizes::pay_purse(w, id, kNone, observer);
         retreat(w, id, observer);
         return;
     }
@@ -368,6 +369,7 @@ void capture(World& w, Id siege, Observer* observer) {
     const Siege s = w.sieges[at(siege)];
     end_siege(w, siege);
     prizes::take_spoils(w, siege, observer);  // from its treasury, before anything else (MIL-19)
+    prizes::pay_purse(w, s.army, siege, observer);  // the objective is done (MIL-2)
     Army& army = w.armies[at(s.army)];
     const Id t = s.planet;
     Planet& planet = w.planets[at(t)];
@@ -520,6 +522,7 @@ Plan best_invasion(const World& w, Id planet) {
     }
     // Nor one while the governor is away with its fleet, or the seat is empty (SYS-22).
     if (!roles::home(w, planet) || w.characters[at(gov)].army != kNone || roles::vacant(w, planet)) return best;
+    if (w.now < w.planets[at(planet)].campaign_after) return best;  // the last one found no takers
     std::vector<Id> own = ready(w, planet, true), called;
     for (Id v : fealty::vassals(w, planet)) {
         for (Id id : ready(w, v, true)) called.push_back(id);
@@ -542,7 +545,7 @@ Plan best_invasion(const World& w, Id planet) {
         const double days = w.derived.travel(planet, t) + 3 + 10;  // muster, travel, and the fight
         const double cost = std::max(1.0, pay * days / static_cast<double>(w.config.time.payment_days));
         const double value = p * gain;
-        if (value / cost > best_ratio) best_ratio = value / cost, best = {t, value, cost};
+        if (value / cost > best_ratio) best_ratio = value / cost, best = {t, value, cost, kNone, gain};
     }
     // Gates (MIL-17): an enemy's to blockade, or one's own to take back.
     if (!w.config.blockade.enabled || w.gates.empty()) return best;
@@ -570,7 +573,7 @@ Plan best_invasion(const World& w, Id planet) {
         const double days = w.derived.travel(planet, h) + 3 + 10;
         const double cost = std::max(1.0, pay * days / static_cast<double>(w.config.time.payment_days));
         const double value = p * gain;
-        if (value / cost > best_ratio) best_ratio = value / cost, best = {h, value, cost, n};
+        if (value / cost > best_ratio) best_ratio = value / cost, best = {h, value, cost, n, gain};
     }
     return best;
 }
@@ -612,7 +615,7 @@ Weighed weigh(const World& w, const Army& a, Id id) {
     const Id to = a.target != kNone ? a.target : a.home;
     const double fuel = (ch.planet != kNone && ch.planet != a.home ? move::fuel_cost(w, ch, ch.planet, a.home) : 0) +
                         2 * move::fuel_cost(w, ch, a.home, to);
-    out.join = p * share * (c.bounty.share * kills + spoils) - (1 - p) * worth * c.combat.retreat_loss - fuel;
+    out.join = p * share * (a.purse + c.bounty.share * kills + spoils) - (1 - p) * worth * c.combat.retreat_loss - fuel;
     // Staying: its employer's planet, against the armies seen coming for it.
     const Id k = contracts::held(w, id, ContractKind::Service);
     const Id post = k != kNone ? w.characters[at(w.contracts[at(k)].employer)].governs : ch.governs;
@@ -632,21 +635,26 @@ Weighed weigh(const World& w, const Army& a, Id id) {
 namespace {
 
 // A commander chooses between an army's objective and staying at its post (MIL-2).
-// Declining both is a small bad deed with its employer.
-bool offer(World& w, Id army, Id id, Observer* observer) {
+// Saying no to an offer costs nothing (tuning pass: it was deed.objective_declined).
+bool in_list(const std::vector<Id>& list, Id id) { return std::find(list.begin(), list.end(), id) != list.end(); }
+
+enum class Choice { Join, Home, Decline };
+Choice choose(const World& w, Id army, Id id) {
     const Weighed v = weigh(w, w.armies[at(army)], id);
-    if (v.join > std::max(0.0, v.home)) {
-        ++w.ledger.objectives_taken;
-        return true;
-    }
-    if (v.home > 0) {
-        ++w.ledger.objectives_home;
-        return false;
-    }
-    ++w.ledger.objectives_declined;
-    const Id k = contracts::held(w, id, ContractKind::Service);
-    if (k != kNone) opinion::deed(w, w.contracts[at(k)].employer, id, DeedKind::ObjectiveDeclined, observer);
-    return false;
+    if (v.join > std::max(0.0, v.home)) return Choice::Join;
+    return v.home > 0 ? Choice::Home : Choice::Decline;
+}
+
+void count(World& w, Choice c) {
+    if (c == Choice::Join) ++w.ledger.objectives_taken;
+    if (c == Choice::Home) ++w.ledger.objectives_home;
+    if (c == Choice::Decline) ++w.ledger.objectives_declined;
+}
+
+// A campaign nobody joined: the planet waits before trying again.
+void abandoned(World& w, Id planet) {
+    w.planets[at(planet)].campaign_after = w.now + w.config.objective.retry_days * kDay;
+    ++w.ledger.campaigns_abandoned;
 }
 
 // The liege records each vassal it asked as answering or refusing by whether its fleets
@@ -666,6 +674,7 @@ void march_if_ready(World& w, Id id, Observer* observer) {
     if (!a.alive || a.action != ArmyAction::Muster || a.awaiting > 0 || !a.called.empty()) return;
     settle_calls(w, id, observer);
     if (a.members.empty() || a.target == kNone) {
+        if (a.members.empty() && !a.relief) abandoned(w, a.home);
         disband(w, id, observer);
         return;
     }
@@ -675,7 +684,7 @@ void march_if_ready(World& w, Id id, Observer* observer) {
 
 }  // namespace
 
-Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, Id node) {
+Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, Id node, double gain) {
     const Id gov = w.planets[at(planet)].governor;
     const std::vector<Id> home = ready(w, planet, true);
     double plan = fleet_power(w, home);
@@ -693,9 +702,28 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, I
     const auto id = static_cast<Id>(w.armies.size() - 1);
     // The commissioner's own fleet joins (MIL-20); its commanders at home choose (MIL-2).
     // A relief goes with everyone, as ordered (MIL-11).
-    const bool choose = !relief && w.config.objective.choose;
-    for (Id m : home) {
-        if (choose && m != gov && !offer(w, id, m, observer)) continue;
+    std::vector<Id> joining = home;
+    if (!relief && w.config.objective.choose) {
+        // The purse rises while that brings more of them in (MIL-2).
+        const auto& o = w.config.objective;
+        const auto takers = [&](double share) {
+            w.armies[at(id)].purse = share * std::max(0.0, gain);
+            std::vector<Id> out;
+            for (Id m : home) {
+                if (m == gov || choose(w, id, m) == Choice::Join) out.push_back(m);
+            }
+            return out;
+        };
+        const std::size_t most = takers(o.reward_max).size();
+        for (double share = o.reward_share;; share += o.reward_step) {
+            joining = takers(std::min(share, o.reward_max));
+            if (joining.size() >= most || share >= o.reward_max) break;
+        }
+        for (Id m : home) {
+            if (m != gov) count(w, in_list(joining, m) ? Choice::Join : choose(w, id, m));
+        }
+    }
+    for (Id m : joining) {
         attach(w, id, m);
         w.armies[at(id)].members.push_back(m);
     }
@@ -709,6 +737,7 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, I
     Army& a = w.armies[at(id)];
     if (a.members.empty() && a.awaiting == 0) {
         a.alive = false;
+        if (!relief) abandoned(w, planet);
         return kNone;
     }
     // A relief is a loan to the planet relieved: it pays the stipends while they serve,
@@ -753,6 +782,13 @@ void loan_request(World& w, Id id, Id v, Observer* observer) {
     double pay = 0, lost = 0;
     if (grant) {
         for (Id m : ready(w, v, true)) {
+            // Only those who take the objective are lent, and the fee is for them alone
+            // (tuning pass). With objective.choose off, all of them.
+            if (c.objective.choose) {
+                const Choice choice = choose(w, id, m);
+                count(w, choice);
+                if (choice != Choice::Join) continue;
+            }
             fleets.push_back(m);
             if (m == vgov) continue;  // a governor's own fleet has no contract to lend (MIL-3)
             const Id k = contracts::held(w, m, ContractKind::Service);
@@ -764,7 +800,15 @@ void loan_request(World& w, Id id, Id v, Observer* observer) {
         // Its home's lost defence over the loan, as SYS-13's hold decision counts it.
         const double exposed = c.value.defence * income(w, v) * lost / c.value.power_ref * budget::threat(w, v) *
                                static_cast<double>(c.loan.max_days) / static_cast<double>(c.time.payment_days);
-        grant = !fleets.empty() && (opinion::get(w, vgov, a.commissioner) >= 0 || fee >= exposed);
+        grant = opinion::get(w, vgov, a.commissioner) >= 0 || fee >= exposed;
+        if (grant && fleets.empty()) {
+            // Granted, but none of its commanders wants the objective: its courier says so,
+            // a courtesy (INF-16), so the liege records neither answer nor refusal.
+            std::erase(w.armies[at(id)].asked, v);
+            if (observer) observer->log(w.now, "loan.no_takers", v, "army " + std::to_string(id));
+            march_if_ready(w, id, observer);
+            return;
+        }
         if (grant && !lent.empty()) loans::lend(w, v, a.home, id, lent, fee, false, observer);
     }
     if (!grant) {
@@ -774,10 +818,6 @@ void loan_request(World& w, Id id, Id v, Observer* observer) {
         return;
     }
     for (Id m : fleets) {
-        if (c.objective.choose && !offer(w, id, m, observer)) {
-            chars::wake(w, m, w.now);  // to its new employer's post
-            continue;
-        }
         attach(w, id, m);
         w.armies[at(id)].called.push_back(m);
         chars::wake(w, m, w.now);
@@ -927,6 +967,7 @@ void battle_over(World& w, Id battle, int winner, Observer* observer) {
         const Id n = a.target_node;
         if (winner == 0 && w.gates[at(n)].captor != kNone && fealty::same_faction(w, gates::holder(w, n), a.home)) {
             gates::retake(w, n, observer);
+            prizes::pay_purse(w, attacker, kNone, observer);
         }
         if (reliever != kNone && w.armies[at(reliever)].alive) retreat(w, reliever, observer);
         retreat(w, attacker, observer);
@@ -1000,6 +1041,7 @@ void siege_round(World& w, Id id, Observer* observer) {
         held.siege = kNone;
         held.action = ArmyAction::Garrison;
         gates::capture(w, n, army, observer);
+        prizes::pay_purse(w, army, id, observer);
         w.events.push({.time = w.now + w.config.blockade.hold_days * kDay, .kind = EventKind::ArmyMuster, .record = army,
                        .a = held.travel_seq + 1});
         return;

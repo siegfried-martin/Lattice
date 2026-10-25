@@ -92,33 +92,63 @@ void siege_day(World& w, Id siege) {
     for (Id m : w.armies[at(s.army)].members) add(s.power_days, m, ships::fleet(w, w.characters[at(m)]).combat);
 }
 
-void take_spoils(World& w, Id siege, Observer* observer) {
-    const Siege& s = w.sieges[at(siege)];
-    const Army& a = w.armies[at(s.army)];
-    const double amount = spoils_of(w, s.planet);
-    if (amount <= 0 || a.members.empty()) return;
+namespace {
+
+// Each member's part of a prize: by power x days in the siege, or by power now when it has
+// none (taken on the first day, or no siege). Shares sum to 1; empty if nobody has any.
+std::vector<Owed> parts(const World& w, const Army& a, const Siege* s) {
     std::vector<Owed> part;
     double total = 0;
     for (Id m : a.members) {
         double served = 0;
-        for (const Owed& o : s.power_days) {
-            if (o.character == m) served = o.amount;
+        if (s) {
+            for (const Owed& o : s->power_days) {
+                if (o.character == m) served = o.amount;
+            }
         }
         part.push_back({m, served});
         total += served;
     }
-    if (total <= 0) {  // taken on its first day: by power now
+    if (total <= 0) {
         part.clear();
         for (Id m : a.members) {
             part.push_back({m, ships::fleet(w, w.characters[at(m)]).combat});
             total += part.back().amount;
         }
     }
-    if (total <= 0) return;
+    if (total <= 0) return {};
+    for (Owed& o : part) o.amount /= total;
+    return part;
+}
+
+}  // namespace
+
+void take_spoils(World& w, Id siege, Observer* observer) {
+    const Siege& s = w.sieges[at(siege)];
+    const Army& a = w.armies[at(s.army)];
+    const double amount = spoils_of(w, s.planet);
+    if (amount <= 0) return;
+    const std::vector<Owed> part = parts(w, a, &s);
+    if (part.empty()) return;
     w.planets[at(s.planet)].treasury -= amount;
-    for (const Owed& o : part) chars::earn(w.characters[at(o.character)], amount * o.amount / total, true);
+    for (const Owed& o : part) chars::earn(w.characters[at(o.character)], amount * o.amount, true);
     w.ledger.spoils += amount;
     if (observer) observer->log(w.now, "planet.spoils", s.planet, std::to_string(amount) + " to army " + std::to_string(s.army));
+}
+
+void pay_purse(World& w, Id army, Id siege, Observer* observer) {
+    Army& a = w.armies[at(army)];
+    const double amount = a.purse;
+    if (amount <= 0) return;
+    const std::vector<Owed> part = parts(w, a, siege != kNone ? &w.sieges[at(siege)] : nullptr);
+    if (part.empty()) return;
+    a.purse = 0;
+    Planet& home = w.planets[at(a.home)];
+    home.treasury -= amount;
+    home.month_military += amount;
+    for (const Owed& o : part) chars::earn(w.characters[at(o.character)], amount * o.amount, true);
+    w.ledger.objective_rewards += amount;
+    if (observer) observer->log(w.now, "army.purse", army, std::to_string(amount) + " from " + std::to_string(a.home));
 }
 
 }  // namespace lattice::prizes

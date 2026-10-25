@@ -511,6 +511,37 @@ same seeds; no tuning yet). EXP-15 is the same build with `objective.choose` off
   - **What roots can afford** in bounties.
   - **Stewards' churn,** from stage 1.
 
+*Tuning pass, part 1 (2026-10-24):* objectives with purses and tribute at 0.25 (DECISIONS).
+Two runs, 8 seeds × 5 years:
+
+| | Stage 2 | Purse from 10% to 50% | Purse from 2% to 30% (kept) | Band |
+|---|---|---|---|---|
+| Tribute, peace and war | 11.6%, 11.5% | 20.4%, 19.0% | 19.3%, 18.2% | 20% to 30% |
+| Military, peace and war | 11.7%, 19.9% | 26.7%, 74.8% | 18.1%, 36.7% | 10% to 20%, 40% to 60% |
+| Patronage | 2.1% | 3.8% | 6.5% | under 5% |
+| Objectives declined, taken, a year | 4,700, 520 | 16, 860 | 40, 1,070 | |
+| Purses paid a year | — | 178 million | 49 million | |
+| Captures a year | 20 | 17 | 22 | |
+| Planets' treasuries at the end, median | 168 million | −575 million | −13 million | |
+| Characters' wealth at the end, median | 92 million | 902 million | 273 million | |
+| Seeds whose planets end net in debt | 0 of 8 | 7 | 4 | |
+
+- **CHK-26 is close** with the purse from 2% to 30%: tribute is just under 20%, and
+  military at war just under 40%.
+- **But the war money doesn't leave.**
+  - Purses, bounties and spoils move money from treasuries to commanders. Commanders
+    have nothing to spend it on beyond ships, and their fleets are capped.
+  - Their wealth grows from about 20 million to 270 million, while half the worlds'
+    planets end net in debt.
+  - In one seed the world's total money goes negative.
+  - Planets can promise purses and owe bounties they can't pay: the purse is paid from
+    whatever the treasury holds, months after the campaign was funded.
+- **CHK-7c's band misses this.** It passes a negative ratio, a median treasury that ends
+  in debt.
+- *Open, for the human:* a sink on the commanders' side (munitions, MIL-4, held back
+  until bounties showed whether war was too cheap), and whether a purse must be held in
+  escrow when it's offered, so a planet can't promise what it can't pay.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).
