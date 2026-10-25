@@ -190,15 +190,16 @@ struct Config {
         double cargo = 0;  // tons
         double speed = 0;  // sector widths per day in open space
         double price = 0;
+        double crew = 0;   // average hands at tier 1, not tracked one by one (CHR-9)
 
         friend bool operator==(const ShipClassParams&, const ShipClassParams&) = default;
     };
     struct Ship {
         std::array<ShipClassParams, 4> classes = {{
-            {0, 60, 0.3, 8000},       // courier
-            {2, 20, 0.25, 10000},     // scout
-            {0.5, 400, 0.12, 20000},  // freighter
-            {5, 30, 0.18, 30000},     // gunship
+            {0, 60, 0.3, 8000, 2},       // courier
+            {2, 20, 0.25, 10000, 4},     // scout
+            {0.5, 400, 0.12, 20000, 4},  // freighter
+            {5, 30, 0.18, 30000, 20},    // gunship
         }};
         double tier_combat = 1.8;  // per tier above 1
         double tier_cargo = 2.0;
@@ -211,8 +212,12 @@ struct Config {
     } ship;
 
     struct Fleet {
-        std::array<double, 3> run_cost = {5, 15, 40};  // per ship per day, by tier (SYS-21)
-        double munitions_per_power = 100;
+        // Upkeep per ship per day (SYS-21): its price x maintenance a year, plus its class's
+        // crew x crew_tier[tier] x crew_wage.
+        double maintenance = 0.1;
+        double crew_wage = 1;
+        std::array<double, 3> crew_tier = {1, 1.5, 2.25};
+        double munitions_per_power = 30;  // after a battle, per combat power (MIL-4)
         std::int64_t max_ships = 4;
 
         friend bool operator==(const Fleet&, const Fleet&) = default;
@@ -739,6 +744,7 @@ void for_each_field(C& c, F&& f) {
         f(prefix + "cargo", c.ship.classes[i].cargo);
         f(prefix + "speed", c.ship.classes[i].speed);
         f(prefix + "price", c.ship.classes[i].price);
+        f(prefix + "crew", c.ship.classes[i].crew);
     }
     f("ship.tier_combat", c.ship.tier_combat);
     f("ship.tier_cargo", c.ship.tier_cargo);
@@ -747,7 +753,9 @@ void for_each_field(C& c, F&& f) {
     f("ship.culture_spread", c.ship.culture_spread);
     f("ship.resale", c.ship.resale);
 
-    f("fleet.run_cost", c.fleet.run_cost);
+    f("fleet.maintenance", c.fleet.maintenance);
+    f("fleet.crew_wage", c.fleet.crew_wage);
+    f("fleet.crew_tier", c.fleet.crew_tier);
     f("fleet.munitions_per_power", c.fleet.munitions_per_power);
     f("fleet.max_ships", c.fleet.max_ships);
 

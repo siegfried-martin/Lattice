@@ -103,7 +103,7 @@ void sample_metrics(const World& w, Observer& o) {
 
     // Characters (CHK-16 to CHK-18).
     std::array<std::int64_t, kActivityCount> by_activity{};
-    std::int64_t alive = 0, faction_merchants = 0, ships = 0;
+    std::int64_t alive = 0, faction_merchants = 0, ships = 0, shipless = 0;
     double wealth = 0, cargo = 0;
     for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
         const Character& ch = w.characters[at(id)];
@@ -114,11 +114,16 @@ void sample_metrics(const World& w, Observer& o) {
         faction_merchants += merchant::employer_root(w, id) != kNone;
         const ships::Fleet f = ships::fleet(w, ch);
         ships += f.count;
+        shipless += f.count == 0;
         cargo += f.cargo;
     }
+    double held = 0;  // purses set aside for campaigns under way (MIL-2)
+    for (const Army& a : w.armies) held += a.alive ? a.purse : 0;
     o.sample(t, "world.characters", -1, static_cast<double>(alive));
+    o.sample(t, "world.shipless", -1, static_cast<double>(shipless));
     o.sample(t, "world.char_wealth", -1, wealth);
-    o.sample(t, "world.money_total", -1, money + wealth + w.authority.treasury);
+    o.sample(t, "world.money_total", -1, money + wealth + w.authority.treasury + held);
+    o.sample(t, "money.purses_now", -1, held);
     o.sample(t, "world.money_spawned", -1, w.ledger.money_spawned);
     o.sample(t, "world.ships", -1, static_cast<double>(ships));
     o.sample(t, "world.cargo_capacity", -1, cargo);
@@ -200,6 +205,11 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "money.objectives_declined", -1, static_cast<double>(l.objectives_declined));
     o.sample(t, "money.objective_rewards", -1, l.objective_rewards);
     o.sample(t, "money.campaigns_abandoned", -1, static_cast<double>(l.campaigns_abandoned));
+    o.sample(t, "money.purses_held", -1, l.purses_held);
+    o.sample(t, "money.purses_returned", -1, l.purses_returned);
+    o.sample(t, "world.munitions", -1, l.munitions);
+    o.sample(t, "world.ceasefire_tribute", -1, l.ceasefire_tribute);
+    o.sample(t, "world.ceasefire_unpaid", -1, l.ceasefire_unpaid);
     // By the faction's state that month: id 0 peace, 1 war.
     for (std::size_t s = 0; s < 2; ++s) {
         const auto id = static_cast<Id>(s);

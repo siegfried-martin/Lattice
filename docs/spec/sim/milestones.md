@@ -542,6 +542,70 @@ Two runs, 8 seeds × 5 years:
   until bounties showed whether war was too cheap), and whether a purse must be held in
   escrow when it's offered, so a planet can't promise what it can't pay.
 
+*Tuning pass, part 2 (2026-10-25): what a fleet costs.* The human's answer: a small
+spend for munitions and a larger one for keeping the fleet, since every ship has to be
+maintained, crewed and refuelled. Crews aren't tracked person by person: each class has
+an average crew, scaled by tier (CHR-9, MIL-4, SYS-21). The purse is held when it's
+offered (MIL-2). Targets, written before the run:
+
+- **Upkeep:** a sworn gunship's upkeep is 50% to 70% of its base stipend at every tier,
+  so service still pays at peace and the profit is in war. Merchants' upkeep stays about
+  where it was.
+- **Munitions** after a battle are about a tenth of a month's base stipend.
+- **Characters' wealth levels off:** at the end of year 5 it's at most 1.5 times what it
+  was at the end of year 2 (tune 2: 2.6 to 3.4 times).
+- **No planet promises what it can't pay:** no seed's planets end net in debt, and the
+  world's money stays positive on every seed.
+- **CHK-26 holds:** no band that passed before fails.
+- **A lost fleet is rebuilt (CHR-16):** at most 5% of characters have no ship at the end.
+  Tune 2 left about half with none, because a character who lost its last ship could
+  never buy another: a bug, fixed in this part.
+
+The first run found the debt wasn't the purses. **Ceasefire tribute** (DIP-2) was paid
+by the loser's root alone, at up to 30% of its whole faction's gross monthly income,
+whatever its treasury held. In seed 7 it moved 5.6 billion in five years, against 0.4
+billion of fealty tribute, and left its payers billions in debt, which then funded the
+winners' spending. It's now paid only from what the payer holds, like bounties (SYS-12).
+Results, 8 seeds × 5 years:
+
+| | Tune 2 | Part 2 | Part 2, fleets of 8 | Target |
+|---|---|---|---|---|
+| Characters' wealth, year 5 over year 2, median | 2.9 | 1.39 (2 seeds over 1.5) | 1.37 (1 over) | ≤ 1.5 |
+| Characters' wealth at the end, median | 273 million | 96 million | 73 million | |
+| Planets in debt at the end, total, worst seed | −3.6 billion | −228 million | | |
+| Most indebted planet, worst seed | −2.5 billion | −91 million | | |
+| Seeds whose planets end net in debt (CHK-7d) | 4 of 8 | 3 | 3 | 0 |
+| Ceasefire tribute paid, unpaid, a year | not measured | 44 million, 234 million | | |
+| Upkeep, munitions a year | 6.9 million, 0 | 16.0 million, 1.1 million | 16.8, 1.4 | |
+| Purses held, paid, a year | —, 49 million | 81 million, 11 million | 104, 10 | |
+| Tribute, peace and war | 19.3%, 18.2% | 20.7%, 21.1% | 21.4%, 20.6% | 20% to 30% |
+| Military, peace and war | 18.1%, 36.7% | 13.1%, 22.7% | 15.7%, 22.8% | 10% to 20%, 40% to 60% |
+| Patronage | 6.5% | 1.7% | 1.5% | under 5% |
+| Planets changing hands a year, share | 0.22 | 0.14 | 0.16 | |
+| Characters with no ship at the end | about 1,000 | 974 | 1,054 | ≤ 100 |
+| Checks passing on every seed | 26 of 44 | 27 | 26 | |
+
+- **Met:** upkeep and munitions at their sizes; characters' wealth levels off at the
+  median; tribute and patronage are in their bands, and military at peace on every seed.
+- **Not met:**
+  - **Debt is small now but not gone.** About half the planets end slightly below zero
+    (median −0.1 million), as in tune 2, so CHK-7c fails. Those are poor planets living
+    at zero, an economy question older than this round.
+  - **Military at war fell to 23%.** Treasuries can no longer overdraw into war, so wars
+    are leaner: fewer captures, fewer blockades.
+  - **Ceasefire offers are mostly unpayable:** 234 million a year owed and not paid. How
+    they're sized (from the whole faction's gross income, paid by the root alone) is for
+    the human.
+  - **Shipless characters stay at about 1,000.** Seed 1 saw about 900 rebuilds, but most of the
+    rest are ruined: in seed 7 of the first run, 811 of 932 hold under a courier's 8,000 (median 1,650;
+    a new character starts with 2,000). They fill the population and stop new characters
+    from spawning. What a ruined character does is for the human. Governors who lose
+    their fleet never buy another either.
+  - **Idle characters rose to 20%** (CHK-17b fails on half the seeds): rebuilt couriers
+    with little to do.
+- **Fleets of 8** (`fleet.max_ships`) sink a little more into ships but change little
+  else, so the cap stays at 4.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

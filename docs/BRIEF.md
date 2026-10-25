@@ -222,8 +222,8 @@ The design of the full game is settled enough to build its simulation. In brief:
   decides the rest. A governor can now die in battle: its liege picks a successor, and a
   dead root's steward inherits the faction (FAC-16, FAC-17, MIL-20).
 - **Diplomacy:** war, peace and ceasefire between neighbouring factions. A losing or
-  war-weary faction sues for peace and pays tribute; the winner holds out for what it
-  hoped to take. Money piled up in peace votes for war. A faction is at war a little more
+  war-weary faction sues for peace and pays tribute, but only what its treasury holds; the
+  winner holds out for what it hoped to take. Money piled up in peace votes for war. A faction is at war a little more
   than half the time, in wars of one to three game months (DIP-1 to DIP-4).
 - **War:** armies with telegraphed intent cross open space from the nearest gate that
   lets them out; sieges grind down a planet's defences while couriers race to bring help
@@ -233,8 +233,12 @@ The design of the full game is settled enough to build its simulation. In brief:
   but the captor, which cuts the planets it serves off from the Lattice until it's
   retaken or peace lifts it (MIL-17). Combat away from the player is auto-resolved
   (MIL-13).
-- **Paying for war** *(proposed, built, not tuned yet)*: war and fleets are meant to be
-  expensive, and paid for by whoever wants the war. The faction's root pays commanders a
+- **Paying for war** *(proposed, built, being tuned)*: war and fleets are meant to be
+  expensive, and paid for by whoever wants the war. Keeping a fleet is a commander's main
+  cost: every ship is maintained, crewed and refuelled, crews averaged by ship size, so a
+  stipend covers a fleet at peace with a margin and the profit is in war. Munitions after
+  a battle are a small extra. A governor's objective carries a purse, set aside from its
+  treasury when it's offered and returned if the campaign fails. The faction's root pays commanders a
   bounty for every enemy ship they destroy, from the tribute it collects, so a long war
   drains it; a captured planet's treasury yields spoils, split by fleet strength and days
   spent in the siege. Commanders choose their own work: a governor posts objectives

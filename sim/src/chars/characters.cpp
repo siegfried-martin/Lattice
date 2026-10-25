@@ -19,6 +19,7 @@
 #include "war/armies.hpp"
 #include "war/spies.hpp"
 #include "war/raids.hpp"
+#include "war/diplomacy.hpp"
 #include "war/threats.hpp"
 
 namespace lattice::chars {
@@ -64,9 +65,27 @@ Id add(World& w, Id planet) {
 // spend.threshold x its price and leaves the cautious reserve untouched.
 void maybe_buy_ship(World& w, Id id, Observer* observer) {
     Character& c = w.characters[at(id)];
-    if (c.planet == kNone || c.ships.empty()) return;
+    if (c.planet == kNone) return;
     const auto& cfg = w.config;
     const ShipClass cls = c.earned_combat > c.earned_cargo ? ShipClass::Gunship : ShipClass::Freighter;
+    if (c.ships.empty()) {
+        // A lost fleet is rebuilt from savings (CHR-16): a tier-1 hull of the work it did,
+        // or a courier if that's all it can afford. Any hull beats none.
+        const Id culture = w.planets[at(c.planet)].region;
+        const Id want = ships::variant(w.map, culture, cls, 1);
+        const Id cheap = ships::variant(w.map, culture, ShipClass::Courier, 1);
+        const double threshold = cfg.spend.threshold_base - cfg.spend.threshold_risk * c.risk;
+        const Id pick = c.wealth >= threshold * w.map.variants[at(want)].price ? want
+                        : c.wealth >= w.map.variants[at(cheap)].price            ? cheap
+                                                                                 : kNone;
+        if (pick == kNone) return;
+        c.wealth -= w.map.variants[at(pick)].price;
+        w.ledger.ships_bought += w.map.variants[at(pick)].price;
+        w.ledger.money_sunk += w.map.variants[at(pick)].price;
+        c.ships.push_back(pick);
+        if (observer) observer->log(w.now, "ship.rebuilt", id, std::to_string(static_cast<int>(w.map.variants[at(pick)].cls)));
+        return;
+    }
     int best_tier = 0;
     std::size_t cheapest = 0;
     for (std::size_t i = 0; i < c.ships.size(); ++i) {
@@ -179,6 +198,20 @@ double reserve(const World& w, const Character& c) {
     return w.config.spend.reserve_months * (1 - c.risk) * ships::fleet(w, c).run_cost * static_cast<double>(w.config.time.payment_days);
 }
 
+// MIL-4: the munitions a battle used are refilled at the first planet that isn't hostile,
+// which has as many as the fleet needs. Nobody made them, so the money is sunk (ECO-6).
+void refill(World& w, Id id) {
+    Character& c = w.characters[at(id)];
+    if (c.munitions <= 0 || c.planet == kNone) return;
+    const Planet& p = w.planets[at(c.planet)];
+    const Id faction = faction_of(w, c);
+    if (p.pirate != c.pirate || (faction != kNone && !c.pirate && diplomacy::at_war(w, faction, fealty::root_of(w, c.planet)))) return;
+    c.wealth -= c.munitions;
+    w.ledger.munitions += c.munitions;
+    w.ledger.money_sunk += c.munitions;
+    c.munitions = 0;
+}
+
 void earn(Character& c, double amount, bool combat_work) {
     c.wealth += amount;
     (combat_work ? c.earned_combat : c.earned_cargo) += amount;
@@ -259,6 +292,7 @@ void govern(World& w, Id id, Observer* observer) {
 void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
     Character& c = w.characters[at(id)];
     if (seq != c.wake_seq || !c.alive || c.planet == kNone) return;
+    refill(w, id);
     if (c.governs != kNone) {
         govern(w, id, observer);
         return;
@@ -338,6 +372,7 @@ void landed(World& w, Id id, Observer* observer) {
     Character& c = w.characters[at(id)];
     info::observe_market(w, c.facts, c.planet);
     pirates::observe_system(w, c.facts, c.planet);
+    refill(w, id);
     // INF-4: a member landing at a planet of its faction shares with the governor.
     const Id faction = faction_of(w, c);
     if (faction != kNone && fealty::root_of(w, c.planet) == faction) {

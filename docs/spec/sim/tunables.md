@@ -132,10 +132,12 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `char.start_wealth` | New character's money | 2,000 |
 | `char.start_armed_p` | Chance a new character gets an armed hull | 0.5 |
 | `char.broke_days` | Days below zero before broke | 14 |
-| `fleet.run_cost[tier]` | Running cost per ship per day | 5, 15, 40 |
-| `fleet.munitions_per_power` | Refill cost per combat power used | 100 |
+| `fleet.maintenance` | A ship's upkeep for maintenance, as a share of its price a year (CHR-9, SYS-21) *(proposed, tuning pass part 2; replaces `fleet.run_cost[tier]`, 5, 15, 40 a day)* | 0.1 |
+| `fleet.crew_wage`, `fleet.crew_tier[tier]` | A ship's crew cost per hand per day, and its class's crew multiplied by tier (CHR-9, SYS-21) *(proposed, tuning pass part 2)* | 1; 1, 1.5, 2.25 |
+| `fleet.munitions_per_power` | Refill after a battle per combat power still in it, paid at the next planet that isn't hostile (MIL-4) *(tuning pass part 2: charged; was 100, never charged)* | 30 |
 | `fleet.max_ships` | Most ships in one character's fleet; past it a purchase replaces the cheapest *(proposed, MS-3)* | 4 |
 | `ship.<class>.combat`, `.cargo`, `.speed`, `.price` | Tier-1 stats of each class: courier, scout, freighter, gunship (MOD-1). Content, to be designed (OPN-35) *(proposed, MS-3)* | courier 0, 60, 0.3, 8,000; scout 2, 20, 0.25, 10,000; freighter 0.5, 400, 0.12, 20,000; gunship 5, 30, 0.18, 30,000 |
+| `ship.<class>.crew` | Average crew of each class at tier 1, for upkeep (CHR-9) *(proposed, tuning pass part 2)* | courier 2, scout 4, freighter 4, gunship 20 |
 | `ship.tier_combat`, `_cargo`, `_speed`, `_price` | Multiplier per tier above 1 *(proposed, MS-3)* | 1.8, 2, 1.05, 2.5 |
 | `ship.culture_spread` | Each culture's variant of a class within ± this *(proposed, MS-3)* | 0.15 |
 | `ship.resale` | Share of the price a sold ship returns *(proposed, MS-3)* | 0.5 |

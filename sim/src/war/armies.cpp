@@ -615,7 +615,9 @@ Weighed weigh(const World& w, const Army& a, Id id) {
     const Id to = a.target != kNone ? a.target : a.home;
     const double fuel = (ch.planet != kNone && ch.planet != a.home ? move::fuel_cost(w, ch, ch.planet, a.home) : 0) +
                         2 * move::fuel_cost(w, ch, a.home, to);
-    out.join = p * share * (a.purse + c.bounty.share * kills + spoils) - (1 - p) * worth * c.combat.retreat_loss - fuel;
+    const double munitions = c.fleet.munitions_per_power * f.combat;  // a battle's refill (MIL-4)
+    out.join = p * share * (a.purse + c.bounty.share * kills + spoils) - (1 - p) * worth * c.combat.retreat_loss - fuel -
+               munitions;
     // Staying: its employer's planet, against the armies seen coming for it.
     const Id k = contracts::held(w, id, ContractKind::Service);
     const Id post = k != kNone ? w.characters[at(w.contracts[at(k)].employer)].governs : ch.governs;
@@ -704,8 +706,11 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, I
     // A relief goes with everyone, as ordered (MIL-11).
     std::vector<Id> joining = home;
     if (!relief && w.config.objective.choose) {
-        // The purse rises while that brings more of them in (MIL-2).
+        // The purse rises while that brings more of them in (MIL-2), up to what the
+        // treasury holds: it's set aside now, so nobody is promised what can't be paid.
         const auto& o = w.config.objective;
+        const double afford = std::max(0.0, w.planets[at(planet)].treasury);
+        const double top = gain > 0 ? std::min(o.reward_max, afford / gain) : 0;
         const auto takers = [&](double share) {
             w.armies[at(id)].purse = share * std::max(0.0, gain);
             std::vector<Id> out;
@@ -714,10 +719,10 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, I
             }
             return out;
         };
-        const std::size_t most = takers(o.reward_max).size();
+        const std::size_t most = takers(top).size();
         for (double share = o.reward_share;; share += o.reward_step) {
-            joining = takers(std::min(share, o.reward_max));
-            if (joining.size() >= most || share >= o.reward_max) break;
+            joining = takers(std::min(share, top));
+            if (joining.size() >= most || share >= top) break;
         }
         for (Id m : home) {
             if (m != gov) count(w, in_list(joining, m) ? Choice::Join : choose(w, id, m));
@@ -737,9 +742,12 @@ Id commission(World& w, Id planet, Id target, bool relief, Observer* observer, I
     Army& a = w.armies[at(id)];
     if (a.members.empty() && a.awaiting == 0) {
         a.alive = false;
+        a.purse = 0;
         if (!relief) abandoned(w, planet);
         return kNone;
     }
+    w.planets[at(planet)].treasury -= a.purse;  // held until it's paid or given back (MIL-2)
+    w.ledger.purses_held += a.purse;
     // A relief is a loan to the planet relieved: it pays the stipends while they serve,
     // and its governor spends favour (MIL-11).
     if (relief && target != planet && fealty::same_faction(w, planet, target)) {
@@ -1106,6 +1114,12 @@ void disband(World& w, Id id, Observer* observer) {
     for (Id m : std::vector<Id>(a.called)) release(w, m, w.characters[at(m)].planet != kNone ? w.characters[at(m)].planet : a.home);
     a.members.clear();
     a.called.clear();
+    if (a.purse > 0) {  // not won: the purse goes back to its home planet, whoever holds it now (MIL-2)
+        w.planets[at(a.home)].treasury += a.purse;
+        w.ledger.purses_returned += a.purse;
+        if (observer) observer->log(w.now, "army.purse_returned", id, std::to_string(a.purse));
+        a.purse = 0;
+    }
     loans::end_for(w, id, observer);  // its purpose is done (MIL-3)
     if (observer) observer->log(w.now, "army.disbanded", id, "at " + std::to_string(where));
 }

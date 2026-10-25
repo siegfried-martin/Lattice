@@ -492,6 +492,7 @@ struct Character {
     Id offer = kNone;              // a pirate run it was offered on contact (PIR-13)
     Id stewards = kNone;           // the planet it stewards (FAC-16)
     std::uint8_t path = 0;         // what it mostly earned from before its post (CHK-27): an EarnPath
+    double munitions = 0;          // the refill it owes since its last battle, paid on landing (MIL-4)
 };
 template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
@@ -502,7 +503,7 @@ void fields(Ar& ar, C& c) {
     ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
     ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle,
        c.paused_at, c.escort, c.escorting, c.pirate, c.pirate_relation, c.pirate_relation_at, c.renounce_to,
-       c.last_engaged, c.suspicion, c.offer, c.stewards, c.path);
+       c.last_engaged, c.suspicion, c.offer, c.stewards, c.path, c.munitions);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -669,6 +670,9 @@ struct Ledger {
     std::int64_t objectives_taken = 0, objectives_home = 0, objectives_declined = 0;
     double objective_rewards = 0;  // purses paid on success (MIL-2)
     std::int64_t campaigns_abandoned = 0;
+    double purses_held = 0, purses_returned = 0;  // set aside when offered, and given back (MIL-2)
+    double munitions = 0;  // refills after battle, a sink (MIL-4)
+    double ceasefire_unpaid = 0;  // ceasefire tribute owed that the treasury couldn't pay (DIP-2)
     // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
     // 1 war): own net income, military and patronage paid, and vassals' net and tribute.
     std::array<double, 2> month_net{}, month_military{}, month_patronage{}, vassal_net{}, vassal_tribute{};
@@ -692,7 +696,8 @@ void fields(Ar& ar, L& l) {
     ar(l.stewards_appointed, l.steward_quits, l.successions, l.governors_killed, l.steward_pay, l.vacant_days);
     ar(l.bounties_owed, l.bounties_paid, l.spoils, l.loan_fees, l.bounties_unpaid, l.loans, l.loans_refused, l.relief_loans);
     ar(l.relief_asked, l.relief_granted, l.relief_refused, l.relief_ended, l.objectives_taken, l.objectives_home,
-       l.objectives_declined, l.objective_rewards, l.campaigns_abandoned);
+       l.objectives_declined, l.objective_rewards, l.campaigns_abandoned, l.purses_held, l.purses_returned, l.munitions,
+       l.ceasefire_unpaid);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
 }
 
@@ -752,7 +757,7 @@ struct Army {
     std::int32_t awaiting = 0;
     std::vector<Id> answered{};
     double plan_power = 0;  // the power its commissioner counted on (SYS-13), for commanders weighing it (MIL-2)
-    double purse = 0;       // the objective's reward, paid by its home planet on success (MIL-2)
+    double purse = 0;       // the objective's reward, taken from its home planet when offered and paid on success (MIL-2)
 };
 template <class Ar, record_of<Army> A>
 void fields(Ar& ar, A& a) {

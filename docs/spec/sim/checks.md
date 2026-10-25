@@ -84,6 +84,10 @@ the halfway point. *As built:* CHK-7 is the yearly growth from the halfway sampl
 last, band 0.8 to 1.1; CHK-7c reads months of costs as treasury ÷ (`econ.op_base` +
 `econ.op_per_capita` × population), ignoring pirate planets' lower costs.
 
+*(proposed, tuning pass)* **Planets stay out of debt.** CHK-7c's band starts at 0, so a
+median treasury that ends in debt fails; before, its band had no floor and passed it.
+CHK-7d is the sum of the planets' treasuries at the end, which must be above 0.
+
 ### CHK-8 Peace and war cycle `v1`
 
 Treasuries fill in peace and drain in war, and factions do go back to war. *Metric:*

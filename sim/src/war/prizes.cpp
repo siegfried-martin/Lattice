@@ -142,10 +142,8 @@ void pay_purse(World& w, Id army, Id siege, Observer* observer) {
     if (amount <= 0) return;
     const std::vector<Owed> part = parts(w, a, siege != kNone ? &w.sieges[at(siege)] : nullptr);
     if (part.empty()) return;
-    a.purse = 0;
-    Planet& home = w.planets[at(a.home)];
-    home.treasury -= amount;
-    home.month_military += amount;
+    a.purse = 0;  // it left the treasury when it was offered
+    w.planets[at(a.home)].month_military += amount;
     for (const Owed& o : part) chars::earn(w.characters[at(o.character)], amount * o.amount, true);
     w.ledger.objective_rewards += amount;
     if (observer) observer->log(w.now, "army.purse", army, std::to_string(amount) + " from " + std::to_string(a.home));

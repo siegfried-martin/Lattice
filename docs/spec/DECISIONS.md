@@ -5,6 +5,28 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-25 · Tuning pass, part 2: what a fleet costs, and held purses
+
+The human's direction after part 1 showed war money piling up with commanders (CHR-9,
+MIL-2, MIL-4, SYS-21):
+
+- **Keeping a fleet is the larger spend.** Every ship is maintained, crewed and refuelled.
+  Crews are averaged by class and tier, not tracked person by person. Upkeep is
+  maintenance on the ship's price (`fleet.maintenance`) plus its class's crew
+  (`ship.<class>.crew` × `fleet.crew_tier[tier]` × `fleet.crew_wage`); it replaces
+  `fleet.run_cost[tier]`. Fuel stays per transit.
+- **Munitions are a small spend,** now charged: about a tenth of a month's stipend a
+  battle, paid at the next planet that isn't hostile.
+- **A purse is held when it's offered** and goes back if the campaign fails, so a planet
+  can't offer more than it holds.
+- **Fixed: a character who lost its last ship never bought another** (CHR-16). About half
+  of all characters ended runs with no ship.
+- **CHK-7c's band gets a floor of 0,** and CHK-7d checks that the planets' treasuries
+  together end above 0.
+- **Ceasefire tribute is paid only from what the payer holds** (DIP-2, SYS-12), for
+  sign-off. The run found it was the main cause of planets' debt: the root pays it alone,
+  sized at up to 30% of its whole faction's gross monthly income, and paid it into debt.
+
 ### 2026-10-24 · Tuning pass, part 1: rewarded objectives and a higher tribute base
 
 Agreed with the human after the stage 2 results (MIL-2, SYS-9, FAC-6):

@@ -57,21 +57,21 @@ base_price = 12
 [good.amber]
 base_price = 45
 [fleet]
-run_cost = [1, 2, 4]
+crew_tier = [1, 2, 4]
 )");
     CHECK(c.goods[kFood].base_price == 12);
     CHECK(c.goods[kAmber].base_price == 45);
-    CHECK(c.fleet.run_cost[2] == 4);
+    CHECK(c.fleet.crew_tier[2] == 4);
 
     // Luxuries take their use from happy.need, so the key doesn't exist.
     CHECK_THROWS_WITH_AS(parse_config("[good.wine]\nconsumption = 1\n"), doctest::Contains("unknown key good.wine.consumption"),
                          ConfigError);
-    CHECK_THROWS_WITH_AS(parse_config("[fleet]\nrun_cost = [0, 1]\n"), doctest::Contains("list of 3 numbers"), ConfigError);
-    CHECK_THROWS_WITH_AS(parse_config("[fleet]\nrun_cost = [0, \"x\", 2]\n"), doctest::Contains("list of numbers"),
+    CHECK_THROWS_WITH_AS(parse_config("[fleet]\ncrew_tier = [0, 1]\n"), doctest::Contains("list of 3 numbers"), ConfigError);
+    CHECK_THROWS_WITH_AS(parse_config("[fleet]\ncrew_tier = [0, \"x\", 2]\n"), doctest::Contains("list of numbers"),
                          ConfigError);
 
     Config d;
-    d.fleet.run_cost = {0.5, 0.25, 0.125};
+    d.fleet.crew_tier = {0.5, 0.25, 0.125};
     d.goods[kSilk].k = 2.5;
     CHECK(parse_config(to_toml(d)) == d);
 }

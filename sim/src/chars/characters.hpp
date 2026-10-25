@@ -38,6 +38,9 @@ void detected(World& world, Id a, Id b);
 // (SYS-8).
 void earn(Character& c, double amount, bool combat_work);
 
+// Pays the munitions owed since its last battle, if it's at a planet that isn't hostile (MIL-4).
+void refill(World& world, Id id);
+
 // The cash a character keeps back: spend.reserve_months of running costs x (1 - risk).
 double reserve(const World& world, const Character& c);
 

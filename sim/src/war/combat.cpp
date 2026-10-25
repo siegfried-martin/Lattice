@@ -256,7 +256,9 @@ void round(World& w, Id id, Observer* observer) {
     }
     for (const auto& side : b.sides) {
         for (Id f : side) {
-            w.characters[at(f)].battle = kNone;
+            Character& ch = w.characters[at(f)];
+            ch.munitions += w.config.fleet.munitions_per_power * ships::fleet(w, ch).combat;  // refilled on landing (MIL-4)
+            ch.battle = kNone;
             move::resume(w, f);
         }
     }

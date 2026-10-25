@@ -38,6 +38,7 @@ double total_money(const World& w) {
     double m = 0;
     for (const Planet& p : w.planets) m += p.treasury;
     for (const Character& c : w.characters) m += c.wealth;
+    for (const Army& a : w.armies) m += a.alive ? a.purse : 0;  // held for a campaign (MIL-2)
     return m + w.authority.treasury;
 }
 

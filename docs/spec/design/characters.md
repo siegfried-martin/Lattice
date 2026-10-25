@@ -118,12 +118,21 @@ the planet's; the planet's static defences and patrols are the planet's (MIL-20)
 building, modding and capturing ships (REJ-12). The cost is that a governor has no hold
 over a commander's hardware, so the relationship carries loyalty (REL-3).
 
-### CHR-9 Low running costs `v1`
+### CHR-9 Running costs `v1`
 
-Fleets have a **low running cost**, low enough that NPCs don't go bankrupt easily
+Fleets have a **running cost**, low enough that NPCs don't go bankrupt easily
 between jobs. Fuel is part of it (ECO-11). The other costs are one-offs: buying ships
 and equipment, and the set munitions refill after a battle (MIL-4). The running cost's
 job is to tie fleet size to income, not to punish waiting.
+
+*(proposed, tuning pass part 2)* **Keeping a fleet is the larger spend.** Every ship
+has to be maintained, crewed and refuelled. Crews aren't tracked person by person: each
+class has an average crew, scaled by tier. Upkeep is sized so that a sworn commander's
+stipend covers its fleet with a margin at peace, and its profit comes from war. Munitions
+stay a small spend.
+
+*Why:* with purses, bounties and spoils, war money moved from treasuries to commanders
+and stayed there. A cheap fleet gave them nothing to spend it on.
 
 *See:* REJ-13 (no running cost at all), CHK-18.
 

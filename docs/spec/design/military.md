@@ -58,6 +58,9 @@ serves well keeps or grows their stipend.
   - **A campaign nobody joins is abandoned,** and the planet waits a while before
     offering another.
   - **A vassal is paid the loan fee only** for the commanders who take the objective.
+  - *(tuning pass, part 2)* **The purse is held from the moment it's offered,** and goes
+    back to the treasury if the campaign fails. A planet can't offer more than it holds,
+    the same way a mission's payout is fixed when it's taken.
   - *Why:* in stage 2 an objective paid only what a commander might pick up in kills
     and spoils. About 90% of offers were declined, each one a bad deed, and war still
     cost the governor little.
@@ -96,8 +99,9 @@ can't raise a big army quickly.
 
 ### MIL-4 What a fleet costs `v1`
 
-- **A low running cost** (CHR-9), including fuel (ECO-11).
-- **Munitions** are a set refill cost after a battle, paid on landing at any friendly or
+- **A running cost** (CHR-9): every ship has to be maintained, crewed and refuelled
+  (ECO-11).
+- **Munitions** are a small, set refill cost after a battle, paid on landing at any friendly or
   neutral planet, which has as many as the fleet needs. A money sink in v1 (ECO-6).
 - **Ships trickle in:** planets produce them slowly, almost magically, for recruitment,
   like Mount & Blade's units, drawn from the planet's culture (WLD-18). Buying one is a
@@ -106,6 +110,9 @@ can't raise a big army quickly.
 
 *(proposed, war and fealty round)* Bounties (MIL-18) pay a commander back for what war
 costs it; munitions aren't charged until bounties show whether they're needed.
+*(Tuning pass, part 2: they are.* With purses, bounties and spoils, war money piled up
+with commanders. Munitions are charged, kept small: about a tenth of a month's stipend a
+battle.)
 
 *(later)* Munitions, ships and equipment come into the supply chain (PRD-13); the
 player's missiles are finite in a magazine and restock depends on a planet's stock.

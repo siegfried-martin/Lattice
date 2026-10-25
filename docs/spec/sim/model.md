@@ -88,6 +88,7 @@ after loading.
 | path | *(roles round: built)* whether it earned mostly from cargo or combat work when it last took a post, for CHK-27 |
 | stealth | *(proposed, roles round; spy round)* a rating that grows with exposures survived (INF-14) |
 | broke since | for running out of money (PIR-4) |
+| munitions | *(proposed, tuning pass part 2: built)* the refill it owes since its last battle, paid on landing (MIL-4) |
 
 *As built (MS-3)*, also: the planet it's at, the planet where it last landed (and
 refuelled), its route and current leg, what it governs, its mission, cargo (one good,
@@ -149,6 +150,7 @@ suing).
 | location | as a character's, moving at the slowest member's speed |
 | called | commanders on their way to the muster; also its home planet, whether it is a relief, its battle and siege (MS-5) |
 | requests | *(war and fealty round: built)* the vassals asked for a loan, how many requests are still on their way, and the vassals whose fleets have arrived (MIL-3, INF-16); the power its commissioner counted on, for commanders weighing it (SYS-9) |
+| purse | *(tuning pass: built)* the objective's reward, held from its home treasury since it was offered (part 2) until it's paid or given back (MIL-2) |
 
 ### MOD-7 Siege and battle `v1`
 
@@ -234,9 +236,10 @@ governors killed, and days seats stood empty. *(war and fealty round: built)* Bo
 owed, paid and left unpaid; spoils; loans, refusals and fees; tribute relief asked,
 granted, refused and ended; objectives taken, declined and passed over for home; and,
 for CHK-26, lawful planets' monthly net income, military and patronage paid, and
-vassals' net income and tribute, each split by their faction's state that month. Any free money a mission creates is its own flow
+vassals' net income and tribute, each split by their faction's state that month. *(Tuning
+pass part 2: built)* Purses held and given back, and munitions bought. Any free money a mission creates is its own flow
 (MSN-5). The total of all money
-held always equals the starting total plus money created minus money sunk; a test holds
+held, counting the purses held with armies, always equals the starting total plus money created minus money sunk; a test holds
 the simulation to it.
 
 ### MOD-13 Automated courier run `v1`

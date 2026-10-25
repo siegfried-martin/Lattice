@@ -38,6 +38,11 @@ Id variant(const Map&, Id culture, ShipClass cls, int tier) {
     return (culture * kShipClassCount + static_cast<Id>(cls)) * kTierCount + (tier - 1);
 }
 
+double upkeep(const Config& c, const ShipVariant& v) {
+    const double crew = c.ship.classes[static_cast<std::size_t>(v.cls)].crew * c.fleet.crew_tier[static_cast<std::size_t>(v.tier - 1)];
+    return v.price * c.fleet.maintenance / 365 + crew * c.fleet.crew_wage;
+}
+
 Fleet fleet(const World& w, const Character& c) {
     Fleet f;
     f.lattice_drive = !c.ships.empty();
@@ -46,7 +51,7 @@ Fleet fleet(const World& w, const Character& c) {
         f.combat += v.combat;
         f.cargo += v.cargo;
         f.speed = f.count == 0 ? v.speed : std::min(f.speed, v.speed);
-        f.run_cost += w.config.fleet.run_cost[static_cast<std::size_t>(v.tier - 1)];
+        f.run_cost += upkeep(w.config, v);
         f.value += v.price;
         f.lattice_drive = f.lattice_drive && v.lattice_drive;
         ++f.count;

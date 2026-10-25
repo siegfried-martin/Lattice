@@ -369,13 +369,27 @@ TEST_CASE("commanders choose an objective by what it pays against what it risks 
     SUBCASE("the same target with a purse worth the risk: it joins, and the purse rises only as far as it must") {
         t.defence = 50;
         t.treasury = 0;
+        w.planets[at(f.a)].treasury = 1e9;
         const Id army = armies::commission(w, f.a, f.b, false, nullptr, kNone, 1e9);
         REQUIRE(army != kNone);
         CHECK(in(w.armies[at(army)].members, m));
         const auto& o = w.config.objective;
-        CHECK(w.armies[at(army)].purse >= o.reward_share * 1e9);
-        CHECK(w.armies[at(army)].purse <= o.reward_max * 1e9);
         CHECK(w.armies[at(army)].purse == doctest::Approx(o.reward_share * 1e9));  // the first offer was enough
+        // It's held from the moment it's offered.
+        CHECK(w.planets[at(f.a)].treasury == doctest::Approx(1e9 - w.armies[at(army)].purse));
+        CHECK(w.ledger.purses_held == doctest::Approx(w.armies[at(army)].purse));
+        // Not won: it goes back.
+        armies::disband(w, army, nullptr);
+        CHECK(w.planets[at(f.a)].treasury == doctest::Approx(1e9));
+        CHECK(w.ledger.purses_returned == doctest::Approx(o.reward_share * 1e9));
+    }
+    SUBCASE("a purse is never more than the treasury holds") {
+        t.defence = 50;
+        t.treasury = 0;
+        w.planets[at(f.a)].treasury = 1000;
+        const Id army = armies::commission(w, f.a, f.b, false, nullptr, kNone, 1e9);
+        if (army != kNone) CHECK(w.armies[at(army)].purse <= 1000);
+        CHECK(w.planets[at(f.a)].treasury >= 0);
     }
     SUBCASE("an undefended, rich target: it joins") {
         t.defence = 0;
@@ -422,7 +436,7 @@ TEST_CASE("a world with war money runs, and loans and bounties stay consistent (
     }
 }
 
-TEST_CASE("an objective done pays its purse from the army's home, split by days in the siege (MIL-2)") {
+TEST_CASE("an objective done pays its held purse, split by days in the siege (MIL-2)") {
     World w = new_world(quiet(), 309);
     const Front f = front(w);
     REQUIRE(f.root_a != kNone);
@@ -435,11 +449,82 @@ TEST_CASE("an objective done pays its purse from the army's home, split by days 
     const double home = w.planets[at(f.a)].treasury;
     const double w1 = w.characters[at(m1)].wealth, w2 = w.characters[at(m2)].wealth;
     prizes::pay_purse(w, army, siege, nullptr);
-    CHECK(w.planets[at(f.a)].treasury == doctest::Approx(home - 1000));
+    CHECK(w.planets[at(f.a)].treasury == doctest::Approx(home));  // it left when it was offered
     CHECK(w.characters[at(m1)].wealth - w1 == doctest::Approx(750));
     CHECK(w.characters[at(m2)].wealth - w2 == doctest::Approx(250));
     CHECK(w.ledger.objective_rewards == doctest::Approx(1000));
     CHECK(w.armies[at(army)].purse == 0);
     prizes::pay_purse(w, army, siege, nullptr);  // paid once
     CHECK(w.ledger.objective_rewards == doctest::Approx(1000));
+}
+
+TEST_CASE("a ship's upkeep is maintenance on its price and its class's crew for its tier (CHR-9, SYS-21)") {
+    World w = new_world(quiet(), 310);
+    const Config& c = w.config;
+    double last = 0;
+    for (int tier = 1; tier <= kTierCount; ++tier) {
+        const ShipVariant& v = w.map.variants[at(ships::variant(w.map, 0, ShipClass::Gunship, tier))];
+        const double crew = c.ship.classes[static_cast<std::size_t>(ShipClass::Gunship)].crew * c.fleet.crew_tier[at(tier - 1)];
+        CHECK(ships::upkeep(c, v) == doctest::Approx(v.price * c.fleet.maintenance / 365 + crew * c.fleet.crew_wage));
+        CHECK(ships::upkeep(c, v) > last);  // bigger ships cost more to keep
+        last = ships::upkeep(c, v);
+    }
+    // A fleet's is the sum of its ships'.
+    const Id m = commander(w, 0, 3);
+    const ShipVariant& g = w.map.variants[at(w.characters[at(m)].ships[0])];
+    CHECK(ships::fleet(w, w.characters[at(m)]).run_cost == doctest::Approx(3 * ships::upkeep(c, g)));
+}
+
+TEST_CASE("a battle's munitions are refilled at the next planet that isn't hostile (MIL-4)") {
+    World w = new_world(quiet(), 311);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    const Id strong = commander(w, f.a, 4), weak = commander(w, f.a, 1);
+    combat::start(w, {strong}, {weak}, kNone, false, kNone, kNone, nullptr);
+    advance(w, 3 * kDay);
+    REQUIRE(!w.battles.back().alive);
+    Character& c = w.characters[at(strong)];
+    const double owed = w.config.fleet.munitions_per_power * ships::fleet(w, c).combat;
+    CHECK(c.munitions == doctest::Approx(owed));
+    // Not at an enemy's planet.
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    c.planet = f.b;
+    const double wealth = c.wealth;
+    chars::refill(w, strong);
+    CHECK(c.munitions == doctest::Approx(owed));
+    CHECK(c.wealth == wealth);
+    // At its own, it pays, and the money is sunk (ECO-6).
+    c.planet = f.a;
+    const double sunk = w.ledger.money_sunk, spent = w.ledger.munitions;
+    chars::refill(w, strong);
+    CHECK(c.munitions == 0);
+    CHECK(c.wealth == doctest::Approx(wealth - owed));
+    CHECK(w.ledger.munitions - spent == doctest::Approx(owed));
+    CHECK(w.ledger.money_sunk - sunk == doctest::Approx(owed));
+}
+
+TEST_CASE("a character who lost its fleet buys a hull from its savings (CHR-16)") {
+    World w = new_world(quiet(), 312);
+    const Id id = chars::spawn(w, 0);
+    Character& c = w.characters[at(id)];
+    c.ships.clear();
+    c.earned_combat = 1;
+    SUBCASE("enough for the work it did: a tier-1 gunship") {
+        c.wealth = 1e6;
+        chars::decide(w, id, c.wake_seq, nullptr);
+        REQUIRE(c.ships.size() == 1);
+        CHECK(w.map.variants[at(c.ships[0])].cls == ShipClass::Gunship);
+        CHECK(w.map.variants[at(c.ships[0])].tier == 1);
+    }
+    SUBCASE("only enough for a courier: a courier") {
+        c.wealth = w.config.ship.classes[static_cast<std::size_t>(ShipClass::Courier)].price * 1.2;
+        chars::decide(w, id, c.wake_seq, nullptr);
+        REQUIRE(c.ships.size() == 1);
+        CHECK(w.map.variants[at(c.ships[0])].cls == ShipClass::Courier);
+    }
+    SUBCASE("not even that: it waits") {
+        c.wealth = 10;
+        chars::decide(w, id, c.wake_seq, nullptr);
+        CHECK(c.ships.empty());
+    }
 }

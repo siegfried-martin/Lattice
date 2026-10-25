@@ -238,7 +238,10 @@ void validate(const Config& c) {
     positive(c.ship.tier_price, "ship.tier_price");
     require(c.ship.culture_spread >= 0 && c.ship.culture_spread < 1, "ship.culture_spread must be 0 to 1");
     share(c.ship.resale, "ship.resale");
-    for (double r : c.fleet.run_cost) non_negative(r, "fleet.run_cost");
+    for (const auto& k : c.ship.classes) non_negative(k.crew, "ship.<class>.crew");
+    non_negative(c.fleet.maintenance, "fleet.maintenance");
+    non_negative(c.fleet.crew_wage, "fleet.crew_wage");
+    for (double r : c.fleet.crew_tier) non_negative(r, "fleet.crew_tier");
     non_negative(c.fleet.munitions_per_power, "fleet.munitions_per_power");
     require(c.fleet.max_ships >= 1, "fleet.max_ships must be at least 1");
     require(c.merchant.candidates >= 1, "merchant.candidates must be at least 1");

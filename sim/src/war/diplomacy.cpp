@@ -267,12 +267,19 @@ void root_weekly(World& w, Id root, Observer* observer) {
     }
 }
 
-void pay_ceasefire(World& w, Id root, Observer*) {
+void pay_ceasefire(World& w, Id root, Observer* observer) {
     for (const Relation& r : w.relations) {
         if (r.state != DipState::Ceasefire || r.payer != root || !is_root(w, r.payee)) continue;
-        w.planets[at(root)].treasury -= r.amount;
-        w.planets[at(r.payee)].treasury += r.amount;
-        w.ledger.ceasefire_tribute += r.amount;
+        // Only what the treasury holds, as with bounties (MIL-18): a ceasefire can't put a
+        // planet into debt (tuning pass, part 2).
+        const double paid = std::min(r.amount, std::max(0.0, w.planets[at(root)].treasury));
+        w.planets[at(root)].treasury -= paid;
+        w.planets[at(r.payee)].treasury += paid;
+        w.ledger.ceasefire_tribute += paid;
+        if (paid < r.amount) {
+            w.ledger.ceasefire_unpaid += r.amount - paid;
+            if (observer) observer->log(w.now, "ceasefire.short", root, std::to_string(r.amount - paid) + " to " + std::to_string(r.payee));
+        }
     }
 }
 

@@ -469,6 +469,10 @@ accept by SYS-8. Paid at trip end (REL-9).
     or a gunship of that culture.
   - It's added at the best tier owned while the fleet has fewer than `fleet.max_ships`;
     past that it replaces the cheapest ship one tier up, which is sold at `ship.resale`.
+  - *(fixed, tuning pass part 2)* **With no ship left** (CHR-16), it buys a tier-1 hull
+    of its focus under the same threshold, or else a courier if it can pay for one. Until
+    this fix a character that lost its last ship never bought another; about half of all
+    characters ended runs with none.
 - **Broke** (`char.broke_days` below zero): sell ships, cheapest first, until solvent,
   keeping the last hull. Turning pirate instead arrives in MS-6.
 
@@ -599,12 +603,17 @@ accept by SYS-8. Paid at trip end (REL-9).
     of being paid.
   - **The price rises in one sitting.** At commission, the purse is
     `objective.reward_share` × gain, raised by `objective.reward_step` until as many of
-    the commanders at home join as would at `objective.reward_max`. Commanders lent later
+    the commanders at home join as would at its ceiling: `objective.reward_max` × gain,
+    or the home treasury if that's less *(part 2)*. Commanders lent later
     are offered the purse as it stands. A commander's join value adds P(win) × its
     share of power × the purse.
-  - **Payment** is from the army's home treasury on success (a planet or gate taken, a
-    gate taken back), whatever the treasury holds. It's split by power × days in the
-    siege, as the spoils are, or by power with no siege, and counts as military spending.
+  - **Payment** is on success (a planet or gate taken, a gate taken back). It's split by
+    power × days in the siege, as the spoils are, or by power with no siege, and counts
+    as military spending when it's paid.
+  - *(part 2)* **Held when offered.** The purse leaves the home treasury when the army is
+    raised and is held with the army. If the army disbands without winning, it goes back
+    to the home planet's treasury, whoever holds the planet by then. Held purses count in
+    the world's money (`money.purses_now`).
   - **No takers:** a campaign that ends with nobody in it sets the planet's next campaign
     to `objective.retry_days` later.
   - **Loans:** a vassal lends only the commanders that take the objective, and is paid
@@ -772,6 +781,13 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
     with nothing taken yet any offer was accepted, so the median war lasted 7 days.
 - **A ceasefire** stands down armies sent between the two. When it ends, peace records
   each side's income for the next vote.
+- *(proposed, tuning pass part 2: built)* **Tribute is paid from what the payer's
+  treasury holds,** as bounties are. What it can't pay is recorded
+  (`world.ceasefire_unpaid`) and dropped. Before, the root paid in full whatever it held:
+  in seed 7 of part 2's first run, ceasefires moved 5.6 billion in five years (fealty
+  tribute: 0.4 billion), and the payers ended billions in debt. The offer is sized from
+  the whole faction's gross income, but the root alone pays it; that's left for the
+  human (DECISIONS 2026-10-25).
 - **Roots changing:**
   - Relations are kept between roots.
   - A new root (defection, or an heir) forgets anything left from an earlier time as a
@@ -1267,6 +1283,23 @@ friendly or neutral landing (MIL-4).
 
 *As built (MS-3):* running costs are charged daily. Fuel is charged per Lattice transit at
 entry, at the fuel price of the planet where the fleet last landed, for every ship.
+
+*(proposed, tuning pass part 2: built)* **Upkeep by class and tier.** `fleet.run_cost[tier]`
+is replaced by what keeping a ship costs, with no crew tracked one by one:
+
+```
+upkeep/day per ship = price × fleet.maintenance / 365
+                    + ship.<class>.crew × fleet.crew_tier[tier] × fleet.crew_wage
+```
+
+- **Sized so service pays at peace:** a gunship's upkeep is about 56% to 60% of its base
+  stipend at every tier, so a sworn commander keeps a margin and war is where it profits.
+  A freighter's is about what it was.
+- **Munitions** are owed at the end of a battle by every fleet still in it, at
+  `fleet.munitions_per_power` × its combat power then, and paid the next time it lands or
+  decides at a planet that isn't hostile: not an enemy's, and pirate with pirate. A
+  commander weighing an objective counts one battle's refill as a cost (SYS-9).
+- **Both are sinks** (ECO-6): `world.running_costs` and `world.munitions`.
 
 ## Governing
 

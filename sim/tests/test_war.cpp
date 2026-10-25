@@ -102,9 +102,15 @@ TEST_CASE("war, ceasefire and peace between roots (DIP-1, DIP-2)") {
 
     diplomacy::make_ceasefire(w, f.root_a, f.root_b, 1000, nullptr);
     CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Ceasefire);
+    w.planets[at(f.root_a)].treasury = 1500;
     const double payee = w.planets[at(f.root_b)].treasury;
     diplomacy::pay_ceasefire(w, f.root_a, nullptr);
     CHECK(w.planets[at(f.root_b)].treasury == doctest::Approx(payee + 1000));
+    // Only what the payer holds: no debt (tuning pass, part 2).
+    diplomacy::pay_ceasefire(w, f.root_a, nullptr);
+    CHECK(w.planets[at(f.root_a)].treasury == doctest::Approx(0));
+    CHECK(w.planets[at(f.root_b)].treasury == doctest::Approx(payee + 1500));
+    CHECK(w.ledger.ceasefire_unpaid == doctest::Approx(500));
     advance(w, (w.config.dip.ceasefire_days + 8) * kDay);
     CHECK(diplomacy::state(w, f.root_a, f.root_b) == DipState::Peace);
 }
