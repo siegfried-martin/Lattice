@@ -4,6 +4,7 @@
 
 #include "chars/characters.hpp"
 #include "politics/roles.hpp"
+#include "war/loans.hpp"
 
 namespace lattice::contracts {
 
@@ -31,6 +32,7 @@ void end(World& w, Id id) {
     k.alive = false;
     unlist(w.characters[at(k.employer)].contracts, id);
     unlist(w.characters[at(k.employee)].contracts, id);
+    if (k.loan != kNone) loans::contract_ended(w, id);
     if (k.kind == ContractKind::Steward) {
         // The post is empty again (FAC-16): its governor was deposed, or it quit.
         Character& s = w.characters[at(k.employee)];
@@ -45,6 +47,14 @@ void end(World& w, Id id) {
             if (s.alive) chars::wake(w, k.employee, w.now);
         }
     }
+}
+
+void transfer(World& w, Id id, Id employer) {
+    Contract& k = w.contracts[at(id)];
+    if (!k.alive || k.employer == employer) return;
+    unlist(w.characters[at(k.employer)].contracts, id);
+    k.employer = employer;
+    w.characters[at(employer)].contracts.push_back(id);
 }
 
 Id held(const World& w, Id character, ContractKind kind) {

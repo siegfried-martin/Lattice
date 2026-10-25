@@ -10,6 +10,7 @@
 #include "info/facts.hpp"
 #include "politics/roles.hpp"
 #include "politics/fealty.hpp"
+#include "war/prizes.hpp"
 
 namespace lattice::diplomacy {
 
@@ -281,6 +282,7 @@ void forget(World& w, Id planet) {
 
 void move_root(World& w, Id old_root, Id new_root) {
     forget(w, new_root);  // anything left from when it was last a root
+    prizes::move(w, old_root, new_root);  // its bounties owed (MIL-18)
     for (Relation& r : w.relations) {
         if (r.a == old_root) r.a = new_root;
         if (r.b == old_root) r.b = new_root;

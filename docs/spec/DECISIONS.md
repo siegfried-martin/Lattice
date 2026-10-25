@@ -5,6 +5,43 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-10-24 · War and fealty money built (MS-8 stage 2)
+
+Stage 2 of the roles and war round, built as designed on 2026-10-19; results in MS-8.
+Choices made in building it, for sign-off (SYS-5, SYS-9, SYS-11, SYS-13, SYS-14, SYS-15
+"as built"):
+
+- **A loan moves the service contract's employer** to the borrower, and back to the
+  lender planet's governor at the end; the contract ends instead if the lender planet
+  has left the borrower's faction. Borrowed commanders aren't in the borrower's budget
+  options, but their stipends come off its money first.
+- **Loan requests go only to vassals with someone at their posts.** A vassal's own
+  fleet comes with the loan and chooses like its commanders; MSN-12's missions between
+  governors aren't built. The `exposed` term a fee must cover is counted over
+  `loan.max_days`.
+- **Answered or refused is recorded** when the army marches or at the deadline, by
+  whether any of that vassal's fleets arrived (INF-16's "the fleet is the reply"). An
+  army marches early once every request is answered and everyone called has arrived.
+- **Objectives are offered directly,** with no board record: once, to the commanders at
+  the muster and to each lent commander as its loan starts. The commissioner's own fleet
+  always joins, and relief goes as ordered. A lent commander that declines serves at
+  the borrower's planet until the loan ends. New keys `objective.choose` (EXP-15's
+  switch) and `objective.stake_months` (3), the months of stipend counted at stake when
+  staying.
+- **Gate attacks pay no spoils,** so with commanders choosing, a gate's objective pays
+  only the bounties for its guards.
+- **A relief's loan starts when it sets out,** with its fee and `deed.relief_used`, for
+  warnings' relief too.
+- **Kills are credited** by power at the round's start, and retreat losses count as
+  kills. Bounties are paid in part when the treasury runs short. Tallies move with the
+  root and are dropped when the faction is gone.
+- **Spoils count siege days** from the daily siege rounds, among members at the capture.
+- **Tribute relief** is decided when the request arrives, with "money allows" meaning
+  the liege's treasury plus its credit line. The liege answers either way, a vacant
+  seat refuses, and swearing elsewhere drops relief.
+- **CHK-26 in `checks.py`** is an aggregate share over lawful planets per state, not the
+  median vassal.
+
 ### 2026-10-24 · Roles model built (MS-8 stage 1)
 
 Stage 1 of the roles and war round, built as designed on 2026-10-22; results in MS-8.

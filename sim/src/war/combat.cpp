@@ -1,6 +1,7 @@
 #include "war/combat.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 
@@ -13,6 +14,7 @@
 #include "politics/roles.hpp"
 #include "war/armies.hpp"
 #include "war/diplomacy.hpp"
+#include "war/prizes.hpp"
 
 namespace lattice::combat {
 
@@ -124,7 +126,7 @@ void lose_fleet(World& w, Id id, Observer* observer) {
 
 }  // namespace
 
-double destroy(World& w, std::vector<Id>& side, double damage, double& carried, Observer* observer) {
+double destroy(World& w, std::vector<Id>& side, double damage, double& carried, Observer* observer, const std::vector<Owed>* by) {
     carried += damage;
     double destroyed = 0;
     for (;;) {
@@ -145,6 +147,7 @@ double destroy(World& w, std::vector<Id>& side, double damage, double& carried, 
         carried -= best;
         destroyed += best;
         Character& c = w.characters[at(who)];
+        if (by) prizes::credit(w, *by, chars::faction_of(w, c), w.map.variants[at(c.ships[index])].price);
         c.ships.erase(c.ships.begin() + static_cast<std::ptrdiff_t>(index));
         if (c.ships.empty()) {
             side.erase(std::find(side.begin(), side.end(), who));
@@ -205,8 +208,11 @@ void round(World& w, Id id, Observer* observer) {
         const Id root1 = b.planet_side && b.planet != kNone ? fealty::root_of(w, b.planet)
                          : b.sides[1].empty()               ? kNone
                                                             : fighter_root(w, b.sides[1][0]);
-        const double lost0 = destroy(w, b.sides[0], loss0, b.damage[0], observer);
-        const double lost1 = destroy(w, b.sides[1], loss1, b.damage[1], observer);
+        // Kills are credited by each side's power at the round's start (MIL-18).
+        const std::array<std::vector<Owed>, 2> by = {prizes::shares(w, b.sides[0], 0),
+                                                     prizes::shares(w, b.sides[1], p1 - ships_power(w, b.sides[1]))};
+        const double lost0 = destroy(w, b.sides[0], loss0, b.damage[0], observer, &by[1]);
+        const double lost1 = destroy(w, b.sides[1], loss1, b.damage[1], observer, &by[0]);
         b.lost[0] += lost0, b.lost[1] += lost1;
         diplomacy::record_loss(w, root0, root1, 0, lost0);
         diplomacy::record_loss(w, root1, root0, 0, lost1);
@@ -222,7 +228,7 @@ void round(World& w, Id id, Observer* observer) {
             }
             if (own < (c.retreat_base - c.retreat_risk * risk) * enemy) {
                 double carried = 0;
-                destroy(w, b.sides[at(s)], c.retreat_loss * ships_power(w, b.sides[at(s)]), carried, observer);
+                destroy(w, b.sides[at(s)], c.retreat_loss * ships_power(w, b.sides[at(s)]), carried, observer, &by[at(1 - s)]);
                 winner = 1 - s;
                 if (observer) observer->log(w.now, "battle.retreat", id, "side " + std::to_string(s));
             }

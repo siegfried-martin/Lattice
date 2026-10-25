@@ -264,7 +264,7 @@ first thing Phase A tunes.
   enemy planet within `dip.border_days` or an enemy army seen coming, as the governor
   believes; SYS-13's hold decision uses it too.
 
-*(proposed, war and fealty round: not built)*
+*(proposed, war and fealty round: built)*
 - **Patronage is only for rebuilding:** the option exists for a vassal in the red that was
   captured within `relief.capture_months` (FAC-7). A poor vassal asks for tribute relief
   instead (SYS-11).
@@ -276,7 +276,17 @@ first thing Phase A tunes.
 - **Obligations paid before options:** bounties owed (MIL-18) are paid by the root at its
   monthly payment, like stipends. A borrower pays the stipends of commanders it has
   borrowed, and the loan fee when the loan starts (MIL-3).
-
+- *As built (stage 2):*
+  - **Capture is dated** on the planet, so patronage and the need test can read it.
+  - **Tribute relief isn't in the weekly funding order.** The liege decides when the
+    request arrives (SYS-11). "Money allows" means its treasury plus its credit line
+    covers the cost.
+  - **Obligations come first:** before funding any unit, the budget's money loses the
+    steward's salary, the stipends of borrowed commanders, and at a root the bounties
+    it owes.
+  - **Bounties are paid** at the root's monthly payment, after stipends, and in part when
+    the treasury runs short.
+  - **A commander unit is valued** with the stipend's reputation factor (SYS-9).
 *(proposed, roles round: built)* **Two deciders, one budget** (CHR-4, FAC-16). Each
 unit falls off at `budget.diminishing ^ (1 − risk ÷ 2)` with the risk of whoever decides
 its line:
@@ -518,7 +528,7 @@ accept by SYS-8. Paid at trip end (REL-9).
   objective is home defence. They're paid monthly, and their stipend follows their
   combat power each week.
 
-*(proposed, war and fealty round: not built)*
+*(proposed, war and fealty round: built)*
 - **Stipend** (MIL-2):
   ```
   stipend = hire.stipend_per_power × combat power × (1 + hire.rep_mult × rep ÷ (rep + hire.rep_half))
@@ -550,6 +560,37 @@ accept by SYS-8. Paid at trip end (REL-9).
   planet, the stipend it would lose if the planet fell × the chance its being there
   prevents that. It takes the best if it beats its other work; declining every
   objective for a budget week is `deed.objective_declined`.
+- *As built (stage 2):*
+  - **A loan moves the service contract's employer** to the borrower's governor; lender
+    and borrower are planets. At the end the contract goes back to the lender planet's
+    governor, or ends if that planet is no longer of the borrower's faction. The
+    borrower pays the stipends, but borrowed commanders aren't in its budget's options:
+    it neither hires nor lets them go.
+  - **Requests go only to vassals with someone at their posts** (`ready()`), by courier
+    at reference Lattice travel. A request that arrives after the army has marched does
+    nothing. The `exposed` term is counted over `loan.max_days`. A vacant vassal
+    refuses.
+  - **A vassal's own fleet comes with the loan** when its governor can sail (MIL-20). It
+    chooses as the commanders do. Missions between governors (MSN-12) aren't built.
+  - **The liege records answered or refused** when the army marches (every request
+    answered and everyone called arrived) or at the deadline, by whether any of the
+    vassal's fleets reached the muster.
+  - **Objectives are offered directly,** with no board record: once, to the commanders
+    at the muster when the army is raised and to each lent commander when its loan
+    starts. Commanders away from the muster aren't asked. The commissioner's own fleet
+    always joins, and a relief goes as ordered. `objective.choose = false` (EXP-15)
+    makes everyone join, as before.
+  - **The score:** the attack is the larger of the power the commissioner counted on
+    (its own, plus half of its vassals') and the army so far plus this commander.
+    Expected kills are the prices of the target's ready fleets; spoils are MIL-19's. The
+    fuel cost is to the muster and back from the target. Staying is worth the stipend ×
+    `objective.stake_months` × the fall in its post's chance of falling to the armies
+    that post has seen coming within `scout.threat_days`. It joins when joining beats
+    both staying and 0. When neither is above 0, that's `deed.objective_declined` with
+    its employer.
+  - **A gate pays no spoils,** so its objective pays only the bounties for its guards.
+  - **A lent commander that declines** serves at the borrower's planet until the loan
+    ends.
 
 ### SYS-10 Relationships `v1`
 
@@ -623,7 +664,7 @@ tribute_paid = tribute_rate × (own income + tribute received if fealty.cascade)
   - Otherwise it goes independent. With no armies before MS-5, nothing threatens it.
 - **Keep or grant and choosing a governor** arrive with capture (MS-5).
 
-*(proposed, war and fealty round: not built)* **Tribute relief** (FAC-15):
+*(proposed, war and fealty round: built)* **Tribute relief** (FAC-15):
 - **Asking:** at its weekly check, a vassal whose rate is above `relief.rate` and that
   passes a need test (life-support shortfall ≥ `relief.shortfall`; monthly net income per
   thousand below `relief.income_per_head`; captured within `relief.capture_months`)
@@ -636,6 +677,13 @@ tribute_paid = tribute_rate × (own income + tribute received if fealty.cascade)
   test for `relief.clear_weeks`, its rate returns to what it was before, with no deed.
 - **The liege's own tools** (raising tribute in the red, lowering it for disloyal
   vassals) work as before, but a vassal on relief isn't raised.
+- *As built (stage 2):*
+  - **Who asks:** only a vassal whose seat isn't vacant.
+  - **The tests read** the day's life-support shortfall, which is stored on the planet,
+    and monthly net income (the daily average × `time.payment_days`) per thousand.
+  - **The liege answers either way,** and its answer travels back by courier. A liege
+    with a vacant seat refuses.
+  - **Swearing to another liege** drops any relief or pending request.
 
 ### SYS-12 Diplomacy `v1` `proposed`
 
@@ -797,7 +845,7 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
     army's faction within `dip.border_days` of the prize, read from the world as
     invasions read defence. In the round 3 runs about 30% of conquests were held.
 
-*(proposed, war and fealty round: not built)*
+*(proposed, war and fealty round: built)*
 - **Mustering by joining** (MIL-9): a funded invasion first sends loan requests to the
   vassals whose commanders it wants (SYS-9), then posts the invasion as an objective on
   its board with the muster deadline. The commanders it pays and has borrowed each
@@ -818,6 +866,15 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
 - **Commissioning is unchanged** for now: its counted cost is still the stipends over
   the campaign. Whether the war vote and invasions should weigh expected bounties is
   OPN-41.
+- *As built (stage 2):*
+  - **The army marches early** once every request is answered and everyone called has
+    arrived.
+  - **A relief's loan starts when it sets out,** not when it arrives. Its fee and
+    `deed.relief_used` come then too, for every relief, warnings' included. A gate
+    holder relieving its own gate lends nothing.
+  - **Days in the siege are counted** at each daily siege round, so the hours of its
+    opening battle don't count. A planet taken on the first day is split by power at the
+    time. Only the army's members at the capture share; the dead get nothing.
 
 *As built (round 2): gate attacks and blockades* (MIL-17) *(proposed)*:
 - **State:** every Lattice node has a gate record: static defence, the attack it's under,
@@ -887,7 +944,7 @@ retreat when S_own < combat.retreat_ratio(risk) × S_enemy   (bolder holds longe
 - **Accounting:** losses go into the war ledger, and destroyed cargo into the goods
   ledger.
 
-*(proposed, war and fealty round: not built)* **Kills** (MIL-18): each round, the ships a
+*(proposed, war and fealty round: built)* **Kills** (MIL-18): each round, the ships a
 side destroys are credited to its members by their share of the side's combat power
 that round; static defence's share credits nobody. Each credited kill adds `bounty.share`
 × the ship's price to the member's tally with its root, if the two sides' factions are at
@@ -895,6 +952,14 @@ war (a pirate counts as at war with everyone). The root pays the tallies at its 
 payment; what it can't pay is `deed.bounty_unpaid` for each commander owed and stays
 owed. Pirates and characters with no faction earn no bounties; pirates live on loot
 (MIL-15).
+- *As built (stage 2):*
+  - **Shares are taken at the round's start,** so a fleet destroyed in the same round
+    still gets its credit.
+  - **Retreat losses are kills** for the side being retreated from.
+  - **The victim's faction is read** before its contracts end.
+  - **Tallies are kept per root** and paid after stipends, in part when money runs short.
+    A creditor that died or turned pirate is dropped.
+  - **Tallies move with the root** (SYS-13, FAC-17); a faction that's gone drops them.
 
 ## Information
 
@@ -914,10 +979,16 @@ owed. Pirates and characters with no faction earn no bounties; pirates live on l
 - **Calls for help:** a governor that learns of a threat sends an immediate courier to its
   liege, who decides relief by the budget model, ordered by opinion (MIL-11). Relief
   orders travel by courier too.
-- *(proposed, war and fealty round: not built)* **Requests and deadlines** (INF-16):
+- *(proposed, war and fealty round: built)* **Requests and deadlines** (INF-16):
   every request (a loan, tribute relief, a call for help) carries a deadline, which is
   a scheduled event at the sender; at it the sender acts on what it has. No exchange
   waits for a reply, and none is resent.
+  - *As built (stage 2):*
+    - **A loan request's deadline** is the army's muster deadline.
+    - **A relief request's deadline** is the courier's round trip plus a budget week,
+      checked at the vassal's weekly decision.
+    - **A call for help** is as before: it passes up the tree, with no deadline.
+    - **Blockades don't stop messages yet.**
 - **Scouts:** a planet posts a scout mission when it believes a threat within
   `scout.threat_days` or is a border planet at war; a root posts faction scouting. The
   scout flies to the target, records sightings, and its facts merge with the poster's on
@@ -1267,6 +1338,7 @@ planet always has a governor (FAC-1).
   generated successor is seeded the same way.
 - **The fallback pool** leaves out characters in an army, a fight, on a mission, escorting,
   turning pirate or spying, and matches the planet's pirate status.
-- **Not built:** missions between governors (MSN-12) and governors choosing objectives
-  arrive with stage 2.
+- **Stage 2 built governors choosing objectives:** a commissioner's own fleet always
+  joins its army, and a vassal's comes with the loan and chooses (SYS-9).
+- **Not built:** missions between governors (MSN-12).
 

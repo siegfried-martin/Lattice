@@ -233,7 +233,7 @@ The design of the full game is settled enough to build its simulation. In brief:
   but the captor, which cuts the planets it serves off from the Lattice until it's
   retaken or peace lifts it (MIL-17). Combat away from the player is auto-resolved
   (MIL-13).
-- **Paying for war** *(proposed, not built yet)*: war and fleets are meant to be
+- **Paying for war** *(proposed, built, not tuned yet)*: war and fleets are meant to be
   expensive, and paid for by whoever wants the war. The faction's root pays commanders a
   bounty for every enemy ship they destroy, from the tribute it collects, so a long war
   drains it; a captured planet's treasury yields spoils, split by fleet strength and days
@@ -327,9 +327,9 @@ Lattice network is generated, and how the player hires crew (`docs/spec/OPEN.md`
   done, and every v1 system is built (world generation, the economy, characters,
   movement, information, trade, politics, war, piracy, suspicion and spies). Tuning at
   full scale has had four rounds. The roles model is built (stewards, governors with
-  fleets, succession, one fitness score, the mission rules); next is paying for war
-  (bounties, spoils, fleet loans, commanders choosing their objectives) and tribute
-  relief, then both are tuned once together. The Authority's mission board, spy missions and
+  fleets, succession, one fitness score, the mission rules), and so is paying for war
+  (bounties, spoils, fleet loans, commanders choosing their objectives, tribute relief).
+  Next both are tuned once together. The Authority's mission board, spy missions and
   the economy's starvation and merchant squeeze come after.
 - **Next:** connecting the simulation to the rendered game.
 

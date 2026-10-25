@@ -278,6 +278,7 @@ void check_references(const World& w) {
     for (const ShipVariant& v : m.variants) require(in(v.culture, m.regions.size()), "ship variant");
     for (const Planet& p : w.planets) {
         require(opt(p.governor, nc) && opt(p.liege, np) && opt(p.steward, nc), "planet politics");
+        for (const Owed& o : p.bounties) require(in(o.character, nc), "bounty");
         for (Id mi : p.missions) require(in(mi, w.missions.size()), "mission board");
     }
     for (const Character& c : w.characters) {
@@ -296,7 +297,12 @@ void check_references(const World& w) {
         facts_ok(c.facts);
     }
     for (const Contract& k : w.contracts) {
-        require(in(k.employer, nc) && in(k.employee, nc) && opt(k.mission, w.missions.size()), "contract");
+        require(in(k.employer, nc) && in(k.employee, nc) && opt(k.mission, w.missions.size()) && opt(k.loan, w.loans.size()),
+                "contract");
+    }
+    for (const Loan& l : w.loans) {
+        require(in(l.lender, np) && in(l.borrower, np) && opt(l.army, w.armies.size()), "loan");
+        for (Id k : l.contracts) require(in(k, w.contracts.size()), "loan contract");
     }
     for (const Mission& mi : w.missions) {
         require(in(mi.poster, nc) && in(mi.at, np) && in(mi.target, np) && opt(mi.taker, nc), "mission");
@@ -321,6 +327,8 @@ void check_references(const World& w) {
                 "army");
         for (Id member : a.members) require(in(member, nc), "army member");
         for (Id member : a.called) require(in(member, nc), "army called");
+        for (Id v : a.asked) require(in(v, np), "army asked");
+        for (Id v : a.answered) require(in(v, np), "army answered");
         for (const Leg& l : a.route) require(opt(l.to_planet, np) && opt(l.to_node, m.nodes.size()), "army route");
         require(a.route.empty() || in(a.leg, a.route.size()), "army leg");
     }
@@ -333,6 +341,7 @@ void check_references(const World& w) {
     }
     for (const Siege& s : w.sieges) {
         require(in(s.planet, np) && opt(s.node, m.nodes.size()) && in(s.army, w.armies.size()), "siege");
+        for (const Owed& o : s.power_days) require(in(o.character, nc), "siege share");
     }
     require(w.gates.size() == m.nodes.size(), "gates");
     for (const Gate& g : w.gates) {
@@ -364,6 +373,10 @@ void check_references(const World& w) {
             case EventKind::SiegeRound: require(in(e.record, w.sieges.size()), "siege event"); break;
             case EventKind::CallForHelp: require(in(e.record, w.sieges.size()) && in(e.a, np), "call event"); break;
             case EventKind::ThreatWarning: require(in(e.record, w.armies.size()) && in(e.a, np) && in(e.b, np), "warning event"); break;
+            case EventKind::LoanRequest: require(in(e.record, w.armies.size()) && in(e.a, np), "loan request event"); break;
+            case EventKind::LoanEnd: require(in(e.record, w.loans.size()), "loan event"); break;
+            case EventKind::ReliefRequest: require(in(e.record, np) && in(e.a, np), "relief request event"); break;
+            case EventKind::ReliefAnswer: require(in(e.record, np) && in(e.b, np), "relief answer event"); break;
             default: require(false, "event kind");
         }
     }
@@ -373,7 +386,7 @@ void check_references(const World& w) {
 template <class Ar, class W>
 void world_fields(Ar& ar, W& w) {
     ar(w.seed, w.now, w.events_processed, w.ping_fires, w.map, w.planets, w.world_events, w.characters, w.contracts,
-       w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.gates, w.risk, w.authority, w.ledger);
+       w.loans, w.missions, w.courier_runs, w.relations, w.armies, w.battles, w.sieges, w.gates, w.risk, w.authority, w.ledger);
 }
 
 }  // namespace

@@ -22,7 +22,9 @@ double power(const World& world, const Battle& battle, int side);
 
 // Damage to a group of characters: ships removed weakest first, flagships last. Returns
 // the combat power destroyed. Characters left with no ships lose their contracts and
-// roll for their pods (CHR-15, CHR-16).
-double destroy(World& world, std::vector<Id>& characters, double damage, double& carried, Observer* observer);
+// roll for their pods (CHR-15, CHR-16). With `by`, the shares of the side that did it,
+// each ship destroyed is a kill for bounties (MIL-18).
+double destroy(World& world, std::vector<Id>& characters, double damage, double& carried, Observer* observer,
+               const std::vector<Owed>* by = nullptr);
 
 }  // namespace lattice::combat

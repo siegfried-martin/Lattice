@@ -13,6 +13,7 @@
 #include "politics/roles.hpp"
 #include "war/armies.hpp"
 #include "war/diplomacy.hpp"
+#include "war/prizes.hpp"
 #include "war/raids.hpp"
 #include "war/spies.hpp"
 
@@ -57,11 +58,15 @@ std::vector<Id> candidates(const World& w, Id planet) {
     return out;
 }
 
-std::vector<Id> sworn(const World& w, Id governor) {
+// Its commanders; with borrowed false, only its own, not those lent to it (MIL-3), which
+// it pays but doesn't hire or let go.
+std::vector<Id> sworn(const World& w, Id governor, bool borrowed = true) {
     std::vector<Id> out;
     for (Id k : w.characters[at(governor)].contracts) {
         const Contract& ct = w.contracts[at(k)];
-        if (ct.alive && ct.kind == ContractKind::Service && ct.employer == governor) out.push_back(ct.employee);
+        if (ct.alive && ct.kind == ContractKind::Service && ct.employer == governor && (borrowed || ct.loan == kNone)) {
+            out.push_back(ct.employee);
+        }
     }
     return out;
 }
@@ -91,7 +96,15 @@ double hoard(const World& w, Id planet) {
     return 1 + c.budget.hoard * std::clamp(months / c.budget.reserve_months - 1, 0.0, c.budget.hoard_cap);
 }
 
-double stipend(const World& w, const Character& c) { return w.config.hire.stipend_per_power * ships::fleet(w, c).combat; }
+double rep_factor(const World& w, const Character& c) {
+    const auto& h = w.config.hire;
+    const double rep = std::max(0.0, c.reputation);
+    return 1 + h.rep_mult * rep / (rep + h.rep_half);
+}
+
+double stipend(const World& w, const Character& c) {
+    return w.config.hire.stipend_per_power * ships::fleet(w, c).combat * rep_factor(w, c);
+}
 
 namespace {
 
@@ -117,11 +130,17 @@ void weekly(World& w, Id planet, Observer* observer) {
     const double d_gov = std::pow(c.budget.diminishing, 1 - gov_risk / 2);
     const double d_stew = std::pow(c.budget.diminishing, 1 - roles::steward_risk(w, planet) / 2);
     double money = p.treasury + c.budget.credit_risk * income * gov_risk;
-    // The steward's salary is paid before any unit, as an operating cost.
+    // Obligations come before options (SYS-5): the steward's salary, the stipends of
+    // commanders it has borrowed, and a root's bounties owed.
     if (p.steward != kNone) {
         const Id k = contracts::held(w, p.steward, ContractKind::Steward);
         if (k != kNone) money -= w.contracts[at(k)].pay;
     }
+    for (Id k : g.contracts) {
+        const Contract& ct = w.contracts[at(k)];
+        if (ct.alive && ct.kind == ContractKind::Service && ct.employer == gov && ct.loan != kNone) money -= ct.pay;
+    }
+    if (p.liege == kNone) money -= prizes::owed(w, planet);
     const double pressure = p.treasury < 0 ? 1 + c.budget.debt_pressure * static_cast<double>(p.deficit_days) / c.time.payment_days : 1;
 
     const std::vector<Id> enemies = raids::believed_enemies(w, planet);
@@ -135,7 +154,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     // one else, so it budgets only static defence (proposed).
     // The governor's own fleet is a commander unit, first of all (MIL-20).
     const bool own = !vacant && g.alive && !g.ships.empty();
-    const std::vector<Id> current = p.pirate ? std::vector<Id>{} : sworn(w, gov);
+    const std::vector<Id> current = p.pirate ? std::vector<Id>{} : sworn(w, gov, false);
     std::vector<Id> people;
     if (own) people.push_back(gov);
     for (Id id : current) people.push_back(id);
@@ -146,9 +165,11 @@ void weekly(World& w, Id planet, Observer* observer) {
     Option defence;
     defence.d = d_gov;
     for (Id id : people) {
-        const double power = ships::fleet(w, w.characters[at(id)]).combat;
-        defence.units.push_back(
-            {pay_at(w, planet, w.characters[at(id)]) * pressure, guard * c.value.defence * income * power / c.value.power_ref});
+        // Reputation is worth what it costs (MIL-2): a unit's value takes the stipend's factor.
+        const Character& ch = w.characters[at(id)];
+        const double power = ships::fleet(w, ch).combat;
+        defence.units.push_back({pay_at(w, planet, ch) * pressure,
+                                 guard * c.value.defence * income * power / c.value.power_ref * rep_factor(w, ch)});
     }
 
     // Static defence (MIL-5), bought in units of value.security_share of monthly income,
@@ -193,14 +214,17 @@ void weekly(World& w, Id planet, Observer* observer) {
     const armies::Plan plan = p.pirate || warming_up || vacant ? armies::Plan{} : armies::best_invasion(w, planet);
     if (plan.target != kNone) invasion.units.push_back({plan.cost * pressure, plan.value});
 
-    // Patronage to vassals in the red: each unit a month of their operating costs, worth
-    // the tribute it keeps flowing, more for vassals in favour (FAC-7).
+    // Patronage to vassals in the red that were captured within relief.capture_months: each
+    // unit a month of their operating costs, worth the tribute it keeps flowing, more for
+    // vassals in favour (FAC-7). Patronage is for rebuilding; a poor vassal asks for tribute
+    // relief instead (FAC-15).
     const std::vector<Id> vassals = fealty::vassals(w, planet);
     std::vector<Option> patronage(vassals.size());
     for (Option& o : patronage) o.d = d_stew;  // the steward's line
     for (std::size_t i = 0; i < vassals.size(); ++i) {
         const Planet& v = w.planets[at(vassals[i])];
-        if (v.treasury >= 0) continue;
+        if (v.treasury >= 0 || v.captured_at == kNever) continue;
+        if (static_cast<double>(w.now - v.captured_at) > c.relief.capture_months * static_cast<double>(c.time.payment_days * kDay)) continue;
         const double unit = economy::monthly_costs(c, v);
         const double favor = opinion::get(w, gov, v.governor);
         const double value = v.tribute_paid * c.value.patronage_months * std::max(0.0, 1 + c.fealty.w_favor * favor / 100);
@@ -279,6 +303,7 @@ void weekly(World& w, Id planet, Observer* observer) {
         Planet& v = w.planets[at(vassals[i])];
         const double amount = economy::monthly_costs(c, v) * static_cast<double>(patronage[i].funded);
         w.planets[at(planet)].treasury -= amount;
+        w.planets[at(planet)].month_patronage += amount;
         v.treasury += amount;
         w.ledger.patronage += amount;
         opinion::deed(w, v.governor, gov, DeedKind::Patronage, observer);
@@ -292,12 +317,14 @@ void pay_stipends(World& w, Id planet, Observer*) {
     for (Id id : sworn(w, gov)) {
         const Contract& ct = w.contracts[at(contracts::held(w, id, ContractKind::Service))];
         p.treasury -= ct.pay;
+        p.month_military += ct.pay;
         chars::earn(w.characters[at(id)], ct.pay, true);
         w.ledger.stipends += ct.pay;
     }
     // The governor's own fleet, when the budget funded it (MIL-20).
     if (p.governor_stipend > 0 && w.characters[at(gov)].alive) {
         p.treasury -= p.governor_stipend;
+        p.month_military += p.governor_stipend;
         chars::earn(w.characters[at(gov)], p.governor_stipend, true);
         w.ledger.stipends += p.governor_stipend;
     }

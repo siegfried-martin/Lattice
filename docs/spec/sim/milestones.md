@@ -398,7 +398,8 @@ and tuning until the checks pass (`checks.md`).
   (TIM-8 holds: about 15 seconds a year).
 
 **Now: the roles and war round** *(roles designed 2026-10-22 and built 2026-10-24 as
-stage 1; war and fealty money designed 2026-10-19, not built)*. Governors who sail change who defends, who dies and who
+stage 1; war and fealty money designed 2026-10-19 and built 2026-10-24 as stage 2; tuning
+next)*. Governors who sail change who defends, who dies and who
 decides, so they're built before any more balancing. Two building stages, then tuning
 once, against targets written down first (CHK-26 to CHK-29):
 
@@ -458,6 +459,57 @@ at war, captures, desertions (objectives declined), relief granted and refused,
 governors killed and successions (CHK-29), and where governors and stewards came from
 (CHK-27). Munitions (MIL-4) and MIL-3's liege paying for a whole campaign wait until
 bounties show whether war is still too cheap.
+
+*Stage 2 results (built 2026-10-24; v1 config, 8 seeds, 5 years, against stage 1 on the
+same seeds; no tuning yet). EXP-15 is the same build with `objective.choose` off:*
+- **It runs, and more checks pass.** 27 of 43 pass on every seed (stage 1: 24; EXP-15:
+  26). Of round 4's 32, 22 pass on every seed (stage 1: 20).
+  - Newly passing: CHK-7 (money growth 1.18 to 0.95 a year, 38% of seeds to 100%), CHK-7c
+    and CHK-8 (time at war 0.48 to 0.66). CHK-6c is at 88% of seeds (from 25%).
+  - Worse: CHK-9 (pirate flips 0.038 to 0.086 of planets a year, 75% of seeds to 0%),
+    CHK-7b (price index 1.33 to 1.62, 75% to 38%), CHK-23 (pirates 14% to 16% of
+    characters) and CHK-11 (the fringe, 0.29 to 0.18).
+  - Speed holds: 14 days a second.
+- **CHK-26 is nowhere near its bands yet.** These are the targets the tuning pass is for:
+
+  | | Built | Band |
+  |---|---|---|
+  | Tribute paid up | 11.6% at peace, 11.5% at war | 20% to 30% |
+  | Military | 11.7% at peace, 19.9% at war | 10% to 20%, 40% to 60% |
+  | Patronage | 2.1% | under 5% |
+
+  Patronage fell from 77 million a year to 7 million, now that it only goes to rebuilding.
+  Tribute fell with it, from 53 million to 34 million a year: lieges raise tribute only
+  when in the red, and they no longer go into the red paying patronage.
+- **Bounties:** 4.7 million owed a year, 3.8 million paid. Roots end owing 4.6 million,
+  about 1,500 unpaid tallies a year, each a bad deed.
+  - Spoils are 2.2 million a year.
+  - Stipends doubled (4.5 to 9.6 million a year), now with reputation in them; the
+    split of that rise isn't measured.
+  - Military spending of every kind is still well under tribute plus security.
+- **Commanders mostly decline.** 4,700 objectives are declined a year, against 520 taken
+  and 25 stays at home for defence. Each decline is `deed.objective_declined`, so mean
+  loyalty fell from 7.6 to 1.9.
+  - Captures fell from 29 a year to 20, and blockades from 3.9 a year per faction to 1.0.
+  - Battles rose to 1,400 a year and deaths per battle halved; why isn't measured yet.
+  - EXP-15 (everyone joins) has 37 captures, 5.2 blockades per faction, money growth of
+    1.3 a year and patronage at 8% (more captured planets to rebuild).
+- **Loans:** 320 a year, and 230 requests refused.
+  - The fees, 3.9 million a year, are paid even for commanders who then decline, so a
+    liege pays to borrow fleets that stay at its planet. With everyone joining (EXP-15)
+    there are 75 loans a year and 0.3 million in fees.
+  - Relief loans: 28 a year.
+- **Tribute relief:** 62 requests a year, 33 granted, 24 refused; about 18 planets are on
+  relief at any time.
+- **For tuning:**
+  - **Tribute:** `fealty.tribute_rate`, and when a liege raises it.
+  - **What an objective pays against its risk:** `bounty.share`, `spoils.per_prosperity`
+    and `combat.retreat_loss` in the expected loss. With them goes whether a gate's
+    objective should be worth anything to a commander.
+  - **The loan fee:** charged before anyone chooses. It could be charged only for those
+    who join, which would be a rule change.
+  - **What roots can afford** in bounties.
+  - **Stewards' churn,** from stage 1.
 
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the

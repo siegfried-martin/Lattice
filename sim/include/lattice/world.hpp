@@ -79,6 +79,7 @@ struct World {
     std::vector<WorldEvent> world_events;  // never removed; ended ones have alive = false
     std::vector<Character> characters;    // dead ones keep their slot (ARC-2)
     std::vector<Contract> contracts;
+    std::vector<Loan> loans;  // MIL-3
     std::vector<Mission> missions;
     std::vector<CourierRun> courier_runs;
     std::vector<Relation> relations;

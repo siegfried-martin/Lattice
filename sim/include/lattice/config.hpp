@@ -294,7 +294,7 @@ struct Config {
 
     // Opinion change per deed (REL-3), by DeedKind.
     struct Deeds {
-        std::array<double, 14> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5, -20, -10};
+        std::array<double, 19> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5, -20, -10, -5, 10, -15, -3, -10};
 
         friend bool operator==(const Deeds&, const Deeds&) = default;
     } deed;
@@ -519,6 +519,7 @@ struct Config {
         double range_days = 5;
         double stipend_per_power = 300;  // per month
         double rep_half = 10;  // reputation at which fitness's reputation term is half (SYS-22)
+        double rep_mult = 1;   // a stipend rises by up to this share with reputation (MIL-2)
 
         friend bool operator==(const Hire&, const Hire&) = default;
     } hire;
@@ -544,6 +545,46 @@ struct Config {
 
         friend bool operator==(const StewardParams&, const StewardParams&) = default;
     } steward;
+
+    // Loans of service contracts between governors (MIL-3, MIL-11).
+    struct LoanParams {
+        double fee_months = 1;       // a liege borrowing pays the vassal this many months of the stipends lent
+        double relief_fee = 0;       // a vassal borrowing for relief pays this many months on top
+        std::int64_t max_days = 60;  // the longest a loan runs if its purpose doesn't end it first
+
+        friend bool operator==(const LoanParams&, const LoanParams&) = default;
+    } loan;
+
+    // Tribute relief (FAC-15): the need tests, the rate granted, and when it ends.
+    struct ReliefParams {
+        double shortfall = 0.1;        // life-support shortfall at least this
+        double income_per_head = 200;  // monthly net income per thousand below this
+        double capture_months = 6;     // captured within this many months (also FAC-7's patronage)
+        double rate = 0.05;
+        std::int64_t clear_weeks = 8;  // passing no test this long ends it
+
+        friend bool operator==(const ReliefParams&, const ReliefParams&) = default;
+    } relief;
+
+    struct BountyParams {
+        double share = 0.5;  // of an enemy ship's price, paid by the root to its destroyer (MIL-18)
+
+        friend bool operator==(const BountyParams&, const BountyParams&) = default;
+    } bounty;
+
+    struct SpoilsParams {
+        double per_prosperity = 400;  // x population x productivity, from a captured planet's treasury (MIL-19)
+
+        friend bool operator==(const SpoilsParams&, const SpoilsParams&) = default;
+    } spoils;
+
+    // Commanders choosing their objectives (MIL-2, SYS-9).
+    struct ObjectiveParams {
+        bool choose = true;        // off: every commander at the muster joins, as before
+        double stake_months = 3;   // a planet that falls costs a commander defending it this many months' stipend
+
+        friend bool operator==(const ObjectiveParams&, const ObjectiveParams&) = default;
+    } objective;
 
     struct Dues {
         double access = 500;   // per month, every lawful planet (ECO-10)
@@ -802,7 +843,8 @@ void for_each_field(C& c, F&& f) {
 
     constexpr const char* deeds[] = {"help_sent", "help_missed", "planet_granted", "patronage", "tribute_raised",
                                      "passed_over", "call_answered", "call_refused", "border_held", "job_done",
-                                     "attacked", "tribute_lowered", "caught", "mission_failed"};
+                                     "attacked", "tribute_lowered", "caught", "mission_failed", "relief_used",
+                                     "relief_granted", "relief_refused", "objective_declined", "bounty_unpaid"};
     for (std::size_t i = 0; i < c.deed.amount.size(); ++i) f(std::string("deed.") + deeds[i], c.deed.amount[i]);
 
     f("fealty.cascade", c.fealty.cascade);
@@ -887,6 +929,7 @@ void for_each_field(C& c, F&& f) {
     f("hire.range_days", c.hire.range_days);
     f("hire.stipend_per_power", c.hire.stipend_per_power);
     f("hire.rep_half", c.hire.rep_half);
+    f("hire.rep_mult", c.hire.rep_mult);
 
     for (auto [post, wt] : {std::pair{"governor", &c.fit.governor}, std::pair{"steward", &c.fit.steward},
                             std::pair{"commander", &c.fit.commander}}) {
@@ -900,6 +943,18 @@ void for_each_field(C& c, F&& f) {
     f("fit.cargo_half", c.fit.cargo_half);
     f("steward.enabled", c.steward.enabled);
     f("steward.salary_share", c.steward.salary_share);
+    f("loan.fee_months", c.loan.fee_months);
+    f("loan.relief_fee", c.loan.relief_fee);
+    f("loan.max_days", c.loan.max_days);
+    f("relief.shortfall", c.relief.shortfall);
+    f("relief.income_per_head", c.relief.income_per_head);
+    f("relief.capture_months", c.relief.capture_months);
+    f("relief.rate", c.relief.rate);
+    f("relief.clear_weeks", c.relief.clear_weeks);
+    f("bounty.share", c.bounty.share);
+    f("spoils.per_prosperity", c.spoils.per_prosperity);
+    f("objective.choose", c.objective.choose);
+    f("objective.stake_months", c.objective.stake_months);
 
     f("dues.access", c.dues.access);
     f("dues.gate", c.dues.gate);

@@ -285,6 +285,18 @@ void validate(const Config& c) {
     positive(c.hire.rep_half, "hire.rep_half");
     positive(c.fit.cargo_half, "fit.cargo_half");
     share(c.steward.salary_share, "steward.salary_share");
+    non_negative(c.hire.rep_mult, "hire.rep_mult");
+    non_negative(c.loan.fee_months, "loan.fee_months");
+    non_negative(c.loan.relief_fee, "loan.relief_fee");
+    positive(static_cast<double>(c.loan.max_days), "loan.max_days");
+    share(c.relief.shortfall, "relief.shortfall");
+    non_negative(c.relief.income_per_head, "relief.income_per_head");
+    non_negative(c.relief.capture_months, "relief.capture_months");
+    share(c.relief.rate, "relief.rate");
+    require(c.relief.clear_weeks >= 0, "relief.clear_weeks can't be negative");
+    non_negative(c.bounty.share, "bounty.share");
+    non_negative(c.spoils.per_prosperity, "spoils.per_prosperity");
+    non_negative(c.objective.stake_months, "objective.stake_months");
     require(c.gen.governor_ships >= 0 && c.gen.governor_ships <= c.fleet.max_ships,
             "gen.governor_ships must be 0 to fleet.max_ships");
     non_negative(c.dues.access, "dues.access");

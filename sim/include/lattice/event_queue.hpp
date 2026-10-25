@@ -39,6 +39,10 @@ enum class EventKind : std::uint16_t {
     CallForHelp = 17,  // a call for help reaches a liege; record is the siege, a the liege's planet
     ThreatWarning = 18,  // a warning of an army reaches a liege; record is the army, a the liege, b the planet
     MissionDeadline = 19,  // a taken mission's deadline (MSN-3); record is the mission
+    LoanRequest = 20,    // a liege's loan request reaches a vassal (MIL-3); record is the army, a the vassal's planet
+    LoanEnd = 21,        // a loan's loan.max_days are up (MIL-3); record is the loan
+    ReliefRequest = 22,  // a tribute relief request reaches the liege (FAC-15); record is the vassal, a the liege
+    ReliefAnswer = 23,   // the liege's answer reaches the vassal; record is the vassal, a granted, b the liege
 };
 
 // One entry in the scheduled-event queue (MOD-11).
