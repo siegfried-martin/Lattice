@@ -195,13 +195,17 @@ TEST_CASE("the budget keeps commanders while they're worth it and lets them go w
     CHECK(w.ledger.fires >= hired);
 }
 
-TEST_CASE("a liege pays patronage to a vassal in the red (FAC-7)") {
+TEST_CASE("a liege pays patronage to a captured vassal in the red, and only to one (FAC-7)") {
     World w = new_world(quiet(), 49);
     const auto [vassal, liege] = sworn_pair(w);
     Planet& v = w.planets[at(vassal)];
     v.tribute_paid = 50000;
     v.treasury = -2 * economy::monthly_costs(w.config, v);
     const double before = w.planets[at(liege)].treasury;
+    // Not captured: a poor vassal asks for tribute relief instead (FAC-15).
+    budget::weekly(w, liege, nullptr);
+    CHECK(w.ledger.patronage == 0);
+    v.captured_at = w.now;
     budget::weekly(w, liege, nullptr);
     CHECK(v.treasury >= 0);
     CHECK(w.planets[at(liege)].treasury < before);

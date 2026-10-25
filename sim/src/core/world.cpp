@@ -29,6 +29,9 @@
 #include "war/combat.hpp"
 #include "war/diplomacy.hpp"
 #include "war/encounters.hpp"
+#include "war/loans.hpp"
+#include "war/prizes.hpp"
+#include "politics/relief.hpp"
 #include "war/risk.hpp"
 #include "war/threats.hpp"
 
@@ -167,6 +170,43 @@ void sample_metrics(const World& w, Observer& o) {
         o.sample(t, "issuer.failed", i, static_cast<double>(w.ledger.issuer_failed[at(i)]));
     }
     o.sample(t, "world.free_money", -1, w.ledger.free_money);
+
+    // War and fealty money (MIL-2, MIL-3, MIL-18, MIL-19, FAC-15, CHK-26).
+    const Ledger& l = w.ledger;
+    double bounty_debt = 0;
+    std::int64_t on_relief = 0, loans_now = 0;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        bounty_debt += prizes::owed(w, p);
+        on_relief += w.planets[at(p)].relief_from >= 0;
+    }
+    for (const Loan& loan : w.loans) loans_now += loan.alive;
+    o.sample(t, "money.bounties_owed", -1, l.bounties_owed);
+    o.sample(t, "money.bounties_paid", -1, l.bounties_paid);
+    o.sample(t, "money.bounty_debt", -1, bounty_debt);
+    o.sample(t, "money.bounties_unpaid", -1, static_cast<double>(l.bounties_unpaid));
+    o.sample(t, "money.spoils", -1, l.spoils);
+    o.sample(t, "money.loan_fees", -1, l.loan_fees);
+    o.sample(t, "money.loans", -1, static_cast<double>(l.loans));
+    o.sample(t, "money.loans_now", -1, static_cast<double>(loans_now));
+    o.sample(t, "money.loans_refused", -1, static_cast<double>(l.loans_refused));
+    o.sample(t, "money.relief_loans", -1, static_cast<double>(l.relief_loans));
+    o.sample(t, "money.relief_asked", -1, static_cast<double>(l.relief_asked));
+    o.sample(t, "money.relief_granted", -1, static_cast<double>(l.relief_granted));
+    o.sample(t, "money.relief_refused", -1, static_cast<double>(l.relief_refused));
+    o.sample(t, "money.relief_ended", -1, static_cast<double>(l.relief_ended));
+    o.sample(t, "money.on_relief", -1, static_cast<double>(on_relief));
+    o.sample(t, "money.objectives_taken", -1, static_cast<double>(l.objectives_taken));
+    o.sample(t, "money.objectives_home", -1, static_cast<double>(l.objectives_home));
+    o.sample(t, "money.objectives_declined", -1, static_cast<double>(l.objectives_declined));
+    // By the faction's state that month: id 0 peace, 1 war.
+    for (std::size_t s = 0; s < 2; ++s) {
+        const auto id = static_cast<Id>(s);
+        o.sample(t, "money.month_net", id, l.month_net[s]);
+        o.sample(t, "money.month_military", id, l.month_military[s]);
+        o.sample(t, "money.month_patronage", id, l.month_patronage[s]);
+        o.sample(t, "money.vassal_net", id, l.vassal_net[s]);
+        o.sample(t, "money.vassal_tribute", id, l.vassal_tribute[s]);
+    }
 
     // Politics (CHK-1, CHK-3).
     std::int64_t roots = 0, factions = 0, sworn = 0;
@@ -389,6 +429,18 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             break;
         case EventKind::ThreatWarning:
             threats::warning(w, record, static_cast<Id>(e.a), static_cast<Id>(e.b), observer);
+            break;
+        case EventKind::LoanRequest:
+            armies::loan_request(w, record, static_cast<Id>(e.a), observer);
+            break;
+        case EventKind::LoanEnd:
+            loans::expire(w, record, observer);
+            break;
+        case EventKind::ReliefRequest:
+            relief::request(w, record, static_cast<Id>(e.a), observer);
+            break;
+        case EventKind::ReliefAnswer:
+            relief::answer(w, record, e.a != 0, static_cast<Id>(e.b), observer);
             break;
     }
 }

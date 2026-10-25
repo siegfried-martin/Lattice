@@ -2,6 +2,7 @@
 
 #include "lattice/market.hpp"
 #include "politics/opinion.hpp"
+#include "politics/relief.hpp"
 #include "war/diplomacy.hpp"
 
 #include <algorithm>
@@ -139,7 +140,8 @@ void adjust_tribute(World& w, Id id, Observer* observer) {
     for (Id v : vassals(w, id)) {
         Planet& vassal = w.planets[at(v)];
         const double loyalty = opinion::get(w, vassal.governor, liege.governor);
-        if (liege.treasury < 0 && loyalty >= f.raise_opinion && vassal.tribute_rate < f.rate_max) {
+        // A vassal on tribute relief isn't raised (FAC-15).
+        if (liege.treasury < 0 && loyalty >= f.raise_opinion && vassal.tribute_rate < f.rate_max && vassal.relief_from < 0) {
             vassal.tribute_rate = std::min(f.rate_max, vassal.tribute_rate + f.rate_step);
             opinion::deed(w, vassal.governor, liege.governor, DeedKind::TributeRaised, observer);
             ++w.ledger.tribute_changes;
@@ -160,6 +162,7 @@ void swear(World& w, Id id, Id liege) {
     Planet& p = w.planets[at(id)];
     p.liege = liege;
     p.low_since = kNever;
+    relief::clear(p);
     p.tribute_rate = liege == kNone ? 0 : w.config.fealty.tribute_rate;
 }
 

@@ -25,8 +25,10 @@ double threat(const World& world, Id planet);
 // budget.hoard x clamp(treasury months / budget.reserve_months - 1, 0, budget.hoard_cap).
 double hoard(const World& world, Id planet);
 
-// The stipend a commander asks: hire.stipend_per_power x combat power, per month.
+// The stipend a commander asks, per month (MIL-2): hire.stipend_per_power x combat power x
+// the reputation factor, 1 + hire.rep_mult x rep / (rep + hire.rep_half).
 double stipend(const World& world, const Character& c);
+double rep_factor(const World& world, const Character& c);
 
 // Monthly, at the governor's payment: stipends to its sworn commanders (MIL-2).
 void pay_stipends(World& world, Id planet, Observer* observer);

@@ -269,6 +269,17 @@ def vacancy_days(run):
     return values(run, "roles.vacant_days")[-1] / n if n > 0 else 0.0
 
 
+def money_share(run, num, den, state=None):
+    """A monthly flow over another across the run, for factions at peace (0), at war (1)
+    or both (CHK-26)."""
+    states = [state] if state is not None else [0, 1]
+    def total(name):
+        by = run["series"][f"money.{name}"]
+        return sum(by[s][-1][1] - by[s][0][1] for s in states if s in by)
+    d = total(den)
+    return total(num) / d if d > 0 else float("nan")
+
+
 def profit_per_trip(run):
     trips = per_year(run, "world.trips")
     return per_year(run, "world.trade_profit") / trips if trips > 0 else 0.0
@@ -308,6 +319,12 @@ CHECKS = [
     ("CHK-23", "pirates, share of characters", pirate_share, 0.01, 0.1),
     ("CHK-24", "smuggling runs a year", lambda r: per_year(r, "world.smuggled_runs"), 1, None),
     ("CHK-25", "game days a second", lambda r: r["days_per_s"], 6, None),
+    # War and fealty round (proposed, placeholder bands).
+    ("CHK-26", "tribute paid up at peace, share of vassals' own net income", lambda r: money_share(r, "vassal_tribute", "vassal_net", 0), 0.2, 0.3),
+    ("CHK-26b", "tribute paid up at war, share of vassals' own net income", lambda r: money_share(r, "vassal_tribute", "vassal_net", 1), 0.2, 0.3),
+    ("CHK-26c", "military spending at peace, share of net income", lambda r: money_share(r, "month_military", "month_net", 0), 0.1, 0.2),
+    ("CHK-26d", "military spending at war, share of net income", lambda r: money_share(r, "month_military", "month_net", 1), 0.4, 0.6),
+    ("CHK-26e", "patronage, share of net income", lambda r: money_share(r, "month_patronage", "month_net"), None, 0.05),
     # Roles round (proposed, placeholder bands).
     ("CHK-27", "governors who came from trade, share", lambda r: path_share(r, "governor", 1), 0.05, None),
     ("CHK-27b", "stewards who came from combat work, share", lambda r: path_share(r, "steward", 2), 0.05, None),

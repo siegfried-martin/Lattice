@@ -670,6 +670,7 @@ TEST_CASE("an army takes an undefended enemy gate: a blockade, shut to all but t
     const Id holder = gates::holder(w, node);
     commander(w, f.a, 6, 2);
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    w.config.objective.choose = false;  // a gate pays no spoils: this is about the gate
     REQUIRE(armies::commission(w, f.a, holder, false, nullptr, node) != kNone);
     REQUIRE(until_blockaded(w, node, 60));
     CHECK(w.ledger.gate_attacks >= 1);
@@ -749,6 +750,7 @@ TEST_CASE("an unheld blockade is retaken by the holder's faction; a ceasefire li
         w.gates[at(node)].captor = f.a;
         w.gates[at(node)].since = w.now;
         commander(w, holder, 2, 1);
+        w.config.objective.choose = false;  // a gate pays no spoils: this is about the gate
         REQUIRE(armies::commission(w, holder, holder, false, nullptr, node) != kNone);
         for (int d = 0; d < 30 && w.gates[at(node)].captor != kNone; ++d) advance(w, kDay);
         CHECK(w.gates[at(node)].captor == kNone);

@@ -22,12 +22,32 @@ struct Plan {
 };
 Plan best_invasion(const World& world, Id planet);
 
-// Raises an army at a planet against a target (MIL-9). Its governor's commanders at home
-// join at once; for an invasion its vassals are called (a deed either way) and their
-// commanders travel to the muster. A relief army leaves at once (MIL-11).
+// Raises an army at a planet against a target (MIL-9). The governor's own fleet joins;
+// its commanders at home choose whether to (MIL-2; all join with objective.choose off).
+// For an invasion, each vassal with commanders at their posts is sent a loan request by
+// courier (MIL-3), answered by the fleets that arrive by the muster deadline (INF-16). A
+// relief army leaves at once with everyone at home (MIL-11), lent to the planet relieved.
 // With a node, the army's objective is that gate (MIL-17): an enemy's to blockade, or its
 // own faction's to take back; target is then the gate's holder.
 Id commission(World& world, Id planet, Id target, bool relief, Observer* observer, Id node = kNone);
+
+// A liege's loan request reaches a vassal (MIL-3): it grants if its governor's opinion of
+// the liege is at least 0 or the fee covers its home's lost defence over loan.max_days
+// (SYS-13's exposed term), and lends its commanders at their posts, who then choose as
+// the liege's own do. Its own fleet comes the same way (MIL-20).
+void loan_request(World& world, Id army, Id vassal, Observer* observer);
+
+// What an army's objective is worth to a commander (MIL-2, SYS-9), against staying at its
+// employer's planet: join = expected bounties + spoils share - expected losses - fuel;
+// home = its stipend x objective.stake_months x how much its being there lowers the chance
+// the planet falls to the armies its planet has seen coming.
+struct Weighed {
+    double join = 0, home = 0;
+};
+Weighed weigh(const World& world, const Army& army, Id character);
+
+// A character leaves an army it serves in and goes its own way (a loan that's run out).
+void dismiss(World& world, Id army, Id character, Observer* observer);
 
 // An army's muster deadline (token 0), or a garrison's time up (token: its travel_seq + 1).
 void muster_deadline(World& world, Id army, std::uint32_t token, Observer* observer);

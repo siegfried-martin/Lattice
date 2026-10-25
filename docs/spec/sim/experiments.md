@@ -43,8 +43,9 @@ because some mechanics matter to the world more than to the faction using them.
 | EXP-12 | World switch: tribute cascade on and off | FAC-6 (proposed) | Which keeps faction size in band (CHK-1) and lieges granting planets |
 | EXP-13 | Appoints no stewards: its governors run everything and stay home | Stewards (FAC-16) and governors' fleets (MIL-20) *(proposed, roles round; built as a world switch, `steward.enabled`)* | Its governors fight less far from home; whether the steward's trait changes outcomes |
 | EXP-14 | World switch: the Authority's board off | The board (MSN-7) *(proposed, roles round)* | Whether osmosis alone holds prices, and how independents fare |
+| EXP-15 | World switch: commanders don't choose objectives (`objective.choose` off); everyone at a muster joins, as before | Commanders choosing (MIL-2, SYS-9) *(proposed, war and fealty round; built)* | What autonomy alone does to army sizes, captures, time at war and desertions |
 
-World switches (EXP-9 to EXP-12, EXP-14) compare whole worlds rather than one faction, using the
+World switches (EXP-9 to EXP-12, EXP-14, EXP-15) compare whole worlds rather than one faction, using the
 Phase A checks as the outcome.
 
 New experiments are added here as mechanics are questioned.

@@ -142,6 +142,17 @@ void fields(Ar& ar, M& m) {
        m.variants);
 }
 
+// What one character is owed or has earned: a bounty tally with a root (MIL-18), or its
+// combat power x days in a siege (MIL-19).
+struct Owed {
+    Id character = kNone;
+    double amount = 0;
+};
+template <class Ar, record_of<Owed> O>
+void fields(Ar& ar, O& o) {
+    ar(o.character, o.amount);
+}
+
 // ---- Planet (MOD-2) ----
 
 struct Planet {
@@ -190,6 +201,15 @@ struct Planet {
     double governor_stipend = 0;  // monthly: the budget's unit for the governor's own fleet, when funded
     Time vacant_since = kNever;   // its governor died then; the seat waits for a successor
     Time succession_at = kNever;  // when the chooser can name one (its liege's courier round trip)
+    // War and fealty money (MIL-18, FAC-15, CHK-26).
+    std::vector<Owed> bounties{};  // a root's bounties owed, by character
+    Time captured_at = kNever;     // when it was last captured (FAC-7, FAC-15)
+    double shortfall = 0;          // the day's life-support shortfall, 0 to 1 (SYS-1)
+    double relief_from = -1;       // on tribute relief: the rate to return to; -1 when not (FAC-15)
+    Time relief_pending = kNever;  // a relief request's deadline, while one is out
+    Time relief_needed = kNever;   // on relief: when it last passed a need test
+    double month_military = 0;     // since its last payment: stipends, security, bounties and loan fees paid
+    double month_patronage = 0;    // and patronage paid
 
     // Defence (MIL-5).
     double security = 0;     // monthly spend on static defence and patrols (ECO-4): a sink
@@ -212,6 +232,8 @@ void fields(Ar& ar, P& p) {
     ar(p.treasury, p.tax_rate, p.income_avg, p.income_today, p.net_avg, p.net_today, p.deficit_days);
     ar(p.governor, p.liege, p.missions, p.tribute_rate, p.income_month, p.tribute_month, p.tribute_paid, p.low_since);
     ar(p.steward, p.governor_stipend, p.vacant_since, p.succession_at);
+    ar(p.bounties, p.captured_at, p.shortfall, p.relief_from, p.relief_pending, p.relief_needed, p.month_military,
+       p.month_patronage);
     ar(p.security, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
 }
@@ -222,9 +244,9 @@ void fields(Ar& ar, P& p) {
 enum class DeedKind : std::uint8_t {
     HelpSent = 0, HelpMissed = 1, PlanetGranted = 2, Patronage = 3, TributeRaised = 4, PassedOver = 5,
     CallAnswered = 6, CallRefused = 7, BorderHeld = 8, JobDone = 9, Attacked = 10, TributeLowered = 11, Caught = 12,
-    MissionFailed = 13,
+    MissionFailed = 13, ReliefUsed = 14, ReliefGranted = 15, ReliefRefused = 16, ObjectiveDeclined = 17, BountyUnpaid = 18,
 };
-inline constexpr int kDeedKindCount = 14;
+inline constexpr int kDeedKindCount = 19;
 
 struct Deed {
     DeedKind kind = DeedKind::JobDone;
@@ -499,10 +521,29 @@ struct Contract {
     Id mission = kNone;  // the mission it carries out
     Time start = 0;
     bool alive = true;
+    Id loan = kNone;  // lent: its employer is the borrower until the loan ends (MIL-3)
 };
 template <class Ar, record_of<Contract> C>
 void fields(Ar& ar, C& c) {
-    ar(c.kind, c.employer, c.employee, c.pay, c.period, c.mission, c.start, c.alive);
+    ar(c.kind, c.employer, c.employee, c.pay, c.period, c.mission, c.start, c.alive, c.loan);
+}
+
+// ---- Loan (MIL-3, MIL-11, REL-8) ----
+
+// A contract between two governors' planets that moves service contracts' employer to the
+// borrower for a purpose (an army) or loan.max_days, whichever ends first (INF-16).
+struct Loan {
+    Id lender = kNone, borrower = kNone;  // planets
+    Id army = kNone;                      // its purpose
+    std::vector<Id> contracts{};          // the service contracts lent
+    double fee = 0;
+    Time start = 0;
+    bool relief = false;   // a vassal borrowing its liege's commanders (MIL-11)
+    bool alive = true;
+};
+template <class Ar, record_of<Loan> L>
+void fields(Ar& ar, L& l) {
+    ar(l.lender, l.borrower, l.army, l.contracts, l.fee, l.start, l.relief, l.alive);
 }
 
 // ---- Mission (MOD-9) ----
@@ -620,6 +661,14 @@ struct Ledger {
     // Roles (FAC-16, FAC-17, CHK-27, CHK-29).
     std::int64_t stewards_appointed = 0, steward_quits = 0, successions = 0, governors_killed = 0;
     double steward_pay = 0, vacant_days = 0;
+    // War and fealty money (MIL-2, MIL-3, MIL-18, MIL-19, FAC-15).
+    double bounties_owed = 0, bounties_paid = 0, spoils = 0, loan_fees = 0;
+    std::int64_t bounties_unpaid = 0, loans = 0, loans_refused = 0, relief_loans = 0;
+    std::int64_t relief_asked = 0, relief_granted = 0, relief_refused = 0, relief_ended = 0;
+    std::int64_t objectives_taken = 0, objectives_home = 0, objectives_declined = 0;
+    // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
+    // 1 war): own net income, military and patronage paid, and vassals' net and tribute.
+    std::array<double, 2> month_net{}, month_military{}, month_patronage{}, vassal_net{}, vassal_tribute{};
 };
 template <class Ar, record_of<Ledger> L>
 void fields(Ar& ar, L& l) {
@@ -638,6 +687,10 @@ void fields(Ar& ar, L& l) {
     ar(l.gate_attacks, l.blockades, l.retakes, l.lifts);
     ar(l.issuer_spend, l.issuer_taken, l.issuer_done, l.issuer_failed, l.free_money);
     ar(l.stewards_appointed, l.steward_quits, l.successions, l.governors_killed, l.steward_pay, l.vacant_days);
+    ar(l.bounties_owed, l.bounties_paid, l.spoils, l.loan_fees, l.bounties_unpaid, l.loans, l.loans_refused, l.relief_loans);
+    ar(l.relief_asked, l.relief_granted, l.relief_refused, l.relief_ended, l.objectives_taken, l.objectives_home,
+       l.objectives_declined);
+    ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
 }
 
 // ---- Diplomacy (MOD-5, DIP-1 to DIP-3) ----
@@ -690,11 +743,18 @@ struct Army {
     std::uint32_t travel_seq = 0;
     Id battle = kNone, siege = kNone;
     bool alive = true;
+    // Loan requests to vassals (MIL-3, INF-16): the vassals asked, how many requests are
+    // still on their way, and the vassals whose fleets have arrived (the reply).
+    std::vector<Id> asked{};
+    std::int32_t awaiting = 0;
+    std::vector<Id> answered{};
+    double plan_power = 0;  // the power its commissioner counted on (SYS-13), for commanders weighing it (MIL-2)
 };
 template <class Ar, record_of<Army> A>
 void fields(Ar& ar, A& a) {
     ar(a.commissioner, a.home, a.target, a.target_node, a.relief, a.members, a.called, a.action, a.formed);
-    ar(a.planet, a.node, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive);
+    ar(a.planet, a.node, a.route, a.leg, a.travel_seq, a.battle, a.siege, a.alive, a.asked, a.awaiting, a.answered,
+       a.plan_power);
 }
 
 // A fight, resolved in hourly rounds (SYS-14). Side 0 attacks.
@@ -727,10 +787,11 @@ struct Siege {
     bool called = false;  // the call for help has gone out (MIL-11)
     bool relieved = false;
     bool alive = true;
+    std::vector<Owed> power_days{};  // each attacker's combat power x days in the siege (MIL-19)
 };
 template <class Ar, record_of<Siege> S>
 void fields(Ar& ar, S& s) {
-    ar(s.planet, s.node, s.army, s.start, s.called, s.relieved, s.alive);
+    ar(s.planet, s.node, s.army, s.start, s.called, s.relieved, s.alive, s.power_days);
 }
 
 // ---- Gates (MIL-17) ----

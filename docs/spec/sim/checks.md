@@ -219,6 +219,13 @@ MIL-2, MIL-18, FAC-6, FAC-7, FAC-15, ECO-7. *Found in round 4:* military spendin
 every kind was about 4% of the money created, tribute 3% to 6%, and patronage 1.3 to 2.7
 times tribute.
 
+*In `checks.py` (war and fealty round):* CHK-26 and CHK-26b, tribute at peace and at war;
+CHK-26c and CHK-26d, military at peace and at war; CHK-26e, patronage over both. Each is
+the measured run's total of the monthly flows of lawful planets, bucketed by their
+faction's state that month. That's an aggregate share, not the median vassal, and
+tribute counts the cascade over the vassal's own net income. The root's treasury falling
+at war isn't computed.
+
 ### CHK-27 Paths cross `v1` `proposed`
 
 *(roles round)* Posts aren't filled from one path. Some governors were merchants, spies

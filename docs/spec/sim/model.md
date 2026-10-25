@@ -40,6 +40,11 @@ after loading.
 | steward | character ID, or none (FAC-16) *(proposed, roles round: built)* |
 | governor's stipend | *(roles round: built)* the budget's monthly pay for the governor's own fleet, 0 when not funded (MIL-20) |
 | vacant since, succession due | *(roles round: built)* when its governor died, and when the chooser can fill the seat (FAC-17) |
+| bounties owed | *(war and fealty round: built)* at a root: what it owes each commander for kills (MIL-18) |
+| captured at | *(war and fealty round: built)* when it was last captured, for patronage and the need test (FAC-7, FAC-15) |
+| life-support shortfall | *(war and fealty round: built)* the day's, 0 to 1, for the need test (FAC-15) |
+| tribute relief | *(war and fealty round: built)* the rate to return to while on relief, a pending request's deadline, and when it last passed a need test (FAC-15) |
+| military and patronage paid this month | *(war and fealty round: built)* for CHK-26 |
 | population, happiness | PRD-2, PRD-4; *(round 3)* happiness is signed, 0 neutral (SYS-1) |
 | prosperity | derived index, stored for capture effects (FAC-10, SYS-13) |
 | stock per good | the market |
@@ -104,8 +109,14 @@ opinion (FAC-14) are stored as two fields on the character.
 | mission | the mission a one-job contract carries out |
 | terms | trip, target or region, deadline |
 | start time | |
+| loan | *(war and fealty round: built)* the loan it's lent under, if any: its employer is then the borrower (MIL-3) |
 
 Ending a contract removes it from both parties (REL-8).
+
+*(war and fealty round: built)* **Loan** (MIL-3, MIL-11, REL-8): the lender's and the
+borrower's planets, its purpose (an army), the service contracts lent, the fee paid at the
+start, the start time, whether it's a relief, and an alive flag. It ends with its army or
+after `loan.max_days`.
 
 ### MOD-5 Faction relations `v1`
 
@@ -137,6 +148,7 @@ suing).
 | action | muster, move, besiege, retreat, disband |
 | location | as a character's, moving at the slowest member's speed |
 | called | commanders on their way to the muster; also its home planet, whether it is a relief, its battle and siege (MS-5) |
+| requests | *(war and fealty round: built)* the vassals asked for a loan, how many requests are still on their way, and the vassals whose fleets have arrived (MIL-3, INF-16); the power its commissioner counted on, for commanders weighing it (SYS-9) |
 
 ### MOD-7 Siege and battle `v1`
 
@@ -149,7 +161,8 @@ suing).
 *As built (MS-5):* a battle keeps each side's characters, armies, damage carried over
 and power lost, and whether side 1 has the planet's static defence. The static defence is
 kept on the planet with its security spending (MOD-2). A siege keeps whether its call
-for help has gone out and whether it was relieved.
+for help has gone out and whether it was relieved. *(war and fealty round: built)* It
+also keeps each attacker's combat power × days in the siege, for the spoils (MIL-19).
 
 ### MOD-8 Fact `v1`
 
@@ -217,7 +230,11 @@ ECO-1), money sunk (operating costs, *(round 4)* the cost of making goods, the o
 goods produced and consumed per good, osmosis volume and margin. *(proposed, roles round:
 built)* Missions taken, completed, failed and paid per kind of issuer (governor, root,
 Authority, pirate planet; MSN-4); stewards appointed and quit, their pay, successions,
-governors killed, and days seats stood empty. Any free money a mission creates is its own flow
+governors killed, and days seats stood empty. *(war and fealty round: built)* Bounties
+owed, paid and left unpaid; spoils; loans, refusals and fees; tribute relief asked,
+granted, refused and ended; objectives taken, declined and passed over for home; and,
+for CHK-26, lawful planets' monthly net income, military and patronage paid, and
+vassals' net income and tribute, each split by their faction's state that month. Any free money a mission creates is its own flow
 (MSN-5). The total of all money
 held always equals the starting total plus money created minus money sunk; a test holds
 the simulation to it.

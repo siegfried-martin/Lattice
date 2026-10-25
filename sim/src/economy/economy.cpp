@@ -84,6 +84,7 @@ void planet_day(World& w, Id id) {
         const double need = n * c.goods[g].consumption;
         if (need > 0) shortfall = std::max(shortfall, 1 - buy[g] / need);
     }
+    p.shortfall = std::clamp(shortfall, 0.0, 1.0);  // FAC-15's need test reads it
     budget -= cost;
     double spent = cost;
 
