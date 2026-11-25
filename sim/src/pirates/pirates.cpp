@@ -155,6 +155,7 @@ void seed(World& w) {
             const Id id = chars::spawn(w, p);
             Character& c = w.characters[at(id)];
             c.ships = {ships::variant(w.map, c.culture, ShipClass::Gunship, 1)};
+            ships::insure(w, c, c.ships.back());  // seeded ships are insured (CHR-21)
             hire(w, p, id);
         }
     }

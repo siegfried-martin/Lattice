@@ -14,6 +14,10 @@ void post_courier(World& world, Id liege, Id vassal, Observer* observer);
 // Weekly, per root: trade scouting of the outside market it has heard least of (INF-9).
 void root_weekly(World& world, Id planet, Observer* observer);
 
+// Weekly, per lawful planet (MSN-13): keeps passenger.per_planet passenger runs posted, one
+// way to a random lawful planet within passenger.max_days.
+void post_passengers(World& world, Id planet, Observer* observer);
+
 // Weekly, per planet (proposed): a border planet at war posts a scout mission toward the
 // nearest enemy planet, flown as a sortie (INF-9); a planet whose sector's risk passes
 // security.risk_post posts a patrol over its own space (MIL-5).

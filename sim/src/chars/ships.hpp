@@ -25,4 +25,18 @@ struct Fleet {
 };
 Fleet fleet(const World& world, const Character& c);
 
+// Insurance in the price (CHR-21). What a buyer pays for a new ship: its price and the
+// premium, ship.insurance_premium of it.
+double buy_cost(const Config& config, const ShipVariant& v);
+// The cover a ship adds: ship.insurance_payout of its price. A character's cover is one
+// sum, not per hull, so payouts never exceed the cover bought.
+double cover_of(const Config& config, const ShipVariant& v);
+// A ship joined the fleet insured: bought, or seeded at world generation.
+void insure(const World& world, Character& c, Id variant);
+// A ship left the fleet unlost (sold, replaced): its cover goes with it, no refund.
+void lapse(const World& world, Character& c, Id variant);
+// A ship was destroyed: pays out its cover, up to what the character holds, as free money
+// (MSN-5). Returns the payout.
+double claim(World& world, Character& c, Id variant);
+
 }  // namespace lattice::ships

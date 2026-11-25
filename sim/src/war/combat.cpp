@@ -148,6 +148,7 @@ double destroy(World& w, std::vector<Id>& side, double damage, double& carried, 
         destroyed += best;
         Character& c = w.characters[at(who)];
         if (by) prizes::credit(w, *by, chars::faction_of(w, c), w.map.variants[at(c.ships[index])].price);
+        ships::claim(w, c, c.ships[index]);  // CHR-21
         c.ships.erase(c.ships.begin() + static_cast<std::ptrdiff_t>(index));
         if (c.ships.empty()) {
             side.erase(std::find(side.begin(), side.end(), who));

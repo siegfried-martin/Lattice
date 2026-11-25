@@ -141,10 +141,14 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `ship.tier_combat`, `_cargo`, `_speed`, `_price` | Multiplier per tier above 1 *(proposed, MS-3)* | 1.8, 2, 1.05, 2.5 |
 | `ship.culture_spread` | Each culture's variant of a class within ± this *(proposed, MS-3)* | 0.15 |
 | `ship.resale` | Share of the price a sold ship returns *(proposed, MS-3)* | 0.5 |
+| `ship.insurance_premium` | Added to a new ship's price as its insurance, sunk with the price (CHR-21) *(proposed, tuning pass part 3)* | 0.3 |
+| `ship.insurance_payout` | Share of a destroyed ship's price paid to its owner, as free money (CHR-21, MSN-5) *(proposed, tuning pass part 3)* | 0.5 |
 | `mission.pay_growth` | Pay growth per day unfilled | 0.05 |
 | `mission.expiry_days` | Mission lifetime | 30 |
 | `mission.courier_pay`, `mission.scout_pay` | Base pay per day of the expected round trip *(proposed, MS-3)* | 150, 300 |
 | `mission.deadline_mult` | A taken mission's deadline, in multiples of its reference days (MSN-3) *(proposed, roles round: built)* | 3 |
+| `passenger.fare` | A passenger run's pay per day of the one-way trip, as free money (MSN-13, MSN-5) *(proposed, tuning pass part 3)* | 50 |
+| `passenger.per_planet`, `passenger.max_days`, `passenger.expiry_days` | Passenger runs each lawful planet keeps posted, their farthest destination in travel days, and how long one stays posted (MSN-13) *(proposed, tuning pass part 3)* | 2, 4, 7 |
 | `skill.gain`, `skill.max`, `skill.bonus` | Skill per mission, cap, pay weighting | 1, 20, 0.02 |
 | `spend.threshold_base`, `spend.threshold_risk` | Wealth over ship price before buying: `base − risk × this` | 2, 1 |
 | `spend.reserve_months` | Running costs kept back by the cautious | 3 × (1 − risk) |

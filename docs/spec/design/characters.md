@@ -156,6 +156,7 @@ and stayed there. A cheap fleet gave them nothing to spend it on.
   (MIL-2): defend here, join this siege. Their pay is what a commander expects from
   kills and spoils (MIL-18, MIL-19), less what it expects to lose. Expected loss is
   value, not personality, so risk tolerance still doesn't govern the choice (CHR-4).
+  *(proposed, tuning pass part 3)* What it expects to lose is net of insurance (CHR-21).
 
 ### CHR-11 Paths, not a ladder `v1` `proposed`
 
@@ -234,6 +235,49 @@ rules.
   power and their relationship with the candidate (CHR-20). A commander who saved can
   rebuild fast and is rehired quickly; one who gambled everything starts smaller. The
   game doesn't referee saving against spending.
+- *(proposed, tuning pass part 3)* **A lost fleet is rebuilt from its insurance and
+  savings** (CHR-21): the highest tier of the work it did that it can afford with a
+  margin, else any hull of it, else a courier. Losing everything costs about one tier,
+  so a fall from the top takes several losses close together, and a character who keeps
+  earning climbs back. Governors rebuild their own fleets the same way (MIL-20).
+- *(proposed, tuning pass part 3)* **A ruined character starts over at the bottom.** A
+  character with no ship and not enough for any hull gets the hull a new character gets
+  (CHR-6), a tier-1 courier, uninsured, and keeps its standing, reputation,
+  relationships and skills. The bottom rung's work is courier runs, passenger runs
+  (MSN-13) and small trades. A ship without a Lattice Drive (TRD-18) suits it better,
+  so it doesn't compete with real merchants, once those ships are built. Until then the
+  free courier has a drive.
+- *(as built)* **No ship is sold at a planet under siege,** and a free hull isn't given
+  there either. A character with no ship waits where it is until it has one. *(Fixed:
+  a shipless character used to fly off exploring.)*
+
+### CHR-21 Insurance in the price `v1` `proposed`
+
+*(tuning pass part 3)* **Every ship bought new comes insured.** The buyer pays its price
+and a premium (`ship.insurance_premium`, 30%). If the ship is destroyed, the owner is paid
+part of its price (`ship.insurance_payout`, 50%), to spend with its savings on the next
+ship (CHR-16).
+
+- **No insurer is simulated.** The premium is sunk with the price, and the payout is free
+  money (MSN-5), named, tunable and tracked as its own flow. A real insurer lives off
+  claims that never come and invests premiums meanwhile; the simulation has neither, and
+  its job is the game, not the economics of insurance. If a payout higher than any real
+  insurer would offer is better for the game (no premium and 80%, say), the tunables say
+  so.
+- **Cover belongs to the character, not to each hull:** one sum, raised by what's bought
+  and lowered by what's paid out or sold, so payouts never exceed the cover bought.
+  Selling a ship ends its cover, with no refund.
+- **The free hull a new or ruined character gets is uninsured** (CHR-6, CHR-16). That's
+  the floor. Ships seeded at world generation are insured.
+- **Insurance lowers what fighting costs, not how dangerous it is.** A commander weighing
+  an objective counts the ships it could lose less what their insurance would pay
+  (CHR-10, MIL-2). Combat can be frequent, and a loss is a setback rather than ruin.
+  Defenders running for the Lattice is the other tool for that.
+- `later` **Different plans at purchase,** chosen by risk tolerance (CHR-4): a cheaper
+  premium with a smaller payout, or none.
+
+*Why:* with combat frequent and every defeat a destroyed ship, losing was too often
+ruinous. Tune 2 ended with about 1,000 characters shipless and broke.
 
 ## The player
 

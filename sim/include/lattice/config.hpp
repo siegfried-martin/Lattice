@@ -207,6 +207,11 @@ struct Config {
         double tier_price = 2.5;
         double culture_spread = 0.15;  // each culture's variant is within +- this
         double resale = 0.5;           // share of the price a sold ship returns
+        // Insurance in the price (CHR-21): a buyer pays price x (1 + premium), and the ship
+        // is covered for price x payout if it's destroyed. The premium is sunk with the
+        // price; the payout is free money (MSN-5).
+        double insurance_premium = 0.3;
+        double insurance_payout = 0.5;
 
         friend bool operator==(const Ship&, const Ship&) = default;
     } ship;
@@ -246,6 +251,17 @@ struct Config {
 
         friend bool operator==(const MissionParams&, const MissionParams&) = default;
     } mission;
+
+    // Passenger runs (MSN-13): one-way trips for characters flying a single tier-1 hull,
+    // paid as free money (MSN-5).
+    struct Passenger {
+        double fare = 50;              // per day of the expected one-way trip
+        std::int64_t per_planet = 2;   // open runs a planet keeps posted
+        double max_days = 4;           // farthest destination, in reference travel days
+        std::int64_t expiry_days = 7;
+
+        friend bool operator==(const Passenger&, const Passenger&) = default;
+    } passenger;
 
     struct Skill {
         double gain = 1;
@@ -752,6 +768,8 @@ void for_each_field(C& c, F&& f) {
     f("ship.tier_price", c.ship.tier_price);
     f("ship.culture_spread", c.ship.culture_spread);
     f("ship.resale", c.ship.resale);
+    f("ship.insurance_premium", c.ship.insurance_premium);
+    f("ship.insurance_payout", c.ship.insurance_payout);
 
     f("fleet.maintenance", c.fleet.maintenance);
     f("fleet.crew_wage", c.fleet.crew_wage);
@@ -774,6 +792,11 @@ void for_each_field(C& c, F&& f) {
     f("mission.courier_pay", c.mission.courier_pay);
     f("mission.scout_pay", c.mission.scout_pay);
     f("mission.deadline_mult", c.mission.deadline_mult);
+
+    f("passenger.fare", c.passenger.fare);
+    f("passenger.per_planet", c.passenger.per_planet);
+    f("passenger.max_days", c.passenger.max_days);
+    f("passenger.expiry_days", c.passenger.expiry_days);
 
     f("skill.gain", c.skill.gain);
     f("skill.max", c.skill.max);

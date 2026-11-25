@@ -249,6 +249,14 @@ The design of the full game is settled enough to build its simulation. In brief:
   famous commander earns more. Messages never wait for a reply: every request has a
   deadline, no answer means no, and a fleet arriving is the answer (MIL-2, MIL-3,
   MIL-18, MIL-19, INF-16).
+- **Losing a ship** *(proposed, built, being tuned)*: every new ship comes insured, the
+  premium built into its price, and a destroyed ship pays its owner back part of its
+  price. With savings, that buys about one tier down, so a commander at the top falls a
+  peg at a time and only several losses close together bring them to the bottom.
+  Insurance lowers what a fight costs, not how dangerous it is, so combat can stay
+  frequent. A character with nothing left starts over in a free basic courier and works
+  its way back up with courier and passenger runs (CHR-16, CHR-21, MSN-13). Insurance
+  plans chosen by risk tolerance come later.
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
   to ECO-5). The v1 goods are food, water, oxygen, eight luxuries (six regional, two

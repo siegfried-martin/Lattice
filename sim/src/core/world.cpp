@@ -104,6 +104,8 @@ void sample_metrics(const World& w, Observer& o) {
     // Characters (CHK-16 to CHK-18).
     std::array<std::int64_t, kActivityCount> by_activity{};
     std::int64_t alive = 0, faction_merchants = 0, ships = 0, shipless = 0;
+    std::array<std::int64_t, kActivityCount> shipless_by{};  // what the shipless are doing
+    std::int64_t shipless_governors = 0, shipless_stewards = 0, shipless_travelling = 0, shipless_besieged = 0;
     double wealth = 0, cargo = 0;
     for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
         const Character& ch = w.characters[at(id)];
@@ -114,13 +116,25 @@ void sample_metrics(const World& w, Observer& o) {
         faction_merchants += merchant::employer_root(w, id) != kNone;
         const ships::Fleet f = ships::fleet(w, ch);
         ships += f.count;
-        shipless += f.count == 0;
+        if (f.count == 0) {
+            ++shipless;
+            ++shipless_by[static_cast<std::size_t>(ch.activity)];
+            shipless_governors += ch.governs != kNone;
+            shipless_stewards += ch.stewards != kNone;
+            shipless_travelling += ch.planet == kNone;
+            shipless_besieged += ch.planet != kNone && w.planets[at(ch.planet)].siege != kNone;
+        }
         cargo += f.cargo;
     }
     double held = 0;  // purses set aside for campaigns under way (MIL-2)
     for (const Army& a : w.armies) held += a.alive ? a.purse : 0;
     o.sample(t, "world.characters", -1, static_cast<double>(alive));
     o.sample(t, "world.shipless", -1, static_cast<double>(shipless));
+    for (std::size_t k = 0; k < kActivityCount; ++k) o.sample(t, "world.shipless_by_activity", static_cast<Id>(k), static_cast<double>(shipless_by[k]));
+    o.sample(t, "world.shipless_governors", -1, static_cast<double>(shipless_governors));
+    o.sample(t, "world.shipless_stewards", -1, static_cast<double>(shipless_stewards));
+    o.sample(t, "world.shipless_travelling", -1, static_cast<double>(shipless_travelling));
+    o.sample(t, "world.shipless_besieged", -1, static_cast<double>(shipless_besieged));
     o.sample(t, "world.char_wealth", -1, wealth);
     o.sample(t, "world.money_total", -1, money + wealth + w.authority.treasury + held);
     o.sample(t, "money.purses_now", -1, held);
@@ -175,6 +189,13 @@ void sample_metrics(const World& w, Observer& o) {
         o.sample(t, "issuer.failed", i, static_cast<double>(w.ledger.issuer_failed[at(i)]));
     }
     o.sample(t, "world.free_money", -1, w.ledger.free_money);
+    // Insurance and the bottom rung (CHR-21, CHR-16, MSN-13).
+    o.sample(t, "money.insurance_premiums", -1, w.ledger.insurance_premiums);
+    o.sample(t, "money.insurance_paid", -1, w.ledger.insurance_paid);
+    o.sample(t, "money.passenger_fares", -1, w.ledger.passenger_fares);
+    o.sample(t, "chars.free_hulls", -1, static_cast<double>(w.ledger.free_hulls));
+    o.sample(t, "chars.passenger_runs", -1, static_cast<double>(w.ledger.passenger_runs));
+    o.sample(t, "chars.claims", -1, static_cast<double>(w.ledger.claims));
 
     // War and fealty money (MIL-2, MIL-3, MIL-18, MIL-19, FAC-15, CHK-26).
     const Ledger& l = w.ledger;
@@ -275,6 +296,11 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.lifts", -1, static_cast<double>(w.ledger.lifts));
     o.sample(t, "world.armies", -1, static_cast<double>(armies));
     o.sample(t, "world.besieged", -1, static_cast<double>(besieged));
+    double oldest = 0;  // the longest siege under way, in days
+    for (const Siege& sg : w.sieges) {
+        if (sg.alive && sg.node == kNone) oldest = std::max(oldest, static_cast<double>(w.now - sg.start) / kDay);
+    }
+    o.sample(t, "world.siege_days_max", -1, oldest);
     o.sample(t, "world.static_defence", -1, defence);
     o.sample(t, "world.security", -1, w.ledger.security);
     o.sample(t, "world.wars", -1, static_cast<double>(w.ledger.wars));

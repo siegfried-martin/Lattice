@@ -380,7 +380,7 @@ TEST_CASE("osmosis moves goods toward the emptier market and never makes money (
 
 TEST_CASE("money and goods add up over a year (CHK-7)") {
     World w = new_world(test::small(), 11);
-    const double money0 = total_money(w), spawned0 = w.ledger.money_spawned;
+    const double money0 = total_money(w), spawned0 = w.ledger.money_spawned, free0 = w.ledger.free_money;
     auto goods = [&](int g) {
         double stock = 0;
         for (const Planet& p : w.planets) stock += p.stock[at(g)];
@@ -390,7 +390,9 @@ TEST_CASE("money and goods add up over a year (CHK-7)") {
     std::array<double, kGoodCount> stock0{};
     for (int g = 0; g < kGoodCount; ++g) stock0[at(g)] = goods(g);
     advance(w, 365 * kDay);
-    const double expected = w.ledger.money_created + (w.ledger.money_spawned - spawned0) - w.ledger.money_sunk;
+    // Free money (MSN-5: insurance payouts, passenger fares) is new money too.
+    const double expected =
+        w.ledger.money_created + (w.ledger.money_spawned - spawned0) + (w.ledger.free_money - free0) - w.ledger.money_sunk;
     CHECK(total_money(w) - money0 == doctest::Approx(expected).epsilon(1e-9));
     for (int g = 0; g < kLawfulGoodCount; ++g) {
         const double stock = goods(g);

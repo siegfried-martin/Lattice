@@ -167,6 +167,10 @@ the baseline (MIL-20). It decides weekly, with the budget.
   and then its pod rolls (CHR-15). A governor who dies is succeeded (FAC-17).
 - **While it's away,** its steward runs the planet (FAC-16). With no steward it stays
   home.
+- *(proposed, tuning pass part 3)* **It buys ships like any character** (CHR-10),
+  gunships, and rebuilds a lost fleet from its insurance and savings (CHR-16, CHR-21).
+  *(as built)* Only an armed fleet defends: a governor or commander left with an unarmed
+  hull doesn't hold its planet against a siege.
 
 ## Armies
 

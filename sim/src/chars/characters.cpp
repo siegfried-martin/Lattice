@@ -59,31 +59,56 @@ Id add(World& w, Id planet) {
     return static_cast<Id>(w.characters.size() - 1);
 }
 
-// SYS-8: spend savings on a ship, following what has paid: more cargo or more combat.
-// The next ship is the focus class (freighter or gunship): added while the fleet has room,
-// otherwise replacing the cheapest ship one tier up. It's bought when wealth passes
-// spend.threshold x its price and leaves the cautious reserve untouched.
+// What a ship costs its buyer, premium included (CHR-21), booked as a sink.
+void pay_for(World& w, Character& c, Id variant, double resale) {
+    const ShipVariant& v = w.map.variants[at(variant)];
+    const double cost = ships::buy_cost(w.config, v) - resale;
+    c.wealth -= cost;
+    w.ledger.ships_bought += cost;
+    w.ledger.money_sunk += cost;
+    w.ledger.insurance_premiums += ships::buy_cost(w.config, v) - v.price;
+    ships::insure(w, c, variant);
+}
+
+// SYS-8: spend savings on a ship, following what has paid: more cargo or more combat; a
+// governor's fleet is gunships (MIL-20). The next ship is the focus class (freighter or
+// gunship): added while the fleet has room, otherwise replacing the cheapest ship one
+// tier up. It's bought when wealth passes spend.threshold x its cost and leaves the
+// cautious reserve untouched.
 void maybe_buy_ship(World& w, Id id, Observer* observer) {
     Character& c = w.characters[at(id)];
-    if (c.planet == kNone) return;
+    // A planet under siege sells no ships (and gives no free hull) until it ends.
+    if (c.planet == kNone || w.planets[at(c.planet)].siege != kNone) return;
     const auto& cfg = w.config;
-    const ShipClass cls = c.earned_combat > c.earned_cargo ? ShipClass::Gunship : ShipClass::Freighter;
+    const ShipClass cls = c.governs != kNone || c.earned_combat > c.earned_cargo ? ShipClass::Gunship : ShipClass::Freighter;
+    const Id culture = w.planets[at(c.planet)].region;  // ships come from the planet's culture (MIL-4)
+    const double threshold = cfg.spend.threshold_base - cfg.spend.threshold_risk * c.risk;
     if (c.ships.empty()) {
-        // A lost fleet is rebuilt from savings (CHR-16): a tier-1 hull of the work it did,
-        // or a courier if that's all it can afford. Any hull beats none.
-        const Id culture = w.planets[at(c.planet)].region;
-        const Id want = ships::variant(w.map, culture, cls, 1);
-        const Id cheap = ships::variant(w.map, culture, ShipClass::Courier, 1);
-        const double threshold = cfg.spend.threshold_base - cfg.spend.threshold_risk * c.risk;
-        const Id pick = c.wealth >= threshold * w.map.variants[at(want)].price ? want
-                        : c.wealth >= w.map.variants[at(cheap)].price            ? cheap
-                                                                                 : kNone;
-        if (pick == kNone) return;
-        c.wealth -= w.map.variants[at(pick)].price;
-        w.ledger.ships_bought += w.map.variants[at(pick)].price;
-        w.ledger.money_sunk += w.map.variants[at(pick)].price;
+        // A lost fleet is rebuilt from the insurance and savings (CHR-16, CHR-21): the
+        // highest tier of the work it did that it can afford with a margin, else any hull
+        // of it, else a courier. Any hull beats none.
+        Id pick = kNone;
+        for (int tier = kTierCount; tier >= 1 && pick == kNone; --tier) {
+            const Id v = ships::variant(w.map, culture, cls, tier);
+            if (c.wealth >= threshold * ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
+        }
+        for (const Id v : {ships::variant(w.map, culture, cls, 1), ships::variant(w.map, culture, ShipClass::Courier, 1)}) {
+            if (pick == kNone && c.wealth >= ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
+        }
+        if (pick == kNone) {
+            // Ruined: it starts over at the bottom (CHR-16), with the hull a new character
+            // gets (CHR-6). Nobody bought it, so it carries no insurance.
+            c.ships.push_back(ships::variant(w.map, culture, ShipClass::Courier, 1));
+            ++w.ledger.free_hulls;
+            if (observer) observer->log(w.now, "ship.free", id, std::to_string(c.wealth));
+            return;
+        }
+        pay_for(w, c, pick, 0);
         c.ships.push_back(pick);
-        if (observer) observer->log(w.now, "ship.rebuilt", id, std::to_string(static_cast<int>(w.map.variants[at(pick)].cls)));
+        if (observer) {
+            const ShipVariant& v = w.map.variants[at(pick)];
+            observer->log(w.now, "ship.rebuilt", id, std::to_string(static_cast<int>(v.cls)) + " tier " + std::to_string(v.tier));
+        }
         return;
     }
     int best_tier = 0;
@@ -95,20 +120,17 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
     }
     const bool room = static_cast<std::int64_t>(c.ships.size()) < cfg.fleet.max_ships;
     const int tier = room ? std::max(1, best_tier) : std::min(kTierCount, best_tier + 1);
-    const Id culture = w.planets[at(c.planet)].region;  // ships come from the planet's culture (MIL-4)
     const Id pick = ships::variant(w.map, culture, cls, tier);
     const ShipVariant& v = w.map.variants[at(pick)];
     const double resale = room ? 0 : w.map.variants[at(c.ships[cheapest])].price * cfg.ship.resale;
     if (!room && v.price <= w.map.variants[at(c.ships[cheapest])].price) return;
-    const double cost = v.price - resale;
-    const double threshold = cfg.spend.threshold_base - cfg.spend.threshold_risk * c.risk;
-    if (c.wealth < threshold * v.price || c.wealth - cost < reserve(w, c)) return;
-    c.wealth -= cost;
-    w.ledger.ships_bought += cost;
-    w.ledger.money_sunk += cost;
+    const double cost = ships::buy_cost(cfg, v) - resale;
+    if (c.wealth < threshold * ships::buy_cost(cfg, v) || c.wealth - cost < reserve(w, c)) return;
+    pay_for(w, c, pick, resale);
     if (room) {
         c.ships.push_back(pick);
     } else {
+        ships::lapse(w, c, c.ships[cheapest]);
         c.ships[cheapest] = pick;
     }
     if (observer) observer->log(w.now, "ship.bought", id, std::to_string(static_cast<int>(cls)) + " tier " + std::to_string(tier));
@@ -125,6 +147,7 @@ void go_broke(World& w, Id id) {
         c.wealth += value;
         w.ledger.ships_bought -= value;
         w.ledger.money_sunk -= value;
+        ships::lapse(w, c, *it);
         c.ships.erase(it);
     }
 }
@@ -149,6 +172,7 @@ Id spawn_ruler(World& w, Id planet) {
     w.ledger.money_spawned += c.wealth;
     for (std::int64_t i = 0; i < w.config.gen.governor_ships; ++i) {
         c.ships.push_back(ships::variant(w.map, c.culture, ShipClass::Gunship, 1));  // MIL-20
+        ships::insure(w, c, c.ships.back());  // seeded ships are insured (CHR-21)
     }
     return id;
 }
@@ -165,6 +189,8 @@ void populate(World& w) {
             const Id id = spawn(w, p);
             Character& c = w.characters[at(id)];
             c.ships = {ships::variant(w.map, c.culture, ShipClass::Gunship, 1)};
+            c.cover = 0;
+            ships::insure(w, c, c.ships.back());  // CHR-21
             const ships::Fleet f = ships::fleet(w, c);
             power += f.combat;
             contracts::sign(w, ContractKind::Service, planet.governor, id, w.config.hire.stipend_per_power * f.combat,
@@ -285,6 +311,7 @@ void govern(World& w, Id id, Observer* observer) {
     }
     c.activity = Activity::Governing;
     roles::handover(w, c.governs);
+    maybe_buy_ship(w, id, observer);  // a governor rebuilds its own fleet too (MIL-20, CHR-16)
 }
 
 }  // namespace
@@ -334,6 +361,12 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
     if (c.activity == Activity::Serving) c.activity = Activity::Idle;
 
     maybe_buy_ship(w, id, observer);
+    if (c.ships.empty()) {
+        // No hull, and none to be had here yet (a siege): it waits (CHR-16).
+        c.activity = Activity::Idle;
+        wake(w, id, w.now + kDay);
+        return;
+    }
     // A pirate run it agreed to on contact (PIR-13), once its hold is empty.
     if (c.offer != kNone) {
         const Mission& run = w.missions[at(c.offer)];

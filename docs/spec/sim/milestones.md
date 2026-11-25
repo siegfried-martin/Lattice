@@ -606,6 +606,75 @@ Results, 8 seeds × 5 years:
 - **Fleets of 8** (`fleet.max_ships`) sink a little more into ships but change little
   else, so the cap stays at 4.
 
+*Tuning pass, part 3 (2026-11-24): insurance and the bottom rung.* The human's answer
+to the shipless and ruined characters: a ruined character starts over in the cheapest
+hull, with bottom-rung work (courier runs, passenger runs, small trades), and a character
+at the top falls a peg at a time, not all at once. Insurance is built into a ship's price
+(CHR-21): 30% premium, 50% of the price paid out if it's destroyed, the payout free money
+(MSN-5). Insurance also lowers what fighting costs, so combat can stay frequent. Passenger
+runs (MSN-13) are new free-money work for a character with one tier-1 hull. Governors
+rebuy their fleets (MIL-20). Targets, written before the run:
+
+- **Shipless characters at the end:** at most 100 (part 2: 974).
+- **Idle characters** under 15% (CHK-17b; part 2: 20%).
+- **Characters' wealth levels off:** year 5 over year 2 still at most 1.5.
+- **Free money** small against the economy: under 10% of ship spending.
+- **Fewer objectives declined** than part 2.
+- **CHK-26 holds:** no band that passed on every seed fails.
+
+The first run (shipless 241, idle 24%) turned up two bugs, each exposed by fleets now
+being rebuilt:
+- **A shipless character at a besieged planet flew off exploring** with no ship. It now
+  waits for the siege to end.
+- **Sieges never ended** once a governor rebuilt at home: nothing attacked a fleet that
+  came home mid-siege, and a weaker one that retreated stayed at home, "ready" again the
+  next round. One siege passed 1,150 days, with 650 stranded characters at the planet.
+  Now a defender strong enough to stand is fought, and a weaker one can't block the
+  capture (SYS-13).
+
+Results, 8 seeds × 5 years:
+
+| | Part 2 | Part 3 | Part 3, 4 passenger runs a planet | Target |
+|---|---|---|---|---|
+| Characters with no ship at the end, median | 974 | 38 | 34 | ≤ 100 |
+| Free hulls given a year | — | 412 | 348 | |
+| Characters idle, CHK-17b (seeds passing) | 20.5% (4 of 8) | 20.5% (2) | | < 15% |
+| Idle at the end, median | 19.5% | 27.8% | 28.9% | |
+| Characters' wealth, year 5 over year 2, median | 1.30 | 1.11 | 1.08 | ≤ 1.5 |
+| Insurance paid, premiums, a year | — | 14.6 million, 16.0 million | 13.3, 15.6 | |
+| Passenger fares a year (runs) | — | 0.8 million (6,300) | 1.4 million (11,400) | |
+| Free money, share of ship spending | 0 | 24% gross; about 0 net of premiums | | < 10% |
+| Objectives declined, share | 8.2% | 5.6% | 4.4% | fewer |
+| Planets changing hands a year, share | 0.14 | 0.20 | | |
+| Battles a year; deaths per battle | 1,910; 0.013 | 1,540; 0.029 | | |
+| Tribute, peace and war | 20.7%, 21.1% | 19.6%, 19.1% | | 20% to 30% |
+| Military, peace and war | 13.1%, 22.7% | 13.8%, 21.6% | | 10% to 20%, 40% to 60% |
+| Seeds whose planets end net in debt (CHK-7d) | 3 of 8 | 1 | | 0 |
+| Checks passing on every seed | 27 of 44 | 28 | 28 | |
+
+- **Met:**
+  - **Shipless characters fall from 974 to 38.** What's left are mostly stewards, who
+    stay at their planet, and characters waiting out a siege.
+  - **Wealth levels off;** objectives are declined less; planets in debt fall to one
+    seed.
+  - **Insurance pays for itself in money terms:** premiums (16.0 million a year) are a
+    little more than payouts (14.6 million). The free money is gross; net, it's about
+    nothing.
+- **Not met:**
+  - **Idle characters rose.** The ruined now have ships, but many find nothing worth
+    doing. Doubling passenger runs didn't help, so it isn't a shortage of runs. The
+    merchant squeeze from round 4 is the likelier cause, for the Authority's board
+    (MSN-7).
+  - **Tribute slipped just under its band** (19.6%, 19.1% against 20%), and CHK-26c
+    fails one seed it passed before. Military at war is still about 22% against 40% to
+    60%.
+  - **Deaths per battle doubled** (0.013 to 0.029), still well inside CHK-20b. Sieges
+    that end are deadlier than sieges that never do.
+- **Not built:** a faction's courier work gated on its opinion of the character (the
+  human's "courier if good faction relation"); planet-level couriers stay open to anyone.
+  The free hull has a Lattice Drive until ships without one exist (TRD-18).
+- **Passenger runs stay at 2 a planet;** 4 changed nothing that matters.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

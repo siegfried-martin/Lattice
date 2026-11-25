@@ -473,6 +473,21 @@ accept by SYS-8. Paid at trip end (REL-9).
     of its focus under the same threshold, or else a courier if it can pay for one. Until
     this fix a character that lost its last ship never bought another; about half of all
     characters ended runs with none.
+  - *(proposed, tuning pass part 3: built)* **Insurance in the price** (CHR-21): a
+    ship costs `price × (1 + ship.insurance_premium)`, all sunk as `ships_bought`, and
+    adds `price × ship.insurance_payout` to the character's `cover`. A destroyed ship pays
+    `min(cover, price × ship.insurance_payout)` into its owner's wealth, as free money
+    (`money.insurance_paid`); a sold or replaced ship lowers `cover` by the same, with no
+    refund. Ships seeded at generation are insured; spawned hulls aren't.
+  - *(proposed, tuning pass part 3: built)* **The rebuild** with no ship left looks for
+    the highest tier of the focus class whose cost is under its wealth over
+    `spend.threshold`, then any tier-1 hull of the focus, then a courier. **With not
+    even that** it's given a tier-1 courier with no cover (`chars.free_hulls`). Nothing
+    is bought at a planet under siege. A governor buys too, always gunships (MIL-20).
+  - *(proposed, tuning pass part 3: built)* **Passenger runs** (MSN-13): posted weekly
+    with the planet's other missions, one way, no issuer and no contract. Taken only by
+    a character with one tier-1 ship; scored on the one-way trip. The fare is paid on
+    landing at the destination (`money.passenger_fares`, part of `world.free_money`).
 - **Broke** (`char.broke_days` below zero): sell ships, cheapest first, until solvent,
   keeping the last hull. Turning pirate instead arrives in MS-6.
 
@@ -816,6 +831,12 @@ Declarations, acceptances and ceasefire ends are facts that travel by courier (D
   adding power to the defender. Once no defending ships remain, daily rounds reduce
   static defence by attacker damage while it keeps firing back. **Static defence at zero
   and no defenders is capture.** A relief force that arrives joins as a new battle.
+- *(tuning pass part 3: built)* **Defenders who come home mid-siege.** Only armed fleets
+  count as defenders (`ready()`). With static defence at zero, defenders at home strong
+  enough to stand by the retreat rule (SYS-14) are fought, and the battle's end resumes
+  the siege. Weaker ones can't stop the capture, because a retreat at home leaves them
+  there. Before, a rebuilt governor at home held its planet forever: nothing attacked it,
+  and sieges ran over 1,000 days while the shipless piled up there.
 - **Capture** *(proposed)*: the planet's happiness − `capture.happiness_drop` *(round 3;
   was × (1 − `capture.happiness_loss`))*,
   stocks × (1 − `capture.stock_loss`), population × (1 − `capture.pop_loss`); then keep
@@ -1300,6 +1321,9 @@ upkeep/day per ship = price × fleet.maintenance / 365
   decides at a planet that isn't hostile: not an enemy's, and pirate with pirate. A
   commander weighing an objective counts one battle's refill as a cost (SYS-9).
 - **Both are sinks** (ECO-6): `world.running_costs` and `world.munitions`.
+- *(proposed, tuning pass part 3: built)* **A commander weighing an objective** counts its
+  expected loss as `worth × combat.retreat_loss` less what its cover would pay for it
+  (CHR-21).
 
 ## Governing
 

@@ -82,6 +82,10 @@ a merchant could afford, are the model. Each exception must be:
 Try without it first. For a small problem, free money is better than reworking the
 model to make a mission feel worth taking.
 
+*(proposed, tuning pass part 3)* The exceptions so far: **insurance payouts** (CHR-21,
+`ship.insurance_payout`) and **passenger fares** (MSN-13, `passenger.fare`). Both are in
+`free_money` and in their own flows.
+
 ### MSN-6 Invented targets change nothing `v1` `proposed`
 
 A target that exists only for a mission (a spawned pirate, a bugged package) is
@@ -221,3 +225,18 @@ commander takes an objective (MIL-20).
 
 **Refusing is a deed sized by the ask** (REL-10), so a liege can't push a vassal away by
 spamming small requests.
+
+### MSN-13 Passenger runs `v1` `proposed`
+
+*(tuning pass part 3)* Work for the bottom rung. Every lawful planet keeps a few
+**passenger runs** posted (`passenger.per_planet`, 2): one way, to a lawful planet within
+`passenger.max_days` (4), paying `passenger.fare` (50) a day of the trip.
+
+- **Only a character flying a single tier-1 hull may take one,** so they're a way back up
+  for the new and the ruined (CHR-6, CHR-16), not a living for anyone else.
+- **The passengers aren't simulated** (MSN-6) and no one issues the run, so the fare is
+  free money (MSN-5). Completing one grows the courier skill but not reputation, and
+  failing one is no one's bad deed.
+- The fare is sized so a ruined courier earns back a bought hull in under a year
+  between courier jobs, at about a third of a courier run's pay.
+

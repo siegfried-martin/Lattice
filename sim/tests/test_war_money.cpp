@@ -503,28 +503,93 @@ TEST_CASE("a battle's munitions are refilled at the next planet that isn't hosti
     CHECK(w.ledger.money_sunk - sunk == doctest::Approx(owed));
 }
 
-TEST_CASE("a character who lost its fleet buys a hull from its savings (CHR-16)") {
+TEST_CASE("a character who lost its fleet rebuilds from insurance and savings, or starts over (CHR-16, CHR-21)") {
     World w = new_world(quiet(), 312);
     const Id id = chars::spawn(w, 0);
     Character& c = w.characters[at(id)];
     c.ships.clear();
     c.earned_combat = 1;
-    SUBCASE("enough for the work it did: a tier-1 gunship") {
+    const double premium = 1 + w.config.ship.insurance_premium;
+    SUBCASE("rich: the highest tier of the work it did that it can afford") {
         c.wealth = 1e6;
         chars::decide(w, id, c.wake_seq, nullptr);
         REQUIRE(c.ships.size() == 1);
-        CHECK(w.map.variants[at(c.ships[0])].cls == ShipClass::Gunship);
-        CHECK(w.map.variants[at(c.ships[0])].tier == 1);
+        const ShipVariant& v = w.map.variants[at(c.ships[0])];
+        CHECK(v.cls == ShipClass::Gunship);
+        CHECK(v.tier == 3);
+        // The premium is paid, and the ship is covered (CHR-21).
+        CHECK(c.wealth == doctest::Approx(1e6 - v.price * premium));
+        CHECK(c.cover == doctest::Approx(v.price * w.config.ship.insurance_payout));
     }
     SUBCASE("only enough for a courier: a courier") {
-        c.wealth = w.config.ship.classes[static_cast<std::size_t>(ShipClass::Courier)].price * 1.2;
+        c.wealth = w.config.ship.classes[static_cast<std::size_t>(ShipClass::Courier)].price * premium * 1.2;
         chars::decide(w, id, c.wake_seq, nullptr);
         REQUIRE(c.ships.size() == 1);
         CHECK(w.map.variants[at(c.ships[0])].cls == ShipClass::Courier);
     }
-    SUBCASE("not even that: it waits") {
+    SUBCASE("ruined: a free tier-1 courier, uninsured") {
         c.wealth = 10;
+        const auto free0 = w.ledger.free_hulls;
+        chars::decide(w, id, c.wake_seq, nullptr);
+        REQUIRE(c.ships.size() == 1);
+        CHECK(w.map.variants[at(c.ships[0])].cls == ShipClass::Courier);
+        CHECK(w.map.variants[at(c.ships[0])].tier == 1);
+        CHECK(c.wealth == 10);
+        CHECK(c.cover == 0);
+        CHECK(w.ledger.free_hulls == free0 + 1);
+    }
+    SUBCASE("at a planet under siege: no hull, and it waits there") {
+        c.wealth = 1e6;
+        w.sieges.push_back({});
+        w.planets[0].siege = static_cast<Id>(w.sieges.size() - 1);
         chars::decide(w, id, c.wake_seq, nullptr);
         CHECK(c.ships.empty());
+        CHECK(c.planet == 0);
+        CHECK(c.activity == Activity::Idle);
     }
+}
+
+TEST_CASE("insurance pays out what was bought, as free money (CHR-21, MSN-5)") {
+    World w = new_world(quiet(), 313);
+    const Id id = chars::spawn(w, 0);
+    Character& c = w.characters[at(id)];
+    const Id hull = c.ships[0];
+    // A new character's hull was free: nothing to claim.
+    CHECK(c.cover == 0);
+    CHECK(ships::claim(w, c, hull) == 0);
+    const Id gun = ships::variant(w.map, c.culture, ShipClass::Gunship, 2);
+    const ShipVariant& v = w.map.variants[at(gun)];
+    ships::insure(w, c, gun);
+    c.ships.push_back(gun);
+    const double wealth = c.wealth, free0 = w.ledger.free_money;
+    const double paid = ships::claim(w, c, gun);
+    CHECK(paid == doctest::Approx(v.price * w.config.ship.insurance_payout));
+    CHECK(c.wealth == doctest::Approx(wealth + paid));
+    CHECK(w.ledger.free_money - free0 == doctest::Approx(paid));
+    CHECK(c.cover == doctest::Approx(0));
+    // A sold ship's cover lapses, so a later loss can't claim it.
+    ships::insure(w, c, gun);
+    ships::lapse(w, c, gun);
+    CHECK(c.cover == doctest::Approx(0));
+    CHECK(ships::claim(w, c, hull) == 0);
+}
+
+TEST_CASE("an insured commander weighs a defeat as costing less (CHR-21, MIL-2)") {
+    World w = new_world(quiet(), 307);
+    const Front f = front(w);
+    REQUIRE(f.root_a != kNone);
+    diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
+    const Id m = commander(w, f.a, 2);
+    Planet& t = w.planets[at(f.b)];
+    t.defence = 0;
+    t.treasury = 1e9;
+    w.config.objective.choose = false;  // everyone joins, so the weighing can be read back
+    const Id army = armies::commission(w, f.a, f.b, false, nullptr);
+    REQUIRE(army != kNone);
+    t.defence = 200;  // now a defeat is possible
+    Character& c = w.characters[at(m)];
+    c.cover = 0;
+    const double bare = armies::weigh(w, w.armies[at(army)], m).join;
+    for (Id v : c.ships) ships::insure(w, c, v);
+    CHECK(armies::weigh(w, w.armies[at(army)], m).join > bare);
 }

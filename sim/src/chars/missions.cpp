@@ -27,7 +27,7 @@ Id post(World& w, Mission m, Observer* observer) {
     w.events.push({.time = posted.expires, .kind = EventKind::MissionExpire, .record = id});
     ++w.ledger.missions_posted;
     if (observer) {
-        constexpr const char* kinds[] = {"courier", "scout", "trade", "escort", "command", "smuggle", "security"};
+        constexpr const char* kinds[] = {"courier", "scout", "trade", "escort", "command", "smuggle", "security", "legal", "passenger"};
         observer->log(w.now, "mission.posted", id,
                       std::string(kinds[static_cast<std::size_t>(posted.kind)]) + " at " + std::to_string(posted.at) + " to " +
                           std::to_string(posted.target));
@@ -51,12 +51,15 @@ ContractKind contract_kind(MissionKind k) {
 }
 
 bool pirate_run(const Mission& m) { return m.kind == MissionKind::Smuggle || m.kind == MissionKind::LegalGoods; }
+// A passenger run (MSN-13): one way, no issuer, paid as free money.
+bool passenger(const Mission& m) { return m.kind == MissionKind::Passenger; }
 
 // The days a mission should take, for its deadline (MSN-3): the reference round trip and
 // any time on station. A pirate run's route isn't known when it's taken, so it gets
 // mission.expiry_days.
 double reference_days(const World& w, const Mission& m) {
     if (pirate_run(m)) return static_cast<double>(w.config.mission.expiry_days);
+    if (passenger(m)) return std::max(1.0, w.derived.travel(m.at, m.target));
     double hold = 0;
     if (m.kind == MissionKind::Security) {
         hold = static_cast<double>(m.authority ? w.config.authority.clear_days : w.config.security.days);
@@ -78,6 +81,7 @@ void start_clock(World& w, Id mid) {
     Mission& m = w.missions[at(mid)];
     m.deadline = w.now + static_cast<Time>(w.config.mission.deadline_mult * reference_days(w, m) * kDay);
     w.events.push({.time = m.deadline, .kind = EventKind::MissionDeadline, .record = mid});
+    if (passenger(m)) return;  // no issuer to count it for
     ++w.ledger.issuer_taken[at(static_cast<Id>(issuer_of(w, m)))];
 }
 
@@ -89,10 +93,12 @@ void fail(World& w, Id mid, Observer* observer) {
     const Id id = m.taker;
     Character& c = w.characters[at(id)];
     const Issuer who = issuer_of(w, m);
-    ++w.ledger.issuer_failed[at(static_cast<Id>(who))];
-    // A bad deed with the issuer; reputation is untouched (MSN-3).
+    if (!passenger(m)) ++w.ledger.issuer_failed[at(static_cast<Id>(who))];
+    // A bad deed with the issuer; reputation is untouched (MSN-3). A passenger run has no
+    // issuer to hold it against the taker.
     const double bad = w.config.deed.amount[static_cast<std::size_t>(DeedKind::MissionFailed)];
-    if (who == Issuer::Authority) {
+    if (passenger(m)) {
+    } else if (who == Issuer::Authority) {
         c.authority_opinion += bad;
     } else if (who == Issuer::PiratePlanet) {
         pirates::set_relation(w, c, std::min(pirates::relation(w, c), w.config.pirel.fail));  // PIR-10
@@ -103,7 +109,7 @@ void fail(World& w, Id mid, Observer* observer) {
     } else {
         opinion::deed(w, m.poster, id, DeedKind::MissionFailed, observer);
     }
-    if (!pirate_run(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
+    if (!pirate_run(m) && !passenger(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
     if (observer) observer->log(w.now, "mission.failed", mid, "by " + std::to_string(id));
     if (c.mission != mid) return;
     c.mission = kNone;
@@ -169,6 +175,28 @@ void root_weekly(World& w, Id root, Observer* observer) {
          observer);
 }
 
+void post_passengers(World& w, Id planet, Observer* observer) {
+    const auto& c = w.config.passenger;
+    if (w.planets[at(planet)].pirate) return;
+    std::int64_t open = 0;
+    for (Id m : w.planets[at(planet)].missions) open += passenger(w.missions[at(m)]);
+    if (open >= c.per_planet) return;
+    std::vector<Id> near;
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+        if (q != planet && !w.planets[at(q)].pirate && w.derived.travel(planet, q) <= c.max_days) near.push_back(q);
+    }
+    if (near.empty()) return;
+    Rng& rng = w.rng[Stream::Missions];
+    for (; open < c.per_planet; ++open) {
+        const Id to = near[at(static_cast<Id>(rng.uniform_int(0, near.size() - 1)))];
+        post(w,
+             {.kind = MissionKind::Passenger, .level = MissionLevel::Planet, .at = planet, .target = to,
+              .base_pay = c.fare * std::max(0.5, w.derived.travel(planet, to)), .posted = w.now,
+              .expires = w.now + c.expiry_days * kDay},
+             observer);
+    }
+}
+
 void planet_weekly(World& w, Id planet, Observer* observer) {
     const Planet& p = w.planets[at(planet)];
     if (p.governor == kNone) return;
@@ -194,6 +222,7 @@ void planet_weekly(World& w, Id planet, Observer* observer) {
                  observer);
         }
     }
+    post_passengers(w, planet, observer);
     Facts& known = info::planet_facts(w, planet);
     info::observe_risk(w, known, p.sector);
     if (!patrolling && info::believed_risk(known, p.sector) >= c.security.risk_post) {
@@ -229,6 +258,8 @@ bool qualifies(const World& w, Id id, const Mission& m) {
     if (c.governs != kNone || c.ships.empty() || c.cargo_qty > 0 || c.pirate) return false;
     const ships::Fleet f = ships::fleet(w, c);
     if (!f.lattice_drive || f.combat < m.min_combat || f.cargo < m.min_cargo) return false;
+    // Passenger runs are for the bottom rung: one tier-1 hull (MSN-13).
+    if (passenger(m) && (c.ships.size() != 1 || w.map.variants[at(c.ships[0])].tier != 1)) return false;
     if (m.level == MissionLevel::Faction) {
         const Id faction = chars::faction_of(w, c);
         if (faction == kNone || faction != fealty::root_of(w, m.at)) return false;  // INF-10
@@ -247,8 +278,9 @@ Offer best_offer(const World& w, Id id) {
         const double hold = m.kind != MissionKind::Security ? 0
                             : m.authority                    ? static_cast<double>(w.config.authority.clear_days)
                                                              : static_cast<double>(w.config.security.days);
-        const double days = std::max(move::trip_days(w, c, m.at, m.target) + move::trip_days(w, c, m.target, m.at) + hold, 1.0 / 24);
-        const double fuel = move::fuel_cost(w, c, m.at, m.target) + move::fuel_cost(w, c, m.target, m.at);
+        const bool back = !passenger(m);  // a passenger run is one way
+        const double days = std::max(move::trip_days(w, c, m.at, m.target) + (back ? move::trip_days(w, c, m.target, m.at) : 0) + hold, 1.0 / 24);
+        const double fuel = move::fuel_cost(w, c, m.at, m.target) + (back ? move::fuel_cost(w, c, m.target, m.at) : 0);
         const double skill = c.skills[skill_of(m.kind)];
         const double score = (pay_now(w, m) / days) * (1 + w.config.skill.bonus * skill) - f.run_cost - fuel / days;
         if (score > best.score) best = {mid, score};
@@ -262,7 +294,7 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     m.taker = id;
     m.pay = pay_now(w, m);
     unpost(w, mid);
-    contracts::sign(w, contract_kind(m.kind), m.poster, id, m.pay, 0, mid);
+    if (!passenger(m)) contracts::sign(w, contract_kind(m.kind), m.poster, id, m.pay, 0, mid);
     if (m.kind == MissionKind::Courier) m.packet = info::planet_facts(w, m.at);
     Character& c = w.characters[at(id)];
     c.mission = mid;
@@ -283,7 +315,7 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     if (!going) {
         // Unreachable: give it back.
         m.state = MissionState::Expired;
-        contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
+        if (!passenger(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
         c.mission = kNone;
         c.activity = Activity::Idle;
         chars::wake(w, id, w.now + kDay);
@@ -295,6 +327,29 @@ void take(World& w, Id id, Id mid, Observer* observer) {
 void arrived(World& w, Id id, Observer* observer) {
     Character& c = w.characters[at(id)];
     Mission& m = w.missions[at(c.mission)];
+    if (passenger(m)) {
+        if (c.planet != m.target) {
+            if (!move::travel_to(w, id, m.target)) chars::wake(w, id, w.now + kDay);
+            return;
+        }
+        // Delivered: the fare is free money (MSN-5, MSN-13). No issuer, so no deed and no
+        // reputation; the courier skill grows.
+        m.state = MissionState::Done;
+        w.ledger.passenger_fares += m.pay;
+        w.ledger.free_money += m.pay;
+        ++w.ledger.passenger_runs;
+        chars::earn(c, m.pay, false);
+        auto& skill = c.skills[skill_of(m.kind)];
+        skill = std::min(w.config.skill.max, skill + w.config.skill.gain);
+        ++c.missions_done;
+        ++w.ledger.missions_done;
+        if (observer) observer->log(w.now, "mission.done", c.mission, "by " + std::to_string(id));
+        c.mission = kNone;
+        c.activity = Activity::Idle;
+        c.idle_since = w.now;
+        chars::wake(w, id, w.now);
+        return;
+    }
     if (m.outbound && c.planet == m.target) {
         if (m.kind == MissionKind::Courier) {
             Facts& there = info::planet_facts(w, m.target);

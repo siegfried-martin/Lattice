@@ -59,4 +59,25 @@ Fleet fleet(const World& w, const Character& c) {
     return f;
 }
 
+double buy_cost(const Config& c, const ShipVariant& v) { return v.price * (1 + c.ship.insurance_premium); }
+
+double cover_of(const Config& c, const ShipVariant& v) { return v.price * c.ship.insurance_payout; }
+
+void insure(const World& w, Character& c, Id variant) { c.cover += cover_of(w.config, w.map.variants[static_cast<std::size_t>(variant)]); }
+
+void lapse(const World& w, Character& c, Id variant) {
+    c.cover = std::max(0.0, c.cover - cover_of(w.config, w.map.variants[static_cast<std::size_t>(variant)]));
+}
+
+double claim(World& w, Character& c, Id variant) {
+    const double paid = std::min(c.cover, cover_of(w.config, w.map.variants[static_cast<std::size_t>(variant)]));
+    if (paid <= 0) return 0;
+    c.cover -= paid;
+    c.wealth += paid;
+    w.ledger.insurance_paid += paid;
+    w.ledger.free_money += paid;
+    ++w.ledger.claims;
+    return paid;
+}
+
 }  // namespace lattice::ships

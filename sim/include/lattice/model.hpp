@@ -414,11 +414,13 @@ inline constexpr int kActivityCount = 13;
 // Skills are the first six; Security missions count toward the escort skill.
 enum class MissionKind : std::uint8_t {
     Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5, Security = 6, LegalGoods = 7,
+    Passenger = 8,  // MSN-13
 };
 inline constexpr int kSkillCount = 6;
 constexpr std::size_t skill_of(MissionKind k) {
     if (k == MissionKind::Security) return static_cast<std::size_t>(MissionKind::Escort);
     if (k == MissionKind::LegalGoods) return static_cast<std::size_t>(MissionKind::Trade);
+    if (k == MissionKind::Passenger) return static_cast<std::size_t>(MissionKind::Courier);
     return static_cast<std::size_t>(k);
 }
 
@@ -493,6 +495,7 @@ struct Character {
     Id stewards = kNone;           // the planet it stewards (FAC-16)
     std::uint8_t path = 0;         // what it mostly earned from before its post (CHK-27): an EarnPath
     double munitions = 0;          // the refill it owes since its last battle, paid on landing (MIL-4)
+    double cover = 0;              // insurance its ships carry, paid out as they're lost (CHR-21)
 };
 template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
@@ -503,7 +506,7 @@ void fields(Ar& ar, C& c) {
     ar(c.cargo_good, c.cargo_qty, c.cargo_cost, c.trip, c.trip_profit, c.trip_start);
     ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle,
        c.paused_at, c.escort, c.escorting, c.pirate, c.pirate_relation, c.pirate_relation_at, c.renounce_to,
-       c.last_engaged, c.suspicion, c.offer, c.stewards, c.path, c.munitions);
+       c.last_engaged, c.suspicion, c.offer, c.stewards, c.path, c.munitions, c.cover);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -659,7 +662,7 @@ struct Ledger {
     // Missions per kind of issuer (MSN-4, CHK-28), indexed by Issuer.
     std::array<double, 4> issuer_spend{};
     std::array<std::int64_t, 4> issuer_taken{}, issuer_done{}, issuer_failed{};
-    double free_money = 0;  // created for missions (MSN-5): none yet; its own flow when there is
+    double free_money = 0;  // created from nothing (MSN-5): insurance payouts and passenger fares
     // Roles (FAC-16, FAC-17, CHK-27, CHK-29).
     std::int64_t stewards_appointed = 0, steward_quits = 0, successions = 0, governors_killed = 0;
     double steward_pay = 0, vacant_days = 0;
@@ -673,6 +676,10 @@ struct Ledger {
     double purses_held = 0, purses_returned = 0;  // set aside when offered, and given back (MIL-2)
     double munitions = 0;  // refills after battle, a sink (MIL-4)
     double ceasefire_unpaid = 0;  // ceasefire tribute owed that the treasury couldn't pay (DIP-2)
+    // Insurance and the bottom rung (CHR-21, CHR-16, MSN-13). Premiums are part of
+    // ships_bought; payouts and fares are part of free_money.
+    double insurance_premiums = 0, insurance_paid = 0, passenger_fares = 0;
+    std::int64_t free_hulls = 0, passenger_runs = 0, claims = 0;
     // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
     // 1 war): own net income, military and patronage paid, and vassals' net and tribute.
     std::array<double, 2> month_net{}, month_military{}, month_patronage{}, vassal_net{}, vassal_tribute{};
@@ -698,6 +705,7 @@ void fields(Ar& ar, L& l) {
     ar(l.relief_asked, l.relief_granted, l.relief_refused, l.relief_ended, l.objectives_taken, l.objectives_home,
        l.objectives_declined, l.objective_rewards, l.campaigns_abandoned, l.purses_held, l.purses_returned, l.munitions,
        l.ceasefire_unpaid);
+    ar(l.insurance_premiums, l.insurance_paid, l.passenger_fares, l.free_hulls, l.passenger_runs, l.claims);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
 }
 

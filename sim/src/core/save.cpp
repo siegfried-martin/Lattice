@@ -305,7 +305,7 @@ void check_references(const World& w) {
         for (Id k : l.contracts) require(in(k, w.contracts.size()), "loan contract");
     }
     for (const Mission& mi : w.missions) {
-        require(in(mi.poster, nc) && in(mi.at, np) && in(mi.target, np) && opt(mi.taker, nc), "mission");
+        require(opt(mi.poster, nc) && in(mi.at, np) && in(mi.target, np) && opt(mi.taker, nc), "mission");
         facts_ok(mi.packet);
     }
     for (const Planet& p : w.planets) require(opt(p.siege, w.sieges.size()), "planet siege");

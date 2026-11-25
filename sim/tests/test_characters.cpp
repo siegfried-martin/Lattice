@@ -441,3 +441,43 @@ TEST_CASE("characters keep the world deterministic and saveable") {
     CHECK(state_hash(a) == state_hash(b));
     CHECK(a.ledger.trips > 0);
 }
+
+TEST_CASE("passenger runs: one way, for one tier-1 hull, paid as free money (MSN-13, MSN-5)") {
+    World w = new_world(quiet(), 41);
+    Id from = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && from == kNone; ++p) {
+        if (w.planets[at(p)].pirate) continue;
+        for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+            if (q != p && !w.planets[at(q)].pirate && w.derived.travel(p, q) <= w.config.passenger.max_days) from = p;
+        }
+    }
+    REQUIRE(from != kNone);
+    missions::post_passengers(w, from, nullptr);
+    std::vector<Id> runs;
+    for (Id m : w.planets[at(from)].missions) {
+        if (w.missions[at(m)].kind == MissionKind::Passenger) runs.push_back(m);
+    }
+    CHECK(static_cast<std::int64_t>(runs.size()) == w.config.passenger.per_planet);
+    missions::post_passengers(w, from, nullptr);  // already full
+    CHECK(std::count_if(w.planets[at(from)].missions.begin(), w.planets[at(from)].missions.end(), [&](Id m) {
+              return w.missions[at(m)].kind == MissionKind::Passenger;
+          }) == w.config.passenger.per_planet);
+    REQUIRE(!runs.empty());
+    const Id run = runs[0];
+    const Id id = chars::spawn(w, from);
+    Character& c = w.characters[at(id)];
+    CHECK(missions::qualifies(w, id, w.missions[at(run)]));
+    // Past the bottom rung, it isn't offered.
+    c.ships.push_back(ships::variant(w.map, c.culture, ShipClass::Freighter, 1));
+    CHECK(!missions::qualifies(w, id, w.missions[at(run)]));
+    c.ships.pop_back();
+    const double wealth = c.wealth, free0 = w.ledger.free_money;
+    missions::take(w, id, run, nullptr);
+    REQUIRE(c.mission == run);
+    const double pay = w.missions[at(run)].pay;
+    for (int d = 0; d < 30 && w.missions[at(run)].state == MissionState::Taken; ++d) advance(w, kDay);
+    CHECK(w.missions[at(run)].state == MissionState::Done);
+    CHECK(w.ledger.passenger_fares == doctest::Approx(pay));
+    CHECK(w.ledger.free_money - free0 == doctest::Approx(pay));
+    CHECK(c.wealth > wealth);
+}

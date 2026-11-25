@@ -588,6 +588,7 @@ TEST_CASE("border planets at war post scouting sorties; risky planets post patro
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);
     info::learn_state(info::planet_facts(w, f.a), f.root_a, f.root_b, DipState::War, w.now);
     w.risk[at(w.planets[at(f.a)].sector)].risk = 5;
+    w.config.passenger.per_planet = 0;  // passenger runs are tested on their own (MSN-13)
     const auto posted = w.ledger.missions_posted;
     missions::planet_weekly(w, f.a, nullptr);
     CHECK(w.ledger.missions_posted == posted + 2);

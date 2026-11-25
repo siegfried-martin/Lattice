@@ -5,6 +5,33 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-24 · Tuning pass, part 3: insurance and the bottom rung
+
+The human's direction on the shipless and ruined characters (CHR-6, CHR-16, CHR-21,
+MSN-5, MSN-13, MIL-20, SYS-8, SYS-13):
+
+- **Insurance is built into a ship's price** (new CHR-21): a premium on top
+  (`ship.insurance_premium`, 0.3), and part of the price paid out when the ship is
+  destroyed (`ship.insurance_payout`, 0.5). No insurer is simulated. The premium is sunk,
+  and the payout is free money, a deliberate MSN-5 exception: what's good for the game
+  decides the numbers, not what a real insurer could offer. Cover is one sum per
+  character. Plans chosen by risk tolerance are `later`.
+- **A fall from the top is a peg at a time** (CHR-16): a lost fleet is rebuilt from the
+  payout and savings, about a tier down.
+- **A ruined character starts over** in a free tier-1 courier, uninsured, keeping its
+  standing and skills (CHR-16, CHR-6). Ideally a ship without a Lattice Drive, once
+  those exist (TRD-18).
+- **Passenger runs** (new MSN-13): one-way, free-money work for a character with one
+  tier-1 hull (`passenger.*`), a second deliberate MSN-5 exception.
+- **Insurance counts in a commander's expected loss** (CHR-10, MIL-2), so it lowers what
+  fighting costs and keeps combat frequent.
+- **Governors buy and rebuild their own fleets** (MIL-20), gunships.
+- **Fixes the run turned up:** a character with no ship waits rather than flying off
+  exploring; no ships are sold at a besieged planet; only armed fleets defend; a siege
+  fights defenders who come home strong enough to stand, and a weaker one can't block
+  the capture (SYS-13). Sieges had been running over 1,000 days.
+- **Not built:** courier work gated on the faction's opinion of the character.
+
 ### 2026-10-25 · Tuning pass, part 2: what a fleet costs, and held purses
 
 The human's direction after part 1 showed war money piling up with commanders (CHR-9,

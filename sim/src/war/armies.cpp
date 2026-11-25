@@ -41,7 +41,8 @@ std::vector<Id> ready(const World& w, Id planet, bool marching) {
     // The governor's own fleet (MIL-20): it defends at home, and marches only with a
     // steward to leave in charge.
     const Character& g = w.characters[at(gov)];
-    if (g.alive && g.planet == planet && g.army == kNone && g.battle == kNone && !g.ships.empty() &&
+    // Only armed fleets defend: an unarmed hull doesn't hold a planet.
+    if (g.alive && g.planet == planet && g.army == kNone && g.battle == kNone && ships::fleet(w, g).combat > 0 &&
         (!marching || roles::can_sail(w, planet))) {
         out.push_back(gov);
     }
@@ -49,7 +50,8 @@ std::vector<Id> ready(const World& w, Id planet, bool marching) {
         const Contract& ct = w.contracts[at(k)];
         if (!ct.alive || ct.kind != ContractKind::Service || ct.employer != gov) continue;
         const Character& c = w.characters[at(ct.employee)];
-        if (c.alive && c.activity == Activity::Serving && c.planet == planet && c.army == kNone && c.battle == kNone) {
+        if (c.alive && c.activity == Activity::Serving && c.planet == planet && c.army == kNone && c.battle == kNone &&
+            ships::fleet(w, c).combat > 0) {
             out.push_back(ct.employee);
         }
     }
@@ -616,8 +618,10 @@ Weighed weigh(const World& w, const Army& a, Id id) {
     const double fuel = (ch.planet != kNone && ch.planet != a.home ? move::fuel_cost(w, ch, ch.planet, a.home) : 0) +
                         2 * move::fuel_cost(w, ch, a.home, to);
     const double munitions = c.fleet.munitions_per_power * f.combat;  // a battle's refill (MIL-4)
-    out.join = p * share * (a.purse + c.bounty.share * kills + spoils) - (1 - p) * worth * c.combat.retreat_loss - fuel -
-               munitions;
+    // What a defeat would cost it: the ships lost, less what their insurance pays (CHR-21).
+    const double lost = worth * c.combat.retreat_loss;
+    const double net_loss = lost - std::min(ch.cover, lost * c.ship.insurance_payout);
+    out.join = p * share * (a.purse + c.bounty.share * kills + spoils) - (1 - p) * net_loss - fuel - munitions;
     // Staying: its employer's planet, against the armies seen coming for it.
     const Id k = contracts::held(w, id, ContractKind::Service);
     const Id post = k != kNone ? w.characters[at(w.contracts[at(k)].employer)].governs : ch.governs;
@@ -1054,7 +1058,22 @@ void siege_round(World& w, Id id, Observer* observer) {
                        .a = held.travel_seq + 1});
         return;
     }
-    if (s.node == kNone && defence <= 0 && ready(w, s.planet).empty()) {
+    if (s.node == kNone && defence <= 0) {
+        // Armed fleets come home during a siege: a rebuilt governor, a commander back from
+        // elsewhere. One strong enough to stand is fought before the planet can fall; one
+        // that would retreat (SYS-14) can't stop it, since a retreat at home leaves it there
+        // (tuning pass part 3: such a fleet used to hold a planet forever).
+        const std::vector<Id> defenders = ready(w, s.planet);
+        double held = 0, bold = 0, strongest_def = -1;
+        for (Id d : defenders) {
+            const double f = ships::fleet(w, w.characters[at(d)]).combat;
+            held += f;
+            if (f > strongest_def) strongest_def = f, bold = w.characters[at(d)].risk;
+        }
+        if (!defenders.empty() && held >= (c.retreat_base - c.retreat_risk * bold) * attack) {
+            combat::start(w, a.members, defenders, s.planet, true, s.army, kNone, observer);
+            return;  // the battle's end resumes the siege
+        }
         capture(w, id, observer);
         return;
     }
