@@ -675,6 +675,59 @@ Results, 8 seeds × 5 years:
   The free hull has a Lattice Drive until ships without one exist (TRD-18).
 - **Passenger runs stay at 2 a planet;** 4 changed nothing that matters.
 
+*Tuning pass, part 4 (2026-11-25): pirates and bankruptcy.* Breaking down part 3's idle
+characters by why they were idle found the cause: at the end, 17% of all characters were
+pirates sitting at a haven for 90+ days, in debt. A broke commander rolled its risk
+tolerance every day it stayed broke, so nearly every one who knew a pirate planet turned
+within weeks; the haven hired it, couldn't afford it at the next budget, and let it go;
+and a pirate with no salary had no work it was allowed to take, couldn't afford to move,
+and never fought, so it never died. Pirates were 31% of characters by year 5 (CHK-23:
+1% to 10%). The human's direction: piracy is terminal and rare enough to be a story arc;
+a pirate raids until destroyed, rebuilds in a free fighter and raids again until it dies,
+at the ordinary pod death chance, since it loses often; a lucky one can still get rich;
+many characters never turn (PIR-4, PIR-16).
+
+Built: the turn weighed once a broke spell, only for the bold (`pirate.turn_min_risk`
+0.5, chance `pirate.turn_p` 0.5 × risk); debts written off on renouncing; freelance
+raiding; a free tier-1 scout as a pirate's bottom rung, gunships to rebuild with. The
+first run fixed the pirates and moved the trap: the broke who no longer turned kept their
+last hull and sat in debt, 22% of characters by the end. So, also built: **bankruptcy**
+(CHR-16): still in debt with one hull, it's swapped for the bottom rung's and the debt
+written off; and the bottom rung looks for work without keeping a reserve. A legal-goods
+run taken at the haven with nowhere known to buy the good crashed the dev build once
+bottom-rung characters started taking them; it now fails.
+
+Results, 8 seeds × 5 years:
+
+| | Part 3 | Part 4 | Part 4, `pirate.turn_p` 1 | Target |
+|---|---|---|---|---|
+| Characters idle, CHK-17b (seeds passing) | 20.5% (2 of 8) | 12.2% (8) | 12.4% (8) | ≤ 20% |
+| Idle at the end, median | 27.8% | 13.1% | | |
+| Trading, mean | 25.7% | 32.8% | | |
+| Pirates, CHK-23 (seeds passing) | 15.3% (1 of 8) | 0.9% (2) | 1.1% (5) | 1% to 10% |
+| Pirates at the end, median | 618 | 46 | 47 | |
+| Turning pirate a year | 122 | 14 | 20 | rare |
+| Pirate lifespan after turning, median days | — (3 in 4 never died) | 102 | 94 | |
+| Pirate raids a year (freelance) | 142 | 297 (284) | 416 (385) | |
+| Bankruptcies a year; debt written off a year | — | 98; 14,000 | 76; 10,000 | |
+| Free hulls a year | 412 | 564 | 765 | |
+| Battles a year; deaths per battle | 1,540; 0.029 | 1,830; 0.030 | 2,240; 0.028 | |
+| Smuggling runs a year (CHK-24) | 12.7 | 5.5 | 13.3 | ≥ 1 |
+| Worst issuer's failed share (CHK-28b) | 0.61 | 0.75 | | ≤ 0.5 |
+| Checks passing on every seed | 28 of 44 | 30 | 29 | |
+
+- **Met:** idleness passes CHK-17b on every seed for the first time, and trading is up
+  by a third. Pirates are a flow: they turn rarely, raid twice as often as all of part
+  3's pirates did, and die about three months in. Debt written off is small, about a
+  seventh of what new characters bring in.
+- **Not met:** pirates sit at the floor of CHK-23. The stock is set by how fast pirates
+  die more than by how many turn: doubling `pirate.turn_p` adds a tenth. Whether the band
+  or the pirates should move is the human's call.
+- **Pirate missions fail more** (CHK-28b, already failing in part 3): more bold
+  independents now take pirate runs, and a run that can't be done fails instead of
+  pretending to finish. Pirate missions are their own job.
+- **Fewer pirates offer fewer smuggling runs** (CHK-24 still passes, CHK-10 halves).
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

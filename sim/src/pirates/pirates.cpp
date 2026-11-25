@@ -26,6 +26,19 @@ std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 
 bool by_planet(const PirateFact& f, Id p) { return f.planet < p; }
 
+// Raid targets from a pirate planet: lawful planets within pirate.range_days of open
+// space, weighted by population (a stand-in for believed traffic, SYS-16).
+void raid_targets(const World& w, Id planet, std::vector<Id>& targets, std::vector<double>& weights) {
+    const Planet& p = w.planets[at(planet)];
+    const double reach = w.config.pirate.range_days * w.config.travel.space_speed;
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+        const Planet& t = w.planets[at(q)];
+        if (t.pirate || std::hypot(t.x - p.x, t.y - p.y) > reach) continue;
+        targets.push_back(q);
+        weights.push_back(t.population);
+    }
+}
+
 // A sworn pirate commander for a pirate planet's governor: a service contract at
 // pirate.salary of the lawful stipend (PIR-5).
 void hire(World& w, Id planet, Id id) {
@@ -185,16 +198,9 @@ void dispatch(World& w, Id planet, Observer* observer) {
         const double r = market::reserve(w.config, p, g);
         if (r > 0) hunger = std::max(hunger, 1 - std::min(1.0, p.stock[g] / r));
     }
-    // Targets: lawful planets within reach in open space, weighted by population.
     std::vector<Id> targets;
     std::vector<double> weights;
-    const double reach = w.config.pirate.range_days * w.config.travel.space_speed;
-    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
-        const Planet& t = w.planets[at(q)];
-        if (t.pirate || std::hypot(t.x - p.x, t.y - p.y) > reach) continue;
-        targets.push_back(q);
-        weights.push_back(t.population);
-    }
+    raid_targets(w, planet, targets, weights);
     if (targets.empty()) return;
     Rng& rng = w.rng[Stream::Combat];
     const Id gov = p.governor;
@@ -226,13 +232,46 @@ bool try_turn(World& w, Id id, Observer* observer) {
         if (d < best_d) best_d = d, best = f.planet;
     }
     if (best == kNone) return false;
-    const double p = w.config.pirate.turn_all ? 1 : c.risk;  // pirate.turn_p(risk) (EXP-9)
+    // Only the bold ever turn, and not all of them (EXP-9 compares every broke commander).
+    const auto& cfg = w.config.pirate;
+    const double p = cfg.turn_all ? 1 : c.risk >= cfg.turn_min_risk ? cfg.turn_p * c.risk : 0;
     if (!w.rng[Stream::Characters].chance(p)) return false;
     if (!move::travel_to(w, id, best)) return false;
     if (c.mission != kNone) missions::fail(w, c.mission, observer);  // walking off with it (MSN-3)
     c.activity = Activity::Renouncing;
     c.renounce_to = best;
     if (observer) observer->log(w.now, "pirate.turning", id, "toward " + std::to_string(best));
+    return true;
+}
+
+bool freelance(World& w, Id id, Observer* observer) {
+    Character& c = w.characters[at(id)];
+    if (!c.pirate || c.planet == kNone || c.ships.empty()) return false;
+    if (!w.planets[at(c.planet)].pirate) {
+        // Away from the fringe (a pod, say): back to the nearest pirate planet it knows.
+        Id best = kNone;
+        double best_d = std::numeric_limits<double>::max();
+        for (const PirateFact& f : c.facts.pirates) {
+            if (!f.pirate || !w.planets[at(f.planet)].pirate) continue;
+            const double d = w.derived.travel(c.planet, f.planet);
+            if (d < best_d) best_d = d, best = f.planet;
+        }
+        if (best == kNone || !move::travel_to(w, id, best)) return false;
+        c.activity = Activity::Exploring;
+        return true;
+    }
+    std::vector<Id> targets;
+    std::vector<double> weights;
+    raid_targets(w, c.planet, targets, weights);
+    if (targets.empty()) return false;
+    const Id target = targets[w.rng[Stream::Characters].weighted(weights)];
+    if (!move::start_route(w, id, move::sortie(w, kPirates, c.planet, target, w.config.raid.standoff, w.config.raid.days * kDay))) {
+        return false;
+    }
+    c.activity = Activity::Raiding;
+    ++w.ledger.pirate_raids;
+    ++w.ledger.freelance_raids;
+    if (observer) observer->log(w.now, "pirate.freelance", id, "from " + std::to_string(c.planet) + " toward " + std::to_string(target));
     return true;
 }
 
@@ -246,6 +285,13 @@ void renounce(World& w, Id id, Observer* observer) {
         return;
     }
     for (Id k : std::vector<Id>(c.contracts)) contracts::end(w, k);
+    // It leaves its debts behind with its old life (PIR-4); writing them off puts money
+    // back in the world (ECO-13).
+    if (c.wealth < 0) {
+        w.ledger.money_created -= c.wealth;
+        c.wealth = 0;
+        c.broke_since = kNever;
+    }
     hire(w, p, id);
     ++w.ledger.turned_pirate;
     if (observer) observer->log(w.now, "pirate.joined", id, "at " + std::to_string(p));

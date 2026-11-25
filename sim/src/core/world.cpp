@@ -194,6 +194,8 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "money.insurance_paid", -1, w.ledger.insurance_paid);
     o.sample(t, "money.passenger_fares", -1, w.ledger.passenger_fares);
     o.sample(t, "chars.free_hulls", -1, static_cast<double>(w.ledger.free_hulls));
+    o.sample(t, "chars.bankruptcies", -1, static_cast<double>(w.ledger.bankruptcies));  // CHR-16
+    o.sample(t, "chars.debt_written_off", -1, w.ledger.debt_written_off);
     o.sample(t, "chars.passenger_runs", -1, static_cast<double>(w.ledger.passenger_runs));
     o.sample(t, "chars.claims", -1, static_cast<double>(w.ledger.claims));
 
@@ -332,7 +334,12 @@ void sample_metrics(const World& w, Observer& o) {
     // Piracy (CHK-4, CHK-9, CHK-23).
     std::int64_t pirate_planets = 0, fringe_pirates = 0, pirates = 0;
     for (const Planet& pl : w.planets) pirate_planets += pl.pirate, fringe_pirates += pl.pirate && pl.fringe;
-    for (const Character& ch : w.characters) pirates += ch.alive && ch.pirate;
+    std::int64_t pirates_idle = 0, pirates_raiding = 0;
+    for (const Character& ch : w.characters) {
+        pirates += ch.alive && ch.pirate;
+        pirates_idle += ch.alive && ch.pirate && ch.activity == Activity::Idle;
+        pirates_raiding += ch.alive && ch.pirate && ch.activity == Activity::Raiding;
+    }
     o.sample(t, "world.pirate_planets", -1, static_cast<double>(pirate_planets));
     o.sample(t, "world.fringe_pirate_planets", -1, static_cast<double>(fringe_pirates));
     o.sample(t, "world.pirates", -1, static_cast<double>(pirates));
@@ -342,6 +349,10 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "world.recaptures", -1, static_cast<double>(w.ledger.recaptures));
     o.sample(t, "world.turned_pirate", -1, static_cast<double>(w.ledger.turned_pirate));
     o.sample(t, "world.pirate_raids", -1, static_cast<double>(w.ledger.pirate_raids));
+    o.sample(t, "world.freelance_raids", -1, static_cast<double>(w.ledger.freelance_raids));  // PIR-16
+    o.sample(t, "world.pirate_deaths", -1, static_cast<double>(w.ledger.pirate_deaths));
+    o.sample(t, "world.pirates_idle", -1, static_cast<double>(pirates_idle));
+    o.sample(t, "world.pirates_raiding", -1, static_cast<double>(pirates_raiding));
     o.sample(t, "world.authority_contracts", -1, static_cast<double>(w.ledger.authority_contracts));
     // Smuggling and policing (CHK-10, CHK-24).
     double policing = 0, contraband = 0;

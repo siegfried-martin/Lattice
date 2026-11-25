@@ -243,7 +243,19 @@ rules.
 - *(proposed, tuning pass part 3)* **A ruined character starts over at the bottom.** A
   character with no ship and not enough for any hull gets the hull a new character gets
   (CHR-6), a tier-1 courier, uninsured, and keeps its standing, reputation,
-  relationships and skills. The bottom rung's work is courier runs, passenger runs
+  relationships and skills. *(tuning pass part 4)* A pirate gets a tier-1 scout instead,
+  to raid in (PIR-16).
+- *(proposed, tuning pass part 4)* **Bankruptcy is the same restart.** A character broke
+  for `char.broke_days` that doesn't turn pirate (PIR-4) sells ships, smallest first,
+  until it's solvent. Still in debt with one hull left, it's bankrupt: that hull is sold
+  unless it's already the bottom rung's, what it still owes is written off (ECO-13), and
+  it starts over on the bottom rung at zero. *(Fixed: it used to keep its last hull and
+  sit in debt for good, running costs deepening it, unable to afford to go anywhere. By
+  year 5 that was a fifth of all characters.)*
+- *(proposed, tuning pass part 4)* **The bottom rung keeps no reserve.** A character with
+  one tier-1 hull and nothing to do here goes to look at another market even when it
+  can't spare the cautious reserve (SYS-21): idling costs it the same running costs as
+  looking for work. The bottom rung's work is courier runs, passenger runs
   (MSN-13) and small trades. A ship without a Lattice Drive (TRD-18) suits it better,
   so it doesn't compete with real merchants, once those ships are built. Until then the
   free courier has a drive.

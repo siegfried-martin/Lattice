@@ -5,6 +5,25 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-25 · Tuning pass, part 4: pirates and bankruptcy
+
+The human's direction after part 3's idle characters turned out to be stranded pirates
+(PIR-4, PIR-16, CHR-16, SYS-16):
+
+- **Piracy is terminal, and rare enough to be a story arc** (PIR-4): weighed once a broke
+  spell, only by the bold (`pirate.turn_min_risk`, `pirate.turn_p`). Many characters
+  never turn. Debts are left behind on renouncing.
+- **Raid until destroyed, then again until dead** (new PIR-16): a pirate takes a mission
+  if offered, else raids on its own. **No extra death chance for pirates:** they die
+  young because they lose often, at the ordinary pod roll.
+- **A pirate's bottom rung is a fighter**, a free tier-1 scout, so it can raid at once; a
+  pirate can still save up and build a bigger fleet.
+- **Bankruptcy** (CHR-16): still in debt with one hull, a character is swapped onto the
+  bottom rung's hull with its debt written off, rather than sitting in debt for good.
+- **The bottom rung looks for work without keeping a reserve** (CHR-16, TRD-4).
+- **Fixed:** a legal-goods run taken at the haven with nowhere known to buy the good.
+- **Open:** pirates sit at CHK-23's 1% floor; the band or the pirates may move.
+
 ### 2026-11-24 · Tuning pass, part 3: insurance and the bottom rung
 
 The human's direction on the shipless and ruined characters (CHR-6, CHR-16, CHR-21,

@@ -175,6 +175,10 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     if (m.kind == MissionKind::LegalGoods) {
         first = cheapest_source(w, c, m.good);
         if (first == kNone) first = c.planet;
+        if (first == m.at) {  // nowhere it knows to buy the good: it can't do the run
+            finish(w, id, false, observer);
+            return;
+        }
     }
     m.target = first;
     if (c.planet == first) {
@@ -252,6 +256,10 @@ void landed(World& w, Id id, Observer* observer) {
     }
     // At the haven: sell into its market, and the bonus (PIR-3: its life support comes from
     // these runs).
+    if (c.cargo_qty <= 0 || c.cargo_good != m.good) {
+        finish(w, id, false, observer);
+        return;
+    }
     Planet& haven = w.planets[at(m.at)];
     const market::Fill f = market::sell(haven, w.config, c.cargo_good, c.cargo_qty, 0);
     c.wealth += f.money;

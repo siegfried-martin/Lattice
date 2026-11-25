@@ -471,6 +471,8 @@ struct Config {
         double flip_debt = 1;         // debt, in months of income, at which debt's share of rebellion is full (round 4; was 3 months of costs)
         double cost_mult = 0.3;       // a pirate planet's operating costs (ECO-14)
         bool turn_all = false;        // EXP-9: every broke commander turns pirate, not risk-weighted
+        double turn_min_risk = 0.5;   // PIR-4: only this bold or bolder ever turns pirate
+        double turn_p = 0.5;          // PIR-4: x risk, the one chance a broke spell gives to turn
         double salary = 0.6;          // pirate stipend / lawful stipend (PIR-5)
         double range_days = 20;       // how far, in open space, pirates go raiding (about 3 sectors)
         std::int64_t commanders = 2;  // pirate commanders at each starting pirate planet (GEN-9)
@@ -836,6 +838,8 @@ void for_each_field(C& c, F&& f) {
     f("pirate.flip_debt", c.pirate.flip_debt);
     f("pirate.cost_mult", c.pirate.cost_mult);
     f("pirate.turn_all", c.pirate.turn_all);
+    f("pirate.turn_min_risk", c.pirate.turn_min_risk);
+    f("pirate.turn_p", c.pirate.turn_p);
     f("pirate.salary", c.pirate.salary);
     f("pirate.range_days", c.pirate.range_days);
     f("pirate.commanders", c.pirate.commanders);

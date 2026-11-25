@@ -680,6 +680,9 @@ struct Ledger {
     // ships_bought; payouts and fares are part of free_money.
     double insurance_premiums = 0, insurance_paid = 0, passenger_fares = 0;
     std::int64_t free_hulls = 0, passenger_runs = 0, claims = 0;
+    std::int64_t freelance_raids = 0, pirate_deaths = 0;  // PIR-16
+    std::int64_t bankruptcies = 0;  // CHR-16
+    double debt_written_off = 0;
     // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
     // 1 war): own net income, military and patronage paid, and vassals' net and tribute.
     std::array<double, 2> month_net{}, month_military{}, month_patronage{}, vassal_net{}, vassal_tribute{};
@@ -706,6 +709,7 @@ void fields(Ar& ar, L& l) {
        l.objectives_declined, l.objective_rewards, l.campaigns_abandoned, l.purses_held, l.purses_returned, l.munitions,
        l.ceasefire_unpaid);
     ar(l.insurance_premiums, l.insurance_paid, l.passenger_fares, l.free_hulls, l.passenger_runs, l.claims);
+    ar(l.freelance_raids, l.pirate_deaths, l.bankruptcies, l.debt_written_off);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
 }
 

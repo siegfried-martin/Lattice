@@ -1078,7 +1078,7 @@ owed. Pirates and characters with no faction earn no bounties; pirates live on l
 
 ### SYS-16 Piracy `v1`
 
-*Implements:* PIR-1 to PIR-13, ECO-13. *Cadence:* events and daily.
+*Implements:* PIR-1 to PIR-16, ECO-13. *Cadence:* events and daily.
 
 - *(proposed, round 3: built)* **A planet fails with a weekly chance,**
   `p = rebel.scale × (u(H)^rebel.power for H < 0 + rebel.w_debt × clamp(debt ÷ (pirate.flip_debt × monthly income), 0, 1))`,
@@ -1097,7 +1097,20 @@ owed. Pirates and characters with no faction earn no bounties; pirates live on l
 - **A commander goes broke** when wealth stays below zero for `char.broke_days`. Then,
   if it knows a pirate planet: with probability `pirate.turn_p(risk)` it travels there
   (running costs suspended), renounces and is hired at `pirate.salary`; otherwise it
-  sells ships until solvent (EXP-9 compares).
+  sells ships until solvent (EXP-9 compares). *(proposed, tuning pass part 4)* Weighed
+  once a broke spell, on its first day past `char.broke_days`; the chance is
+  `pirate.turn_p` × risk for risk ≥ `pirate.turn_min_risk`, else 0. Debt is written off
+  on renouncing (ECO-13).
+- *(proposed, tuning pass part 4)* **A pirate with nothing better raids on its own**
+  (PIR-16): from a pirate planet, a sortie toward a lawful planet within
+  `pirate.range_days`, weighted by population, drawn from the characters stream; from
+  anywhere else, back to the nearest pirate planet it knows. A pirate's bottom-rung hull
+  is a tier-1 scout and its rebuild class is the gunship.
+- *(proposed, tuning pass part 4)* **Bankruptcy** (CHR-16): selling ships ends the broke
+  spell either way. Still in debt with one hull, the hull is sold unless it's the bottom
+  rung's (a tier-1 courier, or a pirate's scout), the debt is written off as
+  `money_created`, and the character starts at zero. The turn is weighed at the first
+  planet past `char.broke_days`, so one in transit waits to land.
 - **Raiding:** a pirate commander picks the sector maximising
   `Σ believed merchant traffic × cargo value at its home pirate planet's prices × detection chance`
   within range, patrols it, attacks merchants it detects, and returns to sell loot.

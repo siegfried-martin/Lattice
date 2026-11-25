@@ -85,6 +85,7 @@ void lose_fleet(World& w, Id id, Observer* observer) {
     if (w.rng[Stream::Combat].chance(w.config.combat.pod_death_p)) {
         c.alive = false;
         ++w.ledger.deaths;
+        w.ledger.pirate_deaths += c.pirate;
         if (observer) observer->log(w.now, "character.died", id, "pod lost");
         if (c.governs != kNone) {
             // A governor's contracts as employer wait for its successor (FAC-17).

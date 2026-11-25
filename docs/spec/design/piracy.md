@@ -52,6 +52,17 @@ their allegiances and is hired** by it.
 - `experimental` **Risk tolerance decides** between piracy (aggressive) and downsizing by
   selling ships (conservative), compared in headless runs against every broke commander
   turning pirate (EXP-9). Keep whichever produces a better pirate population.
+- *(proposed, tuning pass part 4)* **Turning is rare, and a story beat.** It's weighed
+  once a broke spell, on the first day past `char.broke_days`, not every day it stays
+  broke. Only a character at least `pirate.turn_min_risk` bold is ever tempted, and then
+  with chance `pirate.turn_p` × its risk tolerance; everyone else goes down the lawful
+  bottom rung (CHR-16). Many characters never turn. *(Fixed: the daily roll made nearly
+  every broke commander who knew a pirate planet turn within a couple of weeks.)*
+- *(proposed, tuning pass part 4)* **Piracy is terminal.** There is no way back (PIR-7);
+  a pirate's story ends when it dies (PIR-16).
+- *(proposed, tuning pass part 4)* **Its debts stay behind** when it renounces: written off
+  (ECO-13), so it starts its pirate life at zero rather than deeper than the lawful
+  bottom rung.
 
 ### PIR-5 Pay and loot `v1`
 
@@ -83,6 +94,32 @@ broke to keep a healthy pirate population, a procedural top-up of named pirates 
 fallback; the headless numbers decide whether it's needed.
 
 ## The pirate relation
+
+### PIR-16 Raid until destroyed `v1` `proposed`
+
+*(tuning pass part 4)* **A pirate's work is raiding.** A pirate takes a mission if one is
+offered, sells what's in its hold, and otherwise goes out raiding on its own from the
+pirate planet it's at, choosing targets as a pirate planet's dispatch does (lawful
+planets within `pirate.range_days`, weighted by population). One away from the fringe,
+landed by a pod say, heads back to the nearest pirate planet it knows first. A salaried
+pirate is still sent out by its planet (PIR-3); a pirate the planet can't afford to keep
+raids anyway.
+
+- **The cycle is raid until destroyed, then again until dead.** Raiding draws patrols
+  and stronger lawful forces, so pirates lose fights often. Each loss is the ordinary
+  pod roll (CHR-15, `pod.death_p`), with no extra danger for pirates: they die young
+  because they lose a lot, like bandits in Bannerlord.
+- **The bottom rung for a pirate is a fighter.** A pirate with no ship and too little for
+  one gets a free tier-1 scout, uninsured (CHR-16), so it can raid straight away. A
+  pirate rebuilds and upgrades with gunships (SYS-8).
+- **A pirate can still get rich.** Loot sold at the pirate market builds savings, savings
+  buy a bigger fleet, and a bigger fleet wins more often and lasts longer.
+- Pirates are a flow, not a stock: they turn, raid and die, and the population top-up
+  (SYS-18) replaces them with new lawful characters.
+
+*Why:* a pirate with no salary used to sit at its haven forever, in debt, with no work it
+was allowed to take. By year 5 nearly a third of all characters were idle pirates
+(CHK-17b, CHK-23).
 
 ### PIR-9 One pirate relation `v1`
 

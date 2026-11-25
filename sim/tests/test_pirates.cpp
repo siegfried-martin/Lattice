@@ -225,7 +225,9 @@ TEST_CASE("a broke commander who knows a pirate planet joins it (PIR-4)") {
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
         if (!w.planets[at(p)].pirate && w.planets[at(p)].system != w.planets[at(haven)].system) start = p;
     }
-    const Id id = armed(w, start, 1, 1);
+    // Tier 2, so not the bottom rung, which looks for work in debt and would earn its way
+    // out first (CHR-16).
+    const Id id = armed(w, start, 1, 2);
     Character& ch = w.characters[at(id)];
     ch.wealth = -100;
     ch.activity = Activity::Exploring;
@@ -238,6 +240,62 @@ TEST_CASE("a broke commander who knows a pirate planet joins it (PIR-4)") {
     const Id k = contracts::held(w, id, ContractKind::Service);
     REQUIRE(k != kNone);
     CHECK(w.contracts[at(k)].employer == w.planets[at(haven)].governor);
+}
+
+TEST_CASE("a timid broke commander never turns pirate; bankrupt, it starts over on the bottom rung (PIR-4, CHR-16)") {
+    Config c = quiet();
+    World w = new_world(c, 94);
+    Id haven = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (w.planets[at(p)].fringe && fealty::vassals(w, p).empty()) haven = p;
+    }
+    REQUIRE(haven != kNone);
+    pirates::flip(w, haven, nullptr);
+    Id start = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].system != w.planets[at(haven)].system) start = p;
+    }
+    const Id id = armed(w, start, 2, 2);
+    Character& ch = w.characters[at(id)];
+    ch.risk = c.pirate.turn_min_risk / 2;
+    ch.wealth = -1e6;
+    ch.activity = Activity::Exploring;
+    pirates::observe(w, ch.facts, haven);
+    advance(w, (c.chars.broke_days + 2) * kDay);
+    const Character& after = w.characters[at(id)];
+    CHECK(!after.pirate);
+    CHECK(after.activity != Activity::Renouncing);
+    CHECK(w.ledger.turned_pirate == 0);
+    CHECK(w.ledger.bankruptcies == 1);
+    CHECK(w.ledger.debt_written_off > 0);
+    REQUIRE(after.ships.size() == 1);
+    CHECK(w.map.variants[at(after.ships[0])].cls == ShipClass::Courier);
+    CHECK(w.map.variants[at(after.ships[0])].tier == 1);
+    CHECK(after.wealth > -1000);  // the debt is gone; only days of upkeep since
+}
+
+TEST_CASE("a ruined pirate with no salary gets a scout and goes raiding on its own (PIR-16)") {
+    Config c = quiet();
+    World w = new_world(c, 94);
+    Id haven = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
+        if (w.planets[at(p)].fringe && fealty::vassals(w, p).empty()) haven = p;
+    }
+    REQUIRE(haven != kNone);
+    pirates::flip(w, haven, nullptr);
+    const Id id = chars::spawn(w, haven);
+    Character& ch = w.characters[at(id)];
+    ch.pirate = true;
+    ch.ships.clear();
+    ch.wealth = 0;
+    chars::wake(w, id, w.now);
+    advance(w, kDay);
+    const Character& after = w.characters[at(id)];
+    REQUIRE(after.ships.size() == 1);
+    CHECK(w.map.variants[at(after.ships[0])].cls == ShipClass::Scout);
+    CHECK(w.map.variants[at(after.ships[0])].tier == 1);
+    CHECK(w.ledger.freelance_raids == 1);
+    CHECK(after.activity == Activity::Raiding);
 }
 
 TEST_CASE("pirates raid lawful ships in open space, not pirates' friends (PIR-9, SYS-16)") {

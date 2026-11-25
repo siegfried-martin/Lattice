@@ -370,6 +370,8 @@ void validate(const Config& c) {
     positive(c.pirate.flip_debt, "pirate.flip_debt");
     non_negative(c.pirate.cost_mult, "pirate.cost_mult");
     non_negative(c.pirate.salary, "pirate.salary");
+    share(c.pirate.turn_min_risk, "pirate.turn_min_risk");
+    share(c.pirate.turn_p, "pirate.turn_p");
     non_negative(c.pirate.range_days, "pirate.range_days");
     require(c.pirate.commanders >= 0, "pirate.commanders can't be negative");
     non_negative(c.pirate.contraband_price, "pirate.contraband_price");

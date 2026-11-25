@@ -231,7 +231,8 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `pirate.flip_debt` | Debt, in months of gross income, at which debt's share of the rebellion chance is full (ECO-13) *(proposed, round 4; was 3 months of operating costs)* | 1 |
 | `rebel.scale`, `rebel.power`, `rebel.w_debt` | Weekly failure chance = scale × (u(H)^power below neutral + w_debt × debt share), replacing `pirate.flip_days`, `rebel.happiness`, `rebel.shortfall` and `rebel.days` (SYS-16) *(proposed, round 3: a scale of 0.01 flipped 9% of planets a year)* | 0.007, 2, 1 |
 | `pirate.cost_mult` | Pirate planet operating cost multiplier | 0.3 |
-| `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of with chance equal to its risk tolerance | false |
+| `pirate.turn_all` | EXP-9's switch: every broke commander who knows a pirate planet turns pirate, instead of by `pirate.turn_min_risk` and `pirate.turn_p` | false |
+| `pirate.turn_min_risk`, `pirate.turn_p` | PIR-4: only a character this bold or bolder is ever tempted; it turns with chance `turn_p` × risk tolerance, weighed once a broke spell *(proposed, tuning pass part 4; was risk tolerance, rolled daily)* | 0.5, 0.5 |
 | `pirate.range_days` | How far pirates go raiding, in days of open space at the reference speed *(proposed, MS-6)* | 20 |
 | `pirate.commanders` | Pirate commanders at each starting pirate planet (GEN-9) *(proposed, MS-6)* | 2 |
 | `space.engage_cooldown_hours` | After a fight in open space, neither side is engaged again for this long *(proposed, MS-6)* | 12 |

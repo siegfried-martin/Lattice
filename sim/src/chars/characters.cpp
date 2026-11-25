@@ -80,25 +80,28 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
     // A planet under siege sells no ships (and gives no free hull) until it ends.
     if (c.planet == kNone || w.planets[at(c.planet)].siege != kNone) return;
     const auto& cfg = w.config;
-    const ShipClass cls = c.governs != kNone || c.earned_combat > c.earned_cargo ? ShipClass::Gunship : ShipClass::Freighter;
+    // A pirate's trade is raiding (PIR-16), so it buys gunships.
+    const ShipClass cls = c.governs != kNone || c.pirate || c.earned_combat > c.earned_cargo ? ShipClass::Gunship : ShipClass::Freighter;
+    // The bottom rung: a courier, or for a pirate a scout it can raid in at once (CHR-16, PIR-16).
+    const ShipClass bottom = c.pirate ? ShipClass::Scout : ShipClass::Courier;
     const Id culture = w.planets[at(c.planet)].region;  // ships come from the planet's culture (MIL-4)
     const double threshold = cfg.spend.threshold_base - cfg.spend.threshold_risk * c.risk;
     if (c.ships.empty()) {
         // A lost fleet is rebuilt from the insurance and savings (CHR-16, CHR-21): the
         // highest tier of the work it did that it can afford with a margin, else any hull
-        // of it, else a courier. Any hull beats none.
+        // of it, else the bottom rung. Any hull beats none.
         Id pick = kNone;
         for (int tier = kTierCount; tier >= 1 && pick == kNone; --tier) {
             const Id v = ships::variant(w.map, culture, cls, tier);
             if (c.wealth >= threshold * ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
         }
-        for (const Id v : {ships::variant(w.map, culture, cls, 1), ships::variant(w.map, culture, ShipClass::Courier, 1)}) {
+        for (const Id v : {ships::variant(w.map, culture, cls, 1), ships::variant(w.map, culture, bottom, 1)}) {
             if (pick == kNone && c.wealth >= ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
         }
         if (pick == kNone) {
             // Ruined: it starts over at the bottom (CHR-16), with the hull a new character
-            // gets (CHR-6). Nobody bought it, so it carries no insurance.
-            c.ships.push_back(ships::variant(w.map, culture, ShipClass::Courier, 1));
+            // gets (CHR-6), or a pirate's scout. Nobody bought it, so it carries no insurance.
+            c.ships.push_back(ships::variant(w.map, culture, bottom, 1));
             ++w.ledger.free_hulls;
             if (observer) observer->log(w.now, "ship.free", id, std::to_string(c.wealth));
             return;
@@ -136,20 +139,47 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
     if (observer) observer->log(w.now, "ship.bought", id, std::to_string(static_cast<int>(cls)) + " tier " + std::to_string(tier));
 }
 
+// The hull a ruined character starts over in (CHR-16): a courier, or a pirate's scout
+// (PIR-16).
+Id bottom_hull(const World& w, const Character& c) {
+    const Id culture = c.planet != kNone ? w.planets[at(c.planet)].region : c.culture;
+    return ships::variant(w.map, culture, c.pirate ? ShipClass::Scout : ShipClass::Courier, 1);
+}
+
+void sell(World& w, Character& c, std::vector<Id>::iterator it) {
+    const double value = w.map.variants[at(*it)].price * w.config.ship.resale;
+    c.wealth += value;
+    w.ledger.ships_bought -= value;
+    w.ledger.money_sunk -= value;
+    ships::lapse(w, c, *it);
+    c.ships.erase(it);
+}
+
 // Not solvent for char.broke_days: sell ships, smallest first, until solvent (PIR-4's
-// lawful branch; turning pirate arrives with piracy, MS-6). The last hull is kept.
+// lawful branch). *(tuning pass part 4)* Still in debt with one hull left, it's bankrupt
+// (CHR-16): the last hull is sold unless it's already the bottom rung's, the debt is
+// written off (ECO-13), and it starts over on the bottom rung.
 void go_broke(World& w, Id id) {
     Character& c = w.characters[at(id)];
     while (c.wealth < 0 && c.ships.size() > 1) {
-        auto it = std::min_element(c.ships.begin(), c.ships.end(),
-                                   [&](Id a, Id b) { return w.map.variants[at(a)].price < w.map.variants[at(b)].price; });
-        const double value = w.map.variants[at(*it)].price * w.config.ship.resale;
-        c.wealth += value;
-        w.ledger.ships_bought -= value;
-        w.ledger.money_sunk -= value;
-        ships::lapse(w, c, *it);
-        c.ships.erase(it);
+        sell(w, c, std::min_element(c.ships.begin(), c.ships.end(), [&](Id a, Id b) {
+                 return w.map.variants[at(a)].price < w.map.variants[at(b)].price;
+             }));
     }
+    if (c.wealth >= 0) return;
+    const Id bottom = bottom_hull(w, c);
+    if (!c.ships.empty() && w.map.variants[at(c.ships[0])].price > w.map.variants[at(bottom)].price) {
+        sell(w, c, c.ships.begin());
+        c.ships.push_back(bottom);
+        ++w.ledger.free_hulls;
+    }
+    if (c.wealth < 0) {
+        w.ledger.money_created -= c.wealth;
+        w.ledger.debt_written_off -= c.wealth;
+        c.wealth = 0;
+    }
+    c.broke_since = kNever;
+    ++w.ledger.bankruptcies;
 }
 
 }  // namespace
@@ -263,8 +293,10 @@ void daily(World& w, Observer*) {
         } else if (c.broke_since == kNever) {
             c.broke_since = w.now;
         } else if (w.now - c.broke_since >= cfg.chars.broke_days * kDay && c.activity != Activity::Renouncing) {
-            // PIR-4: a commander who knows a pirate planet may head there; else it sells ships.
-            if (!pirates::try_turn(w, id, nullptr)) go_broke(w, id);
+            // PIR-4: a commander who knows a pirate planet may head there, weighed once a
+            // broke spell, at its first planet past char.broke_days; else it sells ships.
+            // Either way the spell ends: go_broke leaves it solvent or bankrupt (CHR-16).
+            if (c.planet != kNone && !pirates::try_turn(w, id, nullptr)) go_broke(w, id);
         }
     }
 
@@ -383,17 +415,26 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
     const missions::Offer offer = missions::best_offer(w, id);
     const merchant::Plan plan = merchant::best_trip(w, c, merchant::employer_root(w, id));
     const double trade = plan.score;
-    if (offer.mission != kNone && offer.score > 0 && offer.score >= trade) {
+    if (offer.mission != kNone && offer.score > 0 && (offer.score >= trade || c.pirate)) {
         missions::take(w, id, offer.mission, observer);
+        return;
+    }
+    // A pirate's work is raiding (PIR-16): a mission if there is one, then its hold sold,
+    // then out on its own until it's destroyed.
+    if (c.pirate && !(c.cargo_qty > 0 && plan.value > 0)) {
+        if (!pirates::freelance(w, id, observer)) wake(w, id, w.now + kDay);
         return;
     }
     if (plan.score >= w.config.merchant.min_score || (c.cargo_qty > 0 && plan.value > 0)) {
         merchant::start(w, id, plan, observer);
         return;
     }
-    // Nothing worth doing here: look at another market (TRD-4), if it can afford to.
+    // Nothing worth doing here: look at another market (TRD-4), if it can afford to. The
+    // bottom rung (one tier-1 hull) keeps no reserve: idling costs it as much as looking
+    // for work does (CHR-16).
     const Id target = merchant::explore_target(w, c);
-    if (target != kNone && c.wealth - move::fuel_cost(w, c, c.planet, target) > reserve(w, c) &&
+    const bool bottom_rung = c.ships.size() == 1 && w.map.variants[at(c.ships[0])].tier == 1;
+    if (target != kNone && (bottom_rung || c.wealth - move::fuel_cost(w, c, c.planet, target) > reserve(w, c)) &&
         move::travel_to(w, id, target)) {
         c.activity = Activity::Exploring;
         return;

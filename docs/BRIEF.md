@@ -276,13 +276,15 @@ The design of the full game is settled enough to build its simulation. In brief:
   information network, in return for trips that start and end at home; independents run
   single trips. Merchants hire escorts by weighing route risk against cargo value. A slow
   osmosis keeps markets from becoming deserts (TRD-3 to TRD-13).
-- **Piracy:** one anarchic pirate faction on the fringe, unable to use the Lattice. Broke
-  commanders turn pirate; loot sells only at pirate planets, which make contraband. A
+- **Piracy:** one anarchic pirate faction on the fringe, unable to use the Lattice. A few
+  bold broke commanders turn pirate, for good; most never do. A pirate raids until it's
+  destroyed, rebuilds in a free fighter and raids again until it dies, though a lucky
+  one can get rich; loot sells only at pirate planets, which make contraband. A
   planet may fail any week, likelier the unhappier and deeper in debt it is; with no
   vassals it turns pirate, with vassals it secedes and is attacked by its old faction
   (ECO-13). One
   pirate relation both shields you from pirates and raises lawful suspicion, so smuggling
-  is a real risk (PIR-1 to PIR-13).
+  is a real risk (PIR-1 to PIR-16).
 - **Information moves at the speed of ships.** Every character has its own dated facts;
   members of a faction share on contact; couriers carry news, orders and calls for help
   down the fealty tree; scouts and spies watch the enemy (INF-1 to INF-14).

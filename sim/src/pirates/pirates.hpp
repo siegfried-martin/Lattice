@@ -31,18 +31,23 @@ void seed(World& world);
 // for believed traffic, SYS-16).
 void dispatch(World& world, Id planet, Observer* observer);
 
+// PIR-16: a pirate with no better work raids on its own from the pirate planet it's at,
+// as dispatch picks targets, or heads back to the nearest pirate planet it knows. Returns
+// whether it went.
+bool freelance(World& world, Id character, Observer* observer);
+
 // The pirate relation (PIR-9): fades weekly by pirel.fade toward pirel.rest.
 double relation(const World& world, const Character& c);
 void set_relation(World& world, Character& c, double value);
 // Pirates attack non-pirates whose relation is below neutral.
 bool attacks(const World& world, const Character& pirate, const Character& other);
 
-// Broke (PIR-4): with chance pirate.turn_p(risk) (risk tolerance, or 1 under
-// pirate.turn_all, EXP-9) a commander who knows a pirate planet heads there, its running
-// costs suspended. Returns whether it went.
+// Broke (PIR-4): a commander whose risk tolerance is at least pirate.turn_min_risk, and
+// who knows a pirate planet, heads there with chance pirate.turn_p x risk (1 under
+// pirate.turn_all, EXP-9), its running costs suspended. Returns whether it went.
 bool try_turn(World& world, Id character, Observer* observer);
-// Arrived: it renounces its allegiances and is hired by the planet at pirate.salary of a
-// lawful stipend.
+// Arrived: it renounces its allegiances, leaves its debts behind and is hired by the
+// planet at pirate.salary of a lawful stipend.
 void renounce(World& world, Id character, Observer* observer);
 
 // Whether a planet is a pirate planet (MOD-8): seen on landing for every planet in the
