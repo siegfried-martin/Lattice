@@ -5,6 +5,30 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-25 · Tuning pass, part 5: ships without a Lattice Drive, and standing
+
+The human's direction (CHR-16, TRD-18, REL-5, MSN-13):
+
+- **The free hull follows who it was; standing wins** over a merchant record: courier
+  with a drive for the trusted, small freighter without one for a merchant, else a
+  shuttle; a pirate's scout (CHR-16). "We can change it easily later."
+- **Every class with and without a drive** (TRD-18, `ship.no_drive_*`). Where a ship
+  goes comes from what it can reach; no rule steers it to or from the Lattice.
+- **Passenger runs are open-space hops,** the only missions a hull without a drive can
+  take (MSN-13).
+- **Standing is seeded and grows from faction work** (REL-5): born with
+  `char.start_standing`; a planet's job or a passenger run raises the root's opinion
+  (`deed.faction_job` +10, after +3 proved too thin); courier runs need
+  `mission.courier_standing`. Slower opinion fade was tried and rejected: it moves every
+  opinion in the game.
+- **A character with nothing to do for a day moves on** (TRD-4,
+  `merchant.wander_after_days`, `merchant.wander_days`): to a lawful planet within a few
+  days' travel, likelier the busier it is, so long as the fuel adds no debt. "This will
+  help make things feel more alive." Idle stayed near 11%: almost all of it is the wait
+  in port between jobs, not characters stuck.
+- **Open:** the shuttle rung is capped by the passenger supply; scaling it with demand is
+  the next lever.
+
 ### 2026-11-25 · Tuning pass, part 4: pirates and bankruptcy
 
 The human's direction after part 3's idle characters turned out to be stranded pirates

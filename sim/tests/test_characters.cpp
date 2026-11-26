@@ -76,9 +76,9 @@ bool run_until(World& w, F done, Time limit) {
 
 }  // namespace
 
-TEST_CASE("every culture has every ship class at three tiers (MOD-1, CHR-12)") {
+TEST_CASE("every culture has every ship class at three tiers, with a Lattice Drive and without (MOD-1, CHR-12, TRD-18)") {
     const World w = new_world(quiet(), 2);
-    CHECK(w.map.variants.size() == w.map.regions.size() * kShipClassCount * kTierCount);
+    CHECK(w.map.variants.size() == w.map.regions.size() * kShipClassCount * kTierCount * 2);
     for (Id culture = 0; culture < static_cast<Id>(w.map.regions.size()); ++culture) {
         for (int k = 0; k < kShipClassCount; ++k) {
             for (int tier = 1; tier <= kTierCount; ++tier) {
@@ -86,6 +86,16 @@ TEST_CASE("every culture has every ship class at three tiers (MOD-1, CHR-12)") {
                 CHECK(v.culture == culture);
                 CHECK(static_cast<int>(v.cls) == k);
                 CHECK(v.tier == tier);
+                CHECK(v.lattice_drive);
+                // Without a drive: the same hull, cheaper, with the drive's space for cargo.
+                const ShipVariant& bare = w.map.variants[at(ships::variant(w.map, culture, static_cast<ShipClass>(k), tier, false))];
+                CHECK(!bare.lattice_drive);
+                CHECK(bare.culture == culture);
+                CHECK(static_cast<int>(bare.cls) == k);
+                CHECK(bare.tier == tier);
+                CHECK(bare.price < v.price);
+                CHECK(bare.cargo > v.cargo);
+                CHECK(bare.combat == v.combat);
                 if (tier > 1) {
                     const ShipVariant& below = w.map.variants[at(ships::variant(w.map, culture, static_cast<ShipClass>(k), tier - 1))];
                     CHECK(v.price > below.price);

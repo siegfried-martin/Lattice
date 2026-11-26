@@ -254,9 +254,18 @@ The design of the full game is settled enough to build its simulation. In brief:
   price. With savings, that buys about one tier down, so a commander at the top falls a
   peg at a time and only several losses close together bring them to the bottom.
   Insurance lowers what a fight costs, not how dangerous it is, so combat can stay
-  frequent. A character with nothing left starts over in a free basic courier and works
-  its way back up with courier and passenger runs (CHR-16, CHR-21, MSN-13). Insurance
-  plans chosen by risk tolerance come later.
+  frequent. A character with nothing left, or bankrupt, starts over in a free hull that
+  follows who it was: a courier with a Lattice Drive if a faction trusts it, a small
+  freighter without one if it was a merchant, else a shuttle without one that works
+  passenger runs in open space. Ships without a drive keep off the Lattice by what they
+  can reach, not by a rule (CHR-16, CHR-21, MSN-13, TRD-18). Insurance plans chosen by
+  risk tolerance come later.
+- **Standing** *(proposed, built, being tuned)*: a character is born with some standing in
+  its faction, work for the faction raises it, and courier runs need it, so a character
+  that keeps working for a faction keeps its trust (REL-5).
+- **Moving on** *(proposed, built)*: a character that finds nothing worth doing for a day
+  flies to a nearby planet, likelier a busy one, as long as the trip doesn't put it in
+  debt (TRD-4).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
   to ECO-5). The v1 goods are food, water, oxygen, eight luxuries (six regional, two

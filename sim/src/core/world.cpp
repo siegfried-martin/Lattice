@@ -105,6 +105,8 @@ void sample_metrics(const World& w, Observer& o) {
     std::array<std::int64_t, kActivityCount> by_activity{};
     std::int64_t alive = 0, faction_merchants = 0, ships = 0, shipless = 0;
     std::array<std::int64_t, kActivityCount> shipless_by{};  // what the shipless are doing
+    std::int64_t no_drive = 0;  // lawful fleets without a Lattice Drive (TRD-18)
+    std::int64_t standing_courier = 0, standing_trusted = 0;
     std::int64_t shipless_governors = 0, shipless_stewards = 0, shipless_travelling = 0, shipless_besieged = 0;
     double wealth = 0, cargo = 0;
     for (Id id = 0; id < static_cast<Id>(w.characters.size()); ++id) {
@@ -125,11 +127,22 @@ void sample_metrics(const World& w, Observer& o) {
             shipless_besieged += ch.planet != kNone && w.planets[at(ch.planet)].siege != kNone;
         }
         cargo += f.cargo;
+        no_drive += f.count > 0 && !f.lattice_drive && !ch.pirate;
+        // Standing with the faction it's in (REL-5), against the courier gate and the
+        // trusted free hull (CHR-16).
+        if (!ch.pirate && ch.governs == kNone && ch.last_planet != kNone) {
+            const double s = opinion::standing(w, fealty::root_of(w, ch.last_planet), id);
+            standing_courier += s >= w.config.mission.courier_standing;
+            standing_trusted += s >= w.config.ship.trusted_opinion;
+        }
     }
     double held = 0;  // purses set aside for campaigns under way (MIL-2)
     for (const Army& a : w.armies) held += a.alive ? a.purse : 0;
     o.sample(t, "world.characters", -1, static_cast<double>(alive));
     o.sample(t, "world.shipless", -1, static_cast<double>(shipless));
+    o.sample(t, "world.no_drive_fleets", -1, static_cast<double>(no_drive));
+    o.sample(t, "chars.standing_courier", -1, static_cast<double>(standing_courier));
+    o.sample(t, "chars.standing_trusted", -1, static_cast<double>(standing_trusted));
     for (std::size_t k = 0; k < kActivityCount; ++k) o.sample(t, "world.shipless_by_activity", static_cast<Id>(k), static_cast<double>(shipless_by[k]));
     o.sample(t, "world.shipless_governors", -1, static_cast<double>(shipless_governors));
     o.sample(t, "world.shipless_stewards", -1, static_cast<double>(shipless_stewards));
@@ -195,6 +208,10 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "money.passenger_fares", -1, w.ledger.passenger_fares);
     o.sample(t, "chars.free_hulls", -1, static_cast<double>(w.ledger.free_hulls));
     o.sample(t, "chars.bankruptcies", -1, static_cast<double>(w.ledger.bankruptcies));  // CHR-16
+    o.sample(t, "chars.wanders", -1, static_cast<double>(w.ledger.wanders));  // TRD-4
+    for (std::size_t k = 0; k < w.ledger.free_by_hull.size(); ++k) {
+        o.sample(t, "chars.free_by_hull", static_cast<Id>(k), static_cast<double>(w.ledger.free_by_hull[k]));
+    }
     o.sample(t, "chars.debt_written_off", -1, w.ledger.debt_written_off);
     o.sample(t, "chars.passenger_runs", -1, static_cast<double>(w.ledger.passenger_runs));
     o.sample(t, "chars.claims", -1, static_cast<double>(w.ledger.claims));
@@ -523,6 +540,33 @@ void rebuild_derived(World& w) {
             }
             std::sort(sectors.begin(), sectors.end());
             sectors.erase(std::unique(sectors.begin(), sectors.end()), sectors.end());
+        }
+    }
+    // Off the Lattice (TRD-18): open space and hop lanes, summed along each route.
+    {
+        travel::Routes space = travel::planet_routes(w, false);
+        const std::size_t np = d.planet_count, n = np + w.map.nodes.size();
+        auto pos = [&](std::size_t v) {
+            return v < np ? std::pair{w.planets[v].x, w.planets[v].y} : std::pair{w.map.nodes[v - np].x, w.map.nodes[v - np].y};
+        };
+        d.space_days = std::move(space.days);
+        d.space_sums.assign(np * np, {});
+        for (std::size_t a = 0; a < np; ++a) {
+            const std::int32_t* pred = &space.pred[a * n];
+            const std::uint8_t* via = &space.via[a * n];
+            for (std::size_t b = 0; b < np; ++b) {
+                Derived::RouteSum& s = d.space_sums[a * np + b];
+                for (std::size_t v = b; v != a && pred[v] >= 0; v = static_cast<std::size_t>(pred[v])) {
+                    const auto u = static_cast<std::size_t>(pred[v]);
+                    if (static_cast<LegKind>(via[v]) == LegKind::Hop) {
+                        ++s.hops;
+                    } else {
+                        const auto [ux, uy] = pos(u);
+                        const auto [vx, vy] = pos(v);
+                        s.space += std::hypot(vx - ux, vy - uy);
+                    }
+                }
+            }
         }
     }
     d.osmosis_pairs = osmosis::pairs(w);

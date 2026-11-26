@@ -246,8 +246,9 @@ enum class DeedKind : std::uint8_t {
     HelpSent = 0, HelpMissed = 1, PlanetGranted = 2, Patronage = 3, TributeRaised = 4, PassedOver = 5,
     CallAnswered = 6, CallRefused = 7, BorderHeld = 8, JobDone = 9, Attacked = 10, TributeLowered = 11, Caught = 12,
     MissionFailed = 13, ReliefUsed = 14, ReliefGranted = 15, ReliefRefused = 16, ObjectiveDeclined = 17, BountyUnpaid = 18,
+    FactionJob = 19,  // a job done for one of the faction's planets, to its root (REL-5)
 };
-inline constexpr int kDeedKindCount = 19;
+inline constexpr int kDeedKindCount = 20;
 
 struct Deed {
     DeedKind kind = DeedKind::JobDone;
@@ -473,6 +474,7 @@ struct Character {
     // Spending (SYS-8): what has paid recently, as running averages per day.
     double earned_cargo = 0;   // trade and courier work
     double earned_combat = 0;  // scout, escort and command work
+    double career_cargo = 0;   // lifetime trade and courier earnings: its merchant record (CHR-16)
 
     Facts facts;
     Time last_meet = -kDay;  // last fact merge in open space (SYS-15)
@@ -507,6 +509,7 @@ void fields(Ar& ar, C& c) {
     ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle,
        c.paused_at, c.escort, c.escorting, c.pirate, c.pirate_relation, c.pirate_relation_at, c.renounce_to,
        c.last_engaged, c.suspicion, c.offer, c.stewards, c.path, c.munitions, c.cover);
+    ar(c.career_cargo);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -682,6 +685,8 @@ struct Ledger {
     std::int64_t free_hulls = 0, passenger_runs = 0, claims = 0;
     std::int64_t freelance_raids = 0, pirate_deaths = 0;  // PIR-16
     std::int64_t bankruptcies = 0;  // CHR-16
+    std::int64_t wanders = 0;       // TRD-4: moved on after a day with nothing to do
+    std::array<std::int64_t, 4> free_by_hull{};  // CHR-16's ladder: pirate scout, drive courier, freighter, shuttle
     double debt_written_off = 0;
     // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
     // 1 war): own net income, military and patronage paid, and vassals' net and tribute.
@@ -709,7 +714,7 @@ void fields(Ar& ar, L& l) {
        l.objectives_declined, l.objective_rewards, l.campaigns_abandoned, l.purses_held, l.purses_returned, l.munitions,
        l.ceasefire_unpaid);
     ar(l.insurance_premiums, l.insurance_paid, l.passenger_fares, l.free_hulls, l.passenger_runs, l.claims);
-    ar(l.freelance_raids, l.pirate_deaths, l.bankruptcies, l.debt_written_off);
+    ar(l.freelance_raids, l.pirate_deaths, l.bankruptcies, l.debt_written_off, l.free_by_hull, l.wanders);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
 }
 

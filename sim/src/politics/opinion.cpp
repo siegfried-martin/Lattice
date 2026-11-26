@@ -40,6 +40,21 @@ double get(const World& w, Id holder, Id about) {
     return faded(w, *it, r);
 }
 
+void seed(World& w, Id holder, Id about, double value) {
+    if (holder == about || holder == kNone || about == kNone) return;
+    auto& ops = w.characters[at(holder)].opinions;
+    auto it = std::lower_bound(ops.begin(), ops.end(), about, by_target);
+    if (it == ops.end() || it->of != about) it = ops.insert(it, {.of = about, .value = value, .updated = w.now});
+    it->value = std::clamp(value, -100.0, 100.0);
+    it->updated = w.now;
+}
+
+double standing(const World& w, Id root, Id about) {
+    if (root < 0 || w.planets[at(root)].pirate) return 0;
+    const Id gov = w.planets[at(root)].governor;
+    return gov == kNone ? 0 : get(w, gov, about);
+}
+
 void deed(World& w, Id holder, Id about, DeedKind kind, Observer* observer) {
     if (holder == about || holder == kNone || about == kNone) return;
     const double r = rest(w, holder, about);

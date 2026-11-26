@@ -85,7 +85,22 @@ fade and loyalty needs renewing. Grievances are bad deeds that haven't faded yet
   the player tracks for that faction.
 
 Landing permission (WLD-14), gate access (WLD-12), mission gates and hiring all read
-these. The **pirate faction** is the exception, with one shared opinion (PIR-9). The
+these.
+
+*(proposed, tuning pass part 5)* **How standing starts and grows:**
+
+- **A new character is born with standing** in the faction of the planet it's born at
+  (`char.start_standing`, 15): its way into that faction's work. Like any opinion, it
+  fades toward neutral unless the character keeps working for the faction.
+- **A job for one of a faction's planets is work for the faction:** the posting governor's
+  opinion rises (job done, +5) and so does the root's (`deed.faction_job`, +10). A
+  passenger run (MSN-13) has no issuer, but counts as a faction job for the faction it
+  was posted in, so the bottom rung's work is also the way into a faction's trust.
+- **Courier runs need standing** with the faction (`mission.courier_standing`, 10): the
+  first mission gate. Other planet work stays open to anyone. A character that keeps
+  carrying a faction's news keeps its standing and its access; one that drifts away
+  loses both in a few months. *Why:* standing was almost always 0 to 5, so nothing
+  that read it (the trusted free hull, CHR-16) ever fired. The **pirate faction** is the exception, with one shared opinion (PIR-9). The
 **Trade Authority** keeps its own opinion of each character (FAC-14).
 
 ### REL-6 Local opinion matters locally `experimental`

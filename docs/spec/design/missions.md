@@ -236,7 +236,11 @@ spamming small requests.
   for the new and the ruined (CHR-6, CHR-16), not a living for anyone else.
 - **The passengers aren't simulated** (MSN-6) and no one issues the run, so the fare is
   free money (MSN-5). Completing one grows the courier skill but not reputation, and
-  failing one is no one's bad deed.
+  failing one is no one's bad deed. *(tuning pass part 5)* It does count as a small job
+  for the faction it was posted in (REL-5).
 - The fare is sized so a ruined courier earns back a bought hull in under a year
   between courier jobs, at about a third of a courier run's pay.
+- *(proposed, tuning pass part 5)* **They're short hops in open space:** destinations and
+  fares go by open-space travel time, so a shuttle without a Lattice Drive (TRD-18) can
+  fly every one. They're the only missions such a hull can take; the rest need a drive.
 

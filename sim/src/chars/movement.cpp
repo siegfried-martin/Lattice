@@ -104,8 +104,18 @@ std::vector<bool> shut_gates(const World& w, Id faction, const Facts* facts) {
 
 }  // namespace
 
-std::vector<Leg> plan(const World& w, Id faction, Id a, Id b, const Facts* facts) {
+bool uses_lattice(const World& w, const Character& c) {
+    if (c.pirate || c.ships.empty()) return !c.pirate;
+    return std::all_of(c.ships.begin(), c.ships.end(), [&](Id v) { return w.map.variants[at(v)].lattice_drive; });
+}
+
+std::vector<Leg> plan(const World& w, Id faction, Id a, Id b, const Facts* facts, bool lattice) {
     std::vector<Leg> legs = route_legs(w, a, b);
+    if (!lattice && faction != kPirates) {
+        // No Lattice Drive (TRD-18): every gate is as good as shut.
+        if (std::none_of(legs.begin(), legs.end(), [](const Leg& l) { return l.kind == LegKind::Lattice; })) return legs;
+        return build(w, travel::path_avoiding(w, a, b, std::vector<bool>(w.map.nodes.size(), true)));
+    }
     const std::vector<bool> closed = shut_gates(w, faction, facts);
     if (std::none_of(closed.begin(), closed.end(), [](bool x) { return x; })) return legs;
     // Does the reference route get on or off at a shut gate?
@@ -203,7 +213,7 @@ bool start_route(World& w, Id id, std::vector<Leg> route) {
 bool travel_to(World& w, Id id, Id dest) {
     const Character& c = w.characters[at(id)];
     if (c.planet == kNone || c.planet == dest) return false;
-    return start_route(w, id, plan(w, chars::faction_of(w, c), c.planet, dest, &c.facts));
+    return start_route(w, id, plan(w, chars::faction_of(w, c), c.planet, dest, &c.facts, uses_lattice(w, c)));
 }
 
 void pause(World& w, Id id) {
@@ -225,9 +235,13 @@ void resume(World& w, Id id) {
     w.events.push({.time = std::max(l.arrive, w.now), .kind = EventKind::CharArrive, .record = id, .a = c.travel_seq});
 }
 
+double ref_days(const World& w, const Character& c, Id from, Id to) {
+    return w.derived.travel(from, to, uses_lattice(w, c));
+}
+
 double trip_days(const World& w, const Character& c, Id from, Id to) {
     if (from == to) return 0;
-    const Derived::RouteSum& r = w.derived.route(from, to);
+    const Derived::RouteSum& r = w.derived.route(from, to, uses_lattice(w, c));
     double speed = 0;
     for (Id v : c.ships) {
         const double s = w.map.variants[at(v)].speed;
@@ -240,7 +254,7 @@ double trip_days(const World& w, const Character& c, Id from, Id to) {
 
 double fuel_cost(const World& w, const Character& c, Id from, Id to) {
     if (from == to) return 0;
-    return w.derived.route(from, to).lattice * w.config.fuel.burn * w.planets[at(from)].fuel_price *
+    return w.derived.route(from, to, uses_lattice(w, c)).lattice * w.config.fuel.burn * w.planets[at(from)].fuel_price *
            static_cast<double>(c.ships.size());
 }
 

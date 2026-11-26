@@ -13,7 +13,9 @@ struct Routes {
     std::vector<std::int32_t> pred;     // P x V: the vertex before v on the way from s
     std::vector<std::uint8_t> via;      // P x V: how v is reached: a LegKind
 };
-Routes planet_routes(const World& world);
+// With lattice false, the routes a ship without a Lattice Drive (or a pirate) can fly:
+// open space and hop lanes only (TRD-18, PIR-2).
+Routes planet_routes(const World& world, bool lattice = true);
 
 // The vertices from planet a to planet b along the reference route, a first.
 std::vector<std::int32_t> path(const World& world, Id a, Id b);

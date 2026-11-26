@@ -139,7 +139,7 @@ std::vector<Id> candidates(const World& w, const Character& c, Id from) {
     for (const PriceFact& f : c.facts.prices) {
         // Pirate markets are for pirates and smugglers (PIR-5, MS-6 part 2).
         if (f.planet != from && w.planets[static_cast<std::size_t>(f.planet)].pirate == c.pirate) {
-            known.emplace_back(w.derived.travel(from, f.planet), f.planet);
+            known.emplace_back(move::ref_days(w, c, from, f.planet), f.planet);
         }
     }
     std::sort(known.begin(), known.end());
@@ -282,6 +282,7 @@ void sell_cargo(World& w, Id id) {
     chars::earn(c, fill.money, false);
     // Only the margin counts toward what pays (SYS-8): undo the cost part of earn's average.
     c.earned_cargo -= cost;
+    c.career_cargo = std::max(0.0, c.career_cargo - cost);  // its record is the margin too
     c.cargo_qty -= fill.qty;
     c.cargo_cost -= cost;
     if (c.cargo_qty <= 1e-9) c.cargo_qty = 0, c.cargo_cost = 0, c.cargo_good = kGoodCount;
@@ -362,7 +363,7 @@ Id explore_target(const World& w, const Character& c) {
         if (p == c.planet || w.planets[at(p)].pirate != c.pirate) continue;
         const PriceFact* f = info::find(c.facts, p);
         if (f && static_cast<double>(w.now - f->time) < stale) continue;
-        const double d = w.derived.travel(c.planet, p);
+        const double d = move::ref_days(w, c, c.planet, p);
         if (best == kNone || d < best_days) best = p, best_days = d;
     }
     return best;

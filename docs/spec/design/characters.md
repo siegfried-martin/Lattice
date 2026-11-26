@@ -245,6 +245,18 @@ rules.
   (CHR-6), a tier-1 courier, uninsured, and keeps its standing, reputation,
   relationships and skills. *(tuning pass part 4)* A pirate gets a tier-1 scout instead,
   to raid in (PIR-16).
+- *(proposed, tuning pass part 5)* **The free hull follows who it was,** all tier 1 and
+  uninsured. Standing wins over the record:
+
+  | Who | Free hull | Its work |
+  |---|---|---|
+  | A pirate | scout, no drive | raiding (PIR-16) |
+  | Trusted by a faction: standing (REL-5) at least `ship.trusted_opinion` (25), with the faction of the planet it's at or its own | courier with a Lattice Drive | courier runs on the Lattice |
+  | A merchant record: lifetime trade and courier margin at least `ship.merchant_record` (50,000) | small freighter, no drive | small trades off the Lattice |
+  | Anyone else | shuttle: a courier without a drive (TRD-18) | passenger runs (MSN-13) |
+
+  Standing kept is worth something at the bottom, and a trusted character climbs back
+  faster than a nobody. New characters still start in a courier with a drive (CHR-6).
 - *(proposed, tuning pass part 4)* **Bankruptcy is the same restart.** A character broke
   for `char.broke_days` that doesn't turn pirate (PIR-4) sells ships, smallest first,
   until it's solvent. Still in debt with one hull left, it's bankrupt: that hull is sold

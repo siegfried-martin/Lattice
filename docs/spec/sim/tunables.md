@@ -120,6 +120,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `merchant.salary` | Monthly salary every root offers its merchants until the budget model sets it (MS-4) *(proposed, MS-3)* | 600 |
 | `merchant.per_planet` | Salaried merchants a root wants per faction planet *(proposed, MS-3)* | 1 |
 | `merchant.stale_days` | Prices older than this send an idle merchant to look again (TRD-4) *(proposed, MS-3)* | 30 |
+| `merchant.wander_after_days`, `merchant.wander_days` | A day with nothing worth doing, and a character moves on to a planet this near by its own travel time, weighted by population (TRD-4) *(proposed, tuning pass part 5)* | 1, 3 |
 | `merchant.dock_hours` | Time at each stop, loading and unloading (TRD-12) *(proposed, MS-3)* | 6 |
 
 ## Characters and contracts (CHR, REL, SYS-8 to SYS-11, SYS-18)
@@ -130,6 +131,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `char.spawn_per_day` | Most new characters a day | 3 |
 | `char.risk_dist` | Risk tolerance distribution (built in, not a key) | uniform 0–1 |
 | `char.start_wealth` | New character's money | 2,000 |
+| `char.start_standing` | A new character's standing with the faction it's born in (REL-5) *(proposed, tuning pass part 5)* | 15 |
 | `char.start_armed_p` | Chance a new character gets an armed hull | 0.5 |
 | `char.broke_days` | Days below zero before broke | 14 |
 | `fleet.maintenance` | A ship's upkeep for maintenance, as a share of its price a year (CHR-9, SYS-21) *(proposed, tuning pass part 2; replaces `fleet.run_cost[tier]`, 5, 15, 40 a day)* | 0.1 |
@@ -141,14 +143,17 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `ship.tier_combat`, `_cargo`, `_speed`, `_price` | Multiplier per tier above 1 *(proposed, MS-3)* | 1.8, 2, 1.05, 2.5 |
 | `ship.culture_spread` | Each culture's variant of a class within ± this *(proposed, MS-3)* | 0.15 |
 | `ship.resale` | Share of the price a sold ship returns *(proposed, MS-3)* | 0.5 |
+| `ship.no_drive_price`, `ship.no_drive_cargo` | A hull without a Lattice Drive: its price and cargo against the same hull with one (TRD-18) *(proposed, tuning pass part 5)* | 0.7, 1.25 |
+| `ship.trusted_opinion`, `ship.merchant_record` | The free hull's ladder (CHR-16): a ruler's opinion that earns a courier with a drive, and the lifetime trade margin that earns a small freighter *(proposed, tuning pass part 5)* | 25, 50,000 |
 | `ship.insurance_premium` | Added to a new ship's price as its insurance, sunk with the price (CHR-21) *(proposed, tuning pass part 3)* | 0.3 |
 | `ship.insurance_payout` | Share of a destroyed ship's price paid to its owner, as free money (CHR-21, MSN-5) *(proposed, tuning pass part 3)* | 0.5 |
 | `mission.pay_growth` | Pay growth per day unfilled | 0.05 |
 | `mission.expiry_days` | Mission lifetime | 30 |
 | `mission.courier_pay`, `mission.scout_pay` | Base pay per day of the expected round trip *(proposed, MS-3)* | 150, 300 |
+| `mission.courier_standing` | Standing with the faction a courier run needs (REL-5) *(proposed, tuning pass part 5)* | 10 |
 | `mission.deadline_mult` | A taken mission's deadline, in multiples of its reference days (MSN-3) *(proposed, roles round: built)* | 3 |
 | `passenger.fare` | A passenger run's pay per day of the one-way trip, as free money (MSN-13, MSN-5) *(proposed, tuning pass part 3)* | 50 |
-| `passenger.per_planet`, `passenger.max_days`, `passenger.expiry_days` | Passenger runs each lawful planet keeps posted, their farthest destination in travel days, and how long one stays posted (MSN-13) *(proposed, tuning pass part 3)* | 2, 4, 7 |
+| `passenger.per_planet`, `passenger.max_days`, `passenger.expiry_days` | Passenger runs each lawful planet keeps posted, their farthest destination in open-space travel days (part 5), and how long one stays posted (MSN-13) *(proposed, tuning pass part 3)* | 2, 4, 7 |
 | `skill.gain`, `skill.max`, `skill.bonus` | Skill per mission, cap, pay weighting | 1, 20, 0.02 |
 | `spend.threshold_base`, `spend.threshold_risk` | Wealth over ship price before buying: `base − risk × this` | 2, 1 |
 | `spend.reserve_months` | Running costs kept back by the cautious | 3 × (1 − risk) |
@@ -171,7 +176,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `rel.fade` | Weekly share of opinion lost toward rest | 0.03 |
 | `rel.culture_rest` | Rest shift from culture share | 20 |
 | `rel.recent_deeds` | Deeds kept per relationship for the UI (REL-12) *(proposed, MS-4)* | 3 |
-| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)*. *(proposed, war and fealty round: built)* Call answered and call refused apply to loan requests (MIL-3); relief used −5, relief granted +10, relief refused −15, objective declined −3 (unused since the tuning pass: declining is free), bounty unpaid −10. *(proposed, roles round: built)* Mission failed −10 (MSN-3) |
+| `deed.<kind>` | Opinion change per deed (REL-3), as `deed.help_sent` and so on | help sent +15, help missed −20, planet granted +25, patronage +10, tribute raised −10, passed over −10, call answered +10, call refused −15, border held +5, job done +5, attacked −30, tribute lowered +5 *(proposed, MS-4)*. *(proposed, war and fealty round: built)* Call answered and call refused apply to loan requests (MIL-3); relief used −5, relief granted +10, relief refused −15, objective declined −3 (unused since the tuning pass: declining is free), bounty unpaid −10. *(proposed, roles round: built)* Mission failed −10 (MSN-3). *(proposed, tuning pass part 5)* Faction job +10: a planet's job done, or a passenger run, to the faction's root (REL-5); +3 left standing too thin to read |
 | `fealty.cascade` | Tribute cascades (FAC-6) | true |
 | `fealty.tribute_rate` | Starting tribute rate; static unless a liege in the red raises it, a disloyal vassal has it lowered, or relief (FAC-6, FAC-15). *(Tuning pass 2026-10-24: 0.15 to 0.25)* | 0.25 |
 | `fealty.rate_step`, `fealty.rate_min`, `fealty.rate_max` | How far a liege moves a tribute rate at once, and its bounds (FAC-12) *(proposed, MS-4)* | 0.05, 0, 0.5 |

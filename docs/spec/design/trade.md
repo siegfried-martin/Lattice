@@ -68,6 +68,14 @@ mean better information, which attracts more merchants.
 An independent merchant makes **single trips** (buy at A, sell at B) from its own
 information. If it can't find a good trade, it moves to a nearby system and looks there.
 
+*(proposed, tuning pass part 5: built)* **Any character with nothing worth doing for a
+day moves on** (`merchant.wander_after_days`, 1): to a lawful planet within
+`merchant.wander_days` (3) of it by its own travel time, not besieged or at war with its
+faction, busier planets likelier, so long as the fuel puts it in no debt: off the
+Lattice fuel costs nothing, so even an indebted shuttle can go. Before, it moved only to look at prices more
+than `merchant.stale_days` old, and kept its cautious reserve doing it. Most of what idle
+time remains is the day in port before it moves on.
+
 ### TRD-5 Who can run what `v1`
 
 Independent single-trip trade is open to **everyone except pirates**. Faction trips need
@@ -196,6 +204,24 @@ The Lattice Drive costs cargo space or speed. Speed matters to a merchant, becau
 faster ship reacts to market information sooner and needs less escorting. Heavy cargo is
 still the main income, so merchants fly the slowest hulls. How weight affects a ship is
 OPN-28. Culture variants are `later`.
+
+*(proposed, tuning pass part 5: built in part)* **Every class comes with a drive and
+without.** Without one, a hull is cheaper (`ship.no_drive_price`, 70%) and carries more
+in the drive's space (`ship.no_drive_cargo`, 125%); armour isn't modelled yet.
+
+- **A fleet rides the Lattice only if every ship has a drive.** Without, it flies open
+  space and hop lanes, as pirates do (PIR-2): slower, but it burns no fuel, since fuel is
+  burned on the Lattice.
+- **Where it goes comes from what it can reach, not a preference.** Its trips, missions
+  and explorations are timed and costed by the routes it can fly, so a hull without a
+  drive works the open space around it, and one with a drive drifts to the Lattice
+  because its trips there score better a day. No rule steers either.
+- **Without a drive it takes only passenger runs** (MSN-13), which are open-space hops;
+  courier runs and the rest need a drive.
+- **Bought ships all still have drives.** For now a hull without one is only the free hull
+  of the ruined (CHR-16); who would buy one is the rest of TRD-18.
+- *(not yet)* Risk along a route without the Lattice still reads the reference route's
+  sectors.
 
 ## Missions for the player
 

@@ -44,12 +44,22 @@ struct Derived {
         std::int32_t hops = 0;
     };
     std::vector<RouteSum> route_sums;
+    // The same without the Lattice (TRD-18, PIR-2): open space and hop lanes, P x P.
+    std::vector<double> space_days;
+    std::vector<RouteSum> space_sums;
     std::vector<std::vector<Id>> route_risk_sectors;  // P x P: open-space sectors on the route
     const RouteSum& route(Id a, Id b) const {
         return route_sums[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
     }
     double travel(Id a, Id b) const {
         return travel_days[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
+    }
+    // A traveller's own: by the reference routes, or off the Lattice.
+    const RouteSum& route(Id a, Id b, bool lattice) const {
+        return lattice ? route(a, b) : space_sums[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
+    }
+    double travel(Id a, Id b, bool lattice) const {
+        return lattice ? travel(a, b) : space_days[static_cast<std::size_t>(a) * planet_count + static_cast<std::size_t>(b)];
     }
 
     // Market pairs close enough for osmosis (SYS-6), a < b, with their falloff weight.

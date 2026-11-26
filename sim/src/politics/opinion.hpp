@@ -13,6 +13,13 @@ double rest(const World& world, Id holder, Id about);
 // The holder's opinion now. With no history it is the resting point.
 double get(const World& world, Id holder, Id about);
 
+// Sets where the holder's opinion starts, with no deed behind it (a new character's
+// standing, REL-5). It fades toward rest like any other.
+void seed(World& world, Id holder, Id about, double value);
+
+// A character's standing with a faction (REL-5): its root governor's opinion of it.
+double standing(const World& world, Id root, Id about);
+
 // A deed: moves the holder's opinion by deed.<kind> and remembers it.
 void deed(World& world, Id holder, Id about, DeedKind kind, Observer* observer = nullptr);
 

@@ -226,6 +226,8 @@ void validate(const Config& c) {
     require(c.chars.target >= 0 && c.chars.target <= 1'000'000, "char.target must be 0 to 1,000,000");
     require(c.chars.spawn_per_day >= 0, "char.spawn_per_day can't be negative");
     non_negative(c.chars.start_wealth, "char.start_wealth");
+    require(std::abs(c.chars.start_standing) <= 100, "char.start_standing must be -100 to 100");
+    require(std::abs(c.mission.courier_standing) <= 100, "mission.courier_standing must be -100 to 100");
     share(c.chars.start_armed_p, "char.start_armed_p");
     require(c.chars.broke_days >= 0, "char.broke_days can't be negative");
     for (const auto& k : c.ship.classes) {
@@ -240,6 +242,10 @@ void validate(const Config& c) {
     share(c.ship.resale, "ship.resale");
     non_negative(c.ship.insurance_premium, "ship.insurance_premium");
     share(c.ship.insurance_payout, "ship.insurance_payout");
+    positive(c.ship.no_drive_price, "ship.no_drive_price");
+    positive(c.ship.no_drive_cargo, "ship.no_drive_cargo");
+    require(c.ship.trusted_opinion >= -100 && c.ship.trusted_opinion <= 100, "ship.trusted_opinion must be -100 to 100");
+    non_negative(c.ship.merchant_record, "ship.merchant_record");
     for (const auto& k : c.ship.classes) non_negative(k.crew, "ship.<class>.crew");
     non_negative(c.fleet.maintenance, "fleet.maintenance");
     non_negative(c.fleet.crew_wage, "fleet.crew_wage");
@@ -251,6 +257,8 @@ void validate(const Config& c) {
     non_negative(c.merchant.salary, "merchant.salary");
     non_negative(c.merchant.per_planet, "merchant.per_planet");
     positive(c.merchant.stale_days, "merchant.stale_days");
+    non_negative(c.merchant.wander_after_days, "merchant.wander_after_days");
+    non_negative(c.merchant.wander_days, "merchant.wander_days");
     non_negative(c.merchant.dock_hours, "merchant.dock_hours");
     non_negative(c.mission.pay_growth, "mission.pay_growth");
     positive(static_cast<double>(c.mission.expiry_days), "mission.expiry_days");

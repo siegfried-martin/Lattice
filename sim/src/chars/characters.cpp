@@ -11,6 +11,7 @@
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
 #include "politics/fealty.hpp"
+#include "politics/opinion.hpp"
 #include "politics/roles.hpp"
 #include "trade/merchants.hpp"
 #include "pirates/pirates.hpp"
@@ -59,6 +60,36 @@ Id add(World& w, Id planet) {
     return static_cast<Id>(w.characters.size() - 1);
 }
 
+// Its best standing (REL-5) with a faction that could vouch for it here: the faction of
+// the planet it's at, or its own.
+double best_standing(const World& w, Id id) {
+    const Character& c = w.characters[at(id)];
+    const Id here = c.planet != kNone ? fealty::root_of(w, c.planet) : kNone;
+    return std::max(here >= 0 ? opinion::standing(w, here, id) : -100.0, opinion::standing(w, faction_of(w, c), id));
+}
+
+// The free hull a ruined character starts over in (CHR-16) follows who it was, all tier 1
+// and uninsured: a pirate's scout (PIR-16); a courier with a Lattice Drive for one a
+// faction trusts; a small freighter without one for a merchant with a record; else a
+// shuttle, a courier without a drive (TRD-18). Standing wins over the record.
+Id bottom_hull(const World& w, Id id) {
+    const Character& c = w.characters[at(id)];
+    const auto& s = w.config.ship;
+    const Id culture = c.planet != kNone ? w.planets[at(c.planet)].region : c.culture;
+    if (c.pirate) return ships::variant(w.map, culture, ShipClass::Scout, 1, false);
+    if (best_standing(w, id) >= s.trusted_opinion) return ships::variant(w.map, culture, ShipClass::Courier, 1, true);
+    if (c.career_cargo >= s.merchant_record) return ships::variant(w.map, culture, ShipClass::Freighter, 1, false);
+    return ships::variant(w.map, culture, ShipClass::Courier, 1, false);
+}
+
+// A free hull given, counted by its rung on the ladder.
+void count_free(World& w, Id variant) {
+    const ShipVariant& v = w.map.variants[at(variant)];
+    const std::size_t k = v.cls == ShipClass::Scout ? 0 : v.lattice_drive ? 1 : v.cls == ShipClass::Freighter ? 2 : 3;
+    ++w.ledger.free_hulls;
+    ++w.ledger.free_by_hull[k];
+}
+
 // What a ship costs its buyer, premium included (CHR-21), booked as a sink.
 void pay_for(World& w, Character& c, Id variant, double resale) {
     const ShipVariant& v = w.map.variants[at(variant)];
@@ -82,8 +113,6 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
     const auto& cfg = w.config;
     // A pirate's trade is raiding (PIR-16), so it buys gunships.
     const ShipClass cls = c.governs != kNone || c.pirate || c.earned_combat > c.earned_cargo ? ShipClass::Gunship : ShipClass::Freighter;
-    // The bottom rung: a courier, or for a pirate a scout it can raid in at once (CHR-16, PIR-16).
-    const ShipClass bottom = c.pirate ? ShipClass::Scout : ShipClass::Courier;
     const Id culture = w.planets[at(c.planet)].region;  // ships come from the planet's culture (MIL-4)
     const double threshold = cfg.spend.threshold_base - cfg.spend.threshold_risk * c.risk;
     if (c.ships.empty()) {
@@ -91,18 +120,19 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
         // highest tier of the work it did that it can afford with a margin, else any hull
         // of it, else the bottom rung. Any hull beats none.
         Id pick = kNone;
+        const Id bottom = bottom_hull(w, id);  // the bottom rung (CHR-16)
         for (int tier = kTierCount; tier >= 1 && pick == kNone; --tier) {
             const Id v = ships::variant(w.map, culture, cls, tier);
             if (c.wealth >= threshold * ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
         }
-        for (const Id v : {ships::variant(w.map, culture, cls, 1), ships::variant(w.map, culture, bottom, 1)}) {
+        for (const Id v : {ships::variant(w.map, culture, cls, 1), bottom}) {
             if (pick == kNone && c.wealth >= ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
         }
         if (pick == kNone) {
-            // Ruined: it starts over at the bottom (CHR-16), with the hull a new character
-            // gets (CHR-6), or a pirate's scout. Nobody bought it, so it carries no insurance.
-            c.ships.push_back(ships::variant(w.map, culture, bottom, 1));
-            ++w.ledger.free_hulls;
+            // Ruined: it starts over at the bottom (CHR-16), in the hull that follows who it
+            // was. Nobody bought it, so it carries no insurance.
+            c.ships.push_back(bottom);
+            count_free(w, bottom);
             if (observer) observer->log(w.now, "ship.free", id, std::to_string(c.wealth));
             return;
         }
@@ -116,14 +146,21 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
     }
     int best_tier = 0;
     std::size_t cheapest = 0;
+    std::size_t bare = c.ships.size();  // a hull without a Lattice Drive
     for (std::size_t i = 0; i < c.ships.size(); ++i) {
         const ShipVariant& v = w.map.variants[at(c.ships[i])];
         if (v.cls == cls) best_tier = std::max<int>(best_tier, v.tier);
         if (v.price < w.map.variants[at(c.ships[cheapest])].price) cheapest = i;
+        if (!v.lattice_drive && bare == c.ships.size()) bare = i;
     }
-    const bool room = static_cast<std::int64_t>(c.ships.size()) < cfg.fleet.max_ships;
+    // A hull without a drive holds the whole fleet off the Lattice (TRD-18), so a lawful
+    // buyer replaces it first, with the same hull with a drive: the first step back up.
+    const bool swap_bare = bare < c.ships.size() && !c.pirate;
+    if (swap_bare) cheapest = bare;
+    const bool room = !swap_bare && static_cast<std::int64_t>(c.ships.size()) < cfg.fleet.max_ships;
     const int tier = room ? std::max(1, best_tier) : std::min(kTierCount, best_tier + 1);
-    const Id pick = ships::variant(w.map, culture, cls, tier);
+    const ShipVariant& old_hull = w.map.variants[at(c.ships[cheapest])];
+    const Id pick = swap_bare ? ships::variant(w.map, culture, old_hull.cls, old_hull.tier) : ships::variant(w.map, culture, cls, tier);
     const ShipVariant& v = w.map.variants[at(pick)];
     const double resale = room ? 0 : w.map.variants[at(c.ships[cheapest])].price * cfg.ship.resale;
     if (!room && v.price <= w.map.variants[at(c.ships[cheapest])].price) return;
@@ -137,13 +174,6 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
         c.ships[cheapest] = pick;
     }
     if (observer) observer->log(w.now, "ship.bought", id, std::to_string(static_cast<int>(cls)) + " tier " + std::to_string(tier));
-}
-
-// The hull a ruined character starts over in (CHR-16): a courier, or a pirate's scout
-// (PIR-16).
-Id bottom_hull(const World& w, const Character& c) {
-    const Id culture = c.planet != kNone ? w.planets[at(c.planet)].region : c.culture;
-    return ships::variant(w.map, culture, c.pirate ? ShipClass::Scout : ShipClass::Courier, 1);
 }
 
 void sell(World& w, Character& c, std::vector<Id>::iterator it) {
@@ -167,11 +197,11 @@ void go_broke(World& w, Id id) {
              }));
     }
     if (c.wealth >= 0) return;
-    const Id bottom = bottom_hull(w, c);
+    const Id bottom = bottom_hull(w, id);
     if (!c.ships.empty() && w.map.variants[at(c.ships[0])].price > w.map.variants[at(bottom)].price) {
         sell(w, c, c.ships.begin());
         c.ships.push_back(bottom);
-        ++w.ledger.free_hulls;
+        count_free(w, bottom);
     }
     if (c.wealth < 0) {
         w.ledger.money_created -= c.wealth;
@@ -186,6 +216,11 @@ void go_broke(World& w, Id id) {
 
 Id spawn(World& w, Id planet) {
     const Id id = add(w, planet);
+    // Born into a faction (REL-5): standing enough for its courier work, the way in (MSN-2).
+    if (!w.planets[at(planet)].pirate) {
+        const Id root = fealty::root_of(w, planet);
+        if (root >= 0) opinion::seed(w, w.planets[at(root)].governor, id, w.config.chars.start_standing);
+    }
     Character& c = w.characters[at(id)];
     c.wealth = w.config.chars.start_wealth;
     w.ledger.money_spawned += c.wealth;
@@ -271,6 +306,7 @@ void refill(World& w, Id id) {
 void earn(Character& c, double amount, bool combat_work) {
     c.wealth += amount;
     (combat_work ? c.earned_combat : c.earned_cargo) += amount;
+    if (!combat_work && amount > 0) c.career_cargo += amount;
 }
 
 void daily(World& w, Observer*) {
@@ -344,6 +380,30 @@ void govern(World& w, Id id, Observer* observer) {
     c.activity = Activity::Governing;
     roles::handover(w, c.governs);
     maybe_buy_ship(w, id, observer);  // a governor rebuilds its own fleet too (MIL-20, CHR-16)
+}
+
+}  // namespace
+
+namespace {
+
+// TRD-4: where a character with nothing to do goes to look: a lawful planet within
+// merchant.wander_days of it by its own travel time, not at war with its faction,
+// weighted by population.
+Id wander_target(World& w, Id id) {
+    const Character& c = w.characters[at(id)];
+    const Id own = faction_of(w, c);
+    std::vector<Id> near;
+    std::vector<double> weights;
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+        const Planet& p = w.planets[at(q)];
+        if (q == c.planet || p.pirate || p.siege != kNone) continue;
+        if (move::ref_days(w, c, c.planet, q) > w.config.merchant.wander_days) continue;
+        if (own != kNone && diplomacy::at_war(w, own, fealty::root_of(w, q))) continue;
+        near.push_back(q);
+        weights.push_back(p.population);
+    }
+    if (near.empty()) return kNone;
+    return near[w.rng[Stream::Characters].weighted(weights)];
 }
 
 }  // namespace
@@ -438,6 +498,17 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
         move::travel_to(w, id, target)) {
         c.activity = Activity::Exploring;
         return;
+    }
+    // A day with nothing here and nothing stale to look at: it moves on anyway (TRD-4),
+    // to a nearby planet, busier ones likelier, so long as the fuel puts it in no debt.
+    // Off the Lattice the fuel is nothing, so even the indebted can go.
+    if (w.now - c.idle_since >= static_cast<Time>(w.config.merchant.wander_after_days * kDay)) {
+        const Id to = wander_target(w, id);
+        if (to != kNone && move::fuel_cost(w, c, c.planet, to) <= std::max(0.0, c.wealth) && move::travel_to(w, id, to)) {
+            c.activity = Activity::Exploring;
+            ++w.ledger.wanders;
+            return;
+        }
     }
     wake(w, id, w.now + kDay);  // at most daily (TIM-3)
 }

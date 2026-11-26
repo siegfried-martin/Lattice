@@ -177,6 +177,7 @@ struct Config {
         std::int64_t target = 500;  // dev 500, v1 2,000
         std::int64_t spawn_per_day = 3;
         double start_wealth = 2000;
+        double start_standing = 15;  // a new character's standing with the faction it's born in (REL-5)
         double start_armed_p = 0.5;
         std::int64_t broke_days = 14;
 
@@ -212,6 +213,15 @@ struct Config {
         // price; the payout is free money (MSN-5).
         double insurance_premium = 0.3;
         double insurance_payout = 0.5;
+        // TRD-18: every class also comes without a Lattice Drive, cheaper and with the
+        // drive's space for cargo. It can't ride the Lattice.
+        double no_drive_price = 0.7;
+        double no_drive_cargo = 1.25;
+        // The free hull a ruined character gets follows who it was (CHR-16): a drive for
+        // one its faction trusts (a root's opinion of it this high), a small freighter for
+        // one with this much lifetime trade and courier earnings.
+        double trusted_opinion = 25;
+        double merchant_record = 50000;
 
         friend bool operator==(const Ship&, const Ship&) = default;
     } ship;
@@ -237,6 +247,10 @@ struct Config {
         double salary = 600;       // per month, offered by every root (MS-4: the budget sets it)
         double per_planet = 1;     // salaried merchants a root wants per faction planet
         double stale_days = 30;    // older prices send an explorer to look again
+        // TRD-4: a day with nothing worth doing, and it moves on to a planet this near (by
+        // its own travel time), weighted by population, to look there.
+        double wander_after_days = 1;
+        double wander_days = 3;
         double dock_hours = 6;     // time spent at each stop (TRD-12)
 
         friend bool operator==(const Merchant&, const Merchant&) = default;
@@ -246,6 +260,7 @@ struct Config {
         double pay_growth = 0.05;
         std::int64_t expiry_days = 30;
         double courier_pay = 150;  // per day of the expected trip
+        double courier_standing = 10;  // faction standing a courier run needs (REL-5, MSN-2)
         double scout_pay = 300;
         double deadline_mult = 3;  // a taken mission's deadline, in multiples of its reference days (MSN-3)
 
@@ -315,7 +330,7 @@ struct Config {
 
     // Opinion change per deed (REL-3), by DeedKind.
     struct Deeds {
-        std::array<double, 19> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5, -20, -10, -5, 10, -15, -3, -10};
+        std::array<double, 20> amount = {15, -20, 25, 10, -10, -10, 10, -15, 5, 5, -30, 5, -20, -10, -5, 10, -15, -3, -10, 10};
 
         friend bool operator==(const Deeds&, const Deeds&) = default;
     } deed;
@@ -752,6 +767,7 @@ void for_each_field(C& c, F&& f) {
     f("char.target", c.chars.target);
     f("char.spawn_per_day", c.chars.spawn_per_day);
     f("char.start_wealth", c.chars.start_wealth);
+    f("char.start_standing", c.chars.start_standing);
     f("char.start_armed_p", c.chars.start_armed_p);
     f("char.broke_days", c.chars.broke_days);
 
@@ -772,6 +788,10 @@ void for_each_field(C& c, F&& f) {
     f("ship.resale", c.ship.resale);
     f("ship.insurance_premium", c.ship.insurance_premium);
     f("ship.insurance_payout", c.ship.insurance_payout);
+    f("ship.no_drive_price", c.ship.no_drive_price);
+    f("ship.no_drive_cargo", c.ship.no_drive_cargo);
+    f("ship.trusted_opinion", c.ship.trusted_opinion);
+    f("ship.merchant_record", c.ship.merchant_record);
 
     f("fleet.maintenance", c.fleet.maintenance);
     f("fleet.crew_wage", c.fleet.crew_wage);
@@ -787,11 +807,14 @@ void for_each_field(C& c, F&& f) {
     f("merchant.salary", c.merchant.salary);
     f("merchant.per_planet", c.merchant.per_planet);
     f("merchant.stale_days", c.merchant.stale_days);
+    f("merchant.wander_after_days", c.merchant.wander_after_days);
+    f("merchant.wander_days", c.merchant.wander_days);
     f("merchant.dock_hours", c.merchant.dock_hours);
 
     f("mission.pay_growth", c.mission.pay_growth);
     f("mission.expiry_days", c.mission.expiry_days);
     f("mission.courier_pay", c.mission.courier_pay);
+    f("mission.courier_standing", c.mission.courier_standing);
     f("mission.scout_pay", c.mission.scout_pay);
     f("mission.deadline_mult", c.mission.deadline_mult);
 
@@ -884,7 +907,8 @@ void for_each_field(C& c, F&& f) {
     constexpr const char* deeds[] = {"help_sent", "help_missed", "planet_granted", "patronage", "tribute_raised",
                                      "passed_over", "call_answered", "call_refused", "border_held", "job_done",
                                      "attacked", "tribute_lowered", "caught", "mission_failed", "relief_used",
-                                     "relief_granted", "relief_refused", "objective_declined", "bounty_unpaid"};
+                                     "relief_granted", "relief_refused", "objective_declined", "bounty_unpaid",
+                                     "faction_job"};
     for (std::size_t i = 0; i < c.deed.amount.size(); ++i) f(std::string("deed.") + deeds[i], c.deed.amount[i]);
 
     f("fealty.cascade", c.fealty.cascade);

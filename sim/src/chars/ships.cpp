@@ -17,25 +17,29 @@ void make_catalogue(World& w) {
             const double fg = 1 + s.culture_spread * rng.uniform(-1, 1);
             const double fs = 1 + s.culture_spread * rng.uniform(-1, 1);
             const double fp = (fc + fg + fs) / 3;
-            for (int tier = 1; tier <= kTierCount; ++tier) {
-                const double up = tier - 1;
-                w.map.variants.push_back({
-                    .culture = culture,
-                    .cls = static_cast<ShipClass>(k),
-                    .tier = static_cast<std::int8_t>(tier),
-                    .combat = base.combat * fc * std::pow(s.tier_combat, up),
-                    .cargo = base.cargo * fg * std::pow(s.tier_cargo, up),
-                    .speed = base.speed * fs * std::pow(s.tier_speed, up),
-                    .price = base.price * fp * std::pow(s.tier_price, up),
-                    .lattice_drive = true,
-                });
+            // With a Lattice Drive, then without (TRD-18): cheaper, with the drive's
+            // space for cargo.
+            for (const bool drive : {true, false}) {
+                for (int tier = 1; tier <= kTierCount; ++tier) {
+                    const double up = tier - 1;
+                    w.map.variants.push_back({
+                        .culture = culture,
+                        .cls = static_cast<ShipClass>(k),
+                        .tier = static_cast<std::int8_t>(tier),
+                        .combat = base.combat * fc * std::pow(s.tier_combat, up),
+                        .cargo = base.cargo * fg * std::pow(s.tier_cargo, up) * (drive ? 1 : s.no_drive_cargo),
+                        .speed = base.speed * fs * std::pow(s.tier_speed, up),
+                        .price = base.price * fp * std::pow(s.tier_price, up) * (drive ? 1 : s.no_drive_price),
+                        .lattice_drive = drive,
+                    });
+                }
             }
         }
     }
 }
 
-Id variant(const Map&, Id culture, ShipClass cls, int tier) {
-    return (culture * kShipClassCount + static_cast<Id>(cls)) * kTierCount + (tier - 1);
+Id variant(const Map&, Id culture, ShipClass cls, int tier, bool drive) {
+    return ((culture * kShipClassCount + static_cast<Id>(cls)) * 2 + (drive ? 0 : 1)) * kTierCount + (tier - 1);
 }
 
 double upkeep(const Config& c, const ShipVariant& v) {

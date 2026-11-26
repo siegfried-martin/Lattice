@@ -59,7 +59,7 @@ bool passenger(const Mission& m) { return m.kind == MissionKind::Passenger; }
 // mission.expiry_days.
 double reference_days(const World& w, const Mission& m) {
     if (pirate_run(m)) return static_cast<double>(w.config.mission.expiry_days);
-    if (passenger(m)) return std::max(1.0, w.derived.travel(m.at, m.target));
+    if (passenger(m)) return std::max(1.0, w.derived.travel(m.at, m.target, false));  // any hull can fly it
     double hold = 0;
     if (m.kind == MissionKind::Security) {
         hold = static_cast<double>(m.authority ? w.config.authority.clear_days : w.config.security.days);
@@ -183,7 +183,8 @@ void post_passengers(World& w, Id planet, Observer* observer) {
     if (open >= c.per_planet) return;
     std::vector<Id> near;
     for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
-        if (q != planet && !w.planets[at(q)].pirate && w.derived.travel(planet, q) <= c.max_days) near.push_back(q);
+        // Short hops in open space, so a hull without a Lattice Drive can fly them (TRD-18).
+        if (q != planet && !w.planets[at(q)].pirate && w.derived.travel(planet, q, false) <= c.max_days) near.push_back(q);
     }
     if (near.empty()) return;
     Rng& rng = w.rng[Stream::Missions];
@@ -191,7 +192,7 @@ void post_passengers(World& w, Id planet, Observer* observer) {
         const Id to = near[at(static_cast<Id>(rng.uniform_int(0, near.size() - 1)))];
         post(w,
              {.kind = MissionKind::Passenger, .level = MissionLevel::Planet, .at = planet, .target = to,
-              .base_pay = c.fare * std::max(0.5, w.derived.travel(planet, to)), .posted = w.now,
+              .base_pay = c.fare * std::max(0.5, w.derived.travel(planet, to, false)), .posted = w.now,
               .expires = w.now + c.expiry_days * kDay},
              observer);
     }
@@ -257,9 +258,15 @@ bool qualifies(const World& w, Id id, const Mission& m) {
     const Character& c = w.characters[at(id)];
     if (c.governs != kNone || c.ships.empty() || c.cargo_qty > 0 || c.pirate) return false;
     const ships::Fleet f = ships::fleet(w, c);
-    if (!f.lattice_drive || f.combat < m.min_combat || f.cargo < m.min_cargo) return false;
+    // Only passenger runs are for a hull without a Lattice Drive (TRD-18, MSN-13).
+    if ((!f.lattice_drive && !passenger(m)) || f.combat < m.min_combat || f.cargo < m.min_cargo) return false;
     // Passenger runs are for the bottom rung: one tier-1 hull (MSN-13).
     if (passenger(m) && (c.ships.size() != 1 || w.map.variants[at(c.ships[0])].tier != 1)) return false;
+    // A courier run carries the faction's news (INF-16): it goes to those it trusts (REL-5).
+    if (m.kind == MissionKind::Courier &&
+        opinion::standing(w, fealty::root_of(w, m.at), id) < w.config.mission.courier_standing) {
+        return false;
+    }
     if (m.level == MissionLevel::Faction) {
         const Id faction = chars::faction_of(w, c);
         if (faction == kNone || faction != fealty::root_of(w, m.at)) return false;  // INF-10
@@ -332,9 +339,14 @@ void arrived(World& w, Id id, Observer* observer) {
             if (!move::travel_to(w, id, m.target)) chars::wake(w, id, w.now + kDay);
             return;
         }
-        // Delivered: the fare is free money (MSN-5, MSN-13). No issuer, so no deed and no
-        // reputation; the courier skill grows.
+        // Delivered: the fare is free money (MSN-5, MSN-13). No issuer, so no reputation;
+        // the courier skill grows, and the faction it was posted in counts it as a small
+        // job (REL-5): the way into its work.
         m.state = MissionState::Done;
+        const Id root = fealty::root_of(w, m.at);
+        if (root >= 0 && !w.planets[at(root)].pirate) {
+            opinion::deed(w, w.planets[at(root)].governor, id, DeedKind::FactionJob, observer);
+        }
         w.ledger.passenger_fares += m.pay;
         w.ledger.free_money += m.pay;
         ++w.ledger.passenger_runs;
@@ -389,6 +401,12 @@ void arrived(World& w, Id id, Observer* observer) {
     c.reputation += 1;  // REL-7: grows with missions completed (OPN-11)
     contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
     opinion::deed(w, m.poster, id, DeedKind::JobDone, observer);  // REL-3: a job done well under contract
+    // Work for one of a faction's planets is work for the faction: its standing grows too
+    // (REL-5), a little.
+    const Id root = fealty::root_of(w, m.at);
+    if (root >= 0 && !w.planets[at(root)].pirate && w.planets[at(root)].governor != m.poster) {
+        opinion::deed(w, w.planets[at(root)].governor, id, DeedKind::FactionJob, observer);
+    }
     ++w.ledger.missions_done;
     if (observer) observer->log(w.now, "mission.done", c.mission, "by " + std::to_string(id));
     c.mission = kNone;

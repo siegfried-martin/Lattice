@@ -728,6 +728,75 @@ Results, 8 seeds × 5 years:
   pretending to finish. Pirate missions are their own job.
 - **Fewer pirates offer fewer smuggling runs** (CHK-24 still passes, CHK-10 halves).
 
+*Tuning pass, part 5 (2026-11-25): ships without a Lattice Drive, and standing.* The
+human's direction: a ruined character's free hull follows who it was, standing winning
+over a merchant record (CHR-16); a ship without a drive keeps off the Lattice and one
+with a drive drifts to it, with no preference rule (TRD-18); and standing is seeded so a
+character keeps working for its faction and builds more (REL-5).
+
+Built: every class with and without a drive (no drive: 70% of the price, 125% of the
+cargo); routes, trip times and fuel by what the fleet can fly, from a second, open-space
+travel table; passenger runs as open-space hops, the only missions a hull without a
+drive can take; the free-hull ladder (pirate scout; courier with a drive for the
+trusted; small freighter without one for a merchant record; else a shuttle); a shuttle
+owner's first purchase is the same hull with a drive. Standing: a new character is born
+with 15 in its faction; a planet's job or a passenger run also raises the faction root's
+opinion (`deed.faction_job`); courier runs need 10.
+
+What the runs turned up:
+- **Standing barely existed.** Measured directly, nearly every character's best opinion
+  from any governor in its faction was 0 to 5, so the trusted rung never fired (0 a
+  year). Seeding alone didn't hold: 15 fades below 10 in about 13 weeks, during the
+  warm-up.
+- **A shuttle owner had money but no way up:** its upgrade was a freighter it couldn't
+  afford, never the courier it could. Fixed by buying the same hull with a drive first.
+- **The passenger supply is the shuttle rung's ceiling:** about 9,300 runs a year, all
+  taken.
+- **`deed.faction_job` decides whether the loop runs** (4 seeds): at +3, 6% of
+  characters clear the courier gate and 0.7% the trusted rung; at +10, 21% and 7.7%,
+  and 100 trusted free hulls a year. A slower fade (1% a week) got 18% and 2.6% but moves
+  every opinion in the game, so +10 it is.
+
+Results, 8 seeds × 5 years:
+
+| | Part 4 | Part 5 |
+|---|---|---|
+| Characters idle, CHK-17b (seeds passing) | 12.2% (8 of 8) | 10.9% (8) |
+| Clearing the courier gate; the trusted rung, mean | — | 20.8%; 7.3% |
+| Free hulls a year: scout, courier with a drive, freighter, shuttle | 564 (no ladder) | 171, 94, 65, 391 |
+| Lawful fleets without a drive, end | — | 20% |
+| Bankruptcies a year | 98 | 123 |
+| Exploring, mean | 11.8% | 19.7% |
+| Checks passing on every seed | 30 of 44 | 29 |
+
+- **Met:** the ladder runs, standing is a number that moves, and a trusted character
+  climbs back on the Lattice.
+- **Not met:** a fifth of lawful fleets end without a drive, and bankruptcies are up a
+  quarter: the shuttle rung is crowded and capped by the passenger supply. Scaling
+  passenger runs with the shuttles waiting is the next lever, if the human wants it.
+- **Exploring is up** because a fleet without a drive is slow in open space, so looking
+  for work takes longer. It reads as busy, not idle.
+- **CHK-8 fails one seed** (war share), noise-sized; CHK-7d now passes every seed.
+- **Not built:** route risk for a fleet without a drive still reads the reference route's
+  sectors. Bought ships all have drives; who would buy one without is the rest of
+  TRD-18.
+
+*Part 5, then: moving on after a day (TRD-4).* The human: 10% idle isn't terrible, and a
+character that finds nothing for a day should go to a nearby planet, which also makes
+the world feel alive. Built as TRD-4 already said: within 3 days of travel, busier
+planets likelier, so long as the fuel puts it in no debt. A breakdown of who's idle afterwards: of
+10.9%, 9.1 points are characters in port for under a day, between jobs; solvent
+characters idle a day or more are 0.2%. About 770 moves a year. Idle stays at 11.0%;
+checks passing on every seed are 29 of 44 (CHK-8 fails one seed). A first version
+required the fuel to be paid from savings, which held every indebted shuttle in port
+though its fuel off the Lattice is nothing; it now goes so long as the fuel adds no
+debt.
+
+**Bankruptcies swing widely by seed** (48 to 726 a year within one run; 67 to 352 in the
+last), but across part 5's runs the median has climbed from part 4's 98 to about 170, 8%
+of characters a year. The likeliest cause is the crowded shuttle rung (passenger runs are
+its only work and all are taken). Worth its own look.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

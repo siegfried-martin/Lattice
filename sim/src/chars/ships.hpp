@@ -5,10 +5,11 @@
 // Preset ship variants (MOD-1, CHR-12, CHR-13) and what a fleet adds up to.
 namespace lattice::ships {
 
-// Builds every culture's catalogue: each class at tiers 1 to 3 (GEN).
+// Builds every culture's catalogue: each class at tiers 1 to 3 (GEN), with a Lattice
+// Drive and without (TRD-18).
 void make_catalogue(World& world);
 
-Id variant(const Map& map, Id culture, ShipClass cls, int tier);
+Id variant(const Map& map, Id culture, ShipClass cls, int tier, bool drive = true);
 
 // A ship's upkeep per day (CHR-9, SYS-21): maintenance on its price, and its class's
 // average crew for its tier at the crew wage. Fuel is charged per Lattice transit.
@@ -21,7 +22,7 @@ struct Fleet {
     double run_cost = 0;  // upkeep per day (SYS-21)
     double value = 0;   // what the ships cost new
     int count = 0;
-    bool lattice_drive = false;  // every ship has one
+    bool lattice_drive = false;  // every ship has one (TRD-18)
 };
 Fleet fleet(const World& world, const Character& c);
 

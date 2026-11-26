@@ -22,7 +22,13 @@ std::vector<Leg> route_legs(const World& world, Id a, Id b);
 // another faction (MIL-17); then a route that gets on and off elsewhere and crosses the
 // rest in open space (WLD-13). Blockades are as the facts given say, or the truth
 // without them; a gate the traveller's own faction blockades is open to it.
-std::vector<Leg> plan(const World& world, Id faction, Id a, Id b, const Facts* facts = nullptr);
+// With lattice false (a ship without a Lattice Drive, TRD-18), open space and hop lanes only.
+std::vector<Leg> plan(const World& world, Id faction, Id a, Id b, const Facts* facts = nullptr, bool lattice = true);
+// Whether a character can ride the Lattice: not a pirate (PIR-2), and every ship in its
+// fleet has a Lattice Drive (TRD-18).
+bool uses_lattice(const World& world, const Character& c);
+// Reference travel days for it: by the Lattice if it can ride it, else off it.
+double ref_days(const World& world, const Character& c, Id from, Id to);
 
 // The same between vertices: planets (0 to P-1), then Lattice nodes. A gate it's going to
 // is never shut to it. With board_at_start false it's in open space at a.
@@ -44,7 +50,8 @@ bool start_route(World& world, Id character, std::vector<Leg> route);
 void pause(World& world, Id character);
 void resume(World& world, Id character);
 
-// Estimates along the reference route for this character's fleet.
+// Estimates along the reference route for this character's fleet, or off the Lattice for
+// one that can't ride it.
 double trip_days(const World& world, const Character& c, Id from, Id to);
 double fuel_cost(const World& world, const Character& c, Id from, Id to);
 

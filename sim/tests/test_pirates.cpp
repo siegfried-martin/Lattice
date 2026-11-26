@@ -271,6 +271,7 @@ TEST_CASE("a timid broke commander never turns pirate; bankrupt, it starts over 
     REQUIRE(after.ships.size() == 1);
     CHECK(w.map.variants[at(after.ships[0])].cls == ShipClass::Courier);
     CHECK(w.map.variants[at(after.ships[0])].tier == 1);
+    CHECK(!w.map.variants[at(after.ships[0])].lattice_drive);  // a shuttle: no standing, no record (TRD-18)
     CHECK(after.wealth > -1000);  // the debt is gone; only days of upkeep since
 }
 
@@ -296,6 +297,184 @@ TEST_CASE("a ruined pirate with no salary gets a scout and goes raiding on its o
     CHECK(w.map.variants[at(after.ships[0])].tier == 1);
     CHECK(w.ledger.freelance_raids == 1);
     CHECK(after.activity == Activity::Raiding);
+}
+
+TEST_CASE("a new character is born with standing in its faction, and courier runs need it (REL-5, MSN-2)") {
+    Config c = quiet();
+    World w = new_world(c, 94);
+    Id home = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].governor != kNone && w.planets[at(p)].liege != kNone) home = p;
+    }
+    REQUIRE(home != kNone);
+    const Id root = fealty::root_of(w, home);
+    const Id born = chars::spawn(w, home);
+    CHECK(opinion::standing(w, root, born) == doctest::Approx(c.chars.start_standing));
+    // A courier run down the tree from its root goes only to those the faction trusts.
+    Id vassal = kNone;
+    for (Id v : fealty::vassals(w, root)) vassal = v;
+    REQUIRE(vassal != kNone);
+    missions::post_courier(w, root, vassal, nullptr);
+    Id run = kNone;
+    for (Id m : w.planets[at(root)].missions) {
+        if (w.missions[at(m)].kind == MissionKind::Courier) run = m;
+    }
+    REQUIRE(run != kNone);
+    const Id stranger = chars::spawn(w, root);
+    w.characters[at(stranger)].ships = {ships::variant(w.map, w.characters[at(stranger)].culture, ShipClass::Courier, 1)};
+    CHECK(missions::qualifies(w, stranger, w.missions[at(run)]));
+    opinion::seed(w, w.planets[at(root)].governor, stranger, c.mission.courier_standing - 1);
+    CHECK(!missions::qualifies(w, stranger, w.missions[at(run)]));
+    // Its standing fades unless it works for the faction: here it's gone and can't.
+    opinion::seed(w, w.planets[at(root)].governor, born, c.chars.start_standing);
+    w.characters[at(born)].alive = false;
+    advance(w, 52 * 7 * kDay);
+    CHECK(opinion::standing(w, root, born) < c.mission.courier_standing);
+}
+
+TEST_CASE("a character with nothing to do for a day moves on to a nearby planet (TRD-4)") {
+    Config c = quiet();
+    c.passenger.per_planet = 0;
+    World w = new_world(c, 94);
+    Id home = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
+        if (w.planets[at(p)].pirate || w.planets[at(p)].governor == kNone) continue;
+        for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+            if (q != p && !w.planets[at(q)].pirate && w.derived.travel(p, q, false) <= c.merchant.wander_days) home = p;
+        }
+    }
+    REQUIRE(home != kNone);
+    const Id id = chars::spawn(w, home);
+    Character& ch = w.characters[at(id)];
+    ch.wealth = 0;  // nothing to trade with; a shuttle, so open space costs it no fuel
+    ch.ships = {ships::variant(w.map, ch.culture, ShipClass::Courier, 1, false)};
+    // It knows every market, freshly: nothing stale to go and look at.
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) info::observe_market(w, ch.facts, p);
+    advance(w, 3 * kDay);
+    CHECK(w.ledger.wanders >= 1);
+}
+
+TEST_CASE("a ruined character's free hull follows who it was; standing wins (CHR-16, TRD-18)") {
+    Config c = quiet();
+    World w = new_world(c, 94);
+    Id home = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].governor != kNone && w.planets[at(p)].siege == kNone) home = p;
+    }
+    REQUIRE(home != kNone);
+    const Id ruler = w.planets[at(fealty::root_of(w, home))].governor;
+    auto ruined = [&](double record, bool trusted) {
+        const Id id = chars::spawn(w, home);
+        Character& ch = w.characters[at(id)];
+        ch.ships.clear();
+        ch.wealth = 0;
+        ch.career_cargo = record;
+        for (int i = 0; trusted && i < 200 && opinion::get(w, ruler, id) < c.ship.trusted_opinion; ++i) {
+            opinion::deed(w, ruler, id, DeedKind::JobDone);
+        }
+        return id;
+    };
+    const Id nobody = ruined(0, false);
+    const Id merchant = ruined(c.ship.merchant_record, false);
+    const Id trusted = ruined(c.ship.merchant_record, true);  // standing wins over the record
+    REQUIRE(opinion::get(w, ruler, trusted) >= c.ship.trusted_opinion);
+    advance(w, kHour);
+    auto hull = [&](Id id) -> const ShipVariant& {
+        REQUIRE(w.characters[at(id)].ships.size() == 1);
+        return w.map.variants[at(w.characters[at(id)].ships[0])];
+    };
+    CHECK(hull(nobody).cls == ShipClass::Courier);
+    CHECK(!hull(nobody).lattice_drive);
+    CHECK(hull(merchant).cls == ShipClass::Freighter);
+    CHECK(!hull(merchant).lattice_drive);
+    CHECK(hull(trusted).cls == ShipClass::Courier);
+    CHECK(hull(trusted).lattice_drive);
+    for (Id id : {nobody, merchant, trusted}) CHECK(hull(id).tier == 1);
+    CHECK(w.characters[at(nobody)].cover == 0);  // free hulls are uninsured (CHR-21)
+}
+
+TEST_CASE("a character climbing back first swaps its shuttle for a courier with a drive (TRD-18, SYS-8)") {
+    Config c = quiet();
+    World w = new_world(c, 94);
+    Id home = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].governor != kNone && w.planets[at(p)].siege == kNone) home = p;
+    }
+    REQUIRE(home != kNone);
+    const Id id = chars::spawn(w, home);
+    Character& ch = w.characters[at(id)];
+    ch.ships = {ships::variant(w.map, w.planets[at(home)].region, ShipClass::Courier, 1, false)};
+    ch.wealth = 1e6;
+    ch.earned_cargo = 1000;
+    advance(w, kHour);
+    const Character& after = w.characters[at(id)];
+    REQUIRE(!after.ships.empty());
+    // The first step up is the same hull with a drive; the fleet then grows as usual.
+    CHECK(w.map.variants[at(after.ships[0])].cls == ShipClass::Courier);
+    CHECK(w.map.variants[at(after.ships[0])].lattice_drive);
+    CHECK(move::uses_lattice(w, after));
+}
+
+TEST_CASE("a hull without a Lattice Drive keeps off the Lattice, slower and burning no fuel (TRD-18)") {
+    Config c = quiet();
+    World w = new_world(c, 94);
+    Id a = kNone, b = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && a == kNone; ++p) {
+        for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+            if (p != q && !w.planets[at(p)].pirate && !w.planets[at(q)].pirate && w.derived.route(p, q).lattice > 0) {
+                a = p, b = q;
+                break;
+            }
+        }
+    }
+    REQUIRE(a != kNone);
+    const Id id = chars::spawn(w, a);
+    Character& ch = w.characters[at(id)];
+    ch.ships = {ships::variant(w.map, ch.culture, ShipClass::Courier, 1, true)};
+    CHECK(move::uses_lattice(w, ch));
+    const double with_drive = move::trip_days(w, ch, a, b);
+    CHECK(move::fuel_cost(w, ch, a, b) > 0);
+    ch.ships = {ships::variant(w.map, ch.culture, ShipClass::Courier, 1, false)};
+    CHECK(!move::uses_lattice(w, ch));
+    CHECK(move::trip_days(w, ch, a, b) > with_drive);
+    CHECK(move::fuel_cost(w, ch, a, b) == 0);
+    const std::vector<Leg> route = move::plan(w, chars::faction_of(w, ch), a, b, &ch.facts, false);
+    REQUIRE(!route.empty());
+    CHECK(std::none_of(route.begin(), route.end(), [](const Leg& l) { return l.kind == LegKind::Lattice; }));
+    CHECK(route.back().to_planet == b);
+    // One ship without a drive holds the whole fleet off it.
+    ch.ships.push_back(ships::variant(w.map, ch.culture, ShipClass::Freighter, 1, true));
+    CHECK(!move::uses_lattice(w, ch));
+}
+
+TEST_CASE("passenger runs are short open-space hops a shuttle can fly; other missions need a drive (MSN-13, TRD-18)") {
+    Config c = quiet();
+    World w = new_world(c, 94);
+    // A planet with a neighbour in open-space reach (most have one in the same system).
+    Id home = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
+        if (w.planets[at(p)].pirate || w.planets[at(p)].governor == kNone) continue;
+        for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+            if (q != p && !w.planets[at(q)].pirate && w.derived.travel(p, q, false) <= c.passenger.max_days) home = p;
+        }
+    }
+    REQUIRE(home != kNone);
+    missions::post_passengers(w, home, nullptr);
+    const Id id = chars::spawn(w, home);
+    Character& ch = w.characters[at(id)];
+    ch.ships = {ships::variant(w.map, ch.culture, ShipClass::Courier, 1, false)};
+    int passengers = 0;
+    for (Id m : w.planets[at(home)].missions) {
+        const Mission& mi = w.missions[at(m)];
+        if (mi.kind == MissionKind::Passenger) {
+            ++passengers;
+            CHECK(w.derived.travel(home, mi.target, false) <= c.passenger.max_days);
+            CHECK(missions::qualifies(w, id, mi));
+        } else {
+            CHECK(!missions::qualifies(w, id, mi));
+        }
+    }
+    CHECK(passengers > 0);
 }
 
 TEST_CASE("pirates raid lawful ships in open space, not pirates' friends (PIR-9, SYS-16)") {

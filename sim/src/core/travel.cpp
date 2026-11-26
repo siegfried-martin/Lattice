@@ -15,7 +15,7 @@ std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 
 // Dense Dijkstra over planets and Lattice nodes. Open space joins every pair, so the
 // graph is complete; at v1 size that is a few hundred vertices, cheap to run per planet.
-Routes planet_routes(const World& w) {
+Routes planet_routes(const World& w, bool lattice) {
     const auto& c = w.config.travel;
     const std::size_t np = w.planets.size(), nn = w.map.nodes.size(), n = np + nn;
     std::vector<double> x(n), y(n);
@@ -30,6 +30,7 @@ Routes planet_routes(const World& w) {
     };
     std::vector<std::vector<Link>> links(n);
     for (const LatticeEdge& e : w.map.edges) {
+        if (!lattice) break;
         const double t = e.length / c.lattice_speed;
         links[np + at(e.a)].push_back({np + at(e.b), t, LegKind::Lattice});
         links[np + at(e.b)].push_back({np + at(e.a), t, LegKind::Lattice});
