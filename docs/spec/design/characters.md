@@ -263,12 +263,24 @@ rules.
   unless it's already the bottom rung's, what it still owes is written off (ECO-13), and
   it starts over on the bottom rung at zero. *(Fixed: it used to keep its last hull and
   sit in debt for good, running costs deepening it, unable to afford to go anywhere. By
-  year 5 that was a fifth of all characters.)*
+  year 5 that was a fifth of all characters.)* *(tuning pass part 6)* The clock is
+  checked at every landing as well as in port at the daily tick. *(Fixed: a character
+  always on the move, docking only between ticks, dodged it for months, its debt
+  growing into the thousands, until it lost its ship and landed in a pod.)*
+- *(proposed, tuning pass part 6)* **A free hull can always leave the planet it's given
+  at.** Where open space doesn't get out (no lawful planet within `passenger.max_days` of
+  open space, or for a pirate no pirate planet open space reaches at all), a hull from
+  the ladder that would have no Lattice Drive gets one, and bankruptcy swaps a hull
+  without a drive for it. *(Fixed: a shuttle given there could never leave, and a pirate
+  scout landed by its pod at a lawful planet sat there for years, never raiding.)*
 - *(proposed, tuning pass part 4)* **The bottom rung keeps no reserve.** A character with
   one tier-1 hull and nothing to do here goes to look at another market even when it
   can't spare the cautious reserve (SYS-21): idling costs it the same running costs as
-  looking for work. The bottom rung's work is courier runs, passenger runs
-  (MSN-13) and small trades. A ship without a Lattice Drive (TRD-18) suits it better,
+  looking for work. *(tuning pass part 6)* But it takes on no debt for the fuel: in debt,
+  it looks only where the fuel is free, in open space. *(Fixed: a character in debt can't
+  buy cargo, so it found nothing, explored again across the Lattice on credit, and sank
+  deeper.)* The bottom rung's work is courier runs, passenger runs
+  (MSN-13), errands (MSN-14) and small trades. A ship without a Lattice Drive (TRD-18) suits it better,
   so it doesn't compete with real merchants, once those ships are built. Until then the
   free courier has a drive.
 - *(as built)* **No ship is sold at a planet under siege,** and a free hull isn't given

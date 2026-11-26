@@ -269,6 +269,8 @@ void validate(const Config& c) {
     require(c.passenger.per_planet >= 0, "passenger.per_planet must be at least 0");
     positive(c.passenger.max_days, "passenger.max_days");
     positive(static_cast<double>(c.passenger.expiry_days), "passenger.expiry_days");
+    non_negative(c.passenger.wait_min_days, "passenger.wait_min_days");
+    require(c.passenger.wait_max_days >= c.passenger.wait_min_days, "passenger.wait_max_days must be at least passenger.wait_min_days");
     non_negative(c.skill.gain, "skill.gain");
     non_negative(c.skill.max, "skill.max");
     non_negative(c.skill.bonus, "skill.bonus");

@@ -5,6 +5,23 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-26 · Tuning pass, part 6: bankruptcy and errands
+
+The human's direction after the bankruptcy diagnosis (MSN-14, CHR-16, TRD-4, PIR-4):
+
+- **Errands** (MSN-14, `passenger.wait_min_days` 0.5, `passenger.wait_max_days` 2): a
+  lawful bottom-rung character with nothing waits a random 12 to 48 hours, then its
+  planet posts it a free-money passenger run to a nearby planet. "It basically pays them
+  to explore their next planet." It replaces wandering for the bottom rung.
+- **The player's board is never empty** *(later, with the player)*: "there should always
+  be at least a couple missions in pretty much any planet for the player."
+- **Fixes found on the way,** built with it: the bottom rung explores only with money in
+  hand; the broke clock runs at landing too; errands reach planets open space doesn't
+  get out of (by the Lattice, the fare covering fuel, or the nearest reachable lawful
+  planet) and pirate planets post them for the lawful; a free hull can always leave.
+- **Measured as characters too:** `chars.bankrupt_chars`, so the same character's
+  repeats don't read as ruin.
+
 ### 2026-11-25 · Tuning pass, part 5: ships without a Lattice Drive, and standing
 
 The human's direction (CHR-16, TRD-18, REL-5, MSN-13):

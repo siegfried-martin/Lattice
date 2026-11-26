@@ -266,6 +266,11 @@ The design of the full game is settled enough to build its simulation. In brief:
 - **Moving on** *(proposed, built)*: a character that finds nothing worth doing for a day
   flies to a nearby planet, likelier a busy one, as long as the trip doesn't put it in
   debt (TRD-4).
+- **Errands** *(proposed, built)*: a character on the bottom rung that finds nothing
+  waits 12 to 48 hours, then its planet pays it to carry passengers to a nearby planet,
+  so no one waits long for work and the poorest keep moving (MSN-14). No one is
+  stranded: a free ship can always leave where it's given. For the player, a planet's
+  board is never empty (later).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
   to ECO-5). The v1 goods are food, water, oxygen, eight luxuries (six regional, two

@@ -209,6 +209,8 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "chars.free_hulls", -1, static_cast<double>(w.ledger.free_hulls));
     o.sample(t, "chars.bankruptcies", -1, static_cast<double>(w.ledger.bankruptcies));  // CHR-16
     o.sample(t, "chars.wanders", -1, static_cast<double>(w.ledger.wanders));  // TRD-4
+    o.sample(t, "chars.errands", -1, static_cast<double>(w.ledger.errands));  // MSN-14
+    o.sample(t, "chars.bankrupt_chars", -1, static_cast<double>(w.ledger.bankrupt_chars));  // CHR-16
     for (std::size_t k = 0; k < w.ledger.free_by_hull.size(); ++k) {
         o.sample(t, "chars.free_by_hull", static_cast<Id>(k), static_cast<double>(w.ledger.free_by_hull[k]));
     }

@@ -498,6 +498,9 @@ struct Character {
     std::uint8_t path = 0;         // what it mostly earned from before its post (CHK-27): an EarnPath
     double munitions = 0;          // the refill it owes since its last battle, paid on landing (MIL-4)
     double cover = 0;              // insurance its ships carry, paid out as they're lost (CHR-21)
+    Time errand_wait = kNever;     // the idle_since its errand patience was drawn for (MSN-14)
+    Time errand_at = kNever;       // when that wait runs out
+    std::int32_t bankruptcies = 0; // times it has gone bankrupt (CHR-16)
 };
 template <class Ar, record_of<Character> C>
 void fields(Ar& ar, C& c) {
@@ -509,7 +512,7 @@ void fields(Ar& ar, C& c) {
     ar(c.earned_cargo, c.earned_combat, c.facts, c.last_meet, c.idle_since, c.broke_since, c.wake_seq, c.salary_checked, c.army, c.battle,
        c.paused_at, c.escort, c.escorting, c.pirate, c.pirate_relation, c.pirate_relation_at, c.renounce_to,
        c.last_engaged, c.suspicion, c.offer, c.stewards, c.path, c.munitions, c.cover);
-    ar(c.career_cargo);
+    ar(c.career_cargo, c.errand_wait, c.errand_at, c.bankruptcies);
 }
 
 // ---- Contract (MOD-4, REL-8) ----
@@ -686,6 +689,8 @@ struct Ledger {
     std::int64_t freelance_raids = 0, pirate_deaths = 0;  // PIR-16
     std::int64_t bankruptcies = 0;  // CHR-16
     std::int64_t wanders = 0;       // TRD-4: moved on after a day with nothing to do
+    std::int64_t errands = 0;       // MSN-14: runs posted for a waiting bottom-rung character
+    std::int64_t bankrupt_chars = 0;  // CHR-16: characters gone bankrupt at least once
     std::array<std::int64_t, 4> free_by_hull{};  // CHR-16's ladder: pirate scout, drive courier, freighter, shuttle
     double debt_written_off = 0;
     // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
@@ -714,7 +719,7 @@ void fields(Ar& ar, L& l) {
        l.objectives_declined, l.objective_rewards, l.campaigns_abandoned, l.purses_held, l.purses_returned, l.munitions,
        l.ceasefire_unpaid);
     ar(l.insurance_premiums, l.insurance_paid, l.passenger_fares, l.free_hulls, l.passenger_runs, l.claims);
-    ar(l.freelance_raids, l.pirate_deaths, l.bankruptcies, l.debt_written_off, l.free_by_hull, l.wanders);
+    ar(l.freelance_raids, l.pirate_deaths, l.bankruptcies, l.debt_written_off, l.free_by_hull, l.wanders, l.errands, l.bankrupt_chars);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
 }
 

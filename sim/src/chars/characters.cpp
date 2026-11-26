@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <string_view>
 
 #include "chars/contracts.hpp"
@@ -76,10 +77,18 @@ Id bottom_hull(const World& w, Id id) {
     const Character& c = w.characters[at(id)];
     const auto& s = w.config.ship;
     const Id culture = c.planet != kNone ? w.planets[at(c.planet)].region : c.culture;
-    if (c.pirate) return ships::variant(w.map, culture, ShipClass::Scout, 1, false);
+    // A hull without a drive only where open space gets out (TRD-18): a free hull can
+    // always leave the planet it's given at, for a pirate planet if it's a pirate's.
+    bool open = c.planet == kNone;
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()) && !open; ++q) {
+        if (q == c.planet || w.planets[at(q)].pirate != c.pirate) continue;
+        const double days = w.derived.travel(c.planet, q, false);
+        open = c.pirate ? days < std::numeric_limits<double>::max() : days <= w.config.passenger.max_days;  // max(): no route
+    }
+    if (c.pirate) return ships::variant(w.map, culture, ShipClass::Scout, 1, !open);
     if (best_standing(w, id) >= s.trusted_opinion) return ships::variant(w.map, culture, ShipClass::Courier, 1, true);
-    if (c.career_cargo >= s.merchant_record) return ships::variant(w.map, culture, ShipClass::Freighter, 1, false);
-    return ships::variant(w.map, culture, ShipClass::Courier, 1, false);
+    if (c.career_cargo >= s.merchant_record) return ships::variant(w.map, culture, ShipClass::Freighter, 1, !open);
+    return ships::variant(w.map, culture, ShipClass::Courier, 1, !open);
 }
 
 // A free hull given, counted by its rung on the ladder.
@@ -198,7 +207,10 @@ void go_broke(World& w, Id id) {
     }
     if (c.wealth >= 0) return;
     const Id bottom = bottom_hull(w, id);
-    if (!c.ships.empty() && w.map.variants[at(c.ships[0])].price > w.map.variants[at(bottom)].price) {
+    // Swapped for the bottom rung's if that's cheaper, or if it can leave and this can't.
+    const ShipVariant& last = w.map.variants[at(c.ships.empty() ? bottom : c.ships[0])];
+    if (!c.ships.empty() && (last.price > w.map.variants[at(bottom)].price ||
+                             (!last.lattice_drive && w.map.variants[at(bottom)].lattice_drive))) {
         sell(w, c, c.ships.begin());
         c.ships.push_back(bottom);
         count_free(w, bottom);
@@ -210,6 +222,22 @@ void go_broke(World& w, Id id) {
     }
     c.broke_since = kNever;
     ++w.ledger.bankruptcies;
+    if (c.bankruptcies++ == 0) ++w.ledger.bankrupt_chars;
+}
+
+// In debt past char.broke_days (PIR-4, CHR-16), at a planet.
+bool broke_due(const World& w, const Character& c) {
+    return c.wealth < 0 && c.broke_since != kNever && w.now - c.broke_since >= w.config.chars.broke_days * kDay &&
+           c.activity != Activity::Renouncing && c.planet != kNone;
+}
+
+// PIR-4: a commander who knows a pirate planet may head there, weighed once a broke
+// spell; else it sells ships. Either way the spell ends: go_broke leaves it solvent or
+// bankrupt (CHR-16). True if it set off to turn pirate.
+bool settle_broke(World& w, Id id) {
+    if (pirates::try_turn(w, id, nullptr)) return true;
+    go_broke(w, id);
+    return false;
 }
 
 }  // namespace
@@ -328,11 +356,8 @@ void daily(World& w, Observer*) {
             c.broke_since = kNever;
         } else if (c.broke_since == kNever) {
             c.broke_since = w.now;
-        } else if (w.now - c.broke_since >= cfg.chars.broke_days * kDay && c.activity != Activity::Renouncing) {
-            // PIR-4: a commander who knows a pirate planet may head there, weighed once a
-            // broke spell, at its first planet past char.broke_days; else it sells ships.
-            // Either way the spell ends: go_broke leaves it solvent or bankrupt (CHR-16).
-            if (c.planet != kNone && !pirates::try_turn(w, id, nullptr)) go_broke(w, id);
+        } else if (broke_due(w, c)) {
+            settle_broke(w, id);  // also weighed at landing, so the always-moving don't slip it
         }
     }
 
@@ -490,13 +515,36 @@ void decide(World& w, Id id, std::uint32_t seq, Observer* observer) {
         return;
     }
     // Nothing worth doing here: look at another market (TRD-4), if it can afford to. The
-    // bottom rung (one tier-1 hull) keeps no reserve: idling costs it as much as looking
-    // for work does (CHR-16).
+    // bottom rung (one tier-1 hull) keeps no reserve, since idling costs it as much as
+    // looking for work does (CHR-16), but it looks only with money to trade with, and
+    // pays its fuel from it: broke, it waits for an errand (MSN-14), the paid way to look.
     const Id target = merchant::explore_target(w, c);
     const bool bottom_rung = c.ships.size() == 1 && w.map.variants[at(c.ships[0])].tier == 1;
-    if (target != kNone && (bottom_rung || c.wealth - move::fuel_cost(w, c, c.planet, target) > reserve(w, c)) &&
+    const double explore_fuel = target != kNone ? move::fuel_cost(w, c, c.planet, target) : 0;
+    if (target != kNone && (bottom_rung ? c.wealth > 0 && explore_fuel <= c.wealth : c.wealth - explore_fuel > reserve(w, c)) &&
         move::travel_to(w, id, target)) {
         c.activity = Activity::Exploring;
+        return;
+    }
+    // MSN-14: the lawful bottom rung never waits long for work. After a random
+    // passenger.wait_min_days to wait_max_days with nothing, its planet posts it an errand:
+    // a paid passenger run to a nearby planet. It moves on paid, so it doesn't wander.
+    if (bottom_rung && !c.pirate) {
+        const auto& pc = w.config.passenger;
+        if (c.errand_wait != c.idle_since) {
+            c.errand_wait = c.idle_since;
+            c.errand_at = c.idle_since + static_cast<Time>(w.rng[Stream::Characters].uniform(pc.wait_min_days, pc.wait_max_days) * kDay);
+        }
+        if (w.now >= c.errand_at) {
+            const Id errand = missions::post_errand(w, c.planet, id, observer);
+            if (errand != kNone && missions::qualifies(w, id, w.missions[at(errand)])) {
+                missions::take(w, id, errand, observer);
+                return;
+            }
+            wake(w, id, w.now + kDay);  // none to be had here (a siege, say): it looks again tomorrow
+            return;
+        }
+        wake(w, id, std::min(c.errand_at, w.now + kDay));
         return;
     }
     // A day with nothing here and nothing stale to look at: it moves on anyway (TRD-4),
@@ -518,6 +566,10 @@ void landed(World& w, Id id, Observer* observer) {
     info::observe_market(w, c.facts, c.planet);
     pirates::observe_system(w, c.facts, c.planet);
     refill(w, id);
+    // The broke clock runs at landing too (PIR-4, CHR-16): a character that's never docked
+    // at the daily tick would otherwise stay in debt for months.
+    if (c.wealth >= 0) c.broke_since = kNever;
+    if (broke_due(w, c) && settle_broke(w, id)) return;
     // INF-4: a member landing at a planet of its faction shares with the governor.
     const Id faction = faction_of(w, c);
     if (faction != kNone && fealty::root_of(w, c.planet) == faction) {

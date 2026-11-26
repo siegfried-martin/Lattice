@@ -274,6 +274,10 @@ struct Config {
         std::int64_t per_planet = 2;   // open runs a planet keeps posted
         double max_days = 4;           // farthest destination, in reference travel days
         std::int64_t expiry_days = 7;
+        // Errands (MSN-14): a bottom-rung character that finds nothing waits a random
+        // wait_min_days to wait_max_days, then its planet posts a run for it.
+        double wait_min_days = 0.5;
+        double wait_max_days = 2;
 
         friend bool operator==(const Passenger&, const Passenger&) = default;
     } passenger;
@@ -822,6 +826,8 @@ void for_each_field(C& c, F&& f) {
     f("passenger.per_planet", c.passenger.per_planet);
     f("passenger.max_days", c.passenger.max_days);
     f("passenger.expiry_days", c.passenger.expiry_days);
+    f("passenger.wait_min_days", c.passenger.wait_min_days);
+    f("passenger.wait_max_days", c.passenger.wait_max_days);
 
     f("skill.gain", c.skill.gain);
     f("skill.max", c.skill.max);

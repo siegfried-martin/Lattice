@@ -175,27 +175,67 @@ void root_weekly(World& w, Id root, Observer* observer) {
          observer);
 }
 
-void post_passengers(World& w, Id planet, Observer* observer) {
+namespace {
+
+// Where a passenger run from a planet may go: short hops in open space to a lawful
+// planet, so a hull without a Lattice Drive can fly them (TRD-18), or, with lattice,
+// within the same days by the Lattice.
+std::vector<Id> passenger_targets(const World& w, Id planet, bool lattice) {
+    std::vector<Id> near;
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+        if (q != planet && !w.planets[at(q)].pirate && w.derived.travel(planet, q, lattice) <= w.config.passenger.max_days) near.push_back(q);
+    }
+    return near;
+}
+
+// extra: what the fare adds on top of passenger.fare a day (an errand's fuel, MSN-14).
+Id post_passenger(World& w, Id planet, const std::vector<Id>& near, bool lattice, Observer* observer,
+                  const Character* flier = nullptr) {
     const auto& c = w.config.passenger;
+    const Id to = near[at(static_cast<Id>(w.rng[Stream::Missions].uniform_int(0, near.size() - 1)))];
+    const double fuel = flier != nullptr ? move::fuel_cost(w, *flier, planet, to) : 0;
+    return post(w,
+                {.kind = MissionKind::Passenger, .level = MissionLevel::Planet, .at = planet, .target = to,
+                 .base_pay = c.fare * std::max(0.5, w.derived.travel(planet, to, lattice)) + fuel, .posted = w.now,
+                 .expires = w.now + c.expiry_days * kDay},
+                observer);
+}
+
+}  // namespace
+
+void post_passengers(World& w, Id planet, Observer* observer) {
     if (w.planets[at(planet)].pirate) return;
     std::int64_t open = 0;
     for (Id m : w.planets[at(planet)].missions) open += passenger(w.missions[at(m)]);
-    if (open >= c.per_planet) return;
-    std::vector<Id> near;
-    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
-        // Short hops in open space, so a hull without a Lattice Drive can fly them (TRD-18).
-        if (q != planet && !w.planets[at(q)].pirate && w.derived.travel(planet, q, false) <= c.max_days) near.push_back(q);
-    }
+    if (open >= w.config.passenger.per_planet) return;
+    const std::vector<Id> near = passenger_targets(w, planet, false);
     if (near.empty()) return;
-    Rng& rng = w.rng[Stream::Missions];
-    for (; open < c.per_planet; ++open) {
-        const Id to = near[at(static_cast<Id>(rng.uniform_int(0, near.size() - 1)))];
-        post(w,
-             {.kind = MissionKind::Passenger, .level = MissionLevel::Planet, .at = planet, .target = to,
-              .base_pay = c.fare * std::max(0.5, w.derived.travel(planet, to, false)), .posted = w.now,
-              .expires = w.now + c.expiry_days * kDay},
-             observer);
+    for (; open < w.config.passenger.per_planet; ++open) post_passenger(w, planet, near, false, observer);
+}
+
+Id post_errand(World& w, Id planet, Id flier, Observer* observer) {
+    if (w.planets[at(planet)].siege != kNone) return kNone;
+    // In open space if it can be; else, for a hull with a Lattice Drive, by the Lattice,
+    // the fare covering the fuel; else the nearest lawful planet it can reach at all, so
+    // no one is stranded (a pirate planet posts them too, for the lawful).
+    const Character& c = w.characters[at(flier)];
+    std::vector<Id> near = passenger_targets(w, planet, false);
+    bool lattice = false;
+    if (near.empty() && ships::fleet(w, c).lattice_drive) {
+        lattice = true;
+        near = passenger_targets(w, planet, true);
     }
+    if (near.empty()) {
+        Id best = kNone;
+        for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+            if (q == planet || w.planets[at(q)].pirate) continue;
+            if (best == kNone || w.derived.travel(planet, q, lattice) < w.derived.travel(planet, best, lattice)) best = q;
+        }
+        if (best == kNone || w.derived.travel(planet, best, lattice) >= std::numeric_limits<double>::max()) return kNone;  // no route
+        near = {best};
+    }
+    ++w.ledger.errands;
+    return post_passenger(w, planet, near, lattice, observer, lattice ? &c : nullptr);
 }
 
 void planet_weekly(World& w, Id planet, Observer* observer) {

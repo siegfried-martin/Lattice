@@ -242,6 +242,14 @@ TEST_CASE("a broke commander who knows a pirate planet joins it (PIR-4)") {
     CHECK(w.contracts[at(k)].employer == w.planets[at(haven)].governor);
 }
 
+// Open space gets out of this planet: a lawful planet within passenger.max_days (TRD-18).
+bool open_out(const World& w, Id p) {
+    for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+        if (q != p && !w.planets[at(q)].pirate && w.derived.travel(p, q, false) <= w.config.passenger.max_days) return true;
+    }
+    return false;
+}
+
 TEST_CASE("a timid broke commander never turns pirate; bankrupt, it starts over on the bottom rung (PIR-4, CHR-16)") {
     Config c = quiet();
     World w = new_world(c, 94);
@@ -271,7 +279,8 @@ TEST_CASE("a timid broke commander never turns pirate; bankrupt, it starts over 
     REQUIRE(after.ships.size() == 1);
     CHECK(w.map.variants[at(after.ships[0])].cls == ShipClass::Courier);
     CHECK(w.map.variants[at(after.ships[0])].tier == 1);
-    CHECK(!w.map.variants[at(after.ships[0])].lattice_drive);  // a shuttle: no standing, no record (TRD-18)
+    // A shuttle (no standing, no record, TRD-18), with a drive only where open space doesn't get out.
+    CHECK(w.map.variants[at(after.ships[0])].lattice_drive == !open_out(w, after.planet));
     CHECK(after.wealth > -1000);  // the debt is gone; only days of upkeep since
 }
 
@@ -346,8 +355,9 @@ TEST_CASE("a character with nothing to do for a day moves on to a nearby planet 
     REQUIRE(home != kNone);
     const Id id = chars::spawn(w, home);
     Character& ch = w.characters[at(id)];
-    ch.wealth = 0;  // nothing to trade with; a shuttle, so open space costs it no fuel
-    ch.ships = {ships::variant(w.map, ch.culture, ShipClass::Courier, 1, false)};
+    ch.wealth = 0;  // nothing to trade with; no drive, so open space costs it no fuel
+    // Tier 2: above the bottom rung, which is posted errands instead (MSN-14).
+    ch.ships = {ships::variant(w.map, ch.culture, ShipClass::Courier, 2, false)};
     // It knows every market, freshly: nothing stale to go and look at.
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) info::observe_market(w, ch.facts, p);
     advance(w, 3 * kDay);
@@ -359,7 +369,7 @@ TEST_CASE("a ruined character's free hull follows who it was; standing wins (CHR
     World w = new_world(c, 94);
     Id home = kNone;
     for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
-        if (!w.planets[at(p)].pirate && w.planets[at(p)].governor != kNone && w.planets[at(p)].siege == kNone) home = p;
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].governor != kNone && w.planets[at(p)].siege == kNone && open_out(w, p)) home = p;
     }
     REQUIRE(home != kNone);
     const Id ruler = w.planets[at(fealty::root_of(w, home))].governor;
@@ -391,6 +401,18 @@ TEST_CASE("a ruined character's free hull follows who it was; standing wins (CHR
     CHECK(hull(trusted).lattice_drive);
     for (Id id : {nobody, merchant, trusted}) CHECK(hull(id).tier == 1);
     CHECK(w.characters[at(nobody)].cover == 0);  // free hulls are uninsured (CHR-21)
+    // Where open space doesn't get out, the free hull has a drive: it can always leave.
+    Id shut = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && shut == kNone; ++p) {
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].siege == kNone && !open_out(w, p)) shut = p;
+    }
+    if (shut != kNone) {
+        const Id id = chars::spawn(w, shut);
+        w.characters[at(id)].ships.clear();
+        w.characters[at(id)].wealth = 0;
+        advance(w, kHour);
+        CHECK(hull(id).lattice_drive);
+    }
 }
 
 TEST_CASE("a character climbing back first swaps its shuttle for a courier with a drive (TRD-18, SYS-8)") {
@@ -720,4 +742,52 @@ TEST_CASE("contraband bought from smugglers costs a lawful population productivi
     p.contraband_avg = 0.05;
     budget::weekly(w, 0, nullptr);
     CHECK(p.policing > 0);
+}
+
+TEST_CASE("a bottom-rung character with nothing to do is posted an errand within two days (MSN-14)") {
+    Config c = quiet();
+    c.passenger.per_planet = 0;
+    World w = new_world(c, 94);
+    Id home = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
+        if (w.planets[at(p)].pirate || w.planets[at(p)].governor == kNone) continue;
+        for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
+            if (q != p && !w.planets[at(q)].pirate && w.derived.travel(p, q, false) <= c.passenger.max_days) home = p;
+        }
+    }
+    REQUIRE(home != kNone);
+    const Id id = chars::spawn(w, home);
+    Character& ch = w.characters[at(id)];
+    ch.wealth = 0;
+    ch.ships = {ships::variant(w.map, ch.culture, ShipClass::Courier, 1, false)};
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) info::observe_market(w, ch.facts, p);
+    // No errand before the shortest wait...
+    advance(w, static_cast<Time>(c.passenger.wait_min_days * kDay) - kHour);
+    CHECK(w.ledger.errands == 0);
+    CHECK(w.ledger.wanders == 0);  // it waits for paid work instead of wandering
+    // ...and one by the longest, which it flies and is paid for as free money.
+    advance(w, static_cast<Time>((c.passenger.wait_max_days - c.passenger.wait_min_days) * kDay) + 2 * kHour);
+    CHECK(w.ledger.errands >= 1);
+    advance(w, static_cast<Time>(c.passenger.max_days * 2 * kDay));
+    CHECK(w.ledger.passenger_runs >= 1);
+    CHECK(w.characters[at(id)].wealth > 0);
+}
+
+TEST_CASE("the broke clock runs at landing, not only in port at the daily tick (PIR-4, CHR-16)") {
+    Config c = quiet();
+    c.pirate.turn_p = 0;
+    World w = new_world(c, 95);
+    Id home = kNone;
+    for (Id p = 0; p < static_cast<Id>(w.planets.size()) && home == kNone; ++p) {
+        if (!w.planets[at(p)].pirate && w.planets[at(p)].governor != kNone) home = p;
+    }
+    const Id id = chars::spawn(w, home);
+    Character& ch = w.characters[at(id)];
+    ch.wealth = -500;
+    ch.broke_since = w.now - (c.chars.broke_days + 1) * kDay;
+    ch.planet = home;
+    chars::landed(w, id, nullptr);
+    CHECK(w.ledger.bankruptcies == 1);
+    CHECK(w.ledger.bankrupt_chars == 1);
+    CHECK(w.characters[at(id)].wealth >= 0);  // solvent: the hull sold or the debt written off
 }

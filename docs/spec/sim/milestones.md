@@ -795,7 +795,53 @@ debt.
 **Bankruptcies swing widely by seed** (48 to 726 a year within one run; 67 to 352 in the
 last), but across part 5's runs the median has climbed from part 4's 98 to about 170, 8%
 of characters a year. The likeliest cause is the crowded shuttle rung (passenger runs are
-its only work and all are taken). Worth its own look.
+its only work and all are taken). Worth its own look. *(Looked at in part 6, below.)*
+
+*Tuning pass, part 6 (2026-11-26): bankruptcy, and errands (MSN-14).* A diagnostic
+logged every bankruptcy with what put the character in debt. **The cause, in layers:**
+
+1. **A part 4 rule leaked.** The bottom rung explored without a reserve, so in debt it
+   kept exploring across the Lattice on credit: it can't buy cargo in debt, found no
+   trade, and explored again. The broke clock ran only for characters docked at the daily
+   tick, and these were almost always in transit: at day 180 on seed 6, about 380 lawful
+   characters (19%) had been in debt 15 days or more, every one in transit. Debts grew
+   for months, into the thousands, and were written off when the ship was finally lost
+   and the pod landed (over half of all bankruptcies were characters with no ship).
+2. **Under it, too little work for the bottom rung.** Closing the leak alone doubled the
+   count: 70% became debts under 100, the same jobless characters going bankrupt every
+   ~16 days (bankruptcy leaves them at exactly zero; a day's upkeep puts them back in
+   debt).
+3. **Traps where a character can't leave:** planets open space doesn't get out of
+   (the Lattice the only way, and no fuel money in debt); shuttles without a drive given
+   at those planets; lawful characters whose pod landed at a pirate planet; pirate
+   scouts without a drive landed at a lawful planet with no open-space route to a pirate
+   planet (one sat there for years, bankrupt 117 times, never raiding).
+
+**The human's rule:** after a random 12 to 48 hours with nothing, a bottom-rung
+character's planet posts it a free-money errand to a nearby planet (MSN-14), which
+mirrors the player's experience: a board is never empty. Built with the fixes: the
+bottom rung explores only with money in hand; the broke clock runs at landing too;
+errands go by the Lattice (fare covering fuel) or to the nearest reachable lawful
+planet where open space doesn't get out, and pirate planets post them for the lawful;
+a free hull can always leave (a drive where needed; bankruptcy swaps a driveless hull).
+A goods-conservation test's tolerance was relative to the net change; it's now
+relative to the goods that flowed (the residual was 5e-8 on 6 million).
+
+| | Part 5 | Part 6 |
+|---|---|---|
+| Bankruptcies a year (median of 8 seeds) | 171 | 134 |
+| Range over seeds, 5 years | 335 to 1,755 | 438 to 1,150 |
+| Characters gone bankrupt, a year | — | 65 (3%) |
+| Debt written off a year | 81k | 15k |
+| Errands a year | — | 2,359 |
+| Passenger runs a year (with errands) | 9,079 | 11,293 |
+| Idle | 11.0% | 11.9% |
+| Pirates, mean (end) | 1.1% (2.0%) | 1.4% (2.8%) |
+| Turned pirate a year | 12 | 16 |
+| Checks passing on every seed | 29 of 44 | 28 (CHK-23 now passes; CHK-8, 8b, 27 lose one seed each) |
+
+What's left: pirates are about a third of bankruptcies (raiding until destroyed, by
+design); spies, governors and stewards in debt the rest.
 
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the

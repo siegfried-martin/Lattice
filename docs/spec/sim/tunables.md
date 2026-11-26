@@ -154,6 +154,7 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `mission.deadline_mult` | A taken mission's deadline, in multiples of its reference days (MSN-3) *(proposed, roles round: built)* | 3 |
 | `passenger.fare` | A passenger run's pay per day of the one-way trip, as free money (MSN-13, MSN-5) *(proposed, tuning pass part 3)* | 50 |
 | `passenger.per_planet`, `passenger.max_days`, `passenger.expiry_days` | Passenger runs each lawful planet keeps posted, their farthest destination in open-space travel days (part 5), and how long one stays posted (MSN-13) *(proposed, tuning pass part 3)* | 2, 4, 7 |
+| `passenger.wait_min_days`, `passenger.wait_max_days` | How long a lawful bottom-rung character with nothing to do waits, drawn uniformly, before its planet posts it an errand (MSN-14) *(proposed, tuning pass part 6)* | 0.5, 2 |
 | `skill.gain`, `skill.max`, `skill.bonus` | Skill per mission, cap, pay weighting | 1, 20, 0.02 |
 | `spend.threshold_base`, `spend.threshold_risk` | Wealth over ship price before buying: `base − risk × this` | 2, 1 |
 | `spend.reserve_months` | Running costs kept back by the cautious | 3 × (1 − risk) |

@@ -74,7 +74,8 @@ day moves on** (`merchant.wander_after_days`, 1): to a lawful planet within
 faction, busier planets likelier, so long as the fuel puts it in no debt: off the
 Lattice fuel costs nothing, so even an indebted shuttle can go. Before, it moved only to look at prices more
 than `merchant.stale_days` old, and kept its cautious reserve doing it. Most of what idle
-time remains is the day in port before it moves on.
+time remains is the day in port before it moves on. *(tuning pass part 6)* The bottom
+rung doesn't wander: it's posted an errand instead (MSN-14), and moves on paid.
 
 ### TRD-5 Who can run what `v1`
 

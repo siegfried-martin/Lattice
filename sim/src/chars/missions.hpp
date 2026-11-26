@@ -18,6 +18,12 @@ void root_weekly(World& world, Id planet, Observer* observer);
 // way to a random lawful planet within passenger.max_days.
 void post_passengers(World& world, Id planet, Observer* observer);
 
+// An errand (MSN-14): one passenger run posted at a lawful planet not under siege for a
+// bottom-rung character that has waited there with nothing to do: in open space, or by
+// the Lattice if open space doesn't get out and its hull has a drive, the fare then
+// covering the fuel, or else to the nearest lawful planet it can reach. kNone under siege.
+Id post_errand(World& world, Id planet, Id flier, Observer* observer);
+
 // Weekly, per planet (proposed): a border planet at war posts a scout mission toward the
 // nearest enemy planet, flown as a sortie (INF-9); a planet whose sector's risk passes
 // security.risk_post posts a patrol over its own space (MIL-5).

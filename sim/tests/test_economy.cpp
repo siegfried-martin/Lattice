@@ -397,7 +397,9 @@ TEST_CASE("money and goods add up over a year (CHK-7)") {
     for (int g = 0; g < kLawfulGoodCount; ++g) {
         const double stock = goods(g);
         const auto& l = w.ledger;
-        CHECK(stock - stock0[at(g)] == doctest::Approx(l.produced[at(g)] - l.consumed[at(g)] - l.destroyed[at(g)]).epsilon(1e-9));
+        // Rounding is relative to the goods that flowed, not to the (often small) net change.
+        const double residual = (stock - stock0[at(g)]) - (l.produced[at(g)] - l.consumed[at(g)] - l.destroyed[at(g)]);
+        CHECK(std::abs(residual) <= 1e-9 * std::max(1.0, l.produced[at(g)] + l.consumed[at(g)]));
     }
     CHECK(w.ledger.osmosis_volume > 0);
 }

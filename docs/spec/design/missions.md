@@ -244,3 +244,34 @@ spamming small requests.
   fares go by open-space travel time, so a shuttle without a Lattice Drive (TRD-18) can
   fly every one. They're the only missions such a hull can take; the rest need a drive.
 
+
+### MSN-14 Errands: no one waits long for work `v1` `proposed`
+
+*(tuning pass part 6, the human's rule)* A lawful character on the bottom rung (a single
+tier-1 hull, MSN-13) that finds nothing worth doing waits a random
+`passenger.wait_min_days` to `passenger.wait_max_days` (12 to 48 hours). Then its planet
+posts it an **errand**: a passenger run (MSN-13) to a nearby lawful planet, which it
+takes. In effect it's paid to look at its next planet.
+
+- **It's free money** (MSN-5), counted with passenger fares and in its own count
+  (`chars.errands`), and it counts as faction work (REL-5), like any passenger run.
+- **It replaces wandering for the bottom rung** (TRD-4): it moves on paid, not on its
+  own. Characters above the bottom rung still wander.
+- **No one is stranded.** Where open space doesn't get out (no lawful planet within
+  `passenger.max_days` of open space), a hull with a Lattice Drive is posted its errand
+  by the Lattice, within the same days, and the fare also covers the fuel. Failing that,
+  the errand goes to the nearest lawful planet the hull can reach at all. A pirate planet
+  posts them too, for a lawful character whose pod landed there. Without this, a
+  character in debt where nothing nearby could be reached couldn't buy fuel, and stayed
+  there, going bankrupt every two weeks.
+- **None at a planet under siege;** it looks again the next day.
+- **For the player** *(later, once the player is in the sim)*: a lawful planet's board
+  is never empty when the player docks. It always shows at least a couple of missions,
+  topped up with errands if it must. The player doesn't wait 12 to 48 hours; the wait
+  is for characters.
+
+*Why:* the bottom rung had more characters than paid work, so the jobless fell into
+debt on upkeep and went bankrupt over and over, every two or three weeks. Paying them
+to move keeps them solvent and moving, so the galaxy looks alive. It also mirrors what
+the player should find: "I don't want a player going to a new planet and finding a
+mission computer that has nothing."
