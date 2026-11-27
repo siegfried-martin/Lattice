@@ -904,6 +904,32 @@ risk"). 8 seeds, 5 years, medians.
   from what a planet makes or sells, and most of it goes unspent; and whether there are
   enough merchants overall (the human's question).
 
+**The money round** *(built, ECO-1, ECO-2, SYS-1).* The population eats from the stock,
+and new money is an even grant of 40,000 a planet a day, with a life-support sell floor
+of half a reserve. 8 seeds × 5 years against part 7 (`init120-on`):
+
+- **Money in matches part 7's** (4.1M a day against 4.2M), but sinks fall to 3.0M:
+  making goods costs less as fewer are made. Treasuries together end at 2.1B, against
+  0.3B, and the money supply grows 28% a year (CHK-7).
+- **The brake on size works, hard.** World population ends at 0.76 of its start,
+  against 1.21. It falls over the first two to three years and then holds steady
+  (CHK-12b cv 0.014). The 90th-percentile planet is 1,400 thousand against 2,900, and
+  the largest is 2,300 against 7,400. A quarter of the biggest third are in debt; almost
+  none of the smallest third are.
+- **The small planets' spare money doesn't buy growth.** The smallest third sit on a
+  median 480 months of running costs and hold 64% of all money. A planet's bid reads its
+  stock against its reserve and never its treasury, and growth comes only from stock
+  above reserve. So a rich small planet bids no more than a broke one, and its money
+  sits. The balance the design counts on ("small planets will use their excess money to
+  buy more food and luxuries and grow") has no channel yet.
+- **Trade halves:** merchant profit per trip falls from 184 to 57 (CHK-14b), and goods
+  traded halve. An importer's income is now the grant plus its exports, so its credit
+  limit (two months of income) is far smaller than its old population spending gave it.
+- **Pirates rise** to 1.9% of characters (CHK-23 floor 1%; part 7 0.99%), with battles up
+  79%. Pirate planets get the grant too.
+- **The floor does nothing measurable:** a run with `price.sell_floor` 0 lands within
+  noise of it.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

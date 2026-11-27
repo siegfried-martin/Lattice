@@ -16,43 +16,38 @@ planet, `c` a character. Rates are per game day unless noted.
 
 *(proposed, round 3: built)* Happiness is signed, 0 neutral, with no clamp (PRD-4).
 
-*(proposed, money round: designed, not built)* The population eats from the stock and
-pays nothing (ECO-2); new money is the grant (ECO-1). Against the formula below:
+*(proposed, money round: built)* The population eats from the stock and pays nothing
+(ECO-2); new money is the grant (ECO-1).
 
-```
-treasury  += econ.grant                               daily, every planet alike, new money
-eat_g      = min(stock_g, need_g)                     life support; no budget, no ask
-use_l      = as below, min(stock_l, use_l)            luxuries; no budget
-             a pirate planet eats its own stims the same way, up to pirate.demand_cap
-```
-
-- `budget`, `econ.wage` and the ask go from this step; shortfall is stock alone.
-- Productivity still scales output (SYS-2); it no longer scales money.
+- Productivity scales output (SYS-2); it doesn't scale money.
 - Income (the credit limit's and the budget's, SYS-3, SYS-5) is the grant plus sales to
-  traders plus the tax; the starting income estimate becomes the grant.
+  traders plus the tax; the starting income estimate is the grant.
 - *Sizing:* in part 7's runs population spending created about 4.2M a day across about
   102 planets, close to what sinks took, so `econ.grant` starts at 40,000.
+- *Before the money round,* the population had a budget of `N × econ.wage × P`, new
+  money, and bought life support, contraband and luxuries at the ask within it.
 
 ```
-budget     = N × econ.wage × P                       purchasing power, new money (ECO-1)
+treasury  += econ.grant                              daily, every planet alike, new money (ECO-1)
 need_g     = N × good.consumption[g]                  for food, water, oxygen
-buy_g      = min(stock_g, need_g), limited by budget   life support first, at ask price
-shortfall  = max over life support of (1 − buy_g / need_g)
+eat_g      = min(stock_g, need_g)                     no budget, no price
+shortfall  = max over life support of (1 − eat_g / need_g)
 
 if shortfall > 0:   N −= N × pop.shrink_rate × shortfall
-else:               excess_g = (stock_g − reserve_g) / reserve_g    after buying
+else:               excess_g = (stock_g − reserve_g) / reserve_g    after eating
                     N += N × growth_factor × G(H) × pop.growth_rate
                          × clamp(min_g excess_g / pop.full_excess, 0, 1)
 
+pirate     eat_stims = min(stock, N × consumption × craving(H), pirate.demand_cap × N)
+
 lux_need   = happy.need × N                           per luxury
 fill_l     = stock_l / reserve_l
-use_l      = lux_need × min(fill_l, lux.max_fill) × event.festival_mult^festivals
-             / (1 + happy.sated × max(0, H))
-buy_l      = min(stock_l, use_l), limited by the budget left after life support and contraband
+use_l      = min(stock_l, lux_need × min(fill_l, lux.max_fill) × event.festival_mult^festivals
+                          / (1 + happy.sated × max(0, H)))
 
 H*         = happy.base
-             + Σ_l happy.lux × ln(1 + buy_l / lux_need)            each luxury its own curve
-             + happy.contraband × ln(1 + contraband_bought / lux_need)
+             + Σ_l happy.lux × ln(1 + use_l / lux_need)            each luxury its own curve
+             + happy.contraband × ln(1 + contraband_eaten / lux_need)
              − happy.hunger × min(shortfall, 1)
 H         += (H* − H) / happy.settle_days                          daily, no clamp
 capture    H −= capture.happiness_drop                             a shock, then recovery
@@ -60,30 +55,24 @@ capture    H −= capture.happiness_drop                             a shock, th
 u(H)       = tanh(|H| / happy.scale)                               0 to 1, diminishing
 F(H)       = 1 + happy.p_up × u(H) for H ≥ 0;  1 − happy.p_down × u(H) for H < 0
 G(H)       = 1 + happy.g_up × u(H) for H ≥ 0;  max(0, 1 − happy.g_down × u(H)) for H < 0
-C          = EMA over pop.contraband_window days of contraband bought / N
+C          = EMA over pop.contraband_window days of contraband eaten / N
 P          = F(H) × max(0, 1 − pop.contraband_penalty × C)
 ```
 
-- **The floor:** at the bottom, F = 1 − `happy.p_down`. Start it where a planet can just
-  buy its life support at reserve prices: `econ.wage` × F ≥ Σ consumption × base price
-  (40 × 0.8 = 32 against 30).
+- **The floor:** at the bottom, F = 1 − `happy.p_down`. *Before the money round* it
+  was set so a planet could just buy its life support at reserve prices (`econ.wage` ×
+  F ≥ Σ consumption × base price); now it only scales output.
 - **Starting values** put a planet with no luxuries a little unhappy (`happy.base`
   −0.3, F ≈ 0.89) and one with full use of three luxuries a little happy (about +0.2).
-  At base prices the budget after life support buys roughly three luxuries' full use,
-  so variety costs.
-- Money the population pays goes to the planet's treasury (ECO-2). Contraband is bought
-  from smugglers, not the market (SYS-16).
+  Variety costs because each luxury must be made or imported.
+- A lawful population's contraband comes from smugglers, not the market (SYS-16).
 - `growth_factor` is `pop.growth_factor_min` + risk tolerance × (`max` − `min`) for the
   governor (PRD-3).
 - *Tuning constraint* (PRD-6): at steady state, the productivity a population loses to
   contraband must exceed what its extra happiness gains.
 - *As built:*
-  - A planet's day runs production (SYS-2) first, then buying, then growth, happiness
-    and productivity.
-  - The population buys at the ask computed before it buys, without slippage. When the
-    budget can't cover all three life-support goods, every purchase is scaled down by
-    the same factor, and the shortfall counts. Luxuries are scaled down alike the same
-    way when the budget left can't cover them.
+  - A planet's day runs production (SYS-2) first, then the grant, then eating, then
+    growth, happiness and productivity.
   - Growth uses the excess clamped to 1, so `pop.growth_rate` is the most a day can add
     ("daily growth at full excess").
   - *(proposed, round 4)* **Full growth at half a reserve's surplus** (`pop.full_excess`
@@ -132,8 +121,7 @@ weekly:    margin_g = (bid_g − cost_g) × good.yield[g]
   `price.min` (round 3: 11%).
 - **Money:** making goods sinks about 40% of the money the population creates. With
   `econ.op_per_capita` at 300 too, 55% of planets ended in debt; it's 250 now. The
-  budget reads net income (SYS-5). `good.yield` and `happy.p_down` stay as they were:
-  the poverty floor still buys life support, which now costs less than base.
+  budget reads net income (SYS-5). `good.yield` and `happy.p_down` stay as they were.
 - **Growth and distribution** needed changes elsewhere: growth is full at half a
   reserve's surplus (SYS-1), and osmosis carries most life support (SYS-6).
 - **Pay:** the cost leaves the world (materials and equipment used up). Paying it to the
@@ -1140,7 +1128,7 @@ owed. Pirates and characters with no faction earn no bounties; pirates live on l
   `pirate.contraband_price` × demand, where
   `demand = N × good.consumption[contraband] × (1 − s(H)) ÷ 2`, saturating at
   `pirate.demand_cap`, where s(H) is u(H) signed like H *(round 3: the signed form of
-  the old `(1 − H)`: 1 when miserable, ½ at neutral, toward 0 when content)*. Money comes from the population's budget, untaxed.
+  the old `(1 − H)`: 1 when miserable, ½ at neutral, toward 0 when content)*. New money (ECO-1), untaxed.
 - **The pirate relation** moves by `pirel.accept`, `pirel.success`, `pirel.fail` and fades
   toward `pirel.rest` (hostile) at `pirel.fade` per week.
 

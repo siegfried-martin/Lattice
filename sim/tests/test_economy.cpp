@@ -144,27 +144,51 @@ TEST_CASE("a fed population grows; a starved one shrinks slowly (SYS-1, PRD-2)")
     }
 }
 
-TEST_CASE("the population's spending is new money paid to the treasury (ECO-1, ECO-2)") {
+TEST_CASE("new money is the grant, the same to every planet; eating costs nothing (ECO-1, ECO-2)") {
     World w = lab();
     Planet& p = w.planets[0];
     fill_to(w, p, 1);
     const double before = p.treasury, created = w.ledger.money_created;
     economy::planet_day(w, 0);
-    const double spent = w.ledger.money_created - created;
-    CHECK(spent > 0);
-    CHECK(p.treasury - before == doctest::Approx(spent - w.ledger.production_cost));
-    CHECK(spent <= p.population * w.config.econ.wage * (1 + w.config.happy.p_up) + 1e-6);
+    CHECK(w.ledger.money_created - created == doctest::Approx(w.config.econ.grant));
+    CHECK(p.treasury - before == doctest::Approx(w.config.econ.grant - w.ledger.production_cost));
+    CHECK(w.ledger.consumed[kFood] > 0);
+    // The grant doesn't scale with the population.
+    World big = lab();
+    Planet& q = big.planets[0];
+    q.population *= 4;
+    fill_to(big, q, 1);
+    const double big_created = big.ledger.money_created;
+    economy::planet_day(big, 0);
+    CHECK(big.ledger.money_created - big_created == doctest::Approx(w.config.econ.grant));
 }
 
-TEST_CASE("a short budget buys less life support, and that is a shortfall") {
+TEST_CASE("a short stock is a shortfall, however much money the planet has (ECO-2)") {
     World w = lab();
-    w.config.econ.wage = 1;
     Planet& p = w.planets[0];
     fill_to(w, p, 1);
     p.labour = {0, 0, 0};
+    p.treasury = 1e12;
+    p.stock[kWater] = 0.5 * p.population * w.config.goods[kWater].consumption;
     const double n = p.population;
     economy::planet_day(w, 0);
+    CHECK(p.shortfall == doctest::Approx(0.5));
     CHECK(p.population < n);
+}
+
+TEST_CASE("a planet won't sell life support to traders below the floor (ECO-2)") {
+    World w = lab();
+    const Config& c = w.config;
+    Planet& p = w.planets[0];
+    fill_to(w, p, 1);
+    const double r = market::reserve(c, p, kFood);
+    const market::Fill f = market::buy(p, c, kFood, 10 * r, 1e15, 1e15);
+    CHECK(p.stock[kFood] == doctest::Approx(c.price.sell_floor * r));
+    CHECK(f.qty == doctest::Approx((1 - c.price.sell_floor) * r));
+    // A luxury has no floor.
+    const double rl = market::reserve(c, p, kWine);
+    market::buy(p, c, kWine, 10 * rl, 1e15, 1e15);
+    CHECK(p.stock[kWine] == doctest::Approx(0).epsilon(1e-6));
 }
 
 TEST_CASE("happiness settles toward a target set by luxuries and hunger (PRD-4, SYS-1)") {
@@ -184,8 +208,7 @@ TEST_CASE("happiness settles toward a target set by luxuries and hunger (PRD-4, 
         }
         CHECK(p.happiness == doctest::Approx(c.happy.base).epsilon(1e-3));  // settles; no drift to an end
     }
-    SUBCASE("full luxury stocks and money to spend: up") {
-        w.config.econ.wage = 1000;
+    SUBCASE("full luxury stocks: up") {
         fill_to(w, p, 1.5);
         economy::planet_day(w, 0);
         CHECK(p.happiness > 0);
@@ -203,7 +226,6 @@ TEST_CASE("happiness settles toward a target set by luxuries and hunger (PRD-4, 
 TEST_CASE("variety pays: the same luxury use spread over more luxuries is happier (PRD-4)") {
     auto settle = [](int kinds) {
         World w = lab();
-        w.config.econ.wage = 1000;
         Planet& p = w.planets[0];
         for (int i = 0; i < 300; ++i) {
             fill_to(w, p, 1);
@@ -221,7 +243,6 @@ TEST_CASE("variety pays: the same luxury use spread over more luxuries is happie
 TEST_CASE("a contented population uses fewer luxuries (PRD-4)") {
     auto used = [](double h) {
         World w = lab();
-        w.config.econ.wage = 1000;
         Planet& p = w.planets[0];
         fill_to(w, p, 1);
         p.happiness = h;
@@ -241,10 +262,6 @@ TEST_CASE("productivity: 1 at neutral, diminishing toward a ceiling and a floor 
     // Diminishing: the first step from neutral counts most.
     CHECK(happiness::productivity(c, 0.2) - 1 > happiness::productivity(c, 0.4) - happiness::productivity(c, 0.2));
     CHECK(1 - happiness::productivity(c, -0.2) > happiness::productivity(c, -0.2) - happiness::productivity(c, -0.4));
-    // The poverty floor still buys life support at reserve prices.
-    double life = 0;
-    for (Good g : kLifeSupport) life += c.goods[g].consumption * c.goods[g].base_price;
-    CHECK(c.econ.wage * (1 - c.happy.p_down) >= life);
     // Unhappiness cuts growth; happiness doesn't raise it to start.
     CHECK(happiness::growth(c, -0.3) < 1);
     CHECK(happiness::growth(c, 0.3) == 1);

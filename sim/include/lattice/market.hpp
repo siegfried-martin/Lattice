@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include "lattice/world.hpp"
 
 // Markets and prices (SYS-3, PRD-10). Every planet is a state trader (ECO-2): traders
@@ -37,6 +39,12 @@ inline void pay(Planet& p, double money) {
     p.income_month -= money;
 }
 
+// What of a good's stock the planet will sell to traders: all of it, except life
+// support, which it keeps down to price.sell_floor of its reserve so its own people can
+// eat (ECO-2). Merchants and osmosis alike stop there.
+double floor_stock(const Config& c, const Planet& p, Good g);
+inline double sellable(const Config& c, const Planet& p, Good g) { return std::max(0.0, p.stock[g] - floor_stock(c, p, g)); }
+
 // A planet whose treasury is below its credit limit (econ.credit_limit months of
 // income in the red) stops buying from traders.
 bool can_buy(const Config& c, const Planet& p);
@@ -54,8 +62,8 @@ struct Fill {
 };
 
 // A trader buys from the planet's stock, in chunks of price.chunk x reserve so the
-// price walks (SYS-3): at most max_qty, spending at most budget, and only while a
-// chunk costs no more than max_unit per unit, tax included. The planet's treasury takes
+// price walks (SYS-3): at most max_qty, spending at most budget, never below the floor,
+// and only while a chunk costs no more than max_unit per unit, tax included. The planet's treasury takes
 // the money. quote_buy works the same on a copy and changes nothing.
 Fill buy(Planet& planet, const Config& c, Good g, double max_qty, double budget, double max_unit);
 Fill quote_buy(Planet planet, const Config& c, Good g, double max_qty, double budget, double max_unit);

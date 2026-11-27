@@ -161,9 +161,10 @@ void validate(const Config& c) {
     require(c.price.max >= c.price.min, "price.max must be at least price.min");
     require(c.price.spread >= 0 && c.price.spread < 2, "price.spread must be 0 to 2");
     positive(c.price.chunk, "price.chunk");
+    require(c.price.sell_floor >= 0 && c.price.sell_floor <= 1, "price.sell_floor must be 0 to 1");
 
     require(c.econ.tax >= 0 && c.econ.tax < 1, "econ.tax must be 0 to 1");
-    non_negative(c.econ.wage, "econ.wage");
+    non_negative(c.econ.grant, "econ.grant");
     non_negative(c.econ.credit_limit, "econ.credit_limit");
     non_negative(c.econ.op_base, "econ.op_base");
     non_negative(c.econ.op_per_capita, "econ.op_per_capita");

@@ -255,7 +255,7 @@ TEST_CASE("security spending buys static defence, more at war (MIL-5)") {
     World w = new_world(quiet(), 67);
     const Front f = front(w);
     Planet& p = w.planets[at(f.a)];
-    p.net_avg = 4 * p.population * w.config.econ.wage;  // rich enough to guard itself in peace
+    p.net_avg = 480 * p.population;  // rich enough to guard itself in peace
     budget::weekly(w, f.a, nullptr);
     CHECK(p.security > 0);
     // Bought in shares of net income (SYS-5, OPN-39).
@@ -263,7 +263,7 @@ TEST_CASE("security spending buys static defence, more at war (MIL-5)") {
     CHECK(std::fmod(p.security / unit + 1e-9, 1.0) < 1e-6);
     advance(w, 30 * kDay);
     CHECK(p.defence == doctest::Approx(w.config.defence.per_spend * p.security));
-    p.net_avg = 4 * p.population * w.config.econ.wage;
+    p.net_avg = 480 * p.population;
     budget::weekly(w, f.a, nullptr);
     const double peace = p.security;
     diplomacy::declare_war(w, f.root_a, f.root_b, nullptr);

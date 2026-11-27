@@ -27,7 +27,7 @@ void take(World& world, Id character, Id mission, Observer* observer);
 // The character landed while on a run.
 void landed(World& world, Id character, Observer* observer);
 
-// Selling contraband to a lawful population (SYS-16): untaxed, from its budget, at
+// Selling contraband to a lawful population (SYS-16): untaxed, new money (ECO-1), at
 // pirate.contraband_price x base, as much as it wants today: N x consumption x (1 - H),
 // up to pirate.demand_cap per thousand.
 double sell_to_population(World& world, Id character);

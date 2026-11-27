@@ -29,6 +29,10 @@ double price(const Config& c, const Planet& p, Good g) {
     return gp.base_price * std::clamp(std::pow(r / stock, gp.k), c.price.min, c.price.max);
 }
 
+double floor_stock(const Config& c, const Planet& p, Good g) {
+    return kind_of(g) == GoodKind::LifeSupport ? c.price.sell_floor * reserve(c, p, g) : 0;
+}
+
 bool can_buy(const Config& c, const Planet& p) {
     const double monthly_income = std::max(0.0, p.income_avg) * static_cast<double>(c.time.payment_days);
     return p.treasury >= -c.econ.credit_limit * monthly_income;
@@ -56,7 +60,7 @@ Fill buy(Planet& p, const Config& c, Good g, double max_qty, double budget, doub
     while (f.qty < max_qty - 1e-9) {
         const double unit = ask(c, p, g) * (1 + p.tax_rate);
         if (unit > max_unit) break;
-        double q = std::min({chunk, max_qty - f.qty, p.stock[g], (budget - f.money) / unit});
+        double q = std::min({chunk, max_qty - f.qty, sellable(c, p, g), (budget - f.money) / unit});
         if (q <= 1e-9) break;
         p.stock[g] -= q;
         receive(p, q * unit);

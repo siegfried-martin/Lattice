@@ -47,9 +47,8 @@ are gone.
 | `price.chunk` | Trade chunk as share of reserve | 0.05 |
 | `price.bands` | Player bands of price ÷ base | <0.6 very low, <0.9 low, <1.2 normal, <2 high, else very high |
 | `econ.tax` | Transaction tax on traders | 0.05 |
-| `econ.wage` | Purchasing power per thousand per day *(tuning pass part 7: 40 before; goes with the money round)* | 120 |
-| `econ.grant` | New money paid to every planet's treasury a day, the same for all (ECO-1) *(proposed, money round: not built)* | 40,000 |
-| `price.sell_floor` | Share of its reserve below which a planet won't sell a life-support good to traders (ECO-2) *(proposed, money round: not built)* | 0.5 |
+| `econ.grant` | New money paid to every planet's treasury a day, the same for all (ECO-1) *(money round; replaces `econ.wage`, 120 in part 7)* | 40,000 |
+| `price.sell_floor` | Share of its reserve below which a planet won't sell a life-support good to traders or osmosis (ECO-2) *(money round)* | 0.5 |
 | `econ.credit_limit` | Months of income a planet may owe before it stops buying | 2 |
 | `pop.growth_rate` | Daily growth at full excess | 0.0005 |
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |

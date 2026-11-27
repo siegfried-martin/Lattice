@@ -279,13 +279,13 @@ The design of the full game is settled enough to build its simulation. In brief:
   there weigh it as a trip. This reaches the far fringe, which merchants planning among
   their nearest markets never looked at. A planet too broke to pay orders nothing and
   starves (MSN-15).
-- **Economy:** population buying goods is the only source of new money; every planet is
-  a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
-  to ECO-5). *Proposed (money round, not built):* the population stops buying and eats
-  from the state's stock; new money is an even daily grant to every planet, the same
-  whatever its size, so a big planet feeds and runs more people from the same grant
-  (a brake on endless growth) and a small one spends its spare money to grow; a planet
-  won't sell its last half-reserve of life support. The v1 goods are food, water, oxygen, eight luxuries (six regional, two
+- **Economy:** new money is an even daily grant to every planet, the same whatever its
+  size, so a big planet feeds and runs more people from the same grant (a brake on
+  endless growth) and a small one spends its spare money to grow. The population
+  doesn't buy: it eats from the state's stock, and a broke planet starves because it
+  can't pay merchants for food. Every planet is a state trader that taxes other traders
+  and won't sell its last half-reserve of life support; operating costs are the baseline
+  sink (ECO-1 to ECO-5). *(Proposed, money round: built.)* The v1 goods are food, water, oxygen, eight luxuries (six regional, two
   from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
   goods at high, medium and low efficiency, partly by region; a luxury takes more labour
   than food, and fringe worlds grow more of their own; prices come from stock against a

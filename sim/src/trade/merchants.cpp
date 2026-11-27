@@ -27,6 +27,7 @@ std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 // moves as the merchant trades.
 struct Curve {
     double base = 0, k = 1, reserve = 0, stock = 0, half_spread = 0, tax = 0, pmin = 0, pmax = 0;
+    double floor = 0;  // stock the planet won't sell below (ECO-2)
 
     double price() const {
         if (reserve <= 0) return base * pmin;
@@ -38,7 +39,7 @@ struct Curve {
 
 Curve curve(const Config& c, const Planet& p, Good g) {
     const auto& gp = c.goods[g];
-    return {gp.base_price, gp.k, market::reserve(c, p, g), p.stock[g], c.price.spread / 2, p.tax_rate, c.price.min, c.price.max};
+    return {gp.base_price, gp.k, market::reserve(c, p, g), p.stock[g], c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, market::floor_stock(c, p, g)};
 }
 
 // From a fact: the reserve is read back off the price curve (stock x (price/base)^(1/k));
@@ -48,7 +49,8 @@ Curve believed(const Config& c, const Planet& p, const PriceFact& f, Good g, dou
     const double stock = f.stock[at(g)];
     double reserve = stock * std::pow(f.price[at(g)] / gp.base_price, 1 / gp.k);
     if (reserve < 1e-6) reserve = 4 * load;
-    return {gp.base_price, gp.k, reserve, stock, c.price.spread / 2, p.tax_rate, c.price.min, c.price.max};
+    const double floor = kind_of(g) == GoodKind::LifeSupport ? c.price.sell_floor * reserve : 0;
+    return {gp.base_price, gp.k, reserve, stock, c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, floor};
 }
 
 struct LegChoice {
@@ -70,7 +72,7 @@ double leg_profit(Curve from, Curve to, double capacity, double budget, double r
     for (int i = 0; i < kSteps; ++i) {
         // risk_cost = cargo value x believed route risk x merchant.loss_rate (SYS-7).
         const double buy = from.unit_buy(), sell = to.unit_sell();
-        if (sell <= buy * (1 + risk_rate) || step > from.stock || spent + step * buy > budget) break;
+        if (sell <= buy * (1 + risk_rate) || step > from.stock - from.floor || spent + step * buy > budget) break;
         profit += step * (sell - buy * (1 + risk_rate));
         spent += step * buy;
         from.stock -= step;
@@ -349,7 +351,7 @@ void buy_for_leg(World& w, Id id, Good g, Id next, Observer*) {
     double qty = 0;
     Curve sell = to;
     for (int i = 0; i < kSteps; ++i) {
-        if (sell.unit_sell() <= from.unit_buy() || step > from.stock) break;
+        if (sell.unit_sell() <= from.unit_buy() || step > from.stock - from.floor) break;
         qty += step;
         from.stock -= step;
         sell.stock += step;

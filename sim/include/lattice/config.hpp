@@ -70,13 +70,14 @@ struct Config {
         double max = 5;
         double spread = 0.06;  // ask-bid spread
         double chunk = 0.05;   // trade chunk as a share of reserve (slippage)
+        double sell_floor = 0.5;  // share of reserve below which life support isn't sold to traders (ECO-2)
 
         friend bool operator==(const Price&, const Price&) = default;
     } price;
 
     struct Econ {
         double tax = 0.05;           // transaction tax (ECO-3)
-        double wage = 120;           // purchasing power per thousand per day (ECO-1); 40 before tuning pass part 7
+        double grant = 40000;        // new money paid to every planet's treasury a day, the same for all (ECO-1)
         double credit_limit = 2;     // months of income a planet may owe and still buy
         double op_base = 2000;       // operating cost per month (ECO-4)
         double op_per_capita = 250;  // per thousand per month (300 until round 4)
@@ -719,9 +720,10 @@ void for_each_field(C& c, F&& f) {
     f("price.max", c.price.max);
     f("price.spread", c.price.spread);
     f("price.chunk", c.price.chunk);
+    f("price.sell_floor", c.price.sell_floor);
 
     f("econ.tax", c.econ.tax);
-    f("econ.wage", c.econ.wage);
+    f("econ.grant", c.econ.grant);
     f("econ.credit_limit", c.econ.credit_limit);
     f("econ.op_base", c.econ.op_base);
     f("econ.op_per_capita", c.econ.op_per_capita);

@@ -17,18 +17,14 @@ decisions are made, and why planets turn pirate. Goods, population and prices ar
 
 ## Money in
 
-### ECO-1 Population is the only source of new money `v1`
+### ECO-1 New money is an even grant to every planet `v1`
 
-Every planet's population has **purchasing power**, scaled by its size, productivity and
-happiness. That is the only place new money enters the world, and it becomes money only
-when goods are delivered and bought. A population with nothing to buy generates nothing.
-
-*Why:* a blockaded planet must lose income (REJ-16, REJ-17).
-
-*(proposed, money round: designed, not built)* **New money is an even grant to every
-planet,** the same amount each day whatever its size (`econ.grant`), paid to the
-treasury. Population no longer buys anything: it consumes from the state's own stock
-(ECO-2), so there is no wage and no purchasing power.
+*(proposed, money round: built)* **New money is an even grant to every planet,** the
+same amount each day whatever its size (`econ.grant`), paid to the treasury. The
+population doesn't buy anything: it consumes from the state's own stock (ECO-2), so
+there is no wage and no purchasing power. *Before the money round,* each population had
+purchasing power scaled by its size and productivity, which became money only when it
+bought goods.
 
 - **Why even, not per person:** a grant that doesn't grow with a planet is inefficiency
   at scale. A big planet pays more to make its own food and to run (ECO-4) from the same
@@ -59,7 +55,7 @@ owners. **Every other trader (merchants and the player) buys from and sells to t
 state;** contraband, sold by smugglers straight to the population, is the exception
 (PRD-6). To the player this is the planet's trade goods screen.
 
-*(proposed, money round: designed, not built)* **The population eats from the state's
+*(proposed, money round: built)* **The population eats from the state's
 stock,** the same pool merchants buy from; it doesn't buy. A planet earns from its
 exports, the tax and its grant (ECO-1), and pays for imports, making goods and running.
 A broke planet starves because it can't pay merchants for food, not because its people
@@ -68,6 +64,7 @@ consumer outside of the planet market let me know but I don't see it." There was
 
 - **A floor on life support:** the planet won't sell a life-support good to traders
   below `price.sell_floor` of its reserve, so a merchant can't empty it at any price.
+  Osmosis (SYS-6) stops there too.
 
 *See:* REJ-18.
 

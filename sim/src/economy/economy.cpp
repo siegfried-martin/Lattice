@@ -20,20 +20,6 @@ double monthly_costs(const Config& c, const Planet& p) {
     return p.pirate ? cost * c.pirate.cost_mult : cost;  // a low cost base (ECO-14)
 }
 
-// What the population would spend a day with every market at its reserve: life support,
-// then luxuries as SYS-1 buys them, within its budget. Purchasing power left over is
-// never money (ECO-1), so the starting income counts only this.
-double spend_at_reserve(const Config& c, const Planet& p) {
-    const double n = p.population;
-    const double budget = n * c.econ.wage * p.productivity;
-    double life = 0;
-    for (Good g : kLifeSupport) life += n * c.goods[g].consumption * c.goods[g].base_price * (1 + c.price.spread / 2);
-    const double appetite = std::pow(c.event.festival_mult, p.festivals) / (1 + c.happy.sated * std::max(0.0, p.happiness));
-    double lux = 0;
-    for (Good g : kLuxuries) lux += c.happy.need * n * std::min(1.0, c.lux.max_fill) * appetite * c.goods[g].base_price * (1 + c.price.spread / 2);
-    return std::min(budget, life + lux);
-}
-
 void init_state(World& w) {
     const Config& c = w.config;
     for (Planet& p : w.planets) {
@@ -41,9 +27,9 @@ void init_state(World& w) {
         p.labour = {1.0 / 3, 1.0 / 3, 1.0 / 3};
         p.tax_rate = c.econ.tax;
         p.treasury = c.gen.start_treasury_months * monthly_costs(c, p);
-        // The income the planet would have with its markets at reserve, so the credit
-        // limit means something from the first day.
-        p.income_avg = spend_at_reserve(c, p);
+        // The grant is the income a planet can count on, so the credit limit means
+        // something from the first day (ECO-1).
+        p.income_avg = c.econ.grant;
         p.net_avg = p.income_avg;
     }
 }
@@ -78,75 +64,53 @@ void planet_day(World& w, Id id) {
         w.ledger.money_sunk += out * unit;
     }
 
-    // SYS-1: purchasing power is new money (ECO-1); it becomes money only when goods are
-    // bought, and is paid to the treasury (ECO-2). Life support first, at the ask; a
-    // short budget scales every life-support purchase down alike.
-    double budget = n * c.econ.wage * p.productivity;
-    std::array<double, kGoodCount> buy{};
-    double cost = 0;
-    for (Good g : kLifeSupport) {
-        buy[g] = std::min(p.stock[g], n * c.goods[g].consumption);
-        cost += buy[g] * market::ask(c, p, g);
-    }
-    if (cost > budget && cost > 0) {
-        const double scale = budget / cost;
-        for (Good g : kLifeSupport) buy[g] *= scale;
-        cost = budget;
-    }
+    // ECO-1: new money is an even grant, the same to every planet whatever its size.
+    market::receive(p, c.econ.grant);
+    w.ledger.money_created += c.econ.grant;
+
+    // SYS-1: the population eats from the state's stock and pays nothing (ECO-2). Life
+    // support first; a short stock is the shortfall.
+    std::array<double, kGoodCount> use{};
     double shortfall = 0;
     for (Good g : kLifeSupport) {
         const double need = n * c.goods[g].consumption;
-        if (need > 0) shortfall = std::max(shortfall, 1 - buy[g] / need);
+        use[g] = std::min(p.stock[g], need);
+        if (need > 0) shortfall = std::max(shortfall, 1 - use[g] / need);
     }
     p.shortfall = std::clamp(shortfall, 0.0, 1.0);  // FAC-15's need test reads it
-    budget -= cost;
-    double spent = cost;
 
-    // Contraband, the cheapest happiness (PRD-6), comes next. A lawful population buys it
-    // from smugglers (SYS-16), counted as they sell; a pirate planet's from its own market,
-    // at the ask, as much as its unhappiness wants up to pirate.demand_cap.
-    if (p.pirate && p.stock[kStims] > 0 && n > 0) {
+    // Contraband, the cheapest happiness (PRD-6). A lawful population gets it from
+    // smugglers (SYS-16), counted as they sell; a pirate planet eats its own stock, as much
+    // as its unhappiness wants up to pirate.demand_cap.
+    if (p.pirate && n > 0) {
         const double want = std::min(n * c.goods[kStims].consumption * happiness::craving(c, p.happiness), c.pirate.demand_cap * n);
-        const double stims_ask = market::ask(c, p, kStims);
-        const double q = std::min({want, p.stock[kStims], std::max(0.0, budget) / stims_ask});
+        const double q = std::min(want, p.stock[kStims]);
         if (q > 0) {
             p.stock[kStims] -= q;
             w.ledger.consumed[kStims] += q;
-            budget -= q * stims_ask;
-            spent += q * stims_ask;
             p.contraband_today += q;
         }
     }
 
     // Luxuries (PRD-4): each one's use scales with how full its stock is against its
-    // reserve, and falls as the population gets happier; then the budget limits it.
+    // reserve, and falls as the population gets happier.
     const double lux_need = c.happy.need * n;
     const double appetite = std::pow(c.event.festival_mult, p.festivals) / (1 + c.happy.sated * std::max(0.0, p.happiness));
-    double lux_cost = 0;
     for (Good g : kLuxuries) {
         const double r = market::reserve(c, p, g);
         const double fill = r > 0 ? std::clamp(p.stock[g] / r, 0.0, c.lux.max_fill) : 0;
-        buy[g] = std::min(p.stock[g], lux_need * fill * appetite);
-        lux_cost += buy[g] * market::ask(c, p, g);
+        use[g] = std::min(p.stock[g], lux_need * fill * appetite);
     }
-    if (lux_cost > budget && lux_cost > 0) {
-        const double scale = std::max(0.0, budget) / lux_cost;
-        for (Good g : kLuxuries) buy[g] *= scale;
-        lux_cost = std::max(0.0, budget);
-    }
-    spent += lux_cost;
 
-    for (Good g : kLifeSupport) p.stock[g] -= buy[g], w.ledger.consumed[g] += buy[g];
-    for (Good g : kLuxuries) p.stock[g] -= buy[g], w.ledger.consumed[g] += buy[g];
-    market::receive(p, spent);
-    w.ledger.money_created += spent;
+    for (Good g : kLifeSupport) p.stock[g] -= use[g], w.ledger.consumed[g] += use[g];
+    for (Good g : kLuxuries) p.stock[g] -= use[g], w.ledger.consumed[g] += use[g];
 
     // Happiness settles toward a target (PRD-4): below neutral with no luxuries, raised
     // by each luxury on a curve of its own (so variety pays) and by contraband, lowered
     // by hunger (PRD-2). No clamp.
     if (n > 0) {
         double target = c.happy.base - c.happy.hunger * std::min(shortfall, 1.0);
-        for (Good g : kLuxuries) target += c.happy.lux * std::log1p(buy[g] / lux_need);
+        for (Good g : kLuxuries) target += c.happy.lux * std::log1p(use[g] / lux_need);
         const double contraband = p.contraband_today;
         p.contraband_today = 0;
         target += c.happy.contraband * std::log1p(contraband / lux_need);
@@ -154,7 +118,7 @@ void planet_day(World& w, Id id) {
         p.contraband_avg += (contraband / n - p.contraband_avg) / static_cast<double>(c.pop.contraband_window);
     }
 
-    // Growth follows the excess of the scarcest life-support good after buying, full at
+    // Growth follows the excess of the scarcest life-support good after eating, full at
     // pop.full_excess of a reserve; any shortfall shrinks the population instead (PRD-2).
     if (shortfall > 1e-9) {
         p.population -= n * c.pop.shrink_rate * std::min(shortfall, 1.0);

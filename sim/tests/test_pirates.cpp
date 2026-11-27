@@ -121,7 +121,8 @@ TEST_CASE("starvation makes a population unhappy, and rebellion grows likelier w
     planet.treasury = 0;
     CHECK(pirates::rebellion_chance(w, p) == 0);  // content enough and solvent: never
     for (Good g : kLifeSupport) planet.stock[g] = 0;
-    planet.productivity = 0;  // nothing made today, and nothing to buy with
+    for (Good g : kLuxuries) planet.stock[g] = 0;  // nothing to soften it
+    planet.productivity = 0;                        // and nothing made today
     economy::planet_day(w, p);
     CHECK(planet.happiness < (c.happy.base - c.happy.hunger * 0.5) / c.happy.settle_days);
     planet.happiness = -0.2;

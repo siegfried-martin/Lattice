@@ -42,10 +42,10 @@ and how much labour it has.
 
 *Consequence:* each planet settles at the size its own production plus imports can feed.
 Merchants literally keep populations alive, a blockade shrinks a planet slowly, and a
-peaceful trade network grows everyone. Since population is the only source of new money
-(ECO-1), a planet that loses trade loses future income as well as goods. *(proposed,
-money round)* With the even grant (ECO-1), a shrinking planet keeps its income and has
-fewer mouths, so it recovers; a growing one has more to feed and run from the same grant.
+peaceful trade network grows everyone. A planet that loses trade loses its export
+income and the tax as well as goods. *(proposed, money round: built)* With the even
+grant (ECO-1), a shrinking planet keeps its income and has fewer mouths, so it recovers;
+a growing one has more to feed and run from the same grant.
 
 ### PRD-3 The governor's growth factor `v1`
 
@@ -77,9 +77,9 @@ piled up at 0 or 1, with hardly any in between.
 
 ### PRD-5 Productivity `v1`
 
-Happiness raises productivity, which scales both output (PRD-7) and purchasing power
-(ECO-1). *(proposed, money round)* Purchasing power goes with the grant, so productivity
-scales output only.
+Happiness raises productivity, which scales output (PRD-7). *(proposed, money round:
+built)* Before the money round it also scaled the population's purchasing power, which
+went with the grant (ECO-1).
 
 *(proposed, round 3)* **Neutral happiness is 1× productivity.** Above it productivity
 rises toward a ceiling, and below it falls toward a floor, both with diminishing
@@ -161,7 +161,7 @@ makes as much per worker at any tier; the tier sets only what each unit costs.
   their worth, and every market glutted at the price floor (round 3). A cost makes
   efficiency readable ("this planet makes cheap water") and ties money to goods: money
   is created when the population buys (ECO-1) and sunk when goods are made (ECO-5).
-  *(proposed, money round)* Money now enters as the grant (ECO-1); a planet pays to make
+  *(proposed, money round: built)* Money now enters as the grant (ECO-1); a planet pays to make
   what its own people eat, and earns only on what it sells to traders.
 
 ### PRD-8 Redundancy comes from geography `v1`

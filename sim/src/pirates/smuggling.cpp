@@ -197,7 +197,7 @@ double sell_to_population(World& w, Id id) {
     const double q = std::min(c.cargo_qty, std::max(0.0, want - p.contraband_today));
     if (q <= 0) return 0;
     const double revenue = q * cfg.goods[kStims].base_price * cfg.pirate.contraband_price;
-    // Money from the population's purchasing power (ECO-1), untaxed and past the treasury (PRD-6).
+    // New money from the population's own pockets (ECO-1), untaxed and past the treasury (PRD-6).
     w.ledger.money_created += revenue;
     w.ledger.consumed[kStims] += q;
     w.ledger.smuggled += q;

@@ -8,7 +8,7 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 ### 2026-11-26 · The money round: an even grant, and the population eats from stock
 
 The human's design after part 7's wage finding (ECO-1, ECO-2, PRD-2, PRD-5, PRD-7,
-SYS-1; proposed, not built):
+SYS-1; proposed, built):
 
 - **No wage, no buying population** (ECO-2): the population eats from the state's stock,
   the pool merchants buy from. "If there's a reason we need to represent the citizen as a
@@ -19,7 +19,10 @@ SYS-1; proposed, not built):
   inefficiency at scale … Small planets will use their excess money to buy more food and
   luxuries and grow more, which provides our balancing mechanic." Money per person gave
   a starving planet no relief, as its money fell as fast as its need.
-- **A floor on selling life support** (`price.sell_floor` 0.5 of reserve).
+- **A floor on selling life support** (`price.sell_floor` 0.5 of reserve), for merchants
+  and osmosis alike.
+- **Removed:** `econ.wage` and the starting income estimate from spending at reserve;
+  a planet starts with its grant as its income.
 - **Found on the way:** with spending capped by a wage, people paid any price under the
   cap, so a shortage created more money; the wage bound only where life support was
   dear (spend 32 a thousand a day at wage 40, 34.5 at 120).
