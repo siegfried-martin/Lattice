@@ -969,6 +969,12 @@ a slot works, but the treasury pays nothing. With the wealth bid, against the gr
 - **Geography:** size still follows the Lattice (−0.39), the fringe (−0.28) and big
   neighbours (+0.18); treasury still runs the other way. High-tier slots still give no
   edge in size (−0.14).
+- **A steeper wealth bid** (`price.wealth` 0.5 up to 4×; 1 up to 5×) barely helps. The
+  smallest third's hoard falls from 390 to 350 and 255 months, and world population
+  holds at 1.35. Merchants pocket the difference: profit per trip rises from 149 to 222
+  and 313, and pirates fall under the CHK-23 floor at the steepest (0.8%). Higher prices
+  move money to whoever carries the goods, not into a small planet's growth. The
+  defaults stay at 0.25 and 2.
 
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
