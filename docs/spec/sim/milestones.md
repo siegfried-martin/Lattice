@@ -1006,6 +1006,17 @@ acceptable." One variable at a time from the defaults, 8 seeds × 5 years:
 - **Fixed:** a planet turning pirate left its supply deliveries takeable past expiry,
   which could run the clock backwards in release builds; fixing it alone moved little.
 
+*(Money round, part 5: the grant against the economy.)* Per day in the last year: output
+at local prices 5.3 million, merchant trade 3.3 million, the grant 4.1 million; sunk,
+planets' running costs 1.26 million (22% of output), the osmosis margin 0.57 million,
+military, ships and fuel about 1.2 million; about 1 million a day piles up. Most money
+runs grant to planet to sink; trade between planets is the side stream, so a big
+planet's buying power is mostly the same flat grant.
+- **Osmosis splits its margin** (TRD-13): sinks 3.0 to 2.5 million a day, world
+  population 1.42 to 1.57, the biggest third in debt 25% to 15%, planets' treasuries 3.0
+  to 3.8 billion, the smallest third's hoard 350 to 380 months, fringe growth over the
+  network's 0.56 to 0.43 (CHK-11). Next: running costs and the grant cut together.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

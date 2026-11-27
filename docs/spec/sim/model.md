@@ -228,7 +228,7 @@ Ordered by time, then phase, then sequence number (TIM-2).
 ### MOD-12 World ledger `v1`
 
 Cumulative world totals kept for the checks (CHK-7): money created (population spending,
-ECO-1), money sunk (operating costs, *(round 4)* the cost of making goods, the osmosis margin and every other sink),
+ECO-1), money sunk (operating costs and every other sink; *(round 4 to the money round)* the cost of making goods and the osmosis margin),
 goods produced and consumed per good, osmosis volume and margin. *(proposed, roles round:
 built)* Missions taken, completed, failed and paid per kind of issuer (governor, root,
 Authority, pirate planet; MSN-4); stewards appointed and quit, their pay, successions,

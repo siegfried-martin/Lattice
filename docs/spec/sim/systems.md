@@ -366,7 +366,11 @@ flow       = osmosis.rate × gap × min(reserve_i, reserve_j) × exp(−travel_d
 ```
 
 The flow executes as a buy at the source and a sell at the destination at market
-prices with tax; the trader's margin is removed (a sink, ECO-5). Lattice travel time
+prices with tax, while the destination's taxed bid covers the source's taxed ask.
+~~The trader's margin is removed (a sink, ECO-5).~~ *(proposed, money round: built)* Each
+chunk settles at the midpoint of the two, so the destination pays what the source
+receives and the margin is split between them (TRD-13). `world.osmosis_margin` still
+counts it. Lattice travel time
 uses the Lattice graph, so connected markets exchange faster.
 
 *(proposed, round 4)* **`osmosis.rate` 0.2** (was 0.01). With round 3's glut, osmosis

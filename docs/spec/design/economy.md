@@ -106,7 +106,7 @@ that must be replaced; **raids are a small sink of their own** (MIL-15).
 | Fleet running costs, fuel (ECO-11) | Stipends and merchant salaries |
 | Munitions refills, recruited ships, equipment (ECO-6) | Trade between characters and the state |
 | Authority dues spent on network maintenance | Pirate hire pay and loot sales |
-| Raid losses; the osmosis margin (TRD-13) | Contraband sales (lawful population to smuggler to pirate planet) |
+| Raid losses; ~~the osmosis margin (TRD-13)~~ *(money round: split between the planets)* | Contraband sales (lawful population to smuggler to pirate planet) |
 | | *(proposed)* Bounties (root to commander, MIL-18), spoils (captured planet to its captors, MIL-19), loan fees (MIL-3) |
 
 *(proposed, war and fealty round)* Bounties and spoils move money, but they end in ships

@@ -305,7 +305,8 @@ The design of the full game is settled enough to build its simulation. In brief:
 - **Trade:** merchants are characters. A faction root pays merchants a salary for its
   information network, in return for trips that start and end at home; independents run
   single trips. Merchants hire escorts by weighing route risk against cargo value. A slow
-  osmosis keeps markets from becoming deserts (TRD-3 to TRD-13).
+  osmosis keeps markets from becoming deserts (TRD-3 to TRD-13); its traders' margin is
+  split between the two planets, not lost (TRD-13; proposed, built).
 - **Piracy:** one anarchic pirate faction on the fringe, unable to use the Lattice. A few
   bold broke commanders turn pirate, for good; most never do. A pirate raids until it's
   destroyed, rebuilds in a free fighter and raids again until it dies, though a lucky

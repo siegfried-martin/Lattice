@@ -641,9 +641,9 @@ enum class EarnPath : std::uint8_t { None = 0, Trade = 1, Combat = 2 };
 // World totals kept for the money and goods checks (CHK-7). Cumulative.
 struct Ledger {
     double money_created = 0;   // population spending, the only new money (ECO-1), and debts written off (ECO-13)
-    double money_sunk = 0;      // operating costs, the cost of making goods and the osmosis margin (ECO-5)
+    double money_sunk = 0;      // operating costs and every other sink (ECO-5)
     double osmosis_volume = 0;  // goods moved by osmosis
-    double osmosis_margin = 0;  // part of money_sunk
+    double osmosis_margin = 0;  // the margin osmosis splits between its two planets; sunk until the money round
     std::array<double, kGoodCount> produced{};
     std::array<double, kGoodCount> consumed{};
     double money_spawned = 0;  // new characters' starting wealth (SYS-18)

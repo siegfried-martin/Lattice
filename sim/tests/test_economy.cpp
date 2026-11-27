@@ -385,7 +385,7 @@ TEST_CASE("events shift efficiency and undo it when they end (SYS-4)") {
     }
 }
 
-TEST_CASE("osmosis moves goods toward the emptier market and never makes money (SYS-6)") {
+TEST_CASE("osmosis moves goods toward the emptier market and neither makes nor sinks money (SYS-6)") {
     World w = lab();
     const Config& c = w.config;
     Planet& a = w.planets[0];
@@ -401,8 +401,10 @@ TEST_CASE("osmosis moves goods toward the emptier market and never makes money (
     CHECK(moved > 0);
     CHECK(b.stock[kFood] > b_food);
     CHECK(a.stock[kFood] + b.stock[kFood] == doctest::Approx(goods_before));
-    CHECK(a.treasury + b.treasury <= money_before);  // the margin is a sink
-    CHECK(money_before - (a.treasury + b.treasury) == doctest::Approx(w.ledger.osmosis_margin));
+    // The margin is split between the two (money round): what b paid, a received.
+    CHECK(a.treasury + b.treasury == doctest::Approx(money_before));
+    CHECK(w.ledger.osmosis_margin > 0);
+    CHECK(w.ledger.money_sunk == 0);
 
     // It closes only part of the gap.
     CHECK(a.stock[kFood] / market::reserve(c, a, kFood) > b.stock[kFood] / market::reserve(c, b, kFood));

@@ -160,7 +160,11 @@ complete desert. It isn't done by characters, and most goods are moved by mercha
   the Lattice.
 - **It closes only part of a gap,** leaving margin for merchants and the player.
 - **It runs as real market trades,** buying at the source and selling at the destination,
-  with the transaction tax. The independent traders' margin vanishes, a small sink.
+  with the transaction tax. ~~The independent traders' margin vanishes, a small sink.~~
+  *(proposed, money round: built)* **The margin is split between the two planets:** each
+  trade settles halfway between the source's ask and the destination's bid, so osmosis
+  moves money and sinks none. It was 19% of all sinks, nearly as much as the grant
+  could spare, and the small traders it stands for live on those planets.
 - **It stops between factions at war.** It doesn't react to raids, by design.
 - *(proposed)* Contraband moves by osmosis too, at a smaller rate (OPN-33).
 

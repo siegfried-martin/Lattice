@@ -31,11 +31,12 @@ std::vector<Derived::Pair> pairs(const World& w) {
 
 // For each pair and lawful good, goods flow from the fuller market to the emptier:
 //   flow = osmosis.rate x fill gap x the smaller reserve x exp(-days / osmosis.falloff),
-// capped at osmosis.max_close of the amount that would equalise the fills. The flow is a
-// buy at the source's ask and a sell at the destination's bid, both taxed, in chunks of
-// price.chunk x the smaller reserve so it walks both prices. It stops when the sale no
-// longer covers the purchase: the margin disappears from the world (a sink, ECO-5), and
-// osmosis can't create money (ECO-1). Wars stop it between factions (MS-5).
+// capped at osmosis.max_close of the amount that would equalise the fills. It runs in
+// chunks of price.chunk x the smaller reserve so it walks both prices, while the
+// destination's taxed bid covers the source's taxed ask. Each chunk settles at the
+// midpoint of the two, so the margin is split between the planets: osmosis moves money
+// and neither sinks nor creates any (ECO-1, ECO-5; money round). Wars stop it between
+// factions (MS-5).
 double run(World& w) {
     const Config& c = w.config;
     double moved = 0;
@@ -64,15 +65,15 @@ double run(World& w) {
                 if (!market::can_buy(c, *dst, g)) break;
                 const double q = std::min({remaining, chunk, market::sellable(c, *src, g)});  // the floor (ECO-2)
                 if (q <= 1e-12) break;
-                const double paid = q * market::ask(c, *src, g) * (1 + src->tax_rate);
-                const double received = q * market::bid(c, *dst, g) * (1 - dst->tax_rate);
-                if (received < paid) break;
+                const double ask = q * market::ask(c, *src, g) * (1 + src->tax_rate);
+                const double bid = q * market::bid(c, *dst, g) * (1 - dst->tax_rate);
+                if (bid < ask) break;
+                const double settle = (ask + bid) / 2;
                 src->stock[g] -= q;
                 dst->stock[g] += q;
-                market::receive(*src, paid);
-                market::pay(*dst, received);
-                w.ledger.money_sunk += received - paid;
-                w.ledger.osmosis_margin += received - paid;
+                market::receive(*src, settle);
+                market::pay(*dst, settle);
+                w.ledger.osmosis_margin += bid - ask;  // split between the two, not sunk
                 w.ledger.osmosis_volume += q;
                 moved += q;
                 remaining -= q;

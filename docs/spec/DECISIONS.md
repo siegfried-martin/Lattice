@@ -5,6 +5,22 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-27 · The money round, part 5: osmosis splits its margin
+
+The grant was 76% of the world's output a day (4.1 million against 5.3 million), and
+planets held over 600 days of output. The human: "I sense something is off … like our
+injection is too large a fraction of the economy." The plan, in order: stop the leaks,
+cut running costs and the grant together, then let a broke planet's prices fall below
+base. Step one (TRD-13, SYS-6, ECO-5; proposed, built):
+
+- **An osmosis trade settles halfway between the source's ask and the destination's
+  bid,** so the margin is split between the two planets instead of sunk. It was 19% of
+  all sinks.
+- **Found:** sinks fall from 3.0 to 2.5 million a day, money piles up faster (planets'
+  treasuries 3.0 to 3.8 billion at the end), world population 1.42 to 1.57 of start,
+  the biggest third in debt 25% to 15%. The hoard is unchanged (350 to 380 months):
+  fixing the leak makes the surplus bigger until the grant comes down.
+
 ### 2026-11-27 · The money round, part 4: life support before luxuries
 
 After the human's "Planets are not reacting to their internal conditions well enough"
