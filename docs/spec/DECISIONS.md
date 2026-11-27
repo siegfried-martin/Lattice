@@ -5,6 +5,24 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-26 · The money round, part 2: a rich planet pays more
+
+After the grant's first runs (PRD-10, SYS-3; proposed, building):
+
+- **Spare money raises a planet's prices** (`price.wealth` 0.25, `price.wealth_max` 2,
+  above `budget.reserve_months` of costs). The human: "Small planets that have excess
+  cash and nowhere to spend it should offer missions or just higher prices for goods,
+  because they have more money and can offer more for luxuries and life support."
+  Supply orders pay the planet's price, so the missions rise with it.
+- **Found:** size follows geography under the grant as in part 7 (near the Lattice, off
+  the fringe, beside big planets), but treasury runs the other way. Remote small planets
+  hoard, since a price read stock alone. Productive capacity (high-tier slots) gives no
+  edge in size.
+- **Next, one variable at a time:** the grant against productive capacity. The human:
+  "If we aren't getting this and the money insertion is too big of an effect, we either
+  need to reduce the [grant] or increase productive capacity of population which gives
+  richer planets an edge."
+
 ### 2026-11-26 · The money round: an even grant, and the population eats from stock
 
 The human's design after part 7's wage finding (ECO-1, ECO-2, PRD-2, PRD-5, PRD-7,

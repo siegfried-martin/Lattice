@@ -436,7 +436,7 @@ TEST_CASE("500 days, wars included, stay finite and in range") {
             CHECK(p.stock[at(g)] >= -1e-9);
             const double ratio = market::price(c, p, static_cast<Good>(g)) / c.goods[at(g)].base_price;
             CHECK(ratio >= c.price.min - 1e-12);
-            CHECK(ratio <= c.price.max + 1e-12);
+            CHECK(ratio <= c.price.max * c.price.wealth_max + 1e-12);  // a rich planet pays more (PRD-10)
         }
     }
 }
@@ -450,4 +450,23 @@ TEST_CASE("a loaded world rebuilds its derived tables") {
     advance(w, 100 * kDay);
     advance(loaded, 100 * kDay);
     CHECK(state_hash(w) == state_hash(loaded));
+}
+
+TEST_CASE("a rich planet pays more: spare money raises every price it posts (PRD-10)") {
+    World w = lab();
+    const Config& c = w.config;
+    Planet& p = w.planets[0];
+    fill_to(w, p, 1);
+    const double cost = economy::monthly_costs(c, p);
+    p.treasury = c.budget.reserve_months * cost;  // what it keeps back: no change
+    const double plain = market::price(c, p, kFood);
+    CHECK(market::wealth(c, p) == 1);
+    p.treasury = -5 * cost;  // a broke planet isn't discounted; its credit limits it
+    CHECK(market::price(c, p, kFood) == doctest::Approx(plain));
+    p.treasury = std::exp(1.0) * c.budget.reserve_months * cost;  // one e-fold over
+    CHECK(market::wealth(c, p) == doctest::Approx(1 + c.price.wealth));
+    CHECK(market::bid(c, p, kWine) / market::ask(c, p, kWine) == doctest::Approx((1 - c.price.spread / 2) / (1 + c.price.spread / 2)));
+    p.treasury = 1e15;
+    CHECK(market::wealth(c, p) == doctest::Approx(c.price.wealth_max));
+    CHECK(market::price(c, p, kFood) == doctest::Approx(plain * c.price.wealth_max));
 }

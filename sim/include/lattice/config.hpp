@@ -71,6 +71,8 @@ struct Config {
         double spread = 0.06;  // ask-bid spread
         double chunk = 0.05;   // trade chunk as a share of reserve (slippage)
         double sell_floor = 0.5;  // share of reserve below which life support isn't sold to traders (ECO-2)
+        double wealth = 0.25;     // a rich planet pays more: per e-fold of spare money (PRD-10)
+        double wealth_max = 2;    // the most spare money multiplies its prices by
 
         friend bool operator==(const Price&, const Price&) = default;
     } price;
@@ -721,6 +723,8 @@ void for_each_field(C& c, F&& f) {
     f("price.spread", c.price.spread);
     f("price.chunk", c.price.chunk);
     f("price.sell_floor", c.price.sell_floor);
+    f("price.wealth", c.price.wealth);
+    f("price.wealth_max", c.price.wealth_max);
 
     f("econ.tax", c.econ.tax);
     f("econ.grant", c.econ.grant);

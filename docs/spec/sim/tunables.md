@@ -49,6 +49,8 @@ are gone.
 | `econ.tax` | Transaction tax on traders | 0.05 |
 | `econ.grant` | New money paid to every planet's treasury a day, the same for all (ECO-1) *(money round; replaces `econ.wage`, 120 in part 7)* | 40,000 |
 | `price.sell_floor` | Share of its reserve below which a planet won't sell a life-support good to traders or osmosis (ECO-2) *(money round)* | 0.5 |
+| `price.wealth` | How fast spare money raises a planet's prices, per e-fold of treasury over `budget.reserve_months` of costs (PRD-10) *(proposed, money round)* | 0.25 |
+| `price.wealth_max` | The most spare money multiplies a planet's prices by (PRD-10) *(proposed, money round)* | 2 |
 | `econ.credit_limit` | Months of income a planet may owe before it stops buying | 2 |
 | `pop.growth_rate` | Daily growth at full excess | 0.0005 |
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |

@@ -14,7 +14,12 @@ namespace lattice::market {
 // (PIR-14), so its reserve there is 0; pirate markets do.
 double reserve(const Config& c, const Planet& p, Good g);
 
-// base x clamp((reserve / stock)^k, price.min, price.max); a market with no reserve
+// A rich planet pays more (PRD-10): money beyond budget.reserve_months of running costs
+// multiplies every price it posts by 1 + price.wealth x ln(months / reserve_months), up
+// to price.wealth_max; 1 below that.
+double wealth(const Config& c, const Planet& p);
+
+// base x W x clamp((reserve / stock)^k, price.min, price.max); a market with no reserve
 // (no population) sits at price.min.
 double price(const Config& c, const Planet& p, Good g);
 inline double ask(const Config& c, const Planet& p, Good g) { return price(c, p, g) * (1 + c.price.spread / 2); }

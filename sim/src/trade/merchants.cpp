@@ -39,10 +39,11 @@ struct Curve {
 
 Curve curve(const Config& c, const Planet& p, Good g) {
     const auto& gp = c.goods[g];
-    return {gp.base_price, gp.k, market::reserve(c, p, g), p.stock[g], c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, market::floor_stock(c, p, g)};
+    return {gp.base_price * market::wealth(c, p), gp.k, market::reserve(c, p, g), p.stock[g], c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, market::floor_stock(c, p, g)};
 }
 
-// From a fact: the reserve is read back off the price curve (stock x (price/base)^(1/k));
+// From a fact: the reserve is read back off the price curve (stock x (price/base)^(1/k)),
+// which takes in the planet's wealth (PRD-10) as it was seen;
 // a market seen empty gives no reading, so assume one a few loads deep.
 Curve believed(const Config& c, const Planet& p, const PriceFact& f, Good g, double load) {
     const auto& gp = c.goods[g];

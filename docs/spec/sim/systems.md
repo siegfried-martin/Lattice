@@ -174,12 +174,24 @@ trader pays ask × (1 + tax) and receives bid × (1 − tax); tax goes to the tr
   limit (`econ.credit_limit` × monthly income) stops buying.
 - Lawful markets don't trade contraband (PIR-14).
 - **Bands for the player** (`price.bands`) are a view of `price_g / base_price`.
+- *(proposed, money round: building)* **Wealth** (PRD-10) multiplies every price the
+  planet posts, bid and ask alike, so there is no gap to trade against itself:
+
+  ```
+  months     = treasury / monthly running costs (ECO-4)
+  W          = min(price.wealth_max, 1 + price.wealth × ln(max(1, months / budget.reserve_months)))
+  price_g    = good.base_price[g] × W × clamp(…)      as above
+  ```
+
+  Money under `budget.reserve_months` of costs (the same reserve the war vote reads,
+  DIP-4) changes nothing; a broke planet is limited by its credit instead. The cost of
+  making a good (SYS-2) doesn't move, so a rich planet's producers clear it on more of
+  their slots.
 - *(proposed, round 3: built)* **A luxury's reserve** is `good.reserve_days` ×
   `happy.need` × N × (1 + `happy.want` × u(H) when H < 0): an unhappy planet stocks
   more, so it bids more at the same stock (PRD-10).
 - *As built:* monthly income for the credit limit is a running average of daily income over
-  `time.payment_days`, started at what the population would spend with its whole
-  budget. `price.bands` waits for the binding to be connected.
+  `time.payment_days`, started at the grant (ECO-1). `price.bands` waits for the binding to be connected.
 
 ### SYS-4 World events `v1`
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "economy/economy.hpp"
 #include "lattice/happiness.hpp"
 
 namespace lattice::market {
@@ -21,12 +22,19 @@ double reserve(const Config& c, const Planet& p, Good g) {
     return 0;
 }
 
+double wealth(const Config& c, const Planet& p) {
+    const double months = p.treasury / economy::monthly_costs(c, p);
+    const double spare = months / c.budget.reserve_months;
+    if (spare <= 1) return 1;
+    return std::min(c.price.wealth_max, 1 + c.price.wealth * std::log(spare));
+}
+
 double price(const Config& c, const Planet& p, Good g) {
     const double r = reserve(c, p, g);
     const auto& gp = c.goods[g];
     if (r <= 0) return gp.base_price * c.price.min;
     const double stock = std::max(p.stock[g], r * 1e-9);
-    return gp.base_price * std::clamp(std::pow(r / stock, gp.k), c.price.min, c.price.max);
+    return gp.base_price * wealth(c, p) * std::clamp(std::pow(r / stock, gp.k), c.price.min, c.price.max);
 }
 
 double floor_stock(const Config& c, const Planet& p, Good g) {

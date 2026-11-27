@@ -204,6 +204,18 @@ high price.
   its luxury reserve targets as happiness falls below neutral, so at the same stock it
   offers merchants more. The planet has one money supply and one decision-maker: the
   treasury pays merchants, fleets and everything else, and the governor weighs them.
+- *(proposed, money round: building)* **A rich planet pays more.** Money beyond what the
+  planet keeps back raises every price it posts, on a curve with a ceiling. Merchants
+  bring goods to planets that can pay, and its own producers make more at the higher
+  bid. That's how spare money becomes food, luxuries and growth (ECO-1). "Small planets
+  that have excess cash and nowhere to spend it should offer missions or just higher
+  prices for goods, because they have more money and can offer more for luxuries and
+  life support." Supply orders (MSN-15) pay the planet's price, so they rise with it.
+  - *Why:* under the even grant, small and remote planets piled up money (a median 480
+    months of running costs) because a price read stock alone. A rich small planet bid
+    no more than a broke one.
+  - The planet's exports cost more too, so merchants buy elsewhere. Cheap goods come from
+    planets that make more than they keep.
 - **The player sees bands** ("very high", "high", …) over a smooth curve underneath.
 
 *Why:* the X-series model: simple, stable and readable, and the amount and the price are

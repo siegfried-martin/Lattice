@@ -285,7 +285,9 @@ The design of the full game is settled enough to build its simulation. In brief:
   doesn't buy: it eats from the state's stock, and a broke planet starves because it
   can't pay merchants for food. Every planet is a state trader that taxes other traders
   and won't sell its last half-reserve of life support; operating costs are the baseline
-  sink (ECO-1 to ECO-5). *(Proposed, money round: built.)* The v1 goods are food, water, oxygen, eight luxuries (six regional, two
+  sink (ECO-1 to ECO-5). *(Proposed, money round: built.)* A planet with spare money
+  posts higher prices for everything, so merchants bring it goods and its producers
+  make more (PRD-10; proposed, building). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
   from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
   goods at high, medium and low efficiency, partly by region; a luxury takes more labour
   than food, and fringe worlds grow more of their own; prices come from stock against a
