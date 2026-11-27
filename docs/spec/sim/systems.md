@@ -100,13 +100,15 @@ cost_g     = good.base_price[g] × prod.cost[tier_g + event_shift_g]     per uni
 made_g     = N × prod.labour_per_capita × share_g × good.yield[g] × P
              if bid_g ≥ cost_g at the planet's own market, else 0 (the slot idles)
 stock_g   += made_g
-treasury  −= made_g × cost_g                  a sink (ECO-5), paid daily, debt allowed
+treasury  −= made_g × cost_g                  before the money round: a sink (ECO-5), paid daily
 
 weekly:    margin_g = (bid_g − cost_g) × good.yield[g]
            move prod.labour_shift of total labour from the lowest-margin good to the
            highest-margin good (shares stay ≥ 0 and sum to 1)
 ```
 
+- *(proposed, money round: built)* **The cost isn't paid** (PRD-7): it only decides
+  whether a slot works. `world.production_cost` still counts what was made, at cost.
 - **Efficiency is cost:** `prod.efficiency_*` go; every tier makes the same per worker.
   An event's tier shift moves the cost a tier (a drought up, a bumper harvest down);
   above high the cost is high's ÷ `event.bumper_mult`, below low it's 1 × base.
@@ -174,7 +176,7 @@ trader pays ask × (1 + tax) and receives bid × (1 − tax); tax goes to the tr
   limit (`econ.credit_limit` × monthly income) stops buying.
 - Lawful markets don't trade contraband (PIR-14).
 - **Bands for the player** (`price.bands`) are a view of `price_g / base_price`.
-- *(proposed, money round: building)* **Wealth** (PRD-10) multiplies every price the
+- *(proposed, money round: built)* **Wealth** (PRD-10) multiplies every price the
   planet posts, bid and ask alike, so there is no gap to trade against itself:
 
   ```

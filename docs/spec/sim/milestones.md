@@ -948,6 +948,28 @@ divides the total: size still follows the Lattice, the fringe and big neighbours
 every grant. More output per head doesn't help, since each unit costs the same to make
 however many people make it. That fits high-tier slots giving no edge in size.
 
+**Making goods is free in money** *(built, PRD-7).* The unit cost still decides whether
+a slot works, but the treasury pays nothing. With the wealth bid, against the grant at
+40,000, 20,000 and 10,000:
+
+- **The world grows again at 40,000:** population ends at 1.35 of its start (part 7:
+  1.21; the paid cost: 0.85). The 90th-percentile planet is 2,700 thousand and the
+  largest 5,600. Merchant profit per trip is back to 149, and pirates are 1.2% of
+  characters, just over the CHK-23 floor.
+- **The grant still sets the size:** 1.35, 0.89 and 0.43 of start. Total money isn't the
+  limit, since money in beats money out at every grant (supply +21% a year). Where it
+  sits is the limit. The smallest third hold a median 390 months of costs at 40,000, and
+  a fifth to a third of the biggest planets are in debt. Their credit limit, two months
+  of an income that is mostly the grant, stops them importing.
+- **Why it pools:** a small planet's buying is bounded by its own population, and the
+  grant isn't. At 2× the wealth bid is at its ceiling and still can't spend it. Trade
+  doesn't return the money either: a planet sells where goods are cheap and buys where
+  they're dear, so planets as a whole lose the merchants' margin, which ends in ships and
+  fuel.
+- **Geography:** size still follows the Lattice (−0.39), the fringe (−0.28) and big
+  neighbours (+0.18); treasury still runs the other way. High-tier slots still give no
+  edge in size (−0.14).
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

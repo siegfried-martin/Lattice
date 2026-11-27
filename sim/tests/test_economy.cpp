@@ -89,7 +89,7 @@ TEST_CASE("the cost of making a unit follows the tier and event shifts (PRD-7, S
     CHECK(market::unit_cost(c, p, 0) == doctest::Approx(c.goods[kStims].base_price * c.prod.cost_contraband));
 }
 
-TEST_CASE("a slot makes goods only while its bid covers the cost, which the treasury sinks (PRD-7, ECO-5)") {
+TEST_CASE("a slot makes goods only while its bid covers the cost, which isn't paid (PRD-7)") {
     World w = lab();
     const Config& c = w.config;
     Planet& p = w.planets[0];
@@ -98,7 +98,7 @@ TEST_CASE("a slot makes goods only while its bid covers the cost, which the trea
     const double n = p.population, P = p.productivity;
     const double unit = market::unit_cost(c, p, 2);
 
-    SUBCASE("the bid covers it: made, and paid for even in debt") {
+    SUBCASE("the bid covers it: made, even in debt, and no money leaves") {
         p.treasury = -1e6;
         REQUIRE(market::bid(c, p, kOxygen) >= unit);
         const double made0 = w.ledger.produced[kOxygen], sunk0 = w.ledger.money_sunk;
@@ -106,7 +106,7 @@ TEST_CASE("a slot makes goods only while its bid covers the cost, which the trea
         const double made = w.ledger.produced[kOxygen] - made0;
         CHECK(made == doctest::Approx(n * c.prod.labour_per_capita * c.goods[kOxygen].yield * P));
         CHECK(w.ledger.production_cost == doctest::Approx(made * unit));
-        CHECK(w.ledger.money_sunk - sunk0 == doctest::Approx(made * unit));
+        CHECK(w.ledger.money_sunk == sunk0);
     }
     SUBCASE("a glut: the bid is below the cost, and the slot idles") {
         p.stock[kOxygen] = 100 * market::reserve(c, p, kOxygen);
@@ -151,7 +151,8 @@ TEST_CASE("new money is the grant, the same to every planet; eating costs nothin
     const double before = p.treasury, created = w.ledger.money_created;
     economy::planet_day(w, 0);
     CHECK(w.ledger.money_created - created == doctest::Approx(w.config.econ.grant));
-    CHECK(p.treasury - before == doctest::Approx(w.config.econ.grant - w.ledger.production_cost));
+    CHECK(w.ledger.production_cost > 0);
+    CHECK(p.treasury - before == doctest::Approx(w.config.econ.grant));  // making goods costs labour, not money (PRD-7)
     CHECK(w.ledger.consumed[kFood] > 0);
     // The grant doesn't scale with the population.
     World big = lab();
@@ -293,21 +294,20 @@ TEST_CASE("labour moves toward what pays and stays a valid split (SYS-2, PRD-9)"
     for (double l : p.labour) CHECK(l >= 0);
 }
 
-TEST_CASE("goods made come out of net income, not gross (SYS-5, OPN-39)") {
+TEST_CASE("imports come out of net income, not gross (SYS-5, OPN-39)") {
     World w = lab();
     const Config& c = w.config;
     Planet& p = w.planets[0];
     fill_to(w, p, 1);
     p.income_avg = p.net_avg = 1000;
     const double month0 = p.income_month;
+    const market::Fill f = market::sell(p, c, kWine, 0.2 * market::reserve(c, p, kWine), 0);
+    REQUIRE(f.money > 0);
     economy::planet_day(w, 0);
-    const double made = w.ledger.production_cost;
-    REQUIRE(made > 0);
     const auto days = static_cast<double>(c.time.payment_days);
-    CHECK(p.income_avg - p.net_avg == doctest::Approx(made / days));
+    CHECK(p.income_avg - p.net_avg == doctest::Approx(f.money / days));
     // The month's income, which tribute is paid on, is net too (SYS-11).
-    const double received = (p.income_avg - 1000 * (1 - 1 / days)) * days;
-    CHECK(p.income_month - month0 == doctest::Approx(received - made));
+    CHECK(p.income_month - month0 == doctest::Approx(c.econ.grant - f.money));
 }
 
 TEST_CASE("at the same price, labour moves to the cheapest slot to work (PRD-9)") {

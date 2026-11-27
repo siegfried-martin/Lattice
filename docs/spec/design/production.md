@@ -164,6 +164,25 @@ makes as much per worker at any tier; the tier sets only what each unit costs.
   *(proposed, money round: built)* Money now enters as the grant (ECO-1); a planet pays to make
   what its own people eat, and earns only on what it sells to traders.
 
+*(proposed, money round: built)* **The cost is a threshold, not a payment.** A slot
+still works only on days its bid covers what a unit costs, so gluts still stop at the
+cheapest producers' cost and efficiency stays readable. But the treasury pays nothing to
+make goods: the workers' labour makes them. A citizen's own food costs the planet
+nothing, and everything it sells to traders is income. "A citizen should produce more
+money in production than it costs in food, therefore larger planets will have more
+excess goods. Excess goods can only be sold to neighbors, which have a demand that
+doesn't depend on the producing planet's size. So therefore more population will
+translate to more supply and lower price."
+
+- *Why:* round 4 paired its sink with a faucet: money created as the population bought,
+  and sunk as goods were made. Once the population stopped buying, the sink had nothing
+  to match. Every thousand people cost their planet about 14.5 a day to feed, so the
+  grant set the size of the world and productive capacity gave no edge. "If that first
+  premise doesn't hold then it is likely the root of many problems."
+- **What it gives:** a bigger or more efficient planet makes more surplus. Its
+  neighbours' demand doesn't grow with it, so its surplus walks their prices down: the
+  brake on scale comes from trade. Efficient planets sell cheapest.
+
 ### PRD-8 Redundancy comes from geography `v1`
 
 At world build, every good has **at least two or three producers per culture region**.
@@ -204,7 +223,7 @@ high price.
   its luxury reserve targets as happiness falls below neutral, so at the same stock it
   offers merchants more. The planet has one money supply and one decision-maker: the
   treasury pays merchants, fleets and everything else, and the governor weighs them.
-- *(proposed, money round: building)* **A rich planet pays more.** Money beyond what the
+- *(proposed, money round: built)* **A rich planet pays more.** Money beyond what the
   planet keeps back raises every price it posts, on a curve with a ceiling. Merchants
   bring goods to planets that can pay, and its own producers make more at the higher
   bid. That's how spare money becomes food, luxuries and growth (ECO-1). "Small planets

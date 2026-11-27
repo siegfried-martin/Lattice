@@ -50,18 +50,16 @@ void planet_day(World& w, Id id) {
     const double n = p.population;
 
     // SYS-2: output = N x labour_per_capita x share x yield x P, owned by the planet, on
-    // days its own bid covers the unit cost; the treasury pays that cost, a sink, even in
-    // debt (PRD-7, ECO-5). A slot that doesn't cover it idles.
+    // days its own bid covers the unit cost; a slot that doesn't cover it idles. The cost
+    // is a threshold, not a payment: labour makes the goods (PRD-7, money round).
     for (int s = 0; s < 3; ++s) {
         const Good g = p.makes[at(s)];
         const double unit = market::unit_cost(c, p, s);
         if (market::bid(c, p, g) < unit) continue;
         const double out = n * c.prod.labour_per_capita * p.labour[at(s)] * c.goods[g].yield * p.productivity;
         p.stock[g] += out;
-        market::pay(p, out * unit);
         w.ledger.produced[g] += out;
-        w.ledger.production_cost += out * unit;
-        w.ledger.money_sunk += out * unit;
+        w.ledger.production_cost += out * unit;  // what was made, at cost; not paid
     }
 
     // ECO-1: new money is an even grant, the same to every planet whatever its size.

@@ -96,11 +96,13 @@ peace and war alike; *(proposed, round 4)* **the cost of making goods** (PRD-7) 
 other, and the one that scales with trade: money is created as goods are bought and sunk
 as they're made; **war is the amplifier**, raising patrol costs and destroying fleets
 that must be replaced; **raids are a small sink of their own** (MIL-15).
+*(proposed, money round: built)* Making goods no longer sinks money (PRD-7); the grant
+(ECO-1) is sized against operating costs, fleets and ships.
 
 | True sinks (paid to nobody) | Circulates (moves money, removes none) |
 |---|---|
 | Planet operating costs and patrol and policing upkeep | Tribute, patronage, ceasefire tribute |
-| *(proposed, round 4)* The cost of making goods (PRD-7) | |
+| ~~*(proposed, round 4)* The cost of making goods (PRD-7)~~ *(money round: a threshold, not paid)* | |
 | Fleet running costs, fuel (ECO-11) | Stipends and merchant salaries |
 | Munitions refills, recruited ships, equipment (ECO-6) | Trade between characters and the state |
 | Authority dues spent on network maintenance | Pirate hire pay and loot sales |

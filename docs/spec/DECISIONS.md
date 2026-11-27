@@ -5,9 +5,26 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-26 · The money round, part 3: making goods is free in money
+
+After the grant sweep (PRD-7, ECO-5, SYS-2; proposed, built):
+
+- **The unit cost decides whether a slot works and isn't paid.** The human: "A citizen
+  should produce more money in production than it costs in food, therefore larger
+  planets will have more excess goods. Excess goods can only be sold to neighbors, which
+  have a demand that doesn't depend on the producing planet's size. So therefore more
+  population will translate to more supply and lower price." And: "If that first
+  premise doesn't hold then it is likely the root of many problems."
+- **Found:** world population tracked the grant (0.85, 0.47 and 0.14 of start at 40,000,
+  20,000 and 10,000), since each thousand people cost about 23 a day (14.5 to make their
+  food, 8 to run) and nothing paid it back. Round 4's sink outlived its faucet.
+- Round 4's reason for the cost (free production glutted every market at `price.min`)
+  is kept: the threshold still idles dear producers.
+- Next: size the grant against the sinks that are left.
+
 ### 2026-11-26 · The money round, part 2: a rich planet pays more
 
-After the grant's first runs (PRD-10, SYS-3; proposed, building):
+After the grant's first runs (PRD-10, SYS-3; proposed, built):
 
 - **Spare money raises a planet's prices** (`price.wealth` 0.25, `price.wealth_max` 2,
   above `budget.reserve_months` of costs). The human: "Small planets that have excess

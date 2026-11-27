@@ -662,7 +662,7 @@ struct Ledger {
     // Piracy (MS-6).
     std::int64_t flips = 0, recaptures = 0, turned_pirate = 0, pirate_raids = 0, authority_contracts = 0, secessions = 0;
     std::int64_t holds = 0;  // conquests held by their army, rather than left (SYS-13)
-    double production_cost = 0;  // the cost of making goods, part of money_sunk (PRD-7)
+    double production_cost = 0;  // goods made, valued at their unit cost; not paid since the money round (PRD-7)
     std::int64_t offers = 0, smuggled_runs = 0, legal_runs = 0, inspections = 0, caught = 0;
     double smuggled = 0, confiscated = 0, policing = 0, smuggler_profit = 0;
     // Spies (MS-7).
