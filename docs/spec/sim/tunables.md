@@ -52,6 +52,7 @@ are gone.
 | `price.wealth` | How fast spare money raises a planet's prices, per e-fold of treasury over `budget.reserve_months` of costs (PRD-10) *(proposed, money round)* | 0.25 |
 | `price.wealth_max` | The most spare money multiplies a planet's prices by (PRD-10) *(proposed, money round)* | 2 |
 | `econ.credit_limit` | Months of income a planet may owe before it stops buying | 2 |
+| `econ.luxury_credit` | The same for luxuries, so life support comes first (ECO-8, money round) | 0 |
 | `pop.growth_rate` | Daily growth at full excess | 0.0005 |
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |
 | `pop.full_excess` | The scarcest life-support good's stock over reserve, as a share of the reserve, at which growth is full (SYS-1) *(proposed, round 4; was 1)* | 0.5 |

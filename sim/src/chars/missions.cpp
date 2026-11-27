@@ -316,8 +316,9 @@ void order_arrives(World& w, Id order_id, Observer* observer) {
 void post_orders(World& w, Id planet, Observer* observer) {
     Planet& p = w.planets[at(planet)];
     const auto& c = w.config;
-    if (p.pirate || p.governor == kNone || p.siege != kNone || !market::can_buy(c, p)) return;
+    if (p.pirate || p.governor == kNone || p.siege != kNone) return;
     for (Good g : kLifeSupport) {
+        if (!market::can_buy(c, p, g)) return;
         const double r = market::reserve(c, p, g);
         if (r <= 0 || p.stock[g] + p.on_order[g] >= c.order.trigger_fill * r) continue;
         const Id from = order_source(w, planet, g);
@@ -658,6 +659,17 @@ void expire(World& w, Id mid, Observer* observer) {
     if (m.kind == MissionKind::Courier) info::send_courier(w, m.target);
     if (supply(m)) unorder(w, m, m.qty);  // no one would carry it: the planet may order again
     if (order(m)) order_arrives(w, mid, observer);  // last: it posts, which moves the missions
+}
+
+void lapse(World& w, Id mid, Observer* observer) {
+    Mission& m = w.missions[at(mid)];
+    m.expires = std::min(m.expires, w.now);
+    if (m.state != MissionState::Open) return;
+    m.state = MissionState::Expired;
+    unpost(w, mid);
+    ++w.ledger.missions_expired;
+    if (observer) observer->log(w.now, "mission.expired", mid, "lapsed");
+    if (supply(m) || order(m)) unorder(w, m, m.qty);
 }
 
 }  // namespace lattice::missions

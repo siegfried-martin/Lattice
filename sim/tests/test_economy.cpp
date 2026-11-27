@@ -310,6 +310,24 @@ TEST_CASE("imports come out of net income, not gross (SYS-5, OPN-39)") {
     CHECK(p.income_month - month0 == doctest::Approx(c.econ.grant - f.money));
 }
 
+TEST_CASE("a planet in the red buys life support on credit but no luxuries (ECO-8, money round)") {
+    World w = lab();
+    const Config& c = w.config;
+    Planet& p = w.planets[0];
+    fill_to(w, p, 0.5);
+    p.income_avg = p.net_avg = 1000;
+    p.treasury = 0;  // in the black, just: both sell
+    CHECK(market::can_buy(c, p, kWine));
+    CHECK(market::can_buy(c, p, kFood));
+    p.treasury = -1;  // in the red, well inside the credit limit
+    CHECK_FALSE(market::can_buy(c, p, kWine));
+    CHECK(market::can_buy(c, p, kFood));
+    CHECK(market::sell(p, c, kWine, 10, 0).qty == 0);
+    CHECK(market::sell(p, c, kFood, 10, 0).qty == doctest::Approx(10));
+    p.treasury = -c.econ.credit_limit * p.income_avg * static_cast<double>(c.time.payment_days) - 1;  // past it
+    CHECK_FALSE(market::can_buy(c, p, kFood));
+}
+
 TEST_CASE("at the same price, labour moves to the cheapest slot to work (PRD-9)") {
     World w = lab();
     Planet& p = w.planets[0];

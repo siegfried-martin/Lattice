@@ -81,6 +81,7 @@ struct Config {
         double tax = 0.05;           // transaction tax (ECO-3)
         double grant = 40000;        // new money paid to every planet's treasury a day, the same for all (ECO-1)
         double credit_limit = 2;     // months of income a planet may owe and still buy
+        double luxury_credit = 0;    // the same for luxuries: life support comes first (ECO-8)
         double op_base = 2000;       // operating cost per month (ECO-4)
         double op_per_capita = 250;  // per thousand per month (300 until round 4)
 
@@ -729,6 +730,7 @@ void for_each_field(C& c, F&& f) {
     f("econ.tax", c.econ.tax);
     f("econ.grant", c.econ.grant);
     f("econ.credit_limit", c.econ.credit_limit);
+    f("econ.luxury_credit", c.econ.luxury_credit);
     f("econ.op_base", c.econ.op_base);
     f("econ.op_per_capita", c.econ.op_per_capita);
 

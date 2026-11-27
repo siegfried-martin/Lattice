@@ -48,6 +48,9 @@ void take(World& world, Id character, Id mission, Observer* observer);
 // The character landed while on a mission.
 void arrived(World& world, Id character, Observer* observer);
 void expire(World& world, Id mission, Observer* observer);
+// An open mission lapses now, off the board, its order given back; an order's goods
+// don't follow. Its expiry event later finds it closed. A planet turning pirate does it.
+void lapse(World& world, Id mission, Observer* observer);
 
 // Supply orders (MSN-15). Daily, per lawful planet that can buy (ECO-8): for each
 // life-support good whose stock plus what's on order is below order.trigger_fill of

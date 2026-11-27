@@ -24,6 +24,7 @@ void observe_market(const World& w, Facts& facts, Id planet) {
     for (int g = 0; g < kLawfulGoodCount; ++g) {
         f.price[at(g)] = market::price(w.config, p, static_cast<Good>(g));
         f.stock[at(g)] = p.stock[at(g)];
+        if (!market::can_buy(w.config, p, static_cast<Good>(g))) f.refuses |= 1u << g;
     }
     auto it = std::lower_bound(facts.prices.begin(), facts.prices.end(), planet, by_planet);
     if (it != facts.prices.end() && it->planet == planet) {

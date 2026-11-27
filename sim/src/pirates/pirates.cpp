@@ -88,7 +88,7 @@ void flip(World& w, Id id, Observer* observer) {
     }
     gov.pirate = true;
     set_relation(w, gov, 100);
-    for (Id m : std::vector<Id>(p.missions)) w.missions[at(m)].expires = w.now;  // its old jobs lapse
+    for (Id m : std::vector<Id>(p.missions)) missions::lapse(w, m, observer);  // its old jobs lapse
     // Its neighbours see it happen; the rest hear by courier and sharing (MOD-8).
     for (Id q = 0; q < static_cast<Id>(w.planets.size()); ++q) {
         const Planet& n = w.planets[at(q)];

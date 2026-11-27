@@ -174,6 +174,10 @@ trader pays ask × (1 + tax) and receives bid × (1 − tax); tax goes to the tr
   price after each, so a big delivery walks the price.
 - **The planet buys with its treasury.** A planet whose treasury is below its credit
   limit (`econ.credit_limit` × monthly income) stops buying.
+- *(proposed, money round: built)* **Life support before luxuries** (ECO-8): luxuries
+  have a credit limit of their own, `econ.luxury_credit` (0: a planet buys them only out
+  of a treasury in the black). A planet short of money keeps buying food, water and
+  oxygen on credit after it has stopped buying wine. Osmosis follows the same limits.
 - Lawful markets don't trade contraband (PIR-14).
 - **Bands for the player** (`price.bands`) are a view of `price_g / base_price`.
 - *(proposed, money round: built)* **Wealth** (PRD-10) multiplies every price the
@@ -404,6 +408,9 @@ score              = trip_value / days
   ending at a faction planet, outside planets not at war with the faction. Triangles are
   searched over the candidate set only.
 - **Plans use believed prices** and can disappoint when they land.
+- *(proposed, money round: built)* **A market seen not buying a good** (past its credit
+  for it, SYS-3) is remembered so, and a plan values a sale there at nothing. Before,
+  merchants carried luxuries to planets that wouldn't buy them and sat on the cargo.
 
 **Escort decision** (per trip):
 

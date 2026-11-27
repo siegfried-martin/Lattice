@@ -285,10 +285,11 @@ struct PriceFact {
     Time time = 0;
     std::array<double, kLawfulGoodCount> price{};
     std::array<double, kLawfulGoodCount> stock{};
+    std::uint32_t refuses = 0;  // bit g: the planet wasn't buying good g (its credit, ECO-8)
 };
 template <class Ar, record_of<PriceFact> F>
 void fields(Ar& ar, F& f) {
-    ar(f.planet, f.time, f.price, f.stock);
+    ar(f.planet, f.time, f.price, f.stock, f.refuses);
 }
 
 // The risk of a sector as last seen (INF-6, SYS-19).

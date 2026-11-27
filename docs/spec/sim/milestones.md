@@ -976,6 +976,36 @@ a slot works, but the treasury pays nothing. With the wealth bid, against the gr
   move money to whoever carries the goods, not into a small planet's growth. The
   defaults stay at 0.25 and 2.
 
+*(Money round, part 4: life support before luxuries.)* The human: "Planets are not
+reacting to their internal conditions well enough … hoarding money should not be
+acceptable." One variable at a time from the defaults, 8 seeds × 5 years:
+
+| Change | World pop, end/start | Smallest third, months of costs | Biggest third in debt | Growth/yr, small/big |
+|---|---|---|---|---|
+| Defaults | 1.36 | 390 | 22% | 14% / 14% |
+| 3 faction merchants per planet | 1.37 | 396 | 13% | 16% / 15% |
+| `happy.g_up` 1 | 2.2 | 169 | 32% | 19% / 31% |
+| Life support yield 2 | 1.35 | 396 | 35% | 17% / 18% |
+| `prod.labour_per_capita` 10 | 1.37 | 375 | 28% | 15% / 18% |
+
+- **Every planet grows at the same capped rate, whatever its money**, so money buys no
+  growth. Only `happy.g_up` (luxuries speed growth) moved the hoard, and it grew the
+  world 2.2×.
+- **More output makes it worse:** each planet is more self-sufficient, goods are cheaper,
+  and big planets earn less from their exports.
+- **More faction merchants only relabel** characters: `char.target` caps them, and trips
+  and cargo stay where they were. 3,000 characters left the hoard where it was.
+- **Osmosis carries about three quarters of all goods** (320,000 a day against
+  merchants' 95,000), and its margin is the biggest sink after running costs. Fuel is
+  4,000 a day against a grant of 4.1 million.
+- **Life support before luxuries** (`econ.luxury_credit` 0) and **merchants seeing a
+  market that won't buy** (SYS-7): profit a trip 142 to 453, supply deliveries doubled,
+  failed missions 7.9% to 3.7%, the hoard 424 to 350 months, pirates 1.3% to 0.4% of
+  characters (under CHK-23). The rule without the second change cut merchants'
+  life-support trade by two thirds.
+- **Fixed:** a planet turning pirate left its supply deliveries takeable past expiry,
+  which could run the clock backwards in release builds; fixing it alone moved little.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).

@@ -5,6 +5,26 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-27 · The money round, part 4: life support before luxuries
+
+After the human's "Planets are not reacting to their internal conditions well enough"
+(ECO-8, SYS-3, SYS-7; proposed, built):
+
+- **Luxuries have their own credit limit,** `econ.luxury_credit` 0: a planet in the red
+  buys no luxuries but keeps buying life support on credit. "They should also prefer
+  life support over luxuries."
+- **Merchants remember a market that isn't buying a good** and value a sale there at
+  nothing. Without it the rule cut merchants' life-support trade by two thirds: they
+  carried luxuries to planets that refused them and sat on the cargo.
+- **Fixed:** a planet turning pirate now closes the missions on its board at once.
+  Before, its supply deliveries stayed takeable past their expiry, and a split one could
+  schedule an event in the past, which ran the clock backwards in release builds. Fixing
+  it alone changed the measured figures little.
+- **Found:** with refusals seen, merchant profit a trip tripled (142 to 453), supply
+  deliveries doubled and failed missions halved; pirates fell to 0.4% of characters,
+  under CHK-23. Small planets still hoard (350 months of costs): no planet's growth
+  depends on its money.
+
 ### 2026-11-26 · The money round, part 3: making goods is free in money
 
 After the grant sweep (PRD-7, ECO-5, SYS-2; proposed, built):

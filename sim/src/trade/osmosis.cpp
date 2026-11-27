@@ -61,7 +61,7 @@ double run(World& w) {
             double remaining = std::min(c.osmosis.rate * gap * std::min(rs, rd) * pair.weight, c.osmosis.max_close * equalise);
             const double chunk = c.price.chunk * std::min(rs, rd);
             while (remaining > 1e-12) {
-                if (!market::can_buy(c, *dst)) break;
+                if (!market::can_buy(c, *dst, g)) break;
                 const double q = std::min({remaining, chunk, market::sellable(c, *src, g)});  // the floor (ECO-2)
                 if (q <= 1e-12) break;
                 const double paid = q * market::ask(c, *src, g) * (1 + src->tax_rate);

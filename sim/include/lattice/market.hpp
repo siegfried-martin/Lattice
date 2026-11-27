@@ -50,9 +50,11 @@ inline void pay(Planet& p, double money) {
 double floor_stock(const Config& c, const Planet& p, Good g);
 inline double sellable(const Config& c, const Planet& p, Good g) { return std::max(0.0, p.stock[g] - floor_stock(c, p, g)); }
 
-// A planet whose treasury is below its credit limit (econ.credit_limit months of
-// income in the red) stops buying from traders.
-bool can_buy(const Config& c, const Planet& p);
+// Whether a planet buys a good from traders. Life support it buys on credit, until its
+// treasury is below its credit limit (econ.credit_limit months of income in the red);
+// luxuries to econ.luxury_credit (0: only out of a treasury in the black), so a planet
+// short of money keeps its people fed before it keeps them happy (ECO-8, money round).
+bool can_buy(const Config& c, const Planet& p, Good g);
 
 // What making one unit in a slot costs the treasury, events included (PRD-7, SYS-2,
 // SYS-4): the good's base price x prod.cost by tier; one tier up from high is high /

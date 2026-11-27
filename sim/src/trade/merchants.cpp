@@ -28,18 +28,19 @@ std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 struct Curve {
     double base = 0, k = 1, reserve = 0, stock = 0, half_spread = 0, tax = 0, pmin = 0, pmax = 0;
     double floor = 0;  // stock the planet won't sell below (ECO-2)
+    bool buys = true;  // false: past its credit for this good, it buys none (ECO-8)
 
     double price() const {
         if (reserve <= 0) return base * pmin;
         return base * std::clamp(std::pow(reserve / std::max(stock, reserve * 1e-9), k), pmin, pmax);
     }
     double unit_buy() const { return price() * (1 + half_spread) * (1 + tax); }
-    double unit_sell() const { return price() * (1 - half_spread) * (1 - tax); }
+    double unit_sell() const { return buys ? price() * (1 - half_spread) * (1 - tax) : 0; }
 };
 
 Curve curve(const Config& c, const Planet& p, Good g) {
     const auto& gp = c.goods[g];
-    return {gp.base_price * market::wealth(c, p), gp.k, market::reserve(c, p, g), p.stock[g], c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, market::floor_stock(c, p, g)};
+    return {gp.base_price * market::wealth(c, p), gp.k, market::reserve(c, p, g), p.stock[g], c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, market::floor_stock(c, p, g), market::can_buy(c, p, g)};
 }
 
 // From a fact: the reserve is read back off the price curve (stock x (price/base)^(1/k)),
@@ -51,7 +52,7 @@ Curve believed(const Config& c, const Planet& p, const PriceFact& f, Good g, dou
     double reserve = stock * std::pow(f.price[at(g)] / gp.base_price, 1 / gp.k);
     if (reserve < 1e-6) reserve = 4 * load;
     const double floor = kind_of(g) == GoodKind::LifeSupport ? c.price.sell_floor * reserve : 0;
-    return {gp.base_price, gp.k, reserve, stock, c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, floor};
+    return {gp.base_price, gp.k, reserve, stock, c.price.spread / 2, p.tax_rate, c.price.min, c.price.max, floor, ((f.refuses >> g) & 1u) == 0};
 }
 
 struct LegChoice {

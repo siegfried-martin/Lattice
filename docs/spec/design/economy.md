@@ -154,6 +154,10 @@ every spender** (governors, lieges, roots, commanders, merchants).
   that grows the longer they stay there (OPN-18).
 - **Value is subjective:** shaped by risk tolerance, relationships and possibly stale
   information (INF-2).
+- *(proposed, money round: built)* **Life support comes before luxuries.** A planet in
+  the red stops buying luxuries but keeps buying life support on credit, to its credit
+  limit; merchants who see it stop carry it food instead (SYS-3, SYS-7). "They should
+  also prefer life support over luxuries."
 - *(proposed, roles round)* **A planet's budget has two deciders:** the governor sets
   how much goes to war and defence and how it's spent; the steward spends the rest. Each
   line reads its decider's risk tolerance (CHR-4, FAC-16).

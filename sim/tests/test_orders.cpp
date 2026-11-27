@@ -4,6 +4,7 @@
 #include "chars/missions.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
+#include "pirates/pirates.hpp"
 #include "lattice/market.hpp"
 #include "trade/merchants.hpp"
 
@@ -147,4 +148,42 @@ TEST_CASE("a merchant at the producer weighs the delivery as a trip and sells at
     CHECK(w.ledger.supply_paid == doctest::Approx(carried * unit));
     CHECK(w.planets[at(p)].on_order[kFood] == doctest::Approx(on_order - carried));
     CHECK(w.planets[at(p)].stock[kFood] > stock);
+}
+
+TEST_CASE("a producer that turns pirate closes the deliveries on its board at once, so none is taken late (MSN-15)") {
+    World w = new_world(quiet(), 41);
+    const Id p = short_planet(w);
+    REQUIRE(p != kNone);
+    missions::post_orders(w, p, nullptr);
+    const Id order = open_mission(w, p, MissionKind::Order, kFood);
+    REQUIRE(order != kNone);
+    const Id producer = w.missions[at(order)].target;
+    advance(w, w.missions[at(order)].expires - w.now + kHour);
+    const Id sup = open_mission(w, producer, MissionKind::Supply, kFood);
+    REQUIRE(sup != kNone);
+    const double ordered = w.planets[at(p)].on_order[kFood];
+    REQUIRE(ordered > 0);
+    pirates::flip(w, producer, nullptr);
+    CHECK(w.missions[at(sup)].state == MissionState::Expired);
+    CHECK(open_mission(w, producer, MissionKind::Supply, kFood) == kNone);
+    CHECK(w.planets[at(p)].on_order[kFood] == doctest::Approx(ordered - w.missions[at(sup)].qty));
+    CHECK(missions::take_supply(w, chars::spawn(w, producer), sup, 1, nullptr) == kNone);
+    // Its expiry event still comes, finds it closed, and the clock never runs backwards.
+    advance(w, 30 * kDay);
+}
+
+TEST_CASE("a market seen in the red is remembered as buying no luxuries, but still life support (ECO-8)") {
+    World w = new_world(quiet(), 44);
+    Planet& p = w.planets[0];
+    p.income_avg = 1000;
+    p.treasury = -1;
+    Facts facts;
+    info::observe_market(w, facts, 0);
+    const PriceFact* f = info::find(facts, 0);
+    REQUIRE(f != nullptr);
+    CHECK(((f->refuses >> kWine) & 1u) == 1u);
+    CHECK(((f->refuses >> kFood) & 1u) == 0u);
+    p.treasury = 1;
+    info::observe_market(w, facts, 0);
+    CHECK(info::find(facts, 0)->refuses == 0);
 }

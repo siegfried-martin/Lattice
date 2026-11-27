@@ -289,7 +289,7 @@ The design of the full game is settled enough to build its simulation. In brief:
   posts higher prices for everything, so merchants bring it goods and its producers
   make more (PRD-10; proposed, built). Making goods costs labour, not money: a slot works
   only when its price covers the unit cost, but the treasury pays nothing, so a planet's
-  own food is free and its surplus is income (PRD-7; proposed, built). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
+  own food is free and its surplus is income (PRD-7; proposed, built). A planet in the red stops buying luxuries but keeps buying life support on credit, and merchants who see it stop bring food instead (ECO-8; proposed, built). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
   from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
   goods at high, medium and low efficiency, partly by region; a luxury takes more labour
   than food, and fringe worlds grow more of their own; prices come from stock against a

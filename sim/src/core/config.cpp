@@ -168,6 +168,7 @@ void validate(const Config& c) {
     require(c.econ.tax >= 0 && c.econ.tax < 1, "econ.tax must be 0 to 1");
     non_negative(c.econ.grant, "econ.grant");
     non_negative(c.econ.credit_limit, "econ.credit_limit");
+    non_negative(c.econ.luxury_credit, "econ.luxury_credit");
     non_negative(c.econ.op_base, "econ.op_base");
     non_negative(c.econ.op_per_capita, "econ.op_per_capita");
 

@@ -41,9 +41,10 @@ double floor_stock(const Config& c, const Planet& p, Good g) {
     return kind_of(g) == GoodKind::LifeSupport ? c.price.sell_floor * reserve(c, p, g) : 0;
 }
 
-bool can_buy(const Config& c, const Planet& p) {
+bool can_buy(const Config& c, const Planet& p, Good g) {
     const double monthly_income = std::max(0.0, p.income_avg) * static_cast<double>(c.time.payment_days);
-    return p.treasury >= -c.econ.credit_limit * monthly_income;
+    const double limit = kind_of(g) == GoodKind::Luxury ? c.econ.luxury_credit : c.econ.credit_limit;
+    return p.treasury >= -limit * monthly_income;
 }
 
 double unit_cost(const Config& c, const Planet& p, int slot) {
@@ -87,7 +88,7 @@ Fill sell(Planet& p, const Config& c, Good g, double qty, double min_unit) {
     const double r = reserve(c, p, g);
     if (r <= 0) return f;
     const double chunk = c.price.chunk * r;
-    while (f.qty < qty - 1e-9 && can_buy(c, p)) {
+    while (f.qty < qty - 1e-9 && can_buy(c, p, g)) {
         const double unit = bid(c, p, g) * (1 - p.tax_rate);
         if (unit < min_unit) break;
         const double q = std::min(chunk, qty - f.qty);
