@@ -843,13 +843,74 @@ relative to the goods that flowed (the residual was 5e-8 on 6 million).
 What's left: pirates are about a third of bankruptcies (raiding until destroyed, by
 design); spies, governors and stewards in debt the rest.
 
+*Tuning pass, part 7 (2026-11-26): life support on the fringe, and supply orders
+(MSN-15).* At wage 40 life support took a median 37% of a Lattice planet's budget and
+177% of a fringe planet's. Raising `econ.wage` (80, 120; not yet chosen, the human's
+call) brings that to 13% and 47%, but the fringe still shrank. **Why:** the fringe does
+make life support (93% of fringe planets make at least one of the three, 47% two or
+more) and sits on a surplus of what it makes (a median 0.66 of base), but a good it
+doesn't make costs 3.6 times base, 31% of the time at the cap. Of 158 fringe shortages
+sampled, 150 had no surplus within osmosis's 3 days. Merchants plan among the 12 nearest
+planets they know (TRD-4); no Lattice planet (0 of 252) has a fringe planet among its 12
+nearest, so no merchant ever weighed the trip, at any price. **The human's design:** a
+short planet sends an order by courier mission to the nearest surplus it has heard of
+(untaken, it arrives anyway), and the producer posts the delivery for merchants to weigh
+as a trip (MSN-15).
+
+**What the wage is.** `econ.wage` is a population's purchasing power, per thousand a day,
+times productivity: created from nothing, the same on every planet, and money only when
+spent on goods in stock (life support first, then luxuries, whose buying scales with how
+full their stock is). Across the world, populations spent 32 a thousand a day at wage 40
+(about two thirds of it) and 34.5 at wage 120 (about a quarter). Tripling the wage added
+8% to real spending. It matters only where life support is dear, which is on the poor
+fringe. **A confound, fixed:** the starting world sized each planet's income, and from it
+the starting commanders, the first credit limit and budgets, as if the whole wage were
+spent. At 120 that meant three times the starting military. The starting income is now
+what the population would spend with its markets at reserve, within its wage
+(`economy::init_state`). At wage 40 nothing changes; the runs below all use it.
+
+One variable at a time: the wage alone, then orders at the planet's full price, then at
+half of it (`order.price_share` 0.5, the human's call: "they shouldn't advertise the full
+price they will pay at that moment, but reduced significantly. The planet is taking the
+risk"). 8 seeds, 5 years, medians.
+
+| | Wage 40 | Wage 120 | + orders, full price | + orders, half price |
+|---|---|---|---|---|
+| Fringe population, end over start | 0.20 | 0.26 | 0.59 | **0.54** |
+| Fringe happiness | −0.44 | 0.11 | 0.23 | 0.23 |
+| Fringe life-support share, median (p90) | 177% (510%) | 46% (104%) | 43% (96%) | 41% (113%) |
+| Lattice life-support share, median | 37% | 13% | 12% | 13% |
+| Fringe treasury, months of costs | −0.23 | 33 | 11 | 30 |
+| Fringe growth over the network's (CHK-11) | 0.27 | 0.28 | 0.45 | 0.42 |
+| Orders a year (carried, arrived untaken) | — | — | 219 (135, 57) | 192 (96, 65) |
+| Deliveries a year (units, price over base) | — | — | 2,746 (1.72M, 4.0) | 1,804 (0.80M, 2.0) |
+| Errands a year | 2,359 | 603 | 189 | 276 |
+| Checks passing on every seed | 28 of 44 | 27 | 28 | 32 |
+
+- **The wage alone barely moves the fringe** (0.20 to 0.26): planets can buy food now,
+  but no one brings the goods they don't make.
+- **Orders double what the fringe keeps.** At full price the fringe paid about 4 times
+  base a unit and its treasury fell from 33 months of costs to 11; at half price it pays
+  about 2 times base, keeps 30 months, and still keeps most of the gain (0.54). Fewer
+  units move (merchants take fewer deliveries at the lower price), so it reads as the
+  planet getting the goods it needs rather than a windfall for the producers.
+- **Couriers carry about half of the orders at half price** (about two thirds at full),
+  and errands fall, since the courier legs are paid work for the bottom rung.
+- **Checks:** 32 of 44 at half price, against 27 for the wage alone. Several of the
+  differences are one seed either way (CHK-4, CHK-6b, CHK-26c, CHK-27); CHK-7c, CHK-8 and
+  CHK-8b pass on every seed in all three wage-120 runs. Pirates stay under the CHK-23
+  floor at wage 120 (about 0.9% of characters, floor 1%), as at part 6's wage sweep.
+- **Still open:** the fringe still halves; the wage is a flat income that doesn't come
+  from what a planet makes or sells, and most of it goes unspent; and whether there are
+  enough merchants overall (the human's question).
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).
 - **Spies:** EXP-4 first; then spy missions and per-trip suspicion against stealth and
   detection (MSN-11, INF-14), if spies earn their place.
 - **Spawned bounties** (MSN-6, MSN-10), with the hunt counting as patrol time.
-- **Delivery top-ups** (MSN-8), only if tribute relief leaves poor planets unfed.
+- ~~Delivery top-ups (MSN-8)~~: replaced by supply orders (MSN-15, part 7).
 
 **Discussed, not decided: the economy after this round.** Starvation and merchants'
 margins point at the same causes. In round 4 a full ration of life support would take

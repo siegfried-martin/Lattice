@@ -271,6 +271,11 @@ void validate(const Config& c) {
     positive(static_cast<double>(c.passenger.expiry_days), "passenger.expiry_days");
     non_negative(c.passenger.wait_min_days, "passenger.wait_min_days");
     require(c.passenger.wait_max_days >= c.passenger.wait_min_days, "passenger.wait_max_days must be at least passenger.wait_min_days");
+    require(c.order.trigger_fill >= 0 && c.order.trigger_fill <= 1, "order.trigger_fill must be 0 to 1");
+    non_negative(c.order.courier_pay, "order.courier_pay");
+    positive(c.order.price_share, "order.price_share");
+    non_negative(c.order.courier_wait_days, "order.courier_wait_days");
+    positive(static_cast<double>(c.order.supply_days), "order.supply_days");
     non_negative(c.skill.gain, "skill.gain");
     non_negative(c.skill.max, "skill.max");
     non_negative(c.skill.bonus, "skill.bonus");

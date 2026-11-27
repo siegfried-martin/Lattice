@@ -132,6 +132,10 @@ The Authority keeps a **mission computer** at every planet.
 
 ### MSN-8 Delivery top-ups from governors and roots `v1` `proposed`
 
+*(tuning pass part 7)* **Replaced by supply orders (MSN-15),** which reach the same
+planets with the issuer's own price instead of a top-up.
+
+
 A governor or root may post a delivery mission that **adds to a merchant's margin** on a
 route, when a planet in its tree has stock below reserve and **can't bid its price up
 enough to pull supply**: it's poor, starved or blockaded (MIL-17).
@@ -275,3 +279,59 @@ debt on upkeep and went bankrupt over and over, every two or three weeks. Paying
 to move keeps them solvent and moving, so the galaxy looks alive. It also mirrors what
 the player should find: "I don't want a player going to a new planet and finding a
 mission computer that has nothing."
+
+### MSN-15 Supply orders `v1` `proposed`
+
+*(tuning pass part 7, the human's design)* A planet short of life support sends for it.
+Merchants plan among the planets nearest them (TRD-4), so a short planet far off the
+Lattice never enters their sums, however high its price. An order carries the want to
+where the merchants are.
+
+1. **The order.** Each day a lawful planet that can buy (ECO-8), not under siege, looks
+   at each life-support good. If its stock plus what it has on order is below
+   `order.trigger_fill` (0.6) of its reserve, it orders the shortfall to the reserve.
+   The order goes to the nearest planet it has heard has a surplus of the good (a price
+   below base, by its own facts, INF-2): lawful, not under siege, not at war with it,
+   and reachable by some hull. If it knows of none, it orders nothing. The price a unit
+   is fixed when the order is made, at `order.price_share` (0.5) of its own price then:
+   well under it, because the planet takes the risk that the market moves. "They
+   shouldn't advertise the full price they will pay at that moment, but reduced
+   significantly. The planet is taking the risk of market conditions changing since
+   they are giving a fixed reward."
+2. **The courier leg.** The order is a one-way courier mission at the short planet, to
+   the producer, paying `order.courier_pay` (50) a day of the trip from the issuer's
+   treasury. Any hull may carry it, including one without a Lattice Drive if open space
+   gets there (TRD-18), so it's real, paid work for the bottom rung beside errands
+   (MSN-14). It's a job for the issuer (REL-3, REL-7) and grows the courier skill.
+3. **Untaken, it arrives anyway.** If no one has taken the courier leg
+   `order.courier_wait_days` (3) past the trip's own days, the order reaches the
+   producer without a carrier and without a fee. "We still want these planets to get
+   their goods." A courier who takes it gets it there sooner.
+4. **The delivery.** At the producer the order is posted on the board as a delivery:
+   the good, the amount, the price. A merchant there with an empty hold weighs it as a
+   trip beside its own (TRD-3, TRD-4): buy the good at the producer's market for no more
+   than the order's price less its believed route risk, fly to the issuer, and sell it
+   there at the order's price. It takes as much as its hold carries and the rest stays
+   posted. A faction merchant delivering outside its faction comes back with a leg, as
+   in TRD-3.
+5. **The money is real.** The issuer pays the courier and the delivery from its
+   treasury (ECO-2), so this is no exception to ECO-1 (MSN-5). A planet too broke to buy
+   orders nothing, and starves, which is meant: "having broke planets that can't buy
+   food is actually correct for the simulation."
+6. **What's on order is counted** (`on_order` on the planet), so a planet doesn't send
+   for the same shortfall twice. An order that's lost (its courier fails, MSN-3) or a
+   delivery no one takes within `order.supply_days` (30) comes off the count, and the
+   planet may order again. A delivery taken and not completed is a failed mission
+   (MSN-3).
+7. **Measured:** orders posted, carried and arrived untaken; deliveries made and
+   failed; units delivered, what the issuers paid for them, and the couriers' fees
+   (`orders.*`).
+
+- **It narrows TRD-2 and replaces MSN-8.** The planet still sets its price; the order
+  carries that price to merchants who would never have looked, and commits to it.
+  Unlike REJ-26's matchmaker it adds no waiting and no subsidy.
+- **Once taken, a delivery is no one else's,** so ten merchants don't race on the same
+  news and arrive to a glut.
+- **The incentives the human named fall out of it.** An interior producer gets steady
+  sales; a far planet gets its food at a price that pays the haul; a faction's merchants
+  ship it inside the faction.

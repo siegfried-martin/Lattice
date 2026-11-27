@@ -14,11 +14,15 @@ struct Plan {
     double value = 0;  // believed profit after fuel and running costs
     double days = 0;
     double score = -std::numeric_limits<double>::infinity();  // value per day
+    Id supply = kNone;      // a posted delivery it takes on the first leg (MSN-15)
+    double supply_qty = 0;  // how much of it
 };
 
 // The best trip from the character's planet. As a faction merchant of `root` it uses the
-// three shapes (TRD-3); otherwise single trips (TRD-4). Uses the character's own facts,
-// and the actual market where it stands.
+// three shapes (TRD-3); otherwise single trips (TRD-4). With its hold empty it also weighs
+// each delivery posted here (MSN-15): bought at this market up to the order's price and
+// sold to the issuer at it; a faction merchant delivering outside comes back with a leg.
+// Uses the character's own facts, and the actual market where it stands.
 Plan best_trip(const World& world, const Character& c, Id root);
 
 // Starts a plan: buys for the first leg and sets off.

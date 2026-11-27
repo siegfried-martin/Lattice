@@ -95,6 +95,7 @@ if(LATTICE_BUILD_TESTS)
         tests/test_war_money.cpp
         tests/test_war.cpp
         tests/test_pirates.cpp
+        tests/test_orders.cpp
         tests/test_spies.cpp
     )
     set_target_properties(lattice-tests PROPERTIES CXX_EXTENSIONS OFF)

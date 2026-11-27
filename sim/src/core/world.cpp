@@ -210,6 +210,14 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "chars.bankruptcies", -1, static_cast<double>(w.ledger.bankruptcies));  // CHR-16
     o.sample(t, "chars.wanders", -1, static_cast<double>(w.ledger.wanders));  // TRD-4
     o.sample(t, "chars.errands", -1, static_cast<double>(w.ledger.errands));  // MSN-14
+    o.sample(t, "orders.posted", -1, static_cast<double>(w.ledger.orders));  // MSN-15
+    o.sample(t, "orders.carried", -1, static_cast<double>(w.ledger.orders_carried));
+    o.sample(t, "orders.auto", -1, static_cast<double>(w.ledger.orders_auto));
+    o.sample(t, "orders.supplies", -1, static_cast<double>(w.ledger.supplies));
+    o.sample(t, "orders.supplies_failed", -1, static_cast<double>(w.ledger.supplies_failed));
+    o.sample(t, "orders.supply_qty", -1, w.ledger.supply_qty);
+    o.sample(t, "orders.supply_paid", -1, w.ledger.supply_paid);
+    o.sample(t, "orders.fees", -1, w.ledger.order_fees);
     o.sample(t, "chars.bankrupt_chars", -1, static_cast<double>(w.ledger.bankrupt_chars));  // CHR-16
     for (std::size_t k = 0; k < w.ledger.free_by_hull.size(); ++k) {
         o.sample(t, "chars.free_by_hull", static_cast<Id>(k), static_cast<double>(w.ledger.free_by_hull[k]));
@@ -445,6 +453,7 @@ void dispatch(World& w, const Event& e, Observer* observer) {
             break;
         case EventKind::PlanetDay:
             economy::planet_day(w, record);
+            missions::post_orders(w, record, observer);  // MSN-15
             break;
         case EventKind::PlanetLabour:
             economy::planet_labour(w, record);

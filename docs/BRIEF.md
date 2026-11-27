@@ -271,9 +271,21 @@ The design of the full game is settled enough to build its simulation. In brief:
   so no one waits long for work and the poorest keep moving (MSN-14). No one is
   stranded: a free ship can always leave where it's given. For the player, a planet's
   board is never empty (later).
+- **Supply orders** *(proposed, built)*: a planet short of food, water or oxygen sends an
+  order to the nearest planet it has heard has a surplus. The order is carried as a paid
+  courier mission, good first work for new pilots, and arrives anyway if no one takes
+  it. The producer then posts the delivery at a fixed price, half the short planet's own
+  (the planet takes the risk that the market moves), and merchants
+  there weigh it as a trip. This reaches the far fringe, which merchants planning among
+  their nearest markets never looked at. A planet too broke to pay orders nothing and
+  starves (MSN-15).
 - **Economy:** population buying goods is the only source of new money; every planet is
   a state trader that taxes other traders; operating costs are the baseline sink (ECO-1
-  to ECO-5). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
+  to ECO-5). *Proposed (money round, not built):* the population stops buying and eats
+  from the state's stock; new money is an even daily grant to every planet, the same
+  whatever its size, so a big planet feeds and runs more people from the same grant
+  (a brake on endless growth) and a small one spends its spare money to grow; a planet
+  won't sell its last half-reserve of life support. The v1 goods are food, water, oxygen, eight luxuries (six regional, two
   from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
   goods at high, medium and low efficiency, partly by region; a luxury takes more labour
   than food, and fringe worlds grow more of their own; prices come from stock against a

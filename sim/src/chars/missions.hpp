@@ -49,6 +49,20 @@ void take(World& world, Id character, Id mission, Observer* observer);
 void arrived(World& world, Id character, Observer* observer);
 void expire(World& world, Id mission, Observer* observer);
 
+// Supply orders (MSN-15). Daily, per lawful planet that can buy (ECO-8): for each
+// life-support good whose stock plus what's on order is below order.trigger_fill of
+// reserve, an order for the shortfall to the nearest planet it has heard has a surplus,
+// at order.price_share of its price now, fixed, posted as a one-way courier mission there paid order.courier_pay a
+// day. Untaken order.courier_wait_days past the trip's own days, the order arrives anyway.
+// At the producer the delivery is posted, for merchants to weigh as a trip.
+void post_orders(World& world, Id planet, Observer* observer);
+// A merchant takes qty of a posted delivery; the rest stays posted. kNone if it's gone.
+Id take_supply(World& world, Id character, Id mission, double qty, Observer* observer);
+// What it could buy at the order's price; the rest goes back on the issuer's books, and
+// nothing at all gives the delivery back.
+void supply_bought(World& world, Id character, double qty);
+// Delivered: qty units for money. The issuer's opinion and the trade skill grow.
+void supply_done(World& world, Id character, double qty, double money, Observer* observer);
 // Who issued a mission, for the ledger (MSN-4).
 Issuer issuer_of(const World& world, const Mission& m);
 // A mission was just taken: its deadline is mission.deadline_mult x its reference days

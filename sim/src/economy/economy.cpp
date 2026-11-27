@@ -20,6 +20,20 @@ double monthly_costs(const Config& c, const Planet& p) {
     return p.pirate ? cost * c.pirate.cost_mult : cost;  // a low cost base (ECO-14)
 }
 
+// What the population would spend a day with every market at its reserve: life support,
+// then luxuries as SYS-1 buys them, within its budget. Purchasing power left over is
+// never money (ECO-1), so the starting income counts only this.
+double spend_at_reserve(const Config& c, const Planet& p) {
+    const double n = p.population;
+    const double budget = n * c.econ.wage * p.productivity;
+    double life = 0;
+    for (Good g : kLifeSupport) life += n * c.goods[g].consumption * c.goods[g].base_price * (1 + c.price.spread / 2);
+    const double appetite = std::pow(c.event.festival_mult, p.festivals) / (1 + c.happy.sated * std::max(0.0, p.happiness));
+    double lux = 0;
+    for (Good g : kLuxuries) lux += c.happy.need * n * std::min(1.0, c.lux.max_fill) * appetite * c.goods[g].base_price * (1 + c.price.spread / 2);
+    return std::min(budget, life + lux);
+}
+
 void init_state(World& w) {
     const Config& c = w.config;
     for (Planet& p : w.planets) {
@@ -27,9 +41,9 @@ void init_state(World& w) {
         p.labour = {1.0 / 3, 1.0 / 3, 1.0 / 3};
         p.tax_rate = c.econ.tax;
         p.treasury = c.gen.start_treasury_months * monthly_costs(c, p);
-        // The income the planet would have if its population spent its whole budget,
-        // so the credit limit means something from the first day.
-        p.income_avg = p.population * c.econ.wage * p.productivity;
+        // The income the planet would have with its markets at reserve, so the credit
+        // limit means something from the first day.
+        p.income_avg = spend_at_reserve(c, p);
         p.net_avg = p.income_avg;
     }
 }

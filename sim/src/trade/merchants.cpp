@@ -2,9 +2,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "chars/characters.hpp"
 #include "chars/contracts.hpp"
+#include "chars/missions.hpp"
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
@@ -154,9 +156,38 @@ void consider(Plan& best, const Plan& p) {
     if (p.score > best.score) best = p;
 }
 
-}  // namespace
+// The deliveries posted where it stands (MSN-15), each as a trip: buy the good here up to
+// the order's price (less the believed route risk), sell it to the issuer at that price.
+void supply_trips(const Ctx& x, Id root, Plan& best) {
+    const World& w = x.w;
+    const Character& c = x.c;
+    const Id here = c.planet;
+    if (c.pirate || c.cargo_qty > 0 || x.capacity <= 0) return;
+    if (root != kNone && !fealty::same_faction(w, here, root)) return;  // away, it heads home (TRD-3)
+    for (Id mid : w.planets[at(here)].missions) {
+        const Mission& m = w.missions[at(mid)];
+        if (m.kind != MissionKind::Supply || m.state != MissionState::Open) continue;
+        const Id to = m.target;
+        if (root != kNone && info::believes_war(c.facts, root, fealty::root_of(w, to))) continue;
+        if (move::trip_days(w, c, here, to) >= std::numeric_limits<double>::max()) continue;
+        const double rr = risk_rate(x, here, to);
+        const market::Fill f =
+            market::quote_buy(w.planets[at(here)], w.config, m.good, std::min(x.capacity, m.qty), x.budget, m.unit / (1 + rr));
+        if (f.qty <= 0) continue;
+        double profit = f.qty * m.unit - f.money * (1 + rr);
+        Plan p{.stops = {{here, m.good}, {to, kGoodCount}}, .supply = mid, .supply_qty = f.qty};
+        if (root != kNone && !fealty::same_faction(w, to, root)) {  // out and back (TRD-3)
+            const LegChoice back = best_leg(x, to, false, here);
+            p.stops.back().buy = back.good;
+            p.stops.push_back({here, kGoodCount});
+            profit += back.profit;
+        }
+        finish(x, p, profit);
+        consider(best, p);
+    }
+}
 
-Plan best_trip(const World& w, const Character& c, Id root) {
+Plan trade_trip(const World& w, const Character& c, Id root) {
     Plan best;
     const Id here = c.planet;
     if (here == kNone) return best;
@@ -236,7 +267,69 @@ Plan best_trip(const World& w, const Character& c, Id root) {
     return best;
 }
 
+}  // namespace
+
+Plan best_trip(const World& w, const Character& c, Id root) {
+    Plan best = trade_trip(w, c, root);
+    if (c.planet == kNone) return best;
+    const ships::Fleet f = ships::fleet(w, c);
+    supply_trips({w, c, f.cargo, std::max(0.0, c.wealth - chars::reserve(w, c)), f.run_cost}, root, best);
+    return best;
+}
+
 namespace {
+
+// Buys a taken delivery's good here, as much as it holds at no more than the order's
+// price (MSN-15).
+void buy_supply(World& w, Id id, Observer*) {
+    Character& c = w.characters[at(id)];
+    const Mission& m = w.missions[at(c.mission)];
+    if (c.cargo_qty > 0 && c.cargo_good != m.good) {
+        missions::supply_bought(w, id, 0);
+        return;
+    }
+    const market::Fill fill = market::buy(w.planets[at(c.planet)], w.config, m.good, m.qty - c.cargo_qty,
+                                          std::max(0.0, c.wealth - chars::reserve(w, c)), m.unit);
+    if (fill.qty > 0) {
+        c.wealth -= fill.money;
+        c.cargo_good = m.good;
+        c.cargo_qty += fill.qty;
+        c.cargo_cost += fill.money;
+        w.ledger.traded[m.good] += fill.qty;
+        suspicion::add(w, c, fealty::root_of(w, c.planet), -w.config.sus.trade);  // genuine trade (INF-14)
+    }
+    missions::supply_bought(w, id, c.cargo_qty);
+}
+
+// At the planet that ordered: the delivery is sold to it at the order's price.
+void deliver_supply(World& w, Id id, Observer* observer) {
+    Character& c = w.characters[at(id)];
+    if (c.mission == kNone) return;
+    const Mission& m = w.missions[at(c.mission)];
+    if (m.kind != MissionKind::Supply || m.state != MissionState::Taken || c.planet != m.target) return;
+    if (c.cargo_good != m.good || c.cargo_qty <= 0) return;
+    const double q = std::min(c.cargo_qty, m.qty);
+    const double money = q * m.unit;
+    Planet& p = w.planets[at(c.planet)];
+    p.stock[m.good] += q;
+    market::pay(p, money);  // goods bought from a trader (ECO-2)
+    const double cost = c.cargo_cost * q / c.cargo_qty;
+    c.trip_profit += money - cost;
+    chars::earn(c, money, false);
+    c.earned_cargo -= cost;  // only the margin counts toward what pays (SYS-8)
+    c.career_cargo = std::max(0.0, c.career_cargo - cost);
+    c.cargo_qty -= q;
+    c.cargo_cost -= cost;
+    if (c.cargo_qty <= 1e-9) c.cargo_qty = 0, c.cargo_cost = 0, c.cargo_good = kGoodCount;
+    missions::supply_done(w, id, q, money, observer);
+}
+
+bool supplying_here(const World& w, Id id) {
+    const Character& c = w.characters[at(id)];
+    if (c.mission == kNone) return false;
+    const Mission& m = w.missions[at(c.mission)];
+    return m.kind == MissionKind::Supply && m.state == MissionState::Taken && m.taker == id && c.planet == m.at;
+}
 
 // Buys good g at the character's planet for the leg to `next`, as much as still pays by
 // belief.
@@ -307,6 +400,9 @@ void start(World& w, Id id, const Plan& plan, Observer* observer) {
     c.trip_profit = 0;
     c.trip_start = w.now;
     c.activity = Activity::Trading;
+    if (plan.supply != kNone && missions::take_supply(w, id, plan.supply, plan.supply_qty, observer) == kNone) {
+        c.trip[0].buy = kGoodCount;  // gone: it sets off empty rather than guess
+    }
     at_stop(w, id, observer);
 }
 
@@ -317,11 +413,13 @@ void at_stop(World& w, Id id, Observer* observer) {
     const Time docked = w.now + static_cast<Time>(w.config.merchant.dock_hours * kHour) + 1;
     if (c.trip.empty() || c.trip.front().planet != c.planet) {
         // Not where the plan expected (it was replanned elsewhere): end the trip here.
+        deliver_supply(w, id, observer);
         sell_cargo(w, id);
         end_trip(w, id);
         chars::wake(w, id, docked);
         return;
     }
+    deliver_supply(w, id, observer);
     sell_cargo(w, id);
     const Good g = c.trip.front().buy;
     c.trip.erase(c.trip.begin());
@@ -335,7 +433,11 @@ void at_stop(World& w, Id id, Observer* observer) {
         chars::wake(w, id, docked);
         return;
     }
-    buy_for_leg(w, id, g, c.trip.front().planet, observer);
+    if (supplying_here(w, id)) {
+        buy_supply(w, id, observer);
+    } else {
+        buy_for_leg(w, id, g, c.trip.front().planet, observer);
+    }
     escorts::consider(w, id, observer);
     if (!move::travel_to(w, id, c.trip.front().planet)) {
         end_trip(w, id);

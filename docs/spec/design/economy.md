@@ -25,6 +25,27 @@ when goods are delivered and bought. A population with nothing to buy generates 
 
 *Why:* a blockaded planet must lose income (REJ-16, REJ-17).
 
+*(proposed, money round: designed, not built)* **New money is an even grant to every
+planet,** the same amount each day whatever its size (`econ.grant`), paid to the
+treasury. Population no longer buys anything: it consumes from the state's own stock
+(ECO-2), so there is no wage and no purchasing power.
+
+- **Why even, not per person:** a grant that doesn't grow with a planet is inefficiency
+  at scale. A big planet pays more to make its own food and to run (ECO-4) from the same
+  grant, so a rich planet can't grow without limit; a small one spends its spare money
+  on food and luxuries and grows. "Even per planet is still correct … Small planets will
+  use their excess money to buy more food and luxuries and grow more, which provides our
+  balancing mechanic."
+- **Why not per person:** money tied to headcount gave a starving planet no relief, since
+  its money fell as fast as its need. Now a planet that shrinks keeps its grant and has
+  fewer mouths.
+- **Why a grant at all:** sinks drain money (ECO-5), so without a source the total only
+  falls. A central bank would overcomplicate it for little gain.
+- **What stays:** smugglers' sales to the population are still new money (PRD-6), and
+  missions' free money stays the named exception below.
+- *Open (OPN-47):* a blockaded planet keeps its grant, which REJ-16 rejected for
+  population money.
+
 *(proposed, roles round)* **Named exceptions for missions** (MSN-5): a mission may create
 free money when that's a small fix and reworking the model would be a big one. Each is a
 named tunable, its own metric flow and a line in `DECISIONS.md`. Starting wealth for new
@@ -37,6 +58,16 @@ planet's own production go to its treasury. There are no private producers or sh
 owners. **Every other trader (merchants and the player) buys from and sells to the
 state;** contraband, sold by smugglers straight to the population, is the exception
 (PRD-6). To the player this is the planet's trade goods screen.
+
+*(proposed, money round: designed, not built)* **The population eats from the state's
+stock,** the same pool merchants buy from; it doesn't buy. A planet earns from its
+exports, the tax and its grant (ECO-1), and pays for imports, making goods and running.
+A broke planet starves because it can't pay merchants for food, not because its people
+can't afford it. "If there's a reason we need to represent the citizen as a separate
+consumer outside of the planet market let me know but I don't see it." There wasn't one.
+
+- **A floor on life support:** the planet won't sell a life-support good to traders
+  below `price.sell_floor` of its reserve, so a merchant can't empty it at any price.
 
 *See:* REJ-18.
 

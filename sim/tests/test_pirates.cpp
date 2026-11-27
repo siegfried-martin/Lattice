@@ -732,12 +732,13 @@ TEST_CASE("a pirate offers a bold independent a run instead of attacking it (PIR
 
 TEST_CASE("contraband bought from smugglers costs a lawful population productivity (PRD-6, SYS-1)") {
     World w = new_world(quiet(), 107);
+    World control = w;  // the same day without the contraband
     Planet& p = w.planets[0];
     p.contraband_today = 0.2 * p.population;
-    const double before = p.productivity;
     economy::planet_day(w, 0);
+    economy::planet_day(control, 0);
     CHECK(p.contraband_avg > 0);
-    CHECK(p.productivity < before + 1e-9);
+    CHECK(p.productivity < control.planets[0].productivity);
     // And its governor answers with policing (PIR-15).
     p.contraband_avg = 0.05;
     budget::weekly(w, 0, nullptr);

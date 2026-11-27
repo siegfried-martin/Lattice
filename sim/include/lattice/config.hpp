@@ -76,7 +76,7 @@ struct Config {
 
     struct Econ {
         double tax = 0.05;           // transaction tax (ECO-3)
-        double wage = 40;            // purchasing power per thousand per day (ECO-1)
+        double wage = 120;           // purchasing power per thousand per day (ECO-1); 40 before tuning pass part 7
         double credit_limit = 2;     // months of income a planet may owe and still buy
         double op_base = 2000;       // operating cost per month (ECO-4)
         double op_per_capita = 250;  // per thousand per month (300 until round 4)
@@ -281,6 +281,19 @@ struct Config {
 
         friend bool operator==(const Passenger&, const Passenger&) = default;
     } passenger;
+
+    // Supply orders (MSN-15): a lawful planet short of a life-support good sends an order
+    // to the nearest producer it knows of, by courier mission, and the producer's board
+    // posts the delivery.
+    struct Order {
+        double trigger_fill = 0.6;     // orders when stock plus what's on order falls below this share of reserve
+        double courier_pay = 50;       // per day of the courier's expected one-way trip, from the issuer's treasury
+        double price_share = 0.5;      // the fixed price offered, as a share of its own price when it orders: it takes the market's risk
+        double courier_wait_days = 3;  // untaken this long past the trip's own days, the order arrives anyway
+        std::int64_t supply_days = 30; // an untaken delivery is given up after this
+
+        friend bool operator==(const Order&, const Order&) = default;
+    } order;
 
     struct Skill {
         double gain = 1;
@@ -828,6 +841,11 @@ void for_each_field(C& c, F&& f) {
     f("passenger.expiry_days", c.passenger.expiry_days);
     f("passenger.wait_min_days", c.passenger.wait_min_days);
     f("passenger.wait_max_days", c.passenger.wait_max_days);
+    f("order.trigger_fill", c.order.trigger_fill);
+    f("order.courier_pay", c.order.courier_pay);
+    f("order.price_share", c.order.price_share);
+    f("order.courier_wait_days", c.order.courier_wait_days);
+    f("order.supply_days", c.order.supply_days);
 
     f("skill.gain", c.skill.gain);
     f("skill.max", c.skill.max);

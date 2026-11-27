@@ -224,6 +224,8 @@ struct Planet {
     std::array<Good, 3> lawful_makes{};  // what it made, restored on recapture
     std::array<Tier, 3> lawful_tiers{};
     double contraband_today = 0;  // contraband its population bought today (SYS-1, SYS-16)
+    // Supply orders (MSN-15): units of each good ordered and not yet delivered or given up.
+    std::array<double, kGoodCount> on_order{};
 };
 template <class Ar, record_of<Planet> P>
 void fields(Ar& ar, P& p) {
@@ -237,6 +239,7 @@ void fields(Ar& ar, P& p) {
        p.month_patronage, p.campaign_after);
     ar(p.security, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
+    ar(p.on_order);
 }
 
 // ---- Relationships (REL-2, REL-3, SYS-10) ----
@@ -416,12 +419,15 @@ inline constexpr int kActivityCount = 13;
 enum class MissionKind : std::uint8_t {
     Courier = 0, Scout = 1, Trade = 2, Escort = 3, Command = 4, Smuggle = 5, Security = 6, LegalGoods = 7,
     Passenger = 8,  // MSN-13
+    Order = 9,      // MSN-15: a courier carrying a supply order to a producer
+    Supply = 10,    // MSN-15: the order's delivery, bought at the producer
 };
 inline constexpr int kSkillCount = 6;
 constexpr std::size_t skill_of(MissionKind k) {
     if (k == MissionKind::Security) return static_cast<std::size_t>(MissionKind::Escort);
     if (k == MissionKind::LegalGoods) return static_cast<std::size_t>(MissionKind::Trade);
-    if (k == MissionKind::Passenger) return static_cast<std::size_t>(MissionKind::Courier);
+    if (k == MissionKind::Passenger || k == MissionKind::Order) return static_cast<std::size_t>(MissionKind::Courier);
+    if (k == MissionKind::Supply) return static_cast<std::size_t>(MissionKind::Trade);
     return static_cast<std::size_t>(k);
 }
 
@@ -582,11 +588,13 @@ struct Mission {
     double qty = 0;
     Facts packet{};     // what a courier or scout carries
     Time deadline = kNever;  // set when taken (MSN-3)
+    double unit = 0;         // a supply order's price a unit, fixed when ordered (MSN-15)
 };
 template <class Ar, record_of<Mission> M>
 void fields(Ar& ar, M& m) {
     ar(m.kind, m.level, m.poster, m.at, m.target, m.base_pay, m.min_combat, m.min_cargo, m.posted, m.expires);
     ar(m.state, m.taker, m.pay, m.outbound, m.sortie, m.authority, m.good, m.qty, m.packet, m.deadline);
+    ar(m.unit);
 }
 
 // ---- An automated courier run (INF-8, SYS-15) ----
@@ -693,6 +701,10 @@ struct Ledger {
     std::int64_t bankrupt_chars = 0;  // CHR-16: characters gone bankrupt at least once
     std::array<std::int64_t, 4> free_by_hull{};  // CHR-16's ladder: pirate scout, drive courier, freighter, shuttle
     double debt_written_off = 0;
+    // Supply orders (MSN-15): orders posted, carried by a courier or arrived untaken, and
+    // deliveries made; the units delivered, what issuers paid for them, and the couriers' fees.
+    std::int64_t orders = 0, orders_carried = 0, orders_auto = 0, supplies = 0, supplies_failed = 0;
+    double supply_qty = 0, supply_paid = 0, order_fees = 0;
     // CHK-26: monthly flows of lawful planets, by their faction's state that month (0 peace,
     // 1 war): own net income, military and patronage paid, and vassals' net and tribute.
     std::array<double, 2> month_net{}, month_military{}, month_patronage{}, vassal_net{}, vassal_tribute{};
@@ -721,6 +733,7 @@ void fields(Ar& ar, L& l) {
     ar(l.insurance_premiums, l.insurance_paid, l.passenger_fares, l.free_hulls, l.passenger_runs, l.claims);
     ar(l.freelance_raids, l.pirate_deaths, l.bankruptcies, l.debt_written_off, l.free_by_hull, l.wanders, l.errands, l.bankrupt_chars);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
+    ar(l.orders, l.orders_carried, l.orders_auto, l.supplies, l.supplies_failed, l.supply_qty, l.supply_paid, l.order_fees);
 }
 
 // ---- Diplomacy (MOD-5, DIP-1 to DIP-3) ----

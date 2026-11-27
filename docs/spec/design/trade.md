@@ -33,7 +33,12 @@ margin on a delivery to a planet in its tree that can't bid its price up enough 
 supply, because it's poor, starved or blockaded (MSN-8). Held until tribute relief
 (FAC-15) has been measured.
 
-*See:* REJ-26 (the planet as matchmaker, narrowed by MSN-8), MSN-1.
+*(proposed, tuning pass part 7)* **Supply orders** (MSN-15) replace that exception: a
+planet short of life support sends its price, by courier, to a producer's board, where
+merchants weigh the delivery as a trip. Price still decides; the order takes it to
+merchants who wouldn't otherwise have looked.
+
+*See:* REJ-26 (the planet as matchmaker, narrowed by MSN-8 and then MSN-15), MSN-1.
 
 ## Merchants
 

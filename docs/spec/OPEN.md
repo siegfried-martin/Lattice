@@ -34,6 +34,7 @@ The planning agent should start a round from the **design** entries.
 | OPN-30 | Do planets need trade deals or loans? | ECO-9 | Only if the simulation shows the need |
 | OPN-31 | Do neutral planets sell armies passage? | WLD-13 | — |
 | OPN-34 | Does war between the largest factions need special treatment? | DIP-1 | No; it happens when the simulation produces it |
+| OPN-47 | A blockaded planet keeps its even grant (ECO-1), which REJ-16 rejected for population money. Does a blockade still bite enough through lost imports, exports and tax, or should a siege stop the grant? | ECO-1, MIL-10 | The grant is paid; a blockade bites through trade |
 | OPN-45 | Spies and pirates overlap: a faction's spy running contraband for a pirate planet would taint its own record | MSN-11, PIR-9 | Runs under a faction contract don't move the pirate relation |
 | OPN-44 | Does the ship modify stealth, and by how much? | INF-14, CHR-3 | Yes, a small modifier for a covert hull |
 | OPN-43 | How the player's start reaches the Lattice Drive, by both the merchant and the warrior paths | CHR-17, TRD-18, OPN-12, OPN-21 | — |

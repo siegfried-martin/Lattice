@@ -16,6 +16,23 @@ planet, `c` a character. Rates are per game day unless noted.
 
 *(proposed, round 3: built)* Happiness is signed, 0 neutral, with no clamp (PRD-4).
 
+*(proposed, money round: designed, not built)* The population eats from the stock and
+pays nothing (ECO-2); new money is the grant (ECO-1). Against the formula below:
+
+```
+treasury  += econ.grant                               daily, every planet alike, new money
+eat_g      = min(stock_g, need_g)                     life support; no budget, no ask
+use_l      = as below, min(stock_l, use_l)            luxuries; no budget
+             a pirate planet eats its own stims the same way, up to pirate.demand_cap
+```
+
+- `budget`, `econ.wage` and the ask go from this step; shortfall is stock alone.
+- Productivity still scales output (SYS-2); it no longer scales money.
+- Income (the credit limit's and the budget's, SYS-3, SYS-5) is the grant plus sales to
+  traders plus the tax; the starting income estimate becomes the grant.
+- *Sizing:* in part 7's runs population spending created about 4.2M a day across about
+  102 planets, close to what sinks took, so `econ.grant` starts at 40,000.
+
 ```
 budget     = N × econ.wage × P                       purchasing power, new money (ECO-1)
 need_g     = N × good.consumption[g]                  for food, water, oxygen

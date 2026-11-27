@@ -47,7 +47,9 @@ are gone.
 | `price.chunk` | Trade chunk as share of reserve | 0.05 |
 | `price.bands` | Player bands of price ÷ base | <0.6 very low, <0.9 low, <1.2 normal, <2 high, else very high |
 | `econ.tax` | Transaction tax on traders | 0.05 |
-| `econ.wage` | Purchasing power per thousand per day | 40 |
+| `econ.wage` | Purchasing power per thousand per day *(tuning pass part 7: 40 before; goes with the money round)* | 120 |
+| `econ.grant` | New money paid to every planet's treasury a day, the same for all (ECO-1) *(proposed, money round: not built)* | 40,000 |
+| `price.sell_floor` | Share of its reserve below which a planet won't sell a life-support good to traders (ECO-2) *(proposed, money round: not built)* | 0.5 |
 | `econ.credit_limit` | Months of income a planet may owe before it stops buying | 2 |
 | `pop.growth_rate` | Daily growth at full excess | 0.0005 |
 | `pop.shrink_rate` | Daily shrink at total shortfall | 0.002 |
@@ -155,6 +157,11 @@ sector centres are 1 apart). Ship variants bring their own open-space speeds (MS
 | `passenger.fare` | A passenger run's pay per day of the one-way trip, as free money (MSN-13, MSN-5) *(proposed, tuning pass part 3)* | 50 |
 | `passenger.per_planet`, `passenger.max_days`, `passenger.expiry_days` | Passenger runs each lawful planet keeps posted, their farthest destination in open-space travel days (part 5), and how long one stays posted (MSN-13) *(proposed, tuning pass part 3)* | 2, 4, 7 |
 | `passenger.wait_min_days`, `passenger.wait_max_days` | How long a lawful bottom-rung character with nothing to do waits, drawn uniformly, before its planet posts it an errand (MSN-14) *(proposed, tuning pass part 6)* | 0.5, 2 |
+| `order.trigger_fill` | A lawful planet orders a life-support good when its stock plus what's on order falls below this share of its reserve; 0 turns orders off (MSN-15) *(proposed, tuning pass part 7)* | 0.6 |
+| `order.courier_pay` | A supply order's courier leg: pay per day of the one-way trip, from the issuer's treasury (MSN-15) *(proposed, tuning pass part 7)* | 50 |
+| `order.price_share` | The fixed price an order offers a unit, as a share of the planet's own price when it orders; the planet takes the risk that the market moves (MSN-15) *(proposed, tuning pass part 7)* | 0.5 |
+| `order.courier_wait_days` | Untaken this many days past the trip's own days, an order reaches the producer anyway (MSN-15) *(proposed, tuning pass part 7)* | 3 |
+| `order.supply_days` | How long a delivery stays posted at the producer before it's given up (MSN-15) *(proposed, tuning pass part 7)* | 30 |
 | `skill.gain`, `skill.max`, `skill.bonus` | Skill per mission, cap, pay weighting | 1, 20, 0.02 |
 | `spend.threshold_base`, `spend.threshold_risk` | Wealth over ship price before buying: `base − risk × this` | 2, 1 |
 | `spend.reserve_months` | Running costs kept back by the cautious | 3 × (1 − risk) |

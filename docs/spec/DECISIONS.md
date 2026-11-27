@@ -5,6 +5,53 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-26 · The money round: an even grant, and the population eats from stock
+
+The human's design after part 7's wage finding (ECO-1, ECO-2, PRD-2, PRD-5, PRD-7,
+SYS-1; proposed, not built):
+
+- **No wage, no buying population** (ECO-2): the population eats from the state's stock,
+  the pool merchants buy from. "If there's a reason we need to represent the citizen as a
+  separate consumer outside of the planet market let me know but I don't see it."
+- **New money is an even grant to every planet** (ECO-1, `econ.grant` 40,000 a day): a
+  central bank "would overcomplicate for little gain". Even, not per person: "Right now we
+  have no mechanic preventing rich planets from growing infinitely, this adds some
+  inefficiency at scale … Small planets will use their excess money to buy more food and
+  luxuries and grow more, which provides our balancing mechanic." Money per person gave
+  a starving planet no relief, as its money fell as fast as its need.
+- **A floor on selling life support** (`price.sell_floor` 0.5 of reserve).
+- **Found on the way:** with spending capped by a wage, people paid any price under the
+  cap, so a shortage created more money; the wage bound only where life support was
+  dear (spend 32 a thousand a day at wage 40, 34.5 at 120).
+- REJ-11 still stands (no wages from production); REJ-16's worry, a blockaded planet
+  printing income, comes back for the grant (OPN-47).
+
+### 2026-11-26 · Tuning pass, part 7: supply orders
+
+The human's design after the fringe finding (MSN-15, TRD-2, MSN-8, REJ-26):
+
+- **Supply orders** (MSN-15, `order.*`): a lawful planet short of a life-support good
+  sends an order to the nearest surplus it has heard of, as a one-way courier mission it
+  pays for; the producer posts the delivery at the short planet's price, and merchants
+  there weigh it as a trip. Why: merchants plan among their 12 nearest planets, and no
+  Lattice planet has a fringe planet among them.
+- **The courier leg is base work for new characters:** "The mission to deliver
+  information (a mission) to the other planet serves as a good base level mission for
+  new characters."
+- **Untaken, an order arrives anyway** after `order.courier_wait_days` past its trip:
+  "We still want these planets to get their goods."
+- **It replaces MSN-8's top-ups and narrows TRD-2 and REJ-26:** the price is still the
+  planet's own; the order carries it.
+- **Not Bannerlord's caravans:** buying anything under a known average ignores who knows
+  what, a core mechanic here (INF-2); an order goes where the planet's own facts point.
+- **A fixed price at half the planet's own** (`order.price_share` 0.5): "They shouldn't
+  advertise the full price they will pay at that moment, but reduced significantly. The
+  planet is taking the risk of market conditions changing."
+- **Wage 120** (`econ.wage`, from 40): "Sure 120 is good, easy change to make later."
+  Life support falls from 37% to 13% of a Lattice planet's budget.
+- **Starting income is what a population would spend at reserve,** not its whole wage:
+  at wage 120 the old estimate tripled the starting military (a fix, MS-8 part 7).
+
 ### 2026-11-26 · Tuning pass, part 6: bankruptcy and errands
 
 The human's direction after the bankruptcy diagnosis (MSN-14, CHR-16, TRD-4, PIR-4):
@@ -676,7 +723,7 @@ Ideas considered and dropped. Don't reintroduce one without a new reason.
 | REJ-23 | Discrete price levels internally | Every merchant sees the same jump and herds | Smooth curve shown as bands (PRD-10) |
 | REJ-24 | Agent auction pricing (BazaarBot style) | Hard to tune and read; beliefs already give emergence | PRD-10 |
 | REJ-25 | Planet merchant fleets | No motivator once merchants are characters paid by price | TRD-1, TRD-3 |
-| REJ-26 | The planet as matchmaker for convoys and escorts | Adds waiting, duplicates price | TRD-2, TRD-8. *Narrowed 2026-10-22:* top-ups for planets that can't bid (MSN-8) |
+| REJ-26 | The planet as matchmaker for convoys and escorts | Adds waiting, duplicates price | TRD-2, TRD-8. *Narrowed 2026-10-22:* top-ups for planets that can't bid (MSN-8). *Narrowed 2026-11-26:* supply orders, the planet's own price carried to a producer (MSN-15) |
 | REJ-27 | Rust with gdext for the simulation | 0.x with breaking changes, few shipped games, weaker Windows story | C++ (ARC-1) |
 | REJ-28 | Fuel and munitions competing with cargo space | Makes buying consumables feel bad | ECO-12 |
 | REJ-29 | Separate legality lists for the Authority and each faction | Unreadable | PIR-14 |

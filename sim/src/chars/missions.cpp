@@ -1,15 +1,18 @@
 #include "chars/missions.hpp"
 
 #include <algorithm>
+#include <limits>
 
 #include "chars/characters.hpp"
 #include "chars/contracts.hpp"
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
+#include "lattice/market.hpp"
 #include "pirates/pirates.hpp"
 #include "politics/fealty.hpp"
 #include "politics/opinion.hpp"
+#include "war/diplomacy.hpp"
 #include "war/raids.hpp"
 #include "war/threats.hpp"
 
@@ -27,7 +30,8 @@ Id post(World& w, Mission m, Observer* observer) {
     w.events.push({.time = posted.expires, .kind = EventKind::MissionExpire, .record = id});
     ++w.ledger.missions_posted;
     if (observer) {
-        constexpr const char* kinds[] = {"courier", "scout", "trade", "escort", "command", "smuggle", "security", "legal", "passenger"};
+        constexpr const char* kinds[] = {"courier", "scout", "trade", "escort", "command", "smuggle", "security", "legal", "passenger",
+                                         "order", "supply"};
         observer->log(w.now, "mission.posted", id,
                       std::string(kinds[static_cast<std::size_t>(posted.kind)]) + " at " + std::to_string(posted.at) + " to " +
                           std::to_string(posted.target));
@@ -53,6 +57,29 @@ ContractKind contract_kind(MissionKind k) {
 bool pirate_run(const Mission& m) { return m.kind == MissionKind::Smuggle || m.kind == MissionKind::LegalGoods; }
 // A passenger run (MSN-13): one way, no issuer, paid as free money.
 bool passenger(const Mission& m) { return m.kind == MissionKind::Passenger; }
+// A supply order's courier leg and its delivery (MSN-15): one way, paid by the planet
+// that ordered, with no one-job contract.
+bool order(const Mission& m) { return m.kind == MissionKind::Order; }
+bool supply(const Mission& m) { return m.kind == MissionKind::Supply; }
+bool one_way(const Mission& m) { return passenger(m) || order(m) || supply(m); }
+bool contracted(const Mission& m) { return !pirate_run(m) && !passenger(m) && !order(m) && !supply(m); }
+
+constexpr double kNoRoute = std::numeric_limits<double>::max();
+
+// Days between planets for any hull: in open space if it can be, else by the Lattice.
+double any_hull_days(const World& w, Id a, Id b) {
+    const double open = w.derived.travel(a, b, false);
+    return open < kNoRoute ? open : w.derived.travel(a, b);
+}
+
+// The planet that ordered: an order's courier leaves from it, a delivery goes to it.
+Id orderer(const Mission& m) { return order(m) ? m.at : m.target; }
+
+// Units ordered and no longer coming (MSN-15).
+void unorder(World& w, const Mission& m, double qty) {
+    double& o = w.planets[at(orderer(m))].on_order[m.good];
+    o = std::max(0.0, o - qty);
+}
 
 // The days a mission should take, for its deadline (MSN-3): the reference round trip and
 // any time on station. A pirate run's route isn't known when it's taken, so it gets
@@ -60,6 +87,7 @@ bool passenger(const Mission& m) { return m.kind == MissionKind::Passenger; }
 double reference_days(const World& w, const Mission& m) {
     if (pirate_run(m)) return static_cast<double>(w.config.mission.expiry_days);
     if (passenger(m)) return std::max(1.0, w.derived.travel(m.at, m.target, false));  // any hull can fly it
+    if (order(m) || supply(m)) return std::max(1.0, any_hull_days(w, m.at, m.target));
     double hold = 0;
     if (m.kind == MissionKind::Security) {
         hold = static_cast<double>(m.authority ? w.config.authority.clear_days : w.config.security.days);
@@ -73,8 +101,9 @@ double reference_days(const World& w, const Mission& m) {
 
 Issuer issuer_of(const World& w, const Mission& m) {
     if (m.authority) return Issuer::Authority;
-    if (pirate_run(m) || w.planets[at(m.at)].pirate) return Issuer::PiratePlanet;
-    return w.planets[at(m.at)].liege == kNone ? Issuer::Root : Issuer::Governor;
+    const Id home = supply(m) ? m.target : m.at;  // a delivery's issuer is the planet it goes to
+    if (pirate_run(m) || w.planets[at(home)].pirate) return Issuer::PiratePlanet;
+    return w.planets[at(home)].liege == kNone ? Issuer::Root : Issuer::Governor;
 }
 
 void start_clock(World& w, Id mid) {
@@ -109,9 +138,15 @@ void fail(World& w, Id mid, Observer* observer) {
     } else {
         opinion::deed(w, m.poster, id, DeedKind::MissionFailed, observer);
     }
-    if (!pirate_run(m) && !passenger(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
+    if (contracted(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
+    if (order(m) || supply(m)) unorder(w, m, m.qty);  // the planet orders again (MSN-15)
+    if (supply(m)) ++w.ledger.supplies_failed;
     if (observer) observer->log(w.now, "mission.failed", mid, "by " + std::to_string(id));
     if (c.mission != mid) return;
+    if (supply(m)) {  // a merchant's trip goes on without it
+        c.mission = kNone;
+        return;
+    }
     c.mission = kNone;
     if (c.activity == Activity::Mission || c.activity == Activity::Patrolling) c.activity = Activity::Idle;
     if (c.alive && c.planet != kNone) {
@@ -238,6 +273,126 @@ Id post_errand(World& w, Id planet, Id flier, Observer* observer) {
     return post_passenger(w, planet, near, lattice, observer, lattice ? &c : nullptr);
 }
 
+namespace {
+
+// The nearest planet a short planet has heard has a surplus of g (a price below base),
+// lawful, not under siege and not at war with it, that some hull can reach (MSN-15).
+Id order_source(const World& w, Id planet, Good g) {
+    const Id root = fealty::root_of(w, planet);
+    Id best = kNone;
+    double best_days = 0;
+    for (const PriceFact& f : info::planet_facts(w, planet).prices) {
+        const Id q = f.planet;
+        const Planet& s = w.planets[at(q)];
+        if (q == planet || s.pirate || s.siege != kNone || diplomacy::at_war(w, root, fealty::root_of(w, q))) continue;
+        if (f.price[g] >= w.config.goods[g].base_price) continue;
+        const double d = any_hull_days(w, planet, q);
+        if (d >= kNoRoute) continue;
+        if (best == kNone || d < best_days) best = q, best_days = d;
+    }
+    return best;
+}
+
+// The order is at the producer, carried or not: its board posts the delivery.
+void post_supply(World& w, Id order_id, Observer* observer) {
+    const Mission o = w.missions[at(order_id)];
+    post(w,
+         {.kind = MissionKind::Supply, .level = MissionLevel::Planet, .poster = o.poster, .at = o.target, .target = o.at,
+          .base_pay = o.qty * o.unit, .posted = w.now, .expires = w.now + w.config.order.supply_days * kDay, .good = o.good,
+          .qty = o.qty, .unit = o.unit},
+         observer);
+}
+
+// No one took the courier leg in time, or the one who did couldn't go: the order arrives
+// anyway, with no one paid to carry it (MSN-15).
+void order_arrives(World& w, Id order_id, Observer* observer) {
+    w.missions[at(order_id)].state = MissionState::Expired;
+    ++w.ledger.orders_auto;
+    post_supply(w, order_id, observer);
+}
+
+}  // namespace
+
+void post_orders(World& w, Id planet, Observer* observer) {
+    Planet& p = w.planets[at(planet)];
+    const auto& c = w.config;
+    if (p.pirate || p.governor == kNone || p.siege != kNone || !market::can_buy(c, p)) return;
+    for (Good g : kLifeSupport) {
+        const double r = market::reserve(c, p, g);
+        if (r <= 0 || p.stock[g] + p.on_order[g] >= c.order.trigger_fill * r) continue;
+        const Id from = order_source(w, planet, g);
+        if (from == kNone) continue;
+        const double qty = r - p.stock[g] - p.on_order[g];
+        const double days = any_hull_days(w, planet, from);
+        p.on_order[g] += qty;
+        ++w.ledger.orders;
+        post(w,
+             {.kind = MissionKind::Order, .level = MissionLevel::Planet, .poster = p.governor, .at = planet, .target = from,
+              .base_pay = c.order.courier_pay * std::max(0.5, days), .posted = w.now,
+              .expires = w.now + static_cast<Time>((c.order.courier_wait_days + days) * kDay), .good = g, .qty = qty,
+              .unit = c.order.price_share * market::price(c, p, g)},
+             observer);
+    }
+}
+
+Id take_supply(World& w, Id id, Id mid, double qty, Observer* observer) {
+    if (w.missions[at(mid)].state != MissionState::Open || qty <= 0) return kNone;
+    if (qty < w.missions[at(mid)].qty - 1e-9) {
+        // It carries what its hold takes; the rest stays posted for the next merchant.
+        Mission rest = w.missions[at(mid)];
+        rest.qty -= qty;
+        rest.base_pay = rest.qty * rest.unit;
+        post(w, rest, observer);
+        w.missions[at(mid)].qty = qty;
+        w.missions[at(mid)].base_pay = qty * w.missions[at(mid)].unit;
+    }
+    Mission& m = w.missions[at(mid)];
+    m.state = MissionState::Taken;
+    m.taker = id;
+    m.pay = m.base_pay;
+    unpost(w, mid);
+    w.characters[at(id)].mission = mid;
+    if (observer) observer->log(w.now, "mission.taken", mid, "by " + std::to_string(id));
+    start_clock(w, mid);
+    return mid;
+}
+
+void supply_bought(World& w, Id id, double qty) {
+    Character& c = w.characters[at(id)];
+    Mission& m = w.missions[at(c.mission)];
+    if (qty >= m.qty - 1e-9) return;
+    unorder(w, m, m.qty - qty);
+    m.qty = qty;
+    m.pay = qty * m.unit;
+    if (qty > 0) return;
+    m.state = MissionState::Expired;  // nothing to be had at its price: given back
+    c.mission = kNone;
+}
+
+void supply_done(World& w, Id id, double qty, double money, Observer* observer) {
+    Character& c = w.characters[at(id)];
+    const Id mid = c.mission;
+    Mission& m = w.missions[at(mid)];
+    unorder(w, m, m.qty);
+    m.state = MissionState::Done;
+    ++w.ledger.supplies;
+    w.ledger.supply_qty += qty;
+    w.ledger.supply_paid += money;
+    ++w.ledger.issuer_done[at(static_cast<Id>(issuer_of(w, m)))];
+    auto& skill = c.skills[skill_of(m.kind)];
+    skill = std::min(w.config.skill.max, skill + w.config.skill.gain);
+    ++c.missions_done;
+    c.reputation += 1;  // REL-7
+    opinion::deed(w, m.poster, id, DeedKind::JobDone, observer);
+    const Id root = fealty::root_of(w, m.target);
+    if (root >= 0 && !w.planets[at(root)].pirate && w.planets[at(root)].governor != m.poster) {
+        opinion::deed(w, w.planets[at(root)].governor, id, DeedKind::FactionJob, observer);
+    }
+    ++w.ledger.missions_done;
+    if (observer) observer->log(w.now, "mission.done", mid, "by " + std::to_string(id));
+    c.mission = kNone;
+}
+
 void planet_weekly(World& w, Id planet, Observer* observer) {
     const Planet& p = w.planets[at(planet)];
     if (p.governor == kNone) return;
@@ -299,7 +454,9 @@ bool qualifies(const World& w, Id id, const Mission& m) {
     if (c.governs != kNone || c.ships.empty() || c.cargo_qty > 0 || c.pirate) return false;
     const ships::Fleet f = ships::fleet(w, c);
     // Only passenger runs are for a hull without a Lattice Drive (TRD-18, MSN-13).
-    if ((!f.lattice_drive && !passenger(m)) || f.combat < m.min_combat || f.cargo < m.min_cargo) return false;
+    // and a supply order's courier leg, if open space gets it there (MSN-15).
+    if (supply(m) || f.combat < m.min_combat || f.cargo < m.min_cargo) return false;
+    if (!f.lattice_drive && !passenger(m) && !(order(m) && w.derived.travel(m.at, m.target, false) < kNoRoute)) return false;
     // Passenger runs are for the bottom rung: one tier-1 hull (MSN-13).
     if (passenger(m) && (c.ships.size() != 1 || w.map.variants[at(c.ships[0])].tier != 1)) return false;
     // A courier run carries the faction's news (INF-16): it goes to those it trusts (REL-5).
@@ -325,7 +482,8 @@ Offer best_offer(const World& w, Id id) {
         const double hold = m.kind != MissionKind::Security ? 0
                             : m.authority                    ? static_cast<double>(w.config.authority.clear_days)
                                                              : static_cast<double>(w.config.security.days);
-        const bool back = !passenger(m);  // a passenger run is one way
+        if (supply(m)) continue;  // a merchant weighs a delivery as a trip (MSN-15)
+        const bool back = !one_way(m);
         const double days = std::max(move::trip_days(w, c, m.at, m.target) + (back ? move::trip_days(w, c, m.target, m.at) : 0) + hold, 1.0 / 24);
         const double fuel = move::fuel_cost(w, c, m.at, m.target) + (back ? move::fuel_cost(w, c, m.target, m.at) : 0);
         const double skill = c.skills[skill_of(m.kind)];
@@ -341,7 +499,7 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     m.taker = id;
     m.pay = pay_now(w, m);
     unpost(w, mid);
-    if (!passenger(m)) contracts::sign(w, contract_kind(m.kind), m.poster, id, m.pay, 0, mid);
+    if (contracted(m)) contracts::sign(w, contract_kind(m.kind), m.poster, id, m.pay, 0, mid);
     if (m.kind == MissionKind::Courier) m.packet = info::planet_facts(w, m.at);
     Character& c = w.characters[at(id)];
     c.mission = mid;
@@ -362,10 +520,11 @@ void take(World& w, Id id, Id mid, Observer* observer) {
     if (!going) {
         // Unreachable: give it back.
         m.state = MissionState::Expired;
-        if (!passenger(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
+        if (contracted(m)) contracts::end(w, contracts::held(w, id, contract_kind(m.kind)));
         c.mission = kNone;
         c.activity = Activity::Idle;
         chars::wake(w, id, w.now + kDay);
+        if (order(w.missions[at(mid)])) order_arrives(w, mid, observer);
         return;
     }
     start_clock(w, mid);
@@ -374,6 +533,40 @@ void take(World& w, Id id, Id mid, Observer* observer) {
 void arrived(World& w, Id id, Observer* observer) {
     Character& c = w.characters[at(id)];
     Mission& m = w.missions[at(c.mission)];
+    if (order(m)) {
+        if (c.planet != m.target) {
+            if (!move::travel_to(w, id, m.target)) chars::wake(w, id, w.now + kDay);
+            return;
+        }
+        // The order is delivered: the issuer pays the courier, and the producer's board
+        // posts the delivery (MSN-15).
+        const Id mid = c.mission;
+        m.state = MissionState::Done;
+        w.planets[at(m.at)].treasury -= m.pay;
+        const auto who = static_cast<std::size_t>(issuer_of(w, m));
+        w.ledger.issuer_spend[who] += m.pay;
+        ++w.ledger.issuer_done[who];
+        w.ledger.order_fees += m.pay;
+        ++w.ledger.orders_carried;
+        chars::earn(c, m.pay, false);
+        auto& skill = c.skills[skill_of(m.kind)];
+        skill = std::min(w.config.skill.max, skill + w.config.skill.gain);
+        ++c.missions_done;
+        c.reputation += 1;  // REL-7
+        opinion::deed(w, m.poster, id, DeedKind::JobDone, observer);
+        const Id root = fealty::root_of(w, m.at);
+        if (root >= 0 && !w.planets[at(root)].pirate && w.planets[at(root)].governor != m.poster) {
+            opinion::deed(w, w.planets[at(root)].governor, id, DeedKind::FactionJob, observer);
+        }
+        ++w.ledger.missions_done;
+        if (observer) observer->log(w.now, "mission.done", mid, "by " + std::to_string(id));
+        c.mission = kNone;
+        c.activity = Activity::Idle;
+        c.idle_since = w.now;
+        chars::wake(w, id, w.now);
+        post_supply(w, mid, observer);
+        return;
+    }
     if (passenger(m)) {
         if (c.planet != m.target) {
             if (!move::travel_to(w, id, m.target)) chars::wake(w, id, w.now + kDay);
@@ -463,6 +656,8 @@ void expire(World& w, Id mid, Observer* observer) {
     ++w.ledger.missions_expired;
     if (observer) observer->log(w.now, "mission.expired", mid, "");
     if (m.kind == MissionKind::Courier) info::send_courier(w, m.target);
+    if (supply(m)) unorder(w, m, m.qty);  // no one would carry it: the planet may order again
+    if (order(m)) order_arrives(w, mid, observer);  // last: it posts, which moves the missions
 }
 
 }  // namespace lattice::missions

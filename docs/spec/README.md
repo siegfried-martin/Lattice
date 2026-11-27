@@ -79,7 +79,7 @@ design: every number in `design/` is illustrative, and the starting values live 
 | `trade.md` | TRD | Merchants and their trip shapes, escorts, osmosis, ambient ships, the risk number, trade missions for the player | faction merchant, independent merchant, trip shape, escort, osmosis, ambient, risk |
 | `piracy.md` | PIR | The pirate faction, pirate planets, commanders turning pirate, loot, the pirate relation, smuggling, contraband policing | pirate faction, anarchy, pirate relation, smuggler, full pirate, policing |
 | `information.md` | INF | Facts and beliefs, sharing, couriers, scouts, mission travel, spies, suspicion | fact, belief, sharing, courier, scout, sighting, spy, suspicion, stealth, detection, exposure |
-| `missions.md` | MSN | Missions as the market for wants, the one mission primitive, success and failure, free money, spawned targets, the Authority's board, top-ups, and each path's missions, errands | mission, issuer, tier, spawned target, free money, Authority board, errand |
+| `missions.md` | MSN | Missions as the market for wants, the one mission primitive, success and failure, free money, spawned targets, the Authority's board, top-ups, and each path's missions, errands, supply orders | mission, issuer, tier, spawned target, free money, Authority board, errand, supply order |
 
 ### Simulation (`sim/`)
 
