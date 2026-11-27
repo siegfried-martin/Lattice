@@ -930,6 +930,24 @@ of half a reserve. 8 seeds × 5 years against part 7 (`init120-on`):
 - **The floor does nothing measurable:** a run with `price.sell_floor` 0 lands within
   noise of it.
 
+**A rich planet pays more** *(built, PRD-10).* Spare money raises every price a planet
+posts (`price.wealth` 0.25, up to `price.wealth_max` 2). Against the grant alone:
+
+- World population ends at 0.85 of its start (0.76), the fringe grows 0.70 as fast as
+  the network (0.49), and merchant profit per trip is 80 (57). Prices end 21% higher.
+- Small planets still hold a median 350 months of costs, at the 2× ceiling. A small
+  planet costs about 40,000 a month to run and gets 40,000 a day.
+
+**The grant sets the size of the world** (with the wealth bid). Population, end over
+start: 0.85 at 40,000, 0.47 at 20,000, and 0.14 at 10,000, where the world collapses into
+piracy (369 planets turned). A thousand people cost their planet about 23 a day: 14.5
+to make what they eat (PRD-7, a sink) and 8 to run (ECO-4). Nothing pays that back now
+that people don't buy, so world population settles near (grant × planets − fixed sinks)
+/ 23. That gives about 90,000 at 40,000 and 50,000 at 20,000, as run. Geography only
+divides the total: size still follows the Lattice, the fringe and big neighbours at
+every grant. More output per head doesn't help, since each unit costs the same to make
+however many people make it. That fits high-tier slots giving no edge in size.
+
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the
   merchant squeeze (round 4: 23% of characters idle, 15% pirates).
