@@ -213,7 +213,8 @@ struct Planet {
     Time campaign_after = 0;       // an abandoned campaign: no new one before this (SYS-13)
 
     // Defence (MIL-5).
-    double security = 0;     // monthly spend on static defence and patrols (ECO-4): a sink
+    double security = 0;     // monthly spend on static defence and patrols (ECO-4), drawn as parts (MIL-5)
+    double armed = 1;        // defence its security spending keeps up, against parts at base price and all supplied, averaged (MIL-5)
     double defence = 0;      // static defence now, in combat power
     Id siege = kNone;        // the siege it's under
     Id warned_army = kNone;  // the last army it raised the alarm about (MIL-11)
@@ -226,6 +227,9 @@ struct Planet {
     double contraband_today = 0;  // contraband its population bought today (SYS-1, SYS-16)
     // Supply orders (MSN-15): units of each good ordered and not yet delivered or given up.
     std::array<double, kGoodCount> on_order{};
+    // Parts (PRD-1, money round): what its security, shipyard and refills asked for
+    // today, and its daily average, which sizes its parts reserve (SYS-3).
+    double parts_today = 0, parts_use = 0;
 };
 template <class Ar, record_of<Planet> P>
 void fields(Ar& ar, P& p) {
@@ -237,9 +241,9 @@ void fields(Ar& ar, P& p) {
     ar(p.steward, p.governor_stipend, p.vacant_since, p.succession_at);
     ar(p.bounties, p.captured_at, p.shortfall, p.relief_from, p.relief_pending, p.relief_needed, p.month_military,
        p.month_patronage, p.campaign_after);
-    ar(p.security, p.defence, p.siege, p.warned_army);
+    ar(p.security, p.armed, p.defence, p.siege, p.warned_army);
     ar(p.pirate, p.policing, p.lawful_makes, p.lawful_tiers, p.contraband_today);
-    ar(p.on_order);
+    ar(p.on_order, p.parts_today, p.parts_use);
 }
 
 // ---- Relationships (REL-2, REL-3, SYS-10) ----
@@ -689,7 +693,11 @@ struct Ledger {
     double objective_rewards = 0;  // purses paid on success (MIL-2)
     std::int64_t campaigns_abandoned = 0;
     double purses_held = 0, purses_returned = 0;  // set aside when offered, and given back (MIL-2)
-    double munitions = 0;  // refills after battle, a sink (MIL-4)
+    double munitions = 0;  // refills after battle (MIL-4)
+    // Parts (MIL-4, MIL-5, money round): what characters paid planets for parts in ships
+    // and refills, and what they paid for parts a yard didn't have, a sink.
+    double parts_paid = 0, parts_rushed = 0;
+    double crowd_waste = 0;  // life support lost to the waste of size (PRD-2, money round)
     double ceasefire_unpaid = 0;  // ceasefire tribute owed that the treasury couldn't pay (DIP-2)
     // Insurance and the bottom rung (CHR-21, CHR-16, MSN-13). Premiums are part of
     // ships_bought; payouts and fares are part of free_money.
@@ -735,6 +743,7 @@ void fields(Ar& ar, L& l) {
     ar(l.freelance_raids, l.pirate_deaths, l.bankruptcies, l.debt_written_off, l.free_by_hull, l.wanders, l.errands, l.bankrupt_chars);
     ar(l.month_net, l.month_military, l.month_patronage, l.vassal_net, l.vassal_tribute);
     ar(l.orders, l.orders_carried, l.orders_auto, l.supplies, l.supplies_failed, l.supply_qty, l.supply_paid, l.order_fees);
+    ar(l.parts_paid, l.parts_rushed, l.crowd_waste);
 }
 
 // ---- Diplomacy (MOD-5, DIP-1 to DIP-3) ----

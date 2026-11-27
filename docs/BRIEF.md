@@ -279,9 +279,10 @@ The design of the full game is settled enough to build its simulation. In brief:
   there weigh it as a trip. This reaches the far fringe, which merchants planning among
   their nearest markets never looked at. A planet too broke to pay orders nothing and
   starves (MSN-15).
-- **Economy:** new money is an even daily grant to every planet, the same whatever its
-  size, so a big planet feeds and runs more people from the same grant (a brake on
-  endless growth) and a small one spends its spare money to grow. The population
+- **Economy:** new money was an even daily grant to every planet, the same whatever its
+  size, so a big planet fed and ran more people from the same grant (a brake on
+  endless growth) and a small one spent its spare money to grow; part 6 below makes it
+  mostly per head. The population
   doesn't buy: it eats from the state's stock, and a broke planet starves because it
   can't pay merchants for food. Every planet is a state trader that taxes other traders
   and won't sell its last half-reserve of life support; operating costs are the baseline
@@ -289,8 +290,8 @@ The design of the full game is settled enough to build its simulation. In brief:
   posts higher prices for everything, so merchants bring it goods and its producers
   make more (PRD-10; proposed, built). Making goods costs labour, not money: a slot works
   only when its price covers the unit cost, but the treasury pays nothing, so a planet's
-  own food is free and its surplus is income (PRD-7; proposed, built). A planet in the red stops buying luxuries but keeps buying life support on credit, and merchants who see it stop bring food instead (ECO-8; proposed, built). The v1 goods are food, water, oxygen, eight luxuries (six regional, two
-  from the fringe; placeholder names) and one contraband (PRD-1). Each planet makes three
+  own food is free and its surplus is income (PRD-7; proposed, built). A planet in the red stops buying luxuries but keeps buying life support on credit, and merchants who see it stop bring food instead (ECO-8; proposed, built). *(Proposed, money round part 6: built.)* New money is now mostly a grant per head, with a small flat part, so a big planet has more to spend; a crowded planet wastes life support (use per head rises with the square of its size), so it can't grow forever. A governor spends money beyond its reserve rather than hoarding it. Ships, munitions and planetary defence are made of parts, a good planets make and merchants carry: a fleet buys its ships and refills from the planet it's at, and a planet's security draws parts from its stock, so war spending becomes income for the planets that make them and competes with growth for labour. The v1 goods are food, water, oxygen, eight luxuries (six regional, two
+  from the fringe; placeholder names), parts and one contraband (PRD-1). Each planet makes three
   goods at high, medium and low efficiency, partly by region; a luxury takes more labour
   than food, and fringe worlds grow more of their own; prices come from stock against a
   reserve; droughts and festivals keep them moving (PRD-7 to PRD-11). Making goods costs

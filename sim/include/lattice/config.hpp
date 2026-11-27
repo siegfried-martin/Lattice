@@ -62,6 +62,7 @@ struct Config {
         {30, 15, 1.0, 0, 1.0 / 6},   // glassware
         {30, 15, 1.0, 0, 1.0 / 3},   // crystal (fringe)
         {30, 15, 1.0, 0, 1.0 / 3},   // amber (fringe)
+        {20, 30, 1.0, 0.05, 0.5},    // parts (materiel): consumption is the use held for regardless
         {60, 15, 1.0, 0.2, 1},       // stims (contraband)
     }};
 
@@ -79,7 +80,8 @@ struct Config {
 
     struct Econ {
         double tax = 0.05;           // transaction tax (ECO-3)
-        double grant = 40000;        // new money paid to every planet's treasury a day, the same for all (ECO-1)
+        double grant = 4000;         // new money paid to every planet's treasury a day, the same for all (ECO-1)
+        double grant_per_capita = 7; // and per thousand people a day (ECO-1, money round)
         double credit_limit = 2;     // months of income a planet may owe and still buy
         double luxury_credit = 0;    // the same for luxuries: life support comes first (ECO-8)
         double op_base = 2000;       // operating cost per month (ECO-4)
@@ -92,6 +94,7 @@ struct Config {
         double growth_rate = 0.0005;  // daily growth at full excess
         double shrink_rate = 0.002;   // daily shrink at total shortfall
         double full_excess = 0.5;     // life-support stock over reserve, as a share of it, for full growth (1 until round 4)
+        double crowding = 15000;      // thousands at which life support use per head doubles, x (N / crowding)^2: the waste of size (PRD-2); 0 off
         double growth_factor_min = 0.5;
         double growth_factor_max = 1.5;
         double contraband_penalty = 4;
@@ -380,6 +383,9 @@ struct Config {
         // Money beyond reserve_months of costs raises defence values by up to hoard x
         // hoard_cap (MIL-5); the war vote's treasury term uses the same reserve (DIP-4).
         double hoard = 1, reserve_months = 6, hoard_cap = 3;
+        // The budget spends spare treasury, beyond the reserve, as if it were income
+        // spread over this many months (SYS-5, money round). 0: income only.
+        double drawdown_months = 12;
 
         friend bool operator==(const Budget&, const Budget&) = default;
     } budget;
@@ -729,6 +735,7 @@ void for_each_field(C& c, F&& f) {
 
     f("econ.tax", c.econ.tax);
     f("econ.grant", c.econ.grant);
+    f("econ.grant_per_capita", c.econ.grant_per_capita);
     f("econ.credit_limit", c.econ.credit_limit);
     f("econ.luxury_credit", c.econ.luxury_credit);
     f("econ.op_base", c.econ.op_base);
@@ -737,6 +744,7 @@ void for_each_field(C& c, F&& f) {
     f("pop.growth_rate", c.pop.growth_rate);
     f("pop.shrink_rate", c.pop.shrink_rate);
     f("pop.full_excess", c.pop.full_excess);
+    f("pop.crowding", c.pop.crowding);
     f("pop.growth_factor_min", c.pop.growth_factor_min);
     f("pop.growth_factor_max", c.pop.growth_factor_max);
     f("pop.contraband_penalty", c.pop.contraband_penalty);
@@ -962,6 +970,7 @@ void for_each_field(C& c, F&& f) {
     f("budget.hoard", c.budget.hoard);
     f("budget.reserve_months", c.budget.reserve_months);
     f("budget.hoard_cap", c.budget.hoard_cap);
+    f("budget.drawdown_months", c.budget.drawdown_months);
 
     f("value.defence", c.value.defence);
     f("value.power_ref", c.value.power_ref);

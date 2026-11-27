@@ -11,6 +11,7 @@
 #include "chars/movement.hpp"
 #include "chars/ships.hpp"
 #include "info/facts.hpp"
+#include "lattice/market.hpp"
 #include "politics/fealty.hpp"
 #include "politics/opinion.hpp"
 #include "politics/roles.hpp"
@@ -99,14 +100,47 @@ void count_free(World& w, Id variant) {
     ++w.ledger.free_by_hull[k];
 }
 
-// What a ship costs its buyer, premium included (CHR-21), booked as a sink.
+// Ships and munitions are parts (MIL-4, ECO-6, money round): worth so many at the parts'
+// base price, bought from the planet's stock at its ask and tax and paid to its treasury.
+// What the stock lacks is rushed in at price.max of the base price, a sink.
+double parts_in(const Config& cfg, double value) { return value / cfg.goods[kParts].base_price; }
+
+double rushed_unit(const Config& cfg) { return cfg.goods[kParts].base_price * cfg.price.max; }
+
+double parts_quote(const World& w, Id planet, double qty) {
+    constexpr double any = std::numeric_limits<double>::max();
+    const market::Fill f = market::quote_buy(w.planets[at(planet)], w.config, kParts, qty, any, any);
+    return f.money + std::max(0.0, qty - f.qty) * rushed_unit(w.config);
+}
+
+double buy_parts(World& w, Character& c, double qty) {
+    constexpr double any = std::numeric_limits<double>::max();
+    Planet& p = w.planets[at(c.planet)];
+    p.parts_today += qty;  // the yard's demand, met or not, sizes its reserve
+    const market::Fill f = market::buy(p, w.config, kParts, qty, any, any);
+    const double rushed = std::max(0.0, qty - f.qty) * rushed_unit(w.config);
+    w.ledger.consumed[kParts] += f.qty;  // built into the ship or fired
+    c.wealth -= f.money + rushed;
+    w.ledger.parts_paid += f.money;
+    w.ledger.parts_rushed += rushed;
+    w.ledger.money_sunk += rushed;
+    return f.money + rushed;
+}
+
+// What a ship costs its buyer at the planet it's at: its parts, and the insurance
+// premium on its price (CHR-21), a sink.
+double ship_cost(const World& w, const Character& c, const ShipVariant& v) {
+    return parts_quote(w, c.planet, parts_in(w.config, v.price)) + ships::buy_cost(w.config, v) - v.price;
+}
+
 void pay_for(World& w, Character& c, Id variant, double resale) {
     const ShipVariant& v = w.map.variants[at(variant)];
-    const double cost = ships::buy_cost(w.config, v) - resale;
-    c.wealth -= cost;
-    w.ledger.ships_bought += cost;
-    w.ledger.money_sunk += cost;
-    w.ledger.insurance_premiums += ships::buy_cost(w.config, v) - v.price;
+    const double premium = ships::buy_cost(w.config, v) - v.price;
+    const double parts = buy_parts(w, c, parts_in(w.config, v.price));
+    c.wealth -= premium - resale;
+    w.ledger.ships_bought += parts + premium - resale;
+    w.ledger.money_sunk += premium - resale;
+    w.ledger.insurance_premiums += premium;
     ships::insure(w, c, variant);
 }
 
@@ -132,10 +166,10 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
         const Id bottom = bottom_hull(w, id);  // the bottom rung (CHR-16)
         for (int tier = kTierCount; tier >= 1 && pick == kNone; --tier) {
             const Id v = ships::variant(w.map, culture, cls, tier);
-            if (c.wealth >= threshold * ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
+            if (c.wealth >= threshold * ship_cost(w, c, w.map.variants[at(v)])) pick = v;
         }
         for (const Id v : {ships::variant(w.map, culture, cls, 1), bottom}) {
-            if (pick == kNone && c.wealth >= ships::buy_cost(cfg, w.map.variants[at(v)])) pick = v;
+            if (pick == kNone && c.wealth >= ship_cost(w, c, w.map.variants[at(v)])) pick = v;
         }
         if (pick == kNone) {
             // Ruined: it starts over at the bottom (CHR-16), in the hull that follows who it
@@ -173,8 +207,8 @@ void maybe_buy_ship(World& w, Id id, Observer* observer) {
     const ShipVariant& v = w.map.variants[at(pick)];
     const double resale = room ? 0 : w.map.variants[at(c.ships[cheapest])].price * cfg.ship.resale;
     if (!room && v.price <= w.map.variants[at(c.ships[cheapest])].price) return;
-    const double cost = ships::buy_cost(cfg, v) - resale;
-    if (c.wealth < threshold * ships::buy_cost(cfg, v) || c.wealth - cost < reserve(w, c)) return;
+    const double price = ship_cost(w, c, v);
+    if (c.wealth < threshold * price || c.wealth - (price - resale) < reserve(w, c)) return;
     pay_for(w, c, pick, resale);
     if (room) {
         c.ships.push_back(pick);
@@ -318,16 +352,14 @@ double reserve(const World& w, const Character& c) {
 }
 
 // MIL-4: the munitions a battle used are refilled at the first planet that isn't hostile,
-// which has as many as the fleet needs. Nobody made them, so the money is sunk (ECO-6).
+// as parts from its stock, paid to it; what it lacks is rushed in (money round).
 void refill(World& w, Id id) {
     Character& c = w.characters[at(id)];
     if (c.munitions <= 0 || c.planet == kNone) return;
     const Planet& p = w.planets[at(c.planet)];
     const Id faction = faction_of(w, c);
     if (p.pirate != c.pirate || (faction != kNone && !c.pirate && diplomacy::at_war(w, faction, fealty::root_of(w, c.planet)))) return;
-    c.wealth -= c.munitions;
-    w.ledger.munitions += c.munitions;
-    w.ledger.money_sunk += c.munitions;
+    w.ledger.munitions += buy_parts(w, c, parts_in(w.config, c.munitions));
     c.munitions = 0;
 }
 

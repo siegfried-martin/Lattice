@@ -5,6 +5,35 @@ they aren't reintroduced. One line per decision; the rule holds the detail.
 
 ## Log
 
+### 2026-11-27 · The money round, part 6: spending, parts and a grant per head
+
+The human: "Is there military spending currently and what does this look like?" It was
+half of all sinks and bought nothing real. "If we add resources for ships and pilots
+which can be traded … it will be another dump and create something other than growth as
+economic activity." Then: "planets spending based on treasury is an obvious fix …
+probably now we will need new money generation to be based on planet population, and I
+will need another mechanic to show waste with large populations so they don't grow
+infinitely." (Proposed, built; milestones.md has the runs.)
+
+- **The budget spends spare treasury** (ECO-8, SYS-5): options are sized and valued on
+  net income plus treasury beyond `budget.reserve_months`, over `budget.drawdown_months`
+  (12).
+- **Parts, a materiel good** (PRD-1, ECO-6, MIL-4, MIL-5, SYS-3): ships and munitions are
+  bought as parts from the planet a character is at, paid to it; what it lacks is rushed
+  in at `price.max`, a sink. Security draws parts from the planet's own stock at its own
+  price. Pirate planets post legal-goods runs for them. ECO-6's v1 sink is replaced for
+  ships and munitions; equipment and fuel stay sinks.
+- **New money is mostly per head** (ECO-1): `econ.grant_per_capita` 7 plus a flat
+  `econ.grant` of 4,000. Per head alone starved small planets.
+- **Size wastes life support** (PRD-2, SYS-1): use per head × (1 + (N ÷ `pop.crowding`)²),
+  15,000. Retires OPN-38 (output per head falling) with this form instead.
+- **Fixed:** a merchant carrying contraband valued it at lawful markets, reading past the
+  end of their price records (pre-existing; reached only with this world). Worldgen's
+  producer repair can borrow from a wider set, over up to four passes (GEN-6).
+- **Found:** the hoard is gone (smallest third 380 to 23 months) and money no longer
+  piles up, but world population grows less (1.57 to 1.11 of start), pirate flips are 6.5%
+  a year (CHK-9 allows 5%) and blockades fall under CHK-6b.
+
 ### 2026-11-27 · The money round, part 5: osmosis splits its margin
 
 The grant was 76% of the world's output a day (4.1 million against 5.3 million), and

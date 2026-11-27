@@ -19,6 +19,18 @@ decisions are made, and why planets turn pirate. Goods, population and prices ar
 
 ### ECO-1 New money is an even grant to every planet `v1`
 
+*(proposed, money round part 6: built)* **New money is mostly a grant per head,**
+`econ.grant_per_capita` a thousand people a day, plus a small flat part per planet
+(`econ.grant`). With no flat part a small planet's grant barely covered its operating
+costs, which have a flat base: it couldn't pay for food, shrank, and got less, and 13% of
+planets a year turned pirate. A big planet has more people, each making more than it eats, so
+it has more to spend. "I would expect large planets to still have more buying power …
+not because of economies of scale but just simply through having more people." Growth
+is no longer braked by the grant but by the waste of size (PRD-2): a crowded planet's
+people use more life support each, so it settles at the size its production and
+imports can feed. The even grant below is superseded; its reasoning is kept as the
+record.
+
 *(proposed, money round: built)* **New money is an even grant to every planet,** the
 same amount each day whatever its size (`econ.grant`), paid to the treasury. The
 population doesn't buy anything: it consumes from the state's own stock (ECO-2), so
@@ -104,7 +116,8 @@ that must be replaced; **raids are a small sink of their own** (MIL-15).
 | Planet operating costs and patrol and policing upkeep | Tribute, patronage, ceasefire tribute |
 | ~~*(proposed, round 4)* The cost of making goods (PRD-7)~~ *(money round: a threshold, not paid)* | |
 | Fleet running costs, fuel (ECO-11) | Stipends and merchant salaries |
-| Munitions refills, recruited ships, equipment (ECO-6) | Trade between characters and the state |
+| Equipment (ECO-6); ~~munitions refills, recruited ships~~ *(money round part 6: parts, paid to the planet)* | Trade between characters and the state, ships and munitions included |
+| *(money round part 6)* Parts a yard lacked, rushed in at `price.max`; insurance premiums | *(money round part 6)* Static defence: parts drawn from the planet's own stock |
 | Authority dues spent on network maintenance | Pirate hire pay and loot sales |
 | Raid losses; ~~the osmosis margin (TRD-13)~~ *(money round: split between the planets)* | Contraband sales (lawful population to smuggler to pirate planet) |
 | | *(proposed)* Bounties (root to commander, MIL-18), spoils (captured planet to its captors, MIL-19), loan fees (MIL-3) |
@@ -118,6 +131,16 @@ Destroying goods isn't a money sink: the money that paid for them has already mo
 *See:* CHK-7.
 
 ### ECO-6 What the economy didn't make is paid to nobody `v1`
+
+*(proposed, money round part 6: built)* **Ships, munitions and static defence are made
+of parts** (PRD-1), a good planets make and merchants trade. A character buys a ship's
+or a refill's parts from the planet it's at, at that planet's price, and the money goes
+to its treasury; what the stock lacks is rushed in at `price.max` of the base price, a
+sink. A planet's security draws parts from its own stock (MIL-5). The human: "it will be
+another dump and create something other than growth as economic activity." The worry
+below, border planets growing rich refitting fleets, is met by where parts are made:
+producers in the interior are paid, and a front without a parts maker imports them.
+Equipment and fuel stay paid to nobody.
 
 In v1, munitions refills, recruited ships, equipment and fuel aren't produced by the
 economy, so the money spent on them is a sink. If a planet were paid, it would earn money
@@ -154,6 +177,10 @@ every spender** (governors, lieges, roots, commanders, merchants).
   that grows the longer they stay there (OPN-18).
 - **Value is subjective:** shaped by risk tolerance, relationships and possibly stale
   information (INF-2).
+- *(proposed, money round part 6: built)* **Spare money is spent.** A planet's budget
+  sizes and values its options on its means: net income plus its treasury beyond
+  `budget.reserve_months` of costs, spread over `budget.drawdown_months` (SYS-5). "Hoarding
+  money should not be acceptable."
 - *(proposed, money round: built)* **Life support comes before luxuries.** A planet in
   the red stops buying luxuries but keeps buying life support on credit, to its credit
   limit; merchants who see it stop carry it food instead (SYS-3, SYS-7). "They should

@@ -144,24 +144,46 @@ TEST_CASE("a fed population grows; a starved one shrinks slowly (SYS-1, PRD-2)")
     }
 }
 
-TEST_CASE("new money is the grant, the same to every planet; eating costs nothing (ECO-1, ECO-2)") {
+TEST_CASE("new money is the grant, a flat part and a part per head; eating costs nothing (ECO-1, ECO-2)") {
     World w = lab();
+    w.config.econ.grant = 1000;
     Planet& p = w.planets[0];
     fill_to(w, p, 1);
     const double before = p.treasury, created = w.ledger.money_created;
+    const double grant = 1000 + w.config.econ.grant_per_capita * p.population;
+    CHECK(economy::grant(w.config, p) == doctest::Approx(grant));
     economy::planet_day(w, 0);
-    CHECK(w.ledger.money_created - created == doctest::Approx(w.config.econ.grant));
+    CHECK(w.ledger.money_created - created == doctest::Approx(grant));
     CHECK(w.ledger.production_cost > 0);
-    CHECK(p.treasury - before == doctest::Approx(w.config.econ.grant));  // making goods costs labour, not money (PRD-7)
+    CHECK(p.treasury - before == doctest::Approx(grant));  // making goods costs labour, not money (PRD-7)
     CHECK(w.ledger.consumed[kFood] > 0);
-    // The grant doesn't scale with the population.
+    // The per-head part grows with the population (money round).
     World big = lab();
+    big.config.econ.grant = 1000;
     Planet& q = big.planets[0];
     q.population *= 4;
     fill_to(big, q, 1);
     const double big_created = big.ledger.money_created;
     economy::planet_day(big, 0);
-    CHECK(big.ledger.money_created - big_created == doctest::Approx(w.config.econ.grant));
+    CHECK(big.ledger.money_created - big_created == doctest::Approx(1000 + 4 * (grant - 1000)));
+}
+
+TEST_CASE("a crowded planet wastes life support: its use per head grows with its size (PRD-2, money round)") {
+    World w = lab();
+    const Config& c = w.config;
+    Planet& p = w.planets[0];
+    REQUIRE(c.pop.crowding > 0);
+    const double n = p.population;
+    CHECK(market::daily_use(c, p, kFood) == doctest::Approx(n * c.goods[kFood].consumption * (1 + std::pow(n / c.pop.crowding, 2))));
+    const double small = market::daily_use(c, p, kFood) / n;
+    p.population = 4 * n;
+    CHECK(market::daily_use(c, p, kFood) / p.population > small);
+    // The reserve holds days of that use, and what's lost is counted.
+    CHECK(market::reserve(c, p, kFood) == doctest::Approx(c.goods[kFood].reserve_days * market::daily_use(c, p, kFood)));
+    fill_to(w, p, 1);
+    const double waste = w.ledger.crowd_waste;
+    economy::planet_day(w, 0);
+    CHECK(w.ledger.crowd_waste - waste == doctest::Approx(3 * 4 * n * c.goods[kFood].consumption * std::pow(4 * n / c.pop.crowding, 2)).epsilon(0.01));
 }
 
 TEST_CASE("a short stock is a shortfall, however much money the planet has (ECO-2)") {
@@ -170,7 +192,7 @@ TEST_CASE("a short stock is a shortfall, however much money the planet has (ECO-
     fill_to(w, p, 1);
     p.labour = {0, 0, 0};
     p.treasury = 1e12;
-    p.stock[kWater] = 0.5 * p.population * w.config.goods[kWater].consumption;
+    p.stock[kWater] = 0.5 * market::daily_use(w.config, p, kWater);
     const double n = p.population;
     economy::planet_day(w, 0);
     CHECK(p.shortfall == doctest::Approx(0.5));
@@ -278,7 +300,7 @@ TEST_CASE("an unhappy planet stocks more luxuries, so it bids more (PRD-10, SYS-
     p.happiness = -0.5;
     CHECK(market::reserve(c, p, kWine) > reserve);
     CHECK(market::bid(c, p, kWine) > bid);
-    CHECK(market::reserve(c, p, kFood) == doctest::Approx(c.goods[kFood].reserve_days * p.population * c.goods[kFood].consumption));
+    CHECK(market::reserve(c, p, kFood) == doctest::Approx(c.goods[kFood].reserve_days * market::daily_use(c, p, kFood)));
 }
 
 TEST_CASE("labour moves toward what pays and stays a valid split (SYS-2, PRD-9)") {
@@ -300,14 +322,14 @@ TEST_CASE("imports come out of net income, not gross (SYS-5, OPN-39)") {
     Planet& p = w.planets[0];
     fill_to(w, p, 1);
     p.income_avg = p.net_avg = 1000;
-    const double month0 = p.income_month;
+    const double month0 = p.income_month, grant = economy::grant(c, p);
     const market::Fill f = market::sell(p, c, kWine, 0.2 * market::reserve(c, p, kWine), 0);
     REQUIRE(f.money > 0);
     economy::planet_day(w, 0);
     const auto days = static_cast<double>(c.time.payment_days);
     CHECK(p.income_avg - p.net_avg == doctest::Approx(f.money / days));
     // The month's income, which tribute is paid on, is net too (SYS-11).
-    CHECK(p.income_month - month0 == doctest::Approx(c.econ.grant - f.money));
+    CHECK(p.income_month - month0 == doctest::Approx(grant - f.money));
 }
 
 TEST_CASE("a planet in the red buys life support on credit but no luxuries (ECO-8, money round)") {

@@ -1016,6 +1016,49 @@ planet's buying power is mostly the same flat grant.
   population 1.42 to 1.57, the biggest third in debt 25% to 15%, planets' treasuries 3.0
   to 3.8 billion, the smallest third's hoard 350 to 380 months, fringe growth over the
   network's 0.56 to 0.43 (CHK-11). Next: running costs and the grant cut together.
+- *Grant sweep at `op_per_capita` 50:* grants of 5k, 10k and 15k gave world population
+  0.93, 1.37 and 1.46, money growing 13% to 19% a year, the smallest third holding 54 to
+  600 months, the biggest third in debt 53% to 29%. Scale wasn't the root: a flat grant
+  gives every planet the same money however many people it has.
+
+*(Money round, part 6: spending, parts and a grant per head.)* At defaults, military
+spending was about 1.26 million a day, half of all sinks: planets' security 709k, ships
+bought by characters 442k, fleet running costs 92k, all paid to nobody (ECO-6). Built,
+in three steps (8 seeds, 5 years each):
+
+| Run | New / sunk a day | Planets' money | Pop end/start | Small third, months | Military at peace | Flips a year |
+|---|---|---|---|---|---|---|
+| osmosis-split (part 5) | 4.07M / 2.51M | 3.8B | 1.57 | 380 | 15% | 1.2% |
+| drawdown12: the budget spends spare treasury | 4.07M / 3.52M | 2.5B | 1.54 | 266 | 33% | 1.2% |
+| parts, security at base price | 4.02M / 1.33M | 5.9B | n/a | n/a | n/a | n/a |
+| parts2-flat: security at the planet's price | 4.04M / 0.96M | 6.3B | 1.03 | 756 | 44% | 0.6% |
+| per head 20, linear crowding 5,000 | 1.39M / 0.70M | 1.8B | 0.74 | 142 | 37% | 4.9% |
+| per head 10, squared crowding 8,000 | 0.98M / 0.96M | 0.25B | 0.91 | in the red | 17% | 13% |
+| flat 4k + per head 7, crowding 8,000 | 1.09M / 0.92M | 0.46B | 0.96 | 30 | 19% | 6.0% |
+| flat 4k + per head 7, crowding off | 1.25M / 1.11M | 0.44B | 1.29 | 20 | 18% | 7.0% |
+| **part6: flat 4k + per head 7, crowding 15,000** | 1.21M / 1.08M | 0.46B | 1.11 | 23 | 18% | 6.5% |
+
+- **Parts at base price ran dry:** security asked for 153k parts a day against 44k made,
+  every market sat at the ceiling and none were traded. Priced at the planet's own
+  price, demand falls as parts get dear, and the market clears near base (median 17 to
+  22 against 20) with 16k to 25k a day carried by merchants.
+- **Parts pull labour from luxuries.** With the old grant the hoards drove security to
+  3.4 million a day; at 3.6 times base, parts paid better per worker than anything,
+  luxury output fell from 82k to 30k a day, happiness and productivity followed, and
+  population stopped growing. Military goods compete with growth for real labour now.
+- **Grant per head alone starved small planets:** their grant barely covered operating
+  costs, which have a flat base, so they shrank and got less. A small flat part fixes it.
+- **Crowding:** linear at 5,000 wasted a fifth of all life support; squared at 8,000 it
+  held the biggest planets near 3,000 thousand, below where several start; at 15,000 it
+  costs under 1% of life support and holds the biggest third to 10% a year against 15%
+  with none. Doubling parts' yield changed little.
+- **At part6:** money no longer piles up (planets' money 0.46 billion against 3.8), the
+  hoard is gone (the smallest third 23 months against 380, the biggest 4), big planets
+  get the bigger grants, and military spending is in CHK-26's band at peace (18%). Parts
+  paid to planets for ships and refills: 234k a day; rushed parts sunk: 11k.
+  *Out of band:* pirate flips 6.5% a year (CHK-9, at most 5%), blockades 0.41 a faction
+  a year (CHK-6b, at least 0.5); planets changing hands rose from 6% to 19% a year (in
+  band). World population 1.11 against 1.57: the economy now spends real labour on war.
 
 **Later rounds from the roles design,** one area each:
 - **The Authority's board and contract merchants** (MSN-7), as the response to the

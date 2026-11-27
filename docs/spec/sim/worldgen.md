@@ -102,6 +102,11 @@ holds. Contraband is never drawn for a lawful planet.
   reached them, and they lost about 90% of their people in three years.
 - The repair guarantees life support in every region, each regional luxury across its
   home regions together, and each fringe luxury across the fringe as a whole.
+- *(proposed, money round part 6: built)* **Parts** (PRD-1) weigh about 1 in every
+  region, like any lawful good, and are guaranteed across the whole world. *Found:* with
+  one more need, a small development world's fringe could run out of spare slots, so the
+  repair may now **borrow** a slot from a good whose every need covers more planets than
+  the short one's, and runs up to four passes, the next repairing what was borrowed.
 
 *As built:* a region's weights are `1 ± gen.weight_spread` per lawful good, with one
 favoured life-support good × `gen.favour_mult` (before round 3 the favoured good could be

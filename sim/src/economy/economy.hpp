@@ -24,4 +24,7 @@ void planet_labour(World& world, Id planet);
 void planet_payment(World& world, Id planet);
 double monthly_costs(const Config& c, const Planet& p);
 
+// A planet's new money a day (ECO-1): econ.grant, plus econ.grant_per_capita a thousand.
+double grant(const Config& c, const Planet& p);
+
 }  // namespace lattice::economy

@@ -114,7 +114,8 @@ void post(World& w, Id planet, Observer* observer) {
     const Planet& p = w.planets[at(planet)];
     if (!p.pirate) return;
     const auto& c = w.config;
-    for (Good g : kLifeSupport) {
+    // Life support, and the parts its defence and shipyard run on (money round).
+    for (Good g : {kFood, kWater, kOxygen, kParts}) {
         const double r = market::reserve(c, p, g);
         if (r <= 0 || p.stock[g] / r >= c.pirate.need_fill || open_for(w, planet, MissionKind::LegalGoods, g)) continue;
         post_run(w, planet, MissionKind::LegalGoods, g, r - p.stock[g], observer);

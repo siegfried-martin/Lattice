@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "chars/characters.hpp"
+#include "lattice/market.hpp"
 #include "chars/contracts.hpp"
 #include "chars/ships.hpp"
 #include "helpers.hpp"
@@ -493,14 +494,26 @@ TEST_CASE("a battle's munitions are refilled at the next planet that isn't hosti
     chars::refill(w, strong);
     CHECK(c.munitions == doctest::Approx(owed));
     CHECK(c.wealth == wealth);
-    // At its own, it pays, and the money is sunk (ECO-6).
+    // At its own, it buys them as parts from the planet's stock, paid to the planet
+    // (MIL-4, money round): nothing is sunk.
     c.planet = f.a;
-    const double sunk = w.ledger.money_sunk, spent = w.ledger.munitions;
+    Planet& home = w.planets[at(f.a)];
+    home.stock[kParts] = 10 * market::reserve(w.config, home, kParts) + owed;
+    const double sunk = w.ledger.money_sunk, spent = w.ledger.munitions, treasury = home.treasury;
+    const double stock = home.stock[kParts];
     chars::refill(w, strong);
     CHECK(c.munitions == 0);
-    CHECK(c.wealth == doctest::Approx(wealth - owed));
-    CHECK(w.ledger.munitions - spent == doctest::Approx(owed));
-    CHECK(w.ledger.money_sunk - sunk == doctest::Approx(owed));
+    CHECK(home.stock[kParts] == doctest::Approx(stock - owed / w.config.goods[kParts].base_price));
+    CHECK(home.treasury - treasury == doctest::Approx(wealth - c.wealth));
+    CHECK(w.ledger.munitions - spent == doctest::Approx(wealth - c.wealth));
+    CHECK(w.ledger.money_sunk == doctest::Approx(sunk));
+    // A planet with none rushes them in at price.max of their base price, a sink.
+    c.munitions = owed;
+    home.stock[kParts] = 0;
+    const double before = c.wealth;
+    chars::refill(w, strong);
+    CHECK(before - c.wealth == doctest::Approx(owed * w.config.price.max));
+    CHECK(w.ledger.money_sunk - sunk == doctest::Approx(owed * w.config.price.max));
 }
 
 TEST_CASE("a character who lost its fleet rebuilds from insurance and savings, or starts over (CHR-16, CHR-21)") {
@@ -510,15 +523,20 @@ TEST_CASE("a character who lost its fleet rebuilds from insurance and savings, o
     c.ships.clear();
     c.earned_combat = 1;
     const double premium = 1 + w.config.ship.insurance_premium;
+    // A yard with parts to sell (MIL-4, money round).
+    w.planets[0].stock[kParts] = 1e7;
     SUBCASE("rich: the highest tier of the work it did that it can afford") {
         c.wealth = 1e6;
+        const double treasury = w.planets[0].treasury;
         chars::decide(w, id, c.wake_seq, nullptr);
         REQUIRE(c.ships.size() == 1);
         const ShipVariant& v = w.map.variants[at(c.ships[0])];
         CHECK(v.cls == ShipClass::Gunship);
         CHECK(v.tier == 3);
-        // The premium is paid, and the ship is covered (CHR-21).
-        CHECK(c.wealth == doctest::Approx(1e6 - v.price * premium));
+        // Its parts are paid to the planet, the premium is paid, and the ship is covered (CHR-21).
+        const double parts = w.planets[0].treasury - treasury;
+        CHECK(parts > 0);
+        CHECK(c.wealth == doctest::Approx(1e6 - parts - v.price * (premium - 1)));
         CHECK(c.cover == doctest::Approx(v.price * w.config.ship.insurance_payout));
     }
     SUBCASE("only enough for a courier: a courier") {

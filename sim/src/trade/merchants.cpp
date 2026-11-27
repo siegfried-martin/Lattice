@@ -112,9 +112,10 @@ LegChoice best_leg(const Ctx& x, Id a, bool a_actual, Id b) {
     return best;
 }
 
-// What the cargo aboard would fetch at b, by belief.
+// What the cargo aboard would fetch at b, by belief. Lawful markets don't trade
+// contraband (PIR-14), and facts hold prices for lawful goods only.
 double cargo_value(const Ctx& x, Id b) {
-    if (x.c.cargo_qty <= 0 || !info::find(x.c.facts, b)) return 0;
+    if (x.c.cargo_qty <= 0 || static_cast<int>(x.c.cargo_good) >= kLawfulGoodCount || !info::find(x.c.facts, b)) return 0;
     Curve to = curve_at(x, b, x.c.cargo_good, false);
     const double step = x.c.cargo_qty / kSteps;
     double value = 0;

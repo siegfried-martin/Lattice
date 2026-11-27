@@ -98,6 +98,7 @@ TEST_CASE("a courier without a Lattice Drive carries an order and the issuer pay
     const bool open = w.derived.travel(p, w.missions[at(order)].target, false) < std::numeric_limits<double>::max();
     CHECK(missions::qualifies(w, id, w.missions[at(order)]) == open);
     if (!open) return;
+    w.config.econ.grant_per_capita = 0;  // so the treasury shows the order's cost
     const double treasury = w.planets[at(p)].treasury;
     missions::take(w, id, order, nullptr);
     const Id target = w.missions[at(order)].target;
@@ -141,13 +142,21 @@ TEST_CASE("a merchant at the producer weighs the delivery as a trip and sells at
     const double carried = w.characters[at(id)].cargo_qty;
     CHECK(carried > 0);
     const double on_order = w.planets[at(p)].on_order[kFood];
-    const double stock = w.planets[at(p)].stock[kFood];
-    advance(w, static_cast<Time>((w.derived.travel(producer, p) + 0.5) * kDay));
+    // An hour at a time until it lands: the cargo goes into the stock.
+    double stock = w.planets[at(p)].stock[kFood];
+    for (int h = 0; h < 24 * 60 && w.missions[at(sup)].state != MissionState::Done; ++h) {
+        stock = w.planets[at(p)].stock[kFood];
+        advance(w, kHour);
+    }
     CHECK(w.missions[at(sup)].state == MissionState::Done);
     CHECK(w.ledger.supplies == 1);
     CHECK(w.ledger.supply_paid == doctest::Approx(carried * unit));
     CHECK(w.planets[at(p)].on_order[kFood] == doctest::Approx(on_order - carried));
-    CHECK(w.planets[at(p)].stock[kFood] > stock);
+    // It went into the stock. Other traders and the day's eating move the stock in the
+    // same hour, so compare against them: at least the cargo less a day's use and what
+    // osmosis and merchants took (counted as world trade).
+    CHECK(w.ledger.supply_qty == doctest::Approx(carried));
+    CHECK(w.planets[at(p)].stock[kFood] > stock - market::daily_use(w.config, w.planets[at(p)], kFood));
 }
 
 TEST_CASE("a producer that turns pirate closes the deliveries on its board at once, so none is taken late (MSN-15)") {

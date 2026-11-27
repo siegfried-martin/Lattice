@@ -306,8 +306,8 @@ void assign_goods(World& w) {
     }
 
     // Repair (PRD-8): gen.min_producers producers at medium or better of each life-support
-    // good per region, of each regional luxury across its home regions, and of each fringe
-    // luxury across the fringe. Each fix takes a medium-or-better slot from a good that every
+    // good per region, of each regional luxury across its home regions, of parts across the
+    // world, and of each fringe luxury across the fringe. Each fix takes a medium-or-better slot from a good that every
     // need it counts toward has more than enough of, so it never creates a new shortfall
     // and the loop ends. It can fail only if a set is too small.
     const int need = static_cast<int>(w.config.gen.min_producers);
@@ -323,6 +323,9 @@ void assign_goods(World& w) {
         }
         needs.push_back(n);
     }
+    Need parts{.regions = {}, .good = kParts};  // parts across the whole world (money round)
+    for (Id r = 0; r < regions; ++r) parts.regions.push_back(r);
+    needs.push_back(parts);
     for (Good g : kFringeLuxuries) needs.push_back({{}, g});
     // Whether a planet could give up a slot of good g without leaving a need short.
     auto spare = [&](const Planet& p, Good g) {
@@ -331,37 +334,58 @@ void assign_goods(World& w) {
         }
         return true;
     };
-    for (const Need& short_need : needs) {
-        const Good short_good = short_need.good;
-        while (count_in(w, short_need) < need) {
-            struct Fix {
-                Id planet;
-                int slot;          // the medium-or-better slot given up
-                int low_slot;      // the slot already making short_good at low, or -1
-            };
-            std::vector<Fix> fixes;
-            for (Id pi = 0; pi < static_cast<Id>(w.planets.size()); ++pi) {
-                const Planet& p = w.planets[at(pi)];
-                if (!in_set(short_need, p)) continue;
-                int has = -1;
-                for (int s = 0; s < 3; ++s) {
-                    if (p.makes[at(s)] == short_good) has = s;
+    // How many planets a need's set holds.
+    auto size_of = [&](const Need& n) {
+        return std::count_if(w.planets.begin(), w.planets.end(), [&](const Planet& p) { return in_set(n, p); });
+    };
+    // Whether a slot of good g could be borrowed for a need over fewer planets: every need
+    // it counts toward covers more, so a later pass can repair it from a wider choice.
+    auto borrowable = [&](const Planet& p, Good g, std::int64_t than) {
+        for (const Need& n : needs) {
+            if (n.good == g && in_set(n, p) && size_of(n) <= than) return false;
+        }
+        return true;
+    };
+    // Passes: a borrowed slot is repaired on the next one (money round: with parts the
+    // small fringe of a development world could run out of spare slots).
+    for (int pass = 0; pass < 4; ++pass) {
+        bool all_met = true;
+        for (const Need& short_need : needs) {
+            const Good short_good = short_need.good;
+            while (count_in(w, short_need) < need) {
+                struct Fix {
+                    Id planet;
+                    int slot;          // the medium-or-better slot given up
+                    int low_slot;      // the slot already making short_good at low, or -1
+                };
+                std::vector<Fix> fixes, borrows;
+                const std::int64_t size = size_of(short_need);
+                for (Id pi = 0; pi < static_cast<Id>(w.planets.size()); ++pi) {
+                    const Planet& p = w.planets[at(pi)];
+                    if (!in_set(short_need, p)) continue;
+                    int has = -1;
+                    for (int s = 0; s < 3; ++s) {
+                        if (p.makes[at(s)] == short_good) has = s;
+                    }
+                    if (has >= 0 && p.tiers[at(has)] != kLow) continue;
+                    for (int s = 0; s < 3; ++s) {
+                        if (s == has || p.tiers[at(s)] == kLow) continue;
+                        if (spare(p, p.makes[at(s)])) fixes.push_back({pi, s, has});
+                        else if (borrowable(p, p.makes[at(s)], size)) borrows.push_back({pi, s, has});
+                    }
                 }
-                if (has >= 0 && p.tiers[at(has)] != kLow) continue;
-                for (int s = 0; s < 3; ++s) {
-                    if (s == has || p.tiers[at(s)] == kLow) continue;
-                    if (spare(p, p.makes[at(s)])) fixes.push_back({pi, s, has});
+                if (fixes.empty()) fixes = borrows, all_met = false;
+                if (fixes.empty()) break;  // the set is too small; checked in tests
+                const Fix f = fixes[static_cast<std::size_t>(rng.uniform_int(0, static_cast<std::int64_t>(fixes.size()) - 1))];
+                Planet& p = w.planets[at(f.planet)];
+                if (f.low_slot >= 0) {
+                    std::swap(p.tiers[at(f.low_slot)], p.tiers[at(f.slot)]);
+                } else {
+                    p.makes[at(f.slot)] = short_good;
                 }
-            }
-            if (fixes.empty()) break;  // the set is too small; checked in tests
-            const Fix f = fixes[static_cast<std::size_t>(rng.uniform_int(0, static_cast<std::int64_t>(fixes.size()) - 1))];
-            Planet& p = w.planets[at(f.planet)];
-            if (f.low_slot >= 0) {
-                std::swap(p.tiers[at(f.low_slot)], p.tiers[at(f.slot)]);
-            } else {
-                p.makes[at(f.slot)] = short_good;
             }
         }
+        if (all_met) break;
     }
 }
 

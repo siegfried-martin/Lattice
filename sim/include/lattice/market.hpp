@@ -47,12 +47,16 @@ inline void pay(Planet& p, double money) {
 // What of a good's stock the planet will sell to traders: all of it, except life
 // support, which it keeps down to price.sell_floor of its reserve so its own people can
 // eat (ECO-2). Merchants and osmosis alike stop there.
+// A life-support good's daily use: consumption per head, x (1 + (N / pop.crowding)^2),
+// the waste of size (PRD-2, money round): small planets barely, big ones a lot.
+double daily_use(const Config& c, const Planet& p, Good g);
+
 double floor_stock(const Config& c, const Planet& p, Good g);
 inline double sellable(const Config& c, const Planet& p, Good g) { return std::max(0.0, p.stock[g] - floor_stock(c, p, g)); }
 
 // Whether a planet buys a good from traders. Life support it buys on credit, until its
 // treasury is below its credit limit (econ.credit_limit months of income in the red);
-// luxuries to econ.luxury_credit (0: only out of a treasury in the black), so a planet
+// luxuries and parts to econ.luxury_credit (0: only out of a treasury in the black), so a planet
 // short of money keeps its people fed before it keeps them happy (ECO-8, money round).
 bool can_buy(const Config& c, const Planet& p, Good g);
 

@@ -251,6 +251,35 @@ TEST_CASE("the stronger side wins a battle in rounds (SYS-14)") {
     CHECK(w.battles[0].rounds >= 1);
 }
 
+TEST_CASE("security draws parts from the planet's stock, and without them its defence runs down (MIL-5, money round)") {
+    World w = new_world(quiet(), 67);
+    const Front f = front(w);
+    Planet& p = w.planets[at(f.a)];
+    p.security = 30000;
+    p.stock[kParts] = 1e9;
+    const double treasury = p.treasury, sunk = w.ledger.money_sunk;
+    economy::planet_day(w, f.a);
+    // Bought at its own price: a glut makes them cheap (price.min), so it draws more.
+    const double day = p.security / (market::price(w.config, p, kParts) * static_cast<double>(w.config.time.payment_days));
+    CHECK(p.stock[kParts] == doctest::Approx(1e9 - day));
+    CHECK(day > p.security / (w.config.goods[kParts].base_price * static_cast<double>(w.config.time.payment_days)));
+    CHECK(p.parts_use > 0);
+    // Its own parts cost the treasury nothing; it pays only to restock them.
+    governor::monthly(w, f.a, nullptr);
+    CHECK(w.ledger.money_sunk - sunk == doctest::Approx(p.policing + w.ledger.maintenance).epsilon(1e-6));
+    CHECK(p.treasury > treasury - p.policing - w.config.dues.access - w.config.dues.gate - 1e6);
+    // A dry stock: the share supplied falls, and the defence it keeps up with it.
+    for (int s = 0; s < 3; ++s) {
+        if (p.makes[at(s)] == kParts) p.labour[at(s)] = 0;  // nor makes any
+    }
+    p.stock[kParts] = 0;
+    for (int d = 0; d < 60; ++d) economy::planet_day(w, f.a);
+    CHECK(p.armed < 0.2);
+    CHECK(p.defence <= w.config.defence.per_spend * p.security * p.armed + 1e-6);
+    // The parts it asks for raise its reserve, so it bids for more.
+    CHECK(market::reserve(w.config, p, kParts) > w.config.goods[kParts].reserve_days * p.population * w.config.goods[kParts].consumption);
+}
+
 TEST_CASE("security spending buys static defence, more at war (MIL-5)") {
     World w = new_world(quiet(), 67);
     const Front f = front(w);
@@ -261,8 +290,16 @@ TEST_CASE("security spending buys static defence, more at war (MIL-5)") {
     // Bought in shares of net income (SYS-5, OPN-39).
     const double unit = w.config.value.security_share * p.net_avg * static_cast<double>(w.config.time.payment_days);
     CHECK(std::fmod(p.security / unit + 1e-9, 1.0) < 1e-6);
+    // Security runs on parts (money round): with a stock at its reserve, all of it is
+    // bought at about the base price.
+    p.stock[kParts] = market::reserve(w.config, p, kParts);
+    p.armed = 1;
+    w.config.price.wealth = 0;
     advance(w, 30 * kDay);
-    CHECK(p.defence == doctest::Approx(w.config.defence.per_spend * p.security));
+    // Near what it buys, at what its parts cost: the budget, sized on spare treasury too,
+    // and the parts' price move it a little day to day.
+    CHECK(p.armed > 0.5);
+    CHECK(p.defence > 0.5 * w.config.defence.per_spend * p.security);
     p.net_avg = 480 * p.population;
     budget::weekly(w, f.a, nullptr);
     const double peace = p.security;
@@ -366,6 +403,7 @@ TEST_CASE("a besieged planet calls for help and its liege relieves it (MIL-11)")
     w.planets[at(target)].defence = 30;
     w.planets[at(target)].security = 6000;
     for (int i = 0; i < 4; ++i) commander(w, liege, 3, 3);
+    w.planets[at(liege)].treasury = 1e8;  // rich enough to keep them (SYS-5's means)
     REQUIRE(armies::commission(w, f.a, target, false, nullptr) != kNone);
     advance(w, 60 * kDay);
     CHECK(w.ledger.sieges >= 1);

@@ -258,6 +258,9 @@ void sample_metrics(const World& w, Observer& o) {
     o.sample(t, "money.purses_held", -1, l.purses_held);
     o.sample(t, "money.purses_returned", -1, l.purses_returned);
     o.sample(t, "world.munitions", -1, l.munitions);
+    o.sample(t, "money.parts_paid", -1, l.parts_paid);      // to planets, for ships and refills
+    o.sample(t, "money.parts_rushed", -1, l.parts_rushed);  // for parts a yard lacked, a sink
+    o.sample(t, "world.crowd_waste", -1, l.crowd_waste);
     o.sample(t, "world.ceasefire_tribute", -1, l.ceasefire_tribute);
     o.sample(t, "world.ceasefire_unpaid", -1, l.ceasefire_unpaid);
     // By the faction's state that month: id 0 peace, 1 war.

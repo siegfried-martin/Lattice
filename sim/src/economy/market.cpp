@@ -12,14 +12,23 @@ double reserve(const Config& c, const Planet& p, Good g) {
     const auto& gp = c.goods[g];
     switch (kind_of(g)) {
         case GoodKind::LifeSupport:
-            return gp.reserve_days * p.population * gp.consumption;
+            return gp.reserve_days * daily_use(c, p, g);
         case GoodKind::Luxury:
             // An unhappy planet stocks more, so it bids more at the same stock (PRD-10, SYS-3).
             return gp.reserve_days * p.population * c.happy.need * (1 + c.happy.want * happiness::misery(c, p.happiness));
+        case GoodKind::Materiel:
+            // Parts are held for what the planet uses, plus a little for every thousand
+            // people whatever it uses (money round).
+            return gp.reserve_days * (p.population * gp.consumption + p.parts_use);
         case GoodKind::Contraband:
             return p.pirate ? gp.reserve_days * p.population * gp.consumption : 0;
     }
     return 0;
+}
+
+double daily_use(const Config& c, const Planet& p, Good g) {
+    const double crowd = c.pop.crowding > 0 ? 1 + std::pow(p.population / c.pop.crowding, 2) : 1;
+    return p.population * c.goods[g].consumption * crowd;
 }
 
 double wealth(const Config& c, const Planet& p) {
@@ -43,7 +52,8 @@ double floor_stock(const Config& c, const Planet& p, Good g) {
 
 bool can_buy(const Config& c, const Planet& p, Good g) {
     const double monthly_income = std::max(0.0, p.income_avg) * static_cast<double>(c.time.payment_days);
-    const double limit = kind_of(g) == GoodKind::Luxury ? c.econ.luxury_credit : c.econ.credit_limit;
+    const GoodKind k = kind_of(g);
+    const double limit = k == GoodKind::Luxury || k == GoodKind::Materiel ? c.econ.luxury_credit : c.econ.credit_limit;
     return p.treasury >= -limit * monthly_income;
 }
 

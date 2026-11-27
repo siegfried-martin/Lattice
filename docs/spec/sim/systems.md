@@ -27,9 +27,12 @@ planet, `c` a character. Rates are per game day unless noted.
 - *Before the money round,* the population had a budget of `N × econ.wage × P`, new
   money, and bought life support, contraband and luxuries at the ask within it.
 
+*(proposed, money round part 6: built)* The grant is per head, and size wastes life
+support (ECO-1, PRD-2): `world.crowd_waste` counts what's lost to it.
+
 ```
-treasury  += econ.grant                              daily, every planet alike, new money (ECO-1)
-need_g     = N × good.consumption[g]                  for food, water, oxygen
+treasury  += econ.grant + econ.grant_per_capita × N  daily, new money (ECO-1; part 6: per head)
+need_g     = N × good.consumption[g] × (1 + (N / pop.crowding)²)   for food, water, oxygen (part 6)
 eat_g      = min(stock_g, need_g)                     no budget, no price
 shortfall  = max over life support of (1 − eat_g / need_g)
 
@@ -193,6 +196,15 @@ trader pays ask × (1 + tax) and receives bid × (1 − tax); tax goes to the tr
   DIP-4) changes nothing; a broke planet is limited by its credit instead. The cost of
   making a good (SYS-2) doesn't move, so a rich planet's producers clear it on more of
   their slots.
+- *(proposed, money round part 6: built)* **Parts** (PRD-1): their reserve is
+  `good.parts.reserve_days` × (N × `good.parts.consumption` + parts used a day), the
+  daily use a running average over `time.payment_days` of what security, ships and
+  refills asked of the planet, met or not. Like luxuries they're bought only out of a
+  treasury in the black (`econ.luxury_credit`). Pirate planets post legal-goods runs for
+  them as for life support (PIR-3).
+- *(proposed, money round part 6: built)* **Life support's reserve** holds days of use
+  with the waste of size (SYS-1): `good.reserve_days` × N × consumption × (1 + (N ÷
+  `pop.crowding`)²).
 - *(proposed, round 3: built)* **A luxury's reserve** is `good.reserve_days` ×
   `happy.need` × N × (1 + `happy.want` × u(H) when H < 0): an unhappy planet stocks
   more, so it bids more at the same stock (PRD-10).
@@ -286,6 +298,19 @@ first thing Phase A tunes.
 - **Threat** is the factor 1 + `value.war_mult` at war + `value.border_mult` with an
   enemy planet within `dip.border_days` or an enemy army seen coming, as the governor
   believes; SYS-13's hold decision uses it too.
+
+*(proposed, money round part 6: built)* **The budget spends spare money** (ECO-8).
+Options are sized and valued on the planet's means, not net income alone; credit stays a
+line on income:
+
+```
+means = net income + max(0, treasury − budget.reserve_months × monthly costs) / budget.drawdown_months
+```
+
+Security units, commander values, policing and spies read `means` where they read
+income. *Found:* at `drawdown_months` 12, military spending doubled (15% to 33% of net
+income at peace) and planets' money fell by a third, but with security a sink the
+hoard only moved into it; parts (MIL-5) are what turn it into income for producers.
 
 *(proposed, war and fealty round: built)*
 - **Patronage is only for rebuilding:** the option exists for a vassal in the red that was
@@ -1364,6 +1389,11 @@ upkeep/day per ship = price × fleet.maintenance / 365
   decides at a planet that isn't hostile: not an enemy's, and pirate with pirate. A
   commander weighing an objective counts one battle's refill as a cost (SYS-9).
 - **Both are sinks** (ECO-6): `world.running_costs` and `world.munitions`.
+  *(proposed, money round part 6: built)* Munitions no longer: a refill is
+  `munitions ÷ good.parts.base_price` parts, bought at the planet's ask and tax and paid
+  to it, and only parts it lacks are a sink, at `price.max` × base (`money.parts_paid`,
+  `money.parts_rushed`). Ships the same: their price in parts plus the insurance premium
+  (MIL-4).
 - *(proposed, tuning pass part 3: built)* **A commander weighing an objective** counts its
   expected loss as `worth × combat.retreat_loss` less what its cover would pay for it
   (CHR-21).

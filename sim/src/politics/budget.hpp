@@ -24,6 +24,9 @@ double threat(const World& world, Id planet);
 // Defence values' multiplier for money beyond the reserve (MIL-5, SYS-5): 1 +
 // budget.hoard x clamp(treasury months / budget.reserve_months - 1, 0, budget.hoard_cap).
 double hoard(const World& world, Id planet);
+// What a planet's budget can spend a month (SYS-5): net income plus spare treasury, beyond
+// budget.reserve_months of costs, over budget.drawdown_months (money round).
+double means(const World& world, Id planet);
 
 // The stipend a commander asks, per month (MIL-2): hire.stipend_per_power x combat power x
 // the reputation factor, 1 + hire.rep_mult x rep / (rep + hire.rep_half).

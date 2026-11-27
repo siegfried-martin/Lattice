@@ -215,6 +215,8 @@ TEST_CASE("the pirate relation fades toward hostile; pirates spare those at neut
 TEST_CASE("a broke commander who knows a pirate planet joins it (PIR-4)") {
     Config c = quiet();
     c.pirate.turn_all = true;
+    c.steward.enabled = false;  // not taken on as a steward or a commander first (FAC-16, SYS-9)
+    c.hire.range_days = 0;
     World w = new_world(c, 94);
     Id haven = kNone;
     for (Id p = 0; p < static_cast<Id>(w.planets.size()); ++p) {
@@ -715,6 +717,8 @@ TEST_CASE("a pirate offers a bold independent a run instead of attacking it (PIR
     const Id bold = chars::spawn(w, 0);
     w.characters[at(bold)].risk = 0.95;
     w.characters[at(bold)].activity = Activity::Exploring;
+    // A hull without a Lattice Drive, so its whole way is open space (TRD-18).
+    w.characters[at(bold)].ships = {ships::variant(w.map, w.characters[at(bold)].culture, ShipClass::Courier, 1, false)};
     REQUIRE(move::travel_to(w, bold, haven));
     // The raider waits on station on the independent's first stretch of open space.
     const std::vector<Leg>& path = w.characters[at(bold)].route;

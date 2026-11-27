@@ -15,6 +15,8 @@ std::size_t at(Id i) { return static_cast<std::size_t>(i); }
 
 }  // namespace
 
+double grant(const Config& c, const Planet& p) { return c.econ.grant + c.econ.grant_per_capita * p.population; }
+
 double monthly_costs(const Config& c, const Planet& p) {
     const double cost = c.econ.op_base + c.econ.op_per_capita * p.population;
     return p.pirate ? cost * c.pirate.cost_mult : cost;  // a low cost base (ECO-14)
@@ -29,7 +31,7 @@ void init_state(World& w) {
         p.treasury = c.gen.start_treasury_months * monthly_costs(c, p);
         // The grant is the income a planet can count on, so the credit limit means
         // something from the first day (ECO-1).
-        p.income_avg = c.econ.grant;
+        p.income_avg = grant(c, p);
         p.net_avg = p.income_avg;
     }
 }
@@ -62,16 +64,18 @@ void planet_day(World& w, Id id) {
         w.ledger.production_cost += out * unit;  // what was made, at cost; not paid
     }
 
-    // ECO-1: new money is an even grant, the same to every planet whatever its size.
-    market::receive(p, c.econ.grant);
-    w.ledger.money_created += c.econ.grant;
+    // ECO-1: new money is a grant, a flat part and a part per head (money round).
+    const double made = grant(c, p);
+    market::receive(p, made);
+    w.ledger.money_created += made;
 
     // SYS-1: the population eats from the state's stock and pays nothing (ECO-2). Life
     // support first; a short stock is the shortfall.
     std::array<double, kGoodCount> use{};
     double shortfall = 0;
     for (Good g : kLifeSupport) {
-        const double need = n * c.goods[g].consumption;
+        const double need = market::daily_use(c, p, g);  // the waste of size included (PRD-2)
+        w.ledger.crowd_waste += std::min(p.stock[g], need) - std::min(p.stock[g], n * c.goods[g].consumption);
         use[g] = std::min(p.stock[g], need);
         if (need > 0) shortfall = std::max(shortfall, 1 - use[g] / need);
     }
@@ -132,9 +136,25 @@ void planet_day(World& w, Id id) {
     // PRD-5: 1 at neutral, toward a ceiling and the poverty floor; contraband on top (PRD-6).
     p.productivity = happiness::productivity(c, p.happiness) * std::max(0.0, 1 - c.pop.contraband_penalty * p.contraband_avg);
 
+    // Security runs on parts (MIL-5, money round): the month's spending buys them at the
+    // planet's own price, drawn a day at a time from its stock, so dear parts buy less
+    // defence and fewer are asked for. What the stock can't supply goes unbought. armed is
+    // the defence a unit of spending keeps up, against parts at their base price.
+    const double days = static_cast<double>(c.time.payment_days);
+    const double need = p.security / (market::price(c, p, kParts) * days);
+    if (need > 0) {
+        const double used = std::min(need, p.stock[kParts]);
+        p.stock[kParts] -= used;
+        w.ledger.consumed[kParts] += used;
+        p.parts_today += need;
+        p.armed += (used * c.goods[kParts].base_price * days / p.security - p.armed) / days;
+    }
+    p.parts_use += (p.parts_today - p.parts_use) / static_cast<double>(c.time.payment_days);
+    p.parts_today = 0;
+
     // Static defence (MIL-5) rebuilds toward what security spending buys, unless besieged;
     // a cut in spending lowers it at once.
-    const double max_defence = c.defence.per_spend * p.security;
+    const double max_defence = c.defence.per_spend * p.security * p.armed;
     if (p.siege == kNone) p.defence = std::min(max_defence, p.defence + c.defence.regen * max_defence);
     if (const Id node = w.gates.empty() ? kNone : gates::held_by(w, id); node != kNone) gates::regen(w, node);
 

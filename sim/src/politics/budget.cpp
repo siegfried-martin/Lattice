@@ -96,6 +96,15 @@ double hoard(const World& w, Id planet) {
     return 1 + c.budget.hoard * std::clamp(months / c.budget.reserve_months - 1, 0.0, c.budget.hoard_cap);
 }
 
+double means(const World& w, Id planet) {
+    const Config& c = w.config;
+    const Planet& p = w.planets[at(planet)];
+    const double income = std::max(0.0, p.net_avg) * static_cast<double>(c.time.payment_days);
+    if (c.budget.drawdown_months <= 0) return income;
+    const double spare = p.treasury - c.budget.reserve_months * economy::monthly_costs(c, p);
+    return income + std::max(0.0, spare) / c.budget.drawdown_months;
+}
+
 double rep_factor(const World& w, const Character& c) {
     const auto& h = w.config.hire;
     const double rep = std::max(0.0, c.reputation);
@@ -123,8 +132,11 @@ void weekly(World& w, Id planet, Observer* observer) {
     const Id gov = p.governor;
     const Character& g = w.characters[at(gov)];
     const Config& c = w.config;
-    // Net income: what's left after paying for goods (OPN-39, round 4).
+    // Net income: what's left after paying for goods (OPN-39, round 4). Credit is a
+    // line on income; what the options are sized and valued on is the planet's means,
+    // income plus its spare treasury drawn down (SYS-5, money round).
     const double income = std::max(0.0, p.net_avg) * static_cast<double>(c.time.payment_days);
+    const double scale = means(w, planet);
     // Two deciders, one budget (SYS-5, FAC-16): each line falls off by its decider's risk.
     const double gov_risk = roles::governor_risk(w, planet);
     const double d_gov = std::pow(c.budget.diminishing, 1 - gov_risk / 2);
@@ -169,7 +181,7 @@ void weekly(World& w, Id planet, Observer* observer) {
         const Character& ch = w.characters[at(id)];
         const double power = ships::fleet(w, ch).combat;
         defence.units.push_back({pay_at(w, planet, ch) * pressure,
-                                 guard * c.value.defence * income * power / c.value.power_ref * rep_factor(w, ch)});
+                                 guard * c.value.defence * scale * power / c.value.power_ref * rep_factor(w, ch)});
     }
 
     // Static defence (MIL-5), bought in units of value.security_share of monthly income,
@@ -179,7 +191,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     // spent a third of their income on guns and fell into debt).
     Option security;
     security.d = d_gov;
-    const double security_unit = c.value.security_share * income;
+    const double security_unit = c.value.security_share * scale;
     for (int k = 0; k < 64 && security_unit > 0; ++k) {
         security.units.push_back({security_unit * pressure, guard * c.value.security_ratio * security_unit});
     }
@@ -190,7 +202,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     Option policing;
     policing.d = d_gov;
     if (!p.pirate && p.contraband_avg > 0) {
-        const double harm = income * c.pop.contraband_penalty * p.contraband_avg * c.sus.police_effect;
+        const double harm = scale * c.pop.contraband_penalty * p.contraband_avg * c.sus.police_effect;
         for (int k = 0; k < 16; ++k) policing.units.push_back({c.value.security_unit * pressure, harm});
     }
 
@@ -202,7 +214,7 @@ void weekly(World& w, Id planet, Observer* observer) {
     if (c.spy.enabled && !p.pirate && !enemies.empty()) {
         spy_people = spies::employed(w, gov);
         for (Id id : spies::candidates(w, planet)) spy_people.push_back(id);
-        for (std::size_t i = 0; i < spy_people.size(); ++i) spying.units.push_back({c.spy.salary * pressure, c.spy.value * income * threat});
+        for (std::size_t i = 0; i < spy_people.size(); ++i) spying.units.push_back({c.spy.salary * pressure, c.spy.value * scale * threat});
     }
 
     // An invasion, at war or facing a pirate planet (SYS-13): one unit for the best target.

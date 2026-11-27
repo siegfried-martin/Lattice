@@ -167,6 +167,7 @@ void validate(const Config& c) {
 
     require(c.econ.tax >= 0 && c.econ.tax < 1, "econ.tax must be 0 to 1");
     non_negative(c.econ.grant, "econ.grant");
+    non_negative(c.econ.grant_per_capita, "econ.grant_per_capita");
     non_negative(c.econ.credit_limit, "econ.credit_limit");
     non_negative(c.econ.luxury_credit, "econ.luxury_credit");
     non_negative(c.econ.op_base, "econ.op_base");
@@ -175,6 +176,7 @@ void validate(const Config& c) {
     non_negative(c.pop.growth_rate, "pop.growth_rate");
     share(c.pop.shrink_rate, "pop.shrink_rate");
     positive(c.pop.full_excess, "pop.full_excess");
+    non_negative(c.pop.crowding, "pop.crowding");
     non_negative(c.pop.growth_factor_min, "pop.growth_factor_min");
     require(c.pop.growth_factor_max >= c.pop.growth_factor_min, "pop.growth_factor_max must be at least pop.growth_factor_min");
     non_negative(c.rebel.scale, "rebel.scale");
@@ -348,6 +350,7 @@ void validate(const Config& c) {
     positive(c.budget.reserve_months, "budget.reserve_months");
     non_negative(c.budget.hoard, "budget.hoard");
     non_negative(c.budget.hoard_cap, "budget.hoard_cap");
+    non_negative(c.budget.drawdown_months, "budget.drawdown_months");
     positive(c.value.security_share, "value.security_share");
     non_negative(c.value.security_ratio, "value.security_ratio");
     non_negative(c.dip.s_months, "dip.s_months");

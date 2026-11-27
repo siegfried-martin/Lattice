@@ -114,8 +114,15 @@ costs it; munitions aren't charged until bounties show whether they're needed.
 with commanders. Munitions are charged, kept small: about a tenth of a month's stipend a
 battle.)
 
-*(later)* Munitions, ships and equipment come into the supply chain (PRD-13); the
-player's missiles are finite in a magazine and restock depends on a planet's stock.
+*(proposed, money round part 6: built)* **Ships and munitions are parts** (PRD-1,
+ECO-6). A ship is worth its price in parts at their base price, a refill its cost: the
+buyer pays the planet it's at for them, at that planet's price and tax, and pays the
+insurance premium (CHR-21) on top. What the planet's stock lacks is rushed in at
+`price.max` of the base price, a sink, so a fleet refits where parts are stocked. A
+yard's sales raise its parts reserve, so it bids for more.
+
+*(later)* Equipment comes into the supply chain (PRD-13); the player's missiles are
+finite in a magazine and restock depends on a planet's stock.
 
 ### MIL-5 Planetary defence `v1`
 
@@ -129,6 +136,11 @@ ship in range) and a **security force**.
   and guns. Ships destroyed and planets lost are where that money finally leaves. The
   share of income spent depends on threat, reserves and the ruler's boldness, not on how
   rich the planet is (round 3: valued by income, the richest overspent into debt).
+- *(proposed, money round part 6: built)* **Security runs on parts.** The month's
+  security spending buys parts at the planet's own price, drawn from its stock a day at
+  a time; the treasury pays only to restock them. Dear parts buy less defence, and a
+  planet without them lets its defence run down. A rich planet's spending on defence
+  becomes income for the planets that make parts.
 - **Routine patrols are procedurally generated**, not characters. The planet's patrol
   upkeep (ECO-4) is the budget line that sets how strong they are.
 - **Planets may post paid security missions** for the player and NPCs.

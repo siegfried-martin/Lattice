@@ -14,10 +14,15 @@ form. The formulas are in `sim/systems.md` (SYS-1 to SYS-4).
   are is flavour; the names are placeholders (OPN-35).
 - **Contraband:** one good, a luxury that gives more happiness and carries a
   productivity penalty (PRD-6).
+- *(proposed, money round part 6: built)* **Parts:** one materiel good, never eaten.
+  Ships and munitions are bought as parts (MIL-4), and planetary security draws on them
+  (MIL-5). A planet holds a reserve of the parts it uses, plus a little per head
+  (`good.parts.consumption`), so a planet that spends on defence or sells ships bids for
+  them. At least `gen.min_producers` planets in the world make parts at medium or better
+  (PRD-8). Parts are bought only out of a treasury in the black, like luxuries (ECO-8).
 
-Industrial and military goods have no buyer in v1 (munitions, ships and equipment are
-sinks, ECO-6; fuel has a fixed price, ECO-11), so they wait for the full supply chain
-(PRD-13).
+Other industrial goods have no buyer in v1 (equipment is a sink, ECO-6; fuel has a
+fixed price, ECO-11), so they wait for the full supply chain (PRD-13).
 
 *Why:* the smallest list that exercises shortages, comparative advantage, luxuries and
 smuggling. *(Round 3)* Three luxuries were too few: nearly every planet made one, so
@@ -36,6 +41,12 @@ and how much labour it has.
 - **A population missing any of the three slowly shrinks.** Never a sudden die-off.
 - *(proposed)* **Hunger hurts happiness:** a shortfall pulls happiness down, and a
   miserable population may rebel (ECO-13).
+- *(proposed, money round part 6: built)* **Size wastes life support.** Each head uses
+  (1 + (N ÷ `pop.crowding`)²) times the base consumption: small planets barely, big ones
+  a lot. A crowded planet needs more food per person and its growth stops where production and imports can't keep up. "I
+  will need another mechanic to show waste with large populations so they don't grow
+  infinitely." This answers OPN-38 (retired) in another form: use per head rises rather
+  than output per head falling.
 - *(proposed, round 3)* **Happiness scales growth:** unhappiness slows growth, more the
   unhappier, with diminishing effect. Happiness above neutral may speed it a little
   (off to start).
@@ -90,8 +101,7 @@ returns: the first steps away from neutral count most.
   isn't a death spiral. Poor planets differ in how poor they are.
 - What pulls a poor planet back up: cheap exports that draw merchants, its liege's
   patronage, labour shifting to what sells, and recovery toward its target once fed.
-  *(open)* A stronger stabiliser, output per head that falls a little as a population
-  grows, is held in reserve (OPN-38).
+  *(money round part 6)* A stronger stabiliser, the waste of size, is built (PRD-2).
 
 ### PRD-6 Contraband `v1`
 
@@ -188,7 +198,8 @@ translate to more supply and lower price."
 At world build, every good has **at least two or three producers per culture region**.
 *(proposed, round 3)* That holds for life support. A luxury is guaranteed producers only
 across its home regions together, and a fringe luxury across the fringe, so luxuries
-have to be carried.
+have to be carried. *(proposed, money round part 6)* Parts are guaranteed across the
+whole world.
 The guarantee is per region, not per faction, because factions move and regions don't. A
 faction can still lose a good by losing territory; that's the cost of losing it.
 

@@ -77,11 +77,13 @@ void monthly(World& w, Id planet, Observer* observer) {
     w.ledger.maintenance += upkeep;
     w.ledger.money_sunk += upkeep;
 
-    // Security (ECO-4, MIL-5): patrols and static defence, a sink.
-    p.treasury -= p.security + p.policing;
+    // Security (ECO-4, MIL-5): patrols and static defence run on parts, drawn from stock
+    // each day (SYS-1), so they cost the treasury what it pays to restock them; policing
+    // is a sink.
+    p.treasury -= p.policing;
     w.ledger.security += p.security;
     w.ledger.policing += p.policing;
-    w.ledger.money_sunk += p.security + p.policing;
+    w.ledger.money_sunk += p.policing;
     p.month_military += p.security;
 
     fealty::pay_tribute(w, planet, observer);
